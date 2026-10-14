@@ -401,6 +401,41 @@ void main() {
     await _pressCtrl(tester, LogicalKeyboardKey.keyC);
     expect(copied, ['bc']);
   });
+
+  testWidgets('搜索框留在页面作用域焦点历史里时，右键重命名的分类输入框仍直接可输入', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _TestTagLibraryPageNotifier.new);
+    final search = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(TagLibraryToolbar),
+        matching: find.byType(EditableText),
+      ),
+    );
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    // 外壳切回分支时只聚焦输入框所在作用域，输入框仍是该作用域记住的子节点
+    search.focusNode.enclosingScope!.requestScopeFocus();
+    await tester.pump();
+
+    await tester.tap(
+      find.text('测试类别'),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重命名').last);
+    await tester.pumpAndSettle();
+
+    final rename = tester.widget<EditableText>(
+      find.byWidgetPredicate(
+        (widget) => widget is EditableText && widget.controller.text == '测试类别',
+      ),
+    );
+    expect(rename.focusNode.hasPrimaryFocus, isTrue);
+    tester.testTextInput.enterText('新类别');
+    await tester.pump();
+    expect(rename.controller.text, '新类别');
+    expect(search.controller.text, isEmpty);
+  });
 }
 
 Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {

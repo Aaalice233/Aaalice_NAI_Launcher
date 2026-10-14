@@ -7,6 +7,7 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../common/context_menu_anchor.dart';
+import '../common/focus_on_appear.dart';
 import '../common/surface_ink_well.dart';
 import '../common/themed_input.dart';
 import '../../utils/gallery_drop_reader.dart';
@@ -599,21 +600,22 @@ class _AlbumItemState extends State<_AlbumItem> {
         const SizedBox(width: 8),
         Expanded(
           child: _isEditing
-              ? ThemedInput(
-                  controller: _editController,
-                  autofocus: true,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
+              ? FocusOnAppear(
+                  child: ThemedInput(
+                    controller: _editController,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onSubmitted: (value) {
+                      if (value.trim().isNotEmpty) {
+                        widget.onRename?.call(value.trim());
+                      }
+                      setState(() => _isEditing = false);
+                    },
+                    onTapOutside: (_) => setState(() => _isEditing = false),
                   ),
-                  onSubmitted: (value) {
-                    if (value.trim().isNotEmpty) {
-                      widget.onRename?.call(value.trim());
-                    }
-                    setState(() => _isEditing = false);
-                  },
-                  onTapOutside: (_) => setState(() => _isEditing = false),
                 )
               : Text(
                   widget.label,
