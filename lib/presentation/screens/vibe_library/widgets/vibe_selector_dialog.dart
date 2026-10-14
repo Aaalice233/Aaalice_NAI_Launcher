@@ -11,6 +11,7 @@ import '../../../../data/services/vibe_file_storage_service.dart';
 import '../../../../presentation/providers/vibe_library_provider.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/horizontal_segmented_control.dart';
+import '../../../widgets/common/menu_action_label.dart';
 import '../../../widgets/common/decoded_memory_image.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 import 'vibe_card.dart';
@@ -658,6 +659,11 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
       VibeSourceType.naiv4vibebundle: Colors.orange,
       VibeSourceType.rawImage: Colors.purple,
     };
+    final selectedMark = Icon(
+      Icons.check,
+      size: 18,
+      color: theme.colorScheme.primary,
+    );
 
     return PopupMenuButton<VibeSourceType?>(
       offset: const Offset(0, 36),
@@ -665,15 +671,10 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
       itemBuilder: (context) => [
         PopupMenuItem(
           value: null,
-          child: Row(
-            children: [
-              const SizedBox(width: 8),
-              Text(context.l10n.vibeSelectorFilterSourceAll),
-              if (_selectedSourceType == null) ...[
-                const Spacer(),
-                Icon(Icons.check, size: 18, color: theme.colorScheme.primary),
-              ],
-            ],
+          child: MenuActionLabel(
+            leading: const SizedBox.shrink(),
+            label: context.l10n.vibeSelectorFilterSourceAll,
+            trailing: _selectedSourceType == null ? selectedMark : null,
           ),
         ),
         const PopupMenuDivider(),
@@ -681,23 +682,14 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
           final color = colorMap[type] ?? theme.colorScheme.primary;
           return PopupMenuItem(
             value: type,
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(context.vibeSourceTypeLabel(type)),
-                if (_selectedSourceType == type) ...[
-                  const Spacer(),
-                  Icon(Icons.check, size: 18, color: theme.colorScheme.primary),
-                ],
-              ],
+            child: MenuActionLabel(
+              leading: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              label: context.vibeSourceTypeLabel(type),
+              trailing: _selectedSourceType == type ? selectedMark : null,
             ),
           );
         }),
@@ -738,18 +730,15 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
         final isSelected = _sortOrder == order;
         return PopupMenuItem(
           value: order,
-          child: Row(
-            children: [
-              Text(sortLabelMap[order]!),
-              if (isSelected) ...[
-                const Spacer(),
-                Icon(
-                  _sortDescending ? Icons.arrow_downward : Icons.arrow_upward,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-              ],
-            ],
+          child: MenuActionLabel(
+            label: sortLabelMap[order]!,
+            trailing: isSelected
+                ? Icon(
+                    _sortDescending ? Icons.arrow_downward : Icons.arrow_upward,
+                    size: 16,
+                    color: theme.colorScheme.primary,
+                  )
+                : null,
           ),
         );
       }).toList(),

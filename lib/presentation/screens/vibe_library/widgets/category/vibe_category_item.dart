@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
 import '../../../../widgets/common/inline_rename_field.dart';
+import '../../../../widgets/common/menu_action_label.dart';
 import '../../../../widgets/common/library_classification_drag.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
 import '../../../../adaptive/interaction_policy.dart';
@@ -263,41 +264,26 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                 }
               });
             },
-            child: Row(
-              children: [
-                const Icon(Icons.edit, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.common_rename),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.edit),
+              label: context.l10n.common_rename,
             ),
           ),
         if (widget.onAddSubCategory != null)
           PopupMenuItem(
             onTap: widget.onAddSubCategory,
-            child: Row(
-              children: [
-                const Icon(Icons.create_new_folder, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.vibeLibrary_newSubCategory),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.create_new_folder),
+              label: context.l10n.vibeLibrary_newSubCategory,
             ),
           ),
         if (widget.onDelete != null)
           PopupMenuItem(
             onTap: widget.onDelete,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.delete,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.common_delete,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.delete),
+              label: context.l10n.common_delete,
+              destructive: true,
             ),
           ),
       ],

@@ -12,7 +12,9 @@ import '../common/translated_tag_text.dart';
 import '../../themes/prompt_semantic_colors.dart';
 import 'prompt_control_button.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
+import '../common/menu_action_label.dart';
 import 'components/library_entry_menu_item.dart';
+import 'components/preset_option_menu_label.dart';
 
 /// 质量词选择器组件
 ///
@@ -188,22 +190,7 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
       items.add(
         PopupMenuItem<String>(
           value: 'nai_tier_$tier',
-          child: Row(
-            children: [
-              if (selected)
-                Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-              else
-                const SizedBox(width: 16),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  color: selected ? theme.colorScheme.primary : null,
-                ),
-              ),
-            ],
-          ),
+          child: PresetOptionMenuLabel(label: label, selected: selected),
         ),
       );
     }
@@ -212,25 +199,9 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     items.add(
       PopupMenuItem<String>(
         value: 'none',
-        child: Row(
-          children: [
-            if (state.mode == PromptPresetMode.none)
-              Icon(Icons.check, size: 16, color: theme.colorScheme.primary)
-            else
-              const SizedBox(width: 16),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.qualityTags_none,
-              style: TextStyle(
-                fontWeight: state.mode == PromptPresetMode.none
-                    ? FontWeight.w600
-                    : FontWeight.normal,
-                color: state.mode == PromptPresetMode.none
-                    ? theme.colorScheme.primary
-                    : null,
-              ),
-            ),
-          ],
+        child: PresetOptionMenuLabel(
+          label: context.l10n.qualityTags_none,
+          selected: state.mode == PromptPresetMode.none,
         ),
       ),
     );
@@ -242,15 +213,11 @@ class _QualityTagsSelectorState extends ConsumerState<QualityTagsSelector> {
     items.add(
       PopupMenuItem<String>(
         value: 'add_from_library',
-        child: Row(
-          children: [
-            Icon(Icons.add, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.qualityTags_addFromLibrary,
-              style: TextStyle(color: theme.colorScheme.primary),
-            ),
-          ],
+        child: MenuActionLabel(
+          leading: const Icon(Icons.add),
+          label: context.l10n.qualityTags_addFromLibrary,
+          color: theme.colorScheme.primary,
+          iconSize: 16,
         ),
       ),
     );

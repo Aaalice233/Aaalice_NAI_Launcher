@@ -15,6 +15,7 @@ import '../../providers/image_generation_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../common/app_toast.dart';
 import '../common/ink_host.dart';
+import '../common/menu_action_label.dart';
 import '../tag_library/tag_library_picker_dialog.dart';
 import 'add_to_library_dialog.dart';
 import 'character_position_canvas.dart';
@@ -683,12 +684,11 @@ class _AddCharacterChip extends ConsumerWidget {
   }
 
   Widget _menuRow(IconData icon, String label, Color color) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Text(label),
-      ],
+    return MenuActionLabel(
+      leading: Icon(icon),
+      label: label,
+      iconColor: color,
+      gap: 10,
     );
   }
 

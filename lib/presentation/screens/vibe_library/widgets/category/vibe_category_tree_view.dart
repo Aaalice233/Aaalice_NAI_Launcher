@@ -8,6 +8,7 @@ import '../../../../../data/models/vibe/vibe_library_entry.dart';
 import '../../../../widgets/common/library_classification_drag.dart';
 import '../../../../providers/vibe_library_provider.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
+import '../../../../widgets/common/menu_action_label.dart';
 import '../../../../widgets/gallery/gallery_album_tree_view.dart';
 import '../../../../widgets/gallery/gallery_sidebar.dart';
 import 'vibe_category_item.dart';
@@ -189,12 +190,9 @@ class VibeCategoryTreeView extends ConsumerWidget {
       items: [
         PopupMenuItem<void>(
           onTap: onCreateCategory,
-          child: Row(
-            children: [
-              const Icon(Icons.add, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.tagLibrary_newCategory),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.add),
+            label: context.l10n.tagLibrary_newCategory,
           ),
         ),
       ],

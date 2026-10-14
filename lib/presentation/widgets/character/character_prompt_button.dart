@@ -1,5 +1,6 @@
 import '../common/delayed_rich_tooltip.dart';
 import '../common/ink_host.dart';
+import '../common/menu_action_label.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -168,12 +169,11 @@ class _AddCharacterMenu extends ConsumerWidget {
   }
 
   Widget _menuRow(IconData icon, String label, Color color) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Text(label),
-      ],
+    return MenuActionLabel(
+      leading: Icon(icon),
+      label: label,
+      iconColor: color,
+      gap: 10,
     );
   }
 
