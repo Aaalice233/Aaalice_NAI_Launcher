@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/online_gallery/danbooru_post.dart';
 import 'online_gallery_detail_launcher.dart';
+import 'online_gallery_refresh_action.dart';
 import 'online_gallery_selection_actions.dart';
 
 /// Typed command surface shared by the shell, toolbar and gallery content.
@@ -11,10 +12,12 @@ class OnlineGalleryScreenCommands {
   const OnlineGalleryScreenCommands({
     required this.detailLauncher,
     required this.selectionActions,
+    required this.refreshAction,
   });
 
   final OnlineGalleryDetailLauncher detailLauncher;
   final OnlineGallerySelectionActions selectionActions;
+  final OnlineGalleryRefreshAction refreshAction;
 
   Future<void> showDetail(BuildContext context, GalleryItem item) =>
       detailLauncher.show(context, item);
@@ -27,4 +30,6 @@ class OnlineGalleryScreenCommands {
   Future<void> addSelectedToQueue() => selectionActions.addSelectedToQueue();
 
   Future<void> favoriteSelected() => selectionActions.favoriteSelected();
+
+  void refresh() => refreshAction();
 }
