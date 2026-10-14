@@ -1,6 +1,7 @@
 // 快捷键UI组件导出文件
 // 统一导出所有快捷键相关的UI组件
 
+export 'fallback_focus_home.dart';
 export 'shortcut_aware_widget.dart';
 export 'shortcut_binding_editor.dart';
 export 'shortcut_help_dialog.dart';
