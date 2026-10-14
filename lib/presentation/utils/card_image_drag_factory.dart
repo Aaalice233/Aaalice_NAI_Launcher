@@ -15,6 +15,7 @@ CardDragResource imageCardDragResource({
   ShareImageTransform? transform,
   Uint8List? bytes,
   String? filePath,
+  File? preparedFile,
   Object? localData,
   AgentChatResourceReference? reference,
 }) {
@@ -39,6 +40,22 @@ CardDragResource imageCardDragResource({
     reference: reference,
     localData: localData,
     format: imageDragFileFormat(outputName),
+    readyFile: () async {
+      if (preparedFile != null && await preparedFile.exists()) {
+        return preparedFile;
+      }
+      if (filePath == null ||
+          filePath.isEmpty ||
+          !ImageShareSanitizer.preservesSourceBytes(
+            fileName,
+            stripMetadata: stripMetadata,
+            transform: transform,
+          )) {
+        return null;
+      }
+      final source = File(filePath);
+      return await source.exists() ? source : null;
+    },
     prepare: () async {
       final original = filePath != null && filePath.isNotEmpty
           ? await File(filePath).readAsBytes()

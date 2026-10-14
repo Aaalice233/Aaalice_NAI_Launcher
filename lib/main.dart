@@ -24,8 +24,10 @@ import 'core/utils/app_error_reporter.dart';
 import 'core/utils/app_locale.dart';
 import 'core/utils/fatal_diagnostics.dart';
 import 'core/utils/app_logger.dart';
+import 'core/utils/drag_export_file_store.dart';
 import 'core/utils/hive_startup_box_opener.dart';
 import 'core/utils/hive_storage_helper.dart';
+import 'core/utils/share_temp_directories.dart';
 import 'core/utils/window_focus_tracker.dart';
 import 'core/utils/windows_clipboard_history_key_fix.dart';
 import 'core/utils/window_state_persistence.dart';
@@ -495,12 +497,15 @@ Future<bool> _initializeSystemTray() async {
   }
 }
 
-void _scheduleDeferredStartup(ProviderContainer container) {
+void _scheduleDeferredStartup(
+  ProviderContainer container,
+  DateTime launchedAt,
+) {
   unawaited(
     InteractiveWorkGate.instance.runWhenIdle(
       minimumDelay: const Duration(seconds: 5),
       priority: InteractiveWorkPriority.maintenance,
-      action: () => _runDeferredStartup(container),
+      action: () => _runDeferredStartup(container, launchedAt),
     ),
   );
   unawaited(
@@ -517,7 +522,10 @@ void _scheduleDeferredStartup(ProviderContainer container) {
   );
 }
 
-Future<void> _runDeferredStartup(ProviderContainer container) async {
+Future<void> _runDeferredStartup(
+  ProviderContainer container,
+  DateTime launchedAt,
+) async {
   await _runNonFatalStartupStep(
     'Legacy gallery album import',
     () => container
@@ -547,6 +555,12 @@ Future<void> _runDeferredStartup(ProviderContainer container) async {
     'Temp files cleanup',
     () => TempImageService().cleanupOldTempFiles(),
   );
+  await _runNonFatalStartupStep('Share temp files cleanup', () async {
+    final removed = await ShareTempDirectories.sweepPreviousRuns(launchedAt);
+    if (removed > 0) {
+      AppLogger.i('Removed $removed share temp entries from earlier runs', 'Main');
+    }
+  });
 }
 
 void main() {
@@ -567,6 +581,8 @@ void main() {
 }
 
 Future<void> _bootstrapApplication() async {
+  // 单实例运行，早于此刻的分享临时文件都属于之前异常退出的进程。
+  final launchedAt = DateTime.now();
   if (const bool.fromEnvironment('ENABLE_FLUTTER_DRIVER')) {
     enableFlutterDriverExtension(enableTextEntryEmulation: false);
   }
@@ -631,13 +647,16 @@ Future<void> _bootstrapApplication() async {
       generationSessionPersistenceEnabledProvider.overrideWithValue(true),
     ],
   );
+  DesktopAppShutdownService.addCleanupHandler(
+    DragExportFileStore.instance.clear,
+  );
   AppLogger.i('Calling runApp; database warmup has not started', 'Main');
   runApp(
     UncontrolledProviderScope(
       container: container,
       child: AppBootstrap(
         onWarmupComplete: () {
-          _scheduleDeferredStartup(container);
+          _scheduleDeferredStartup(container, launchedAt);
         },
       ),
     ),

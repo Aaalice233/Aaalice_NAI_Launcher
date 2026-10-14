@@ -7,11 +7,12 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_png_codec/nai_png_codec.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import 'exif_orientation.dart';
+import 'file_name_sanitizer.dart';
 import 'isolate_pool.dart';
 import 'png_share_source.dart';
+import 'share_temp_directories.dart';
 
 typedef ShareImagePrepareFunction =
     Future<SanitizedShareImage> Function(
@@ -611,7 +612,7 @@ class ImageShareSanitizer {
       );
       return transform.apply(image, stripMetadata: stripMetadata);
     }
-    if (!stripMetadata && _isClipboardFriendly(fileName)) {
+    if (preservesSourceBytes(fileName, stripMetadata: stripMetadata)) {
       return prepareForCopyOrDrag(
         bytes,
         fileName: fileName,
@@ -630,9 +631,18 @@ class ImageShareSanitizer {
     });
   }
 
+  /// Copy and drag hand back the source bytes untouched, so the source file
+  /// itself can stand in for the prepared one.
+  static bool preservesSourceBytes(
+    String fileName, {
+    required bool stripMetadata,
+    ShareImageTransform? transform,
+  }) => transform == null && !stripMetadata && _isClipboardFriendly(fileName);
+
   static Future<File> writeTempShareFile(SanitizedShareImage image) async {
-    final tempDir = await getTemporaryDirectory();
-    final shareDir = Directory(p.join(tempDir.path, 'nai_launcher_share'));
+    final shareDir = await ShareTempDirectories.resolve(
+      ShareTempDirectories.share,
+    );
     if (!await shareDir.exists()) {
       await shareDir.create(recursive: true);
     }
@@ -644,23 +654,27 @@ class ImageShareSanitizer {
     return file;
   }
 
+  /// One folder per cache key, so receivers see the image's own file name.
   static Future<File> writeCachedShareFile(
     String cacheKey,
     SanitizedShareImage image,
   ) async {
-    final tempDir = await getTemporaryDirectory();
-    final shareDir = Directory(
-      p.join(tempDir.path, 'nai_launcher_share_cache'),
+    final shareDir = await ShareTempDirectories.resolve(
+      ShareTempDirectories.shareCache,
     );
-    if (!await shareDir.exists()) {
-      await shareDir.create(recursive: true);
-    }
-
     final safeKey = cacheKey.replaceAll(RegExp(r'[^A-Za-z0-9_.-]+'), '_');
+    final folder = Directory(p.join(shareDir.path, safeKey));
+    await folder.create(recursive: true);
+
     final extension = p.extension(image.fileName).isEmpty
         ? '.png'
         : p.extension(image.fileName).toLowerCase();
-    final target = File(p.join(shareDir.path, '$safeKey$extension'));
+    final target = File(
+      p.join(
+        folder.path,
+        FileNameSanitizer.shareName(p.setExtension(image.fileName, extension)),
+      ),
+    );
     final temporary = File('${target.path}.tmp');
 
     await temporary.writeAsBytes(image.bytes);

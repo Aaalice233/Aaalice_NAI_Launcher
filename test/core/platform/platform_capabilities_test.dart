@@ -56,6 +56,25 @@ void main() {
       );
     });
 
+    test('Windows never exports dragged files as virtual streams', () {
+      expect(
+        {
+          for (final platform in TargetPlatform.values)
+            platform: PlatformCapabilities.forPlatform(
+              platform,
+            ).dragFileExportMode,
+        },
+        {
+          TargetPlatform.android: DragFileExportMode.preparedFile,
+          TargetPlatform.fuchsia: DragFileExportMode.preparedFile,
+          TargetPlatform.iOS: DragFileExportMode.virtualFile,
+          TargetPlatform.linux: DragFileExportMode.preparedFile,
+          TargetPlatform.macOS: DragFileExportMode.virtualFile,
+          TargetPlatform.windows: DragFileExportMode.onDemandFile,
+        },
+      );
+    });
+
     test('current honors an isolated capability override', () {
       PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
         TargetPlatform.windows,

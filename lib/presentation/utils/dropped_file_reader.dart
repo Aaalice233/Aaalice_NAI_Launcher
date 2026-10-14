@@ -8,6 +8,7 @@ import 'package:super_clipboard/super_clipboard.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../../core/utils/isolate_pool.dart';
+import '../../core/utils/share_temp_directories.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import 'dropped_data_request.dart';
 
@@ -270,11 +271,12 @@ class DroppedFileReader {
         return null;
       }
 
+      final transient = ShareTempDirectories.isTransient(filePath);
       return DroppedFileData(
         fileName: result.fileName,
         bytes: result.bytes,
-        sourceUri: uri,
-        sourcePath: filePath,
+        sourceUri: transient ? null : uri,
+        sourcePath: transient ? null : filePath,
       );
     } catch (e) {
       AppLogger.w('Failed to resolve dropped local file URI: $e', logTag);

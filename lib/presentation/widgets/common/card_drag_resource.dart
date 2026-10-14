@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/isolate_pool.dart';
 
 /// The reference stays lightweight; exporting belongs to the resource owner.
 class CardDragResource {
@@ -15,7 +18,10 @@ class CardDragResource {
     this.localData,
     this.format,
     this.prepare,
+    this.readyFile,
   });
+
+  static const _payloadIdKey = 'cardDragId';
 
   final String id;
   final String fileName;
@@ -24,11 +30,19 @@ class CardDragResource {
   final FileFormat? format;
   final Future<Uint8List> Function()? prepare;
 
+  /// An existing file whose bytes equal what [prepare] would produce; handing
+  /// out its path skips preparation entirely.
+  final Future<File?> Function()? readyFile;
+
+  /// Whether a drop item's local data came from a card drag of this app.
+  static bool isPayload(Object? localData) =>
+      localData is Map && localData.containsKey(_payloadIdKey);
+
   Object? get payload {
     final original = localData;
     return {
       if (original is Map) ...original,
-      'cardDragId': id,
+      _payloadIdKey: id,
       if (reference != null)
         'cardResource': AgentChatResourceReferenceCodec.encodeJson(reference!),
     };
@@ -54,10 +68,23 @@ class CardDragPreparation {
   Future<List<Uint8List?>> _prepareAll() async {
     onStarted?.call();
     try {
-      final result = <Uint8List?>[];
-      for (final resource in resources) {
-        result.add(await resource.prepare?.call());
+      final result = List<Uint8List?>.filled(resources.length, null);
+      var next = 0;
+      Future<void> worker() async {
+        while (next < resources.length) {
+          final index = next++;
+          result[index] = await resources[index].prepare?.call();
+        }
       }
+
+      // Isolate work is gated anyway; more workers only hold more originals.
+      final workers = math.min(
+        resources.length,
+        ComputeGate().maxConcurrentTasks,
+      );
+      await Future.wait([
+        for (var i = 0; i < workers; i++) worker(),
+      ], eagerError: true);
       return List.unmodifiable(result);
     } finally {
       onFinished?.call();

@@ -2,7 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/utils/share_temp_directories.dart';
 import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../helpers/shared_compute_gate.dart';
@@ -256,7 +259,42 @@ void main() {
       expect(result?.bytes, bytes);
       expect(result?.sourcePath, file.path);
     });
+
+    test('a file the launcher exported is read without a source', () async {
+      final directory = await Directory.systemTemp.createTemp('drop-export-');
+      addTearDown(() => directory.delete(recursive: true));
+      final original = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _TemporaryPathProvider(directory.path);
+      addTearDown(() => PathProviderPlatform.instance = original);
+      final exports = await ShareTempDirectories.resolve(
+        ShareTempDirectories.dragExport,
+      );
+      final bytes = buildNovelAiWebpFixture(
+        comment: const {'prompt': 'exported fixture'},
+      );
+      final file = File(p.join(exports.path, 'run_a', 'item_a', 'drop.webp'));
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes);
+
+      final result = await DroppedFileReader.read(
+        _FileUriDataReader(file.uri),
+        allowRemoteImages: false,
+      );
+
+      expect(result?.bytes, bytes);
+      expect(result?.sourcePath, isNull);
+      expect(result?.sourceUri, isNull);
+    });
   });
+}
+
+class _TemporaryPathProvider extends PathProviderPlatform {
+  _TemporaryPathProvider(this.temporaryPath);
+
+  final String temporaryPath;
+
+  @override
+  Future<String?> getTemporaryPath() async => temporaryPath;
 }
 
 Future<HttpServer> _startImageServer(Uint8List bytes) async {

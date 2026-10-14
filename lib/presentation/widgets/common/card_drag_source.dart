@@ -1,19 +1,17 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-import '../../../core/agent/resources/agent_chat_resource_drag_format.dart';
-import '../../../core/utils/image_share_sanitizer.dart';
+import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/interaction_policy.dart';
-import '../../utils/card_drag_format.dart';
-import '../gallery/gallery_drag_file.dart';
 import '../gallery/gallery_drag_session.dart';
+import 'card_drag_exit_watcher.dart';
+import 'card_drag_item.dart';
 import 'card_drag_resource.dart';
-import 'card_virtual_file.dart';
 import 'app_toast.dart';
 import 'image_hover_preview_controller.dart';
 
@@ -103,6 +101,8 @@ class _CardDragSourceState extends State<CardDragSource> {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     final errorLabel = context.l10n.common_error;
     final l10n = context.l10n;
+    final view = View.of(context);
+    final exportMode = PlatformCapabilities.current.dragFileExportMode;
     final source = widget.resource();
     final scope = CardDragScope.maybeOf(context);
     final snapshot = List<CardDragResource>.unmodifiable(
@@ -115,14 +115,24 @@ class _CardDragSourceState extends State<CardDragSource> {
         snapshot.length) {
       throw StateError('Duplicate resource identities in drag snapshot');
     }
+    final readyFiles = await Future.wait([
+      for (final resource in snapshot)
+        resource.readyFile?.call() ?? Future<File?>.value(),
+    ]);
+    final exportSlots = <int, int>{};
+    for (var index = 0; index < snapshot.length; index++) {
+      if (cardDragNeedsExport(snapshot[index], readyFiles[index])) {
+        exportSlots[index] = exportSlots.length;
+      }
+    }
     ToastController? preparationToast;
     final preparation = CardDragPreparation(
-      snapshot,
+      [for (final index in exportSlots.keys) snapshot[index]],
       onStarted: () {
         if (overlay?.mounted == true) {
           preparationToast = AppToast.showProgressOnOverlay(
             overlay,
-            l10n.cardDrag_preparingCount(snapshot.length),
+            l10n.cardDrag_preparingCount(exportSlots.length),
           );
         }
       },
@@ -138,42 +148,27 @@ class _CardDragSourceState extends State<CardDragSource> {
 
     final items = <DragItem>[];
     for (var index = 0; index < snapshot.length; index++) {
-      final resource = snapshot[index];
-      final item = DragItem(
-        suggestedName: resource.fileName,
-        localData: resource.payload,
+      final slot = exportSlots[index];
+      items.add(
+        await buildCardDragItem(
+          snapshot[index],
+          readyFile: readyFiles[index],
+          bytes: slot == null ? null : () => preparation.bytesAt(slot),
+          reportFailure: reportFailure,
+          exportMode: exportMode,
+        ),
       );
-      item.add(cardDragFormat(jsonEncode(resource.payload)));
-      final reference = resource.reference;
-      if (reference != null) addAgentResourceDragPayload(item, reference);
-      final format = resource.format;
-      if (format != null && resource.prepare != null) {
-        if (item.virtualFileSupported) {
-          final resourceIndex = index;
-          addCardVirtualFile(
-            item,
-            format: format,
-            prepare: () => preparation.bytesAt(resourceIndex),
-            reportFailure: reportFailure,
-          );
-        } else {
-          final bytes = await preparation.bytesAt(index);
-          final transfer = GalleryDragFile(
-            item: item,
-            session: request.session,
-          );
-          final ready = await transfer.addImage(
-            SanitizedShareImage(
-              bytes: bytes,
-              fileName: resource.fileName,
-              mimeType: 'application/octet-stream',
-            ),
-            format: format,
-          );
-          if (!ready) return null;
-        }
-      }
-      items.add(item);
+    }
+    if (exportMode == DragFileExportMode.onDemandFile &&
+        exportSlots.isNotEmpty) {
+      // In-app drops never need the files; start once the cursor leaves.
+      CardDragExitWatcher(
+        session: request.session,
+        startLocation: request.location,
+        devicePixelRatio: view.devicePixelRatio,
+        physicalSize: view.physicalSize,
+        onExit: () => preparation.prepare().ignore(),
+      );
     }
     _items = items;
     if (mounted) _dragging.track(request.session);
