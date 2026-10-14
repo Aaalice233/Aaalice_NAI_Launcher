@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/interaction/user_question.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/user_question_flow.dart';
+import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 
 import '../../../fixtures/user_questions.dart';
 
@@ -190,4 +195,73 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('页面快捷键锚点持有焦点时，自定义回答输入框出现即可输入', (tester) async {
+    tester.view.physicalSize = const Size(1180, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const page = ValueKey('page');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          shortcutConfigNotifierProvider.overrideWith(
+            _DefaultShortcutConfigNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: Scaffold(
+            // 与生成页停靠的智能体面板一致：和页面锚点同处一个路由作用域
+            body: Row(
+              children: [
+                Expanded(
+                  child: PageShortcuts(
+                    contextType: ShortcutContext.generation,
+                    shortcuts: {ShortcutIds.generateImage: () {}},
+                    child: const SizedBox.expand(key: page),
+                  ),
+                ),
+                SizedBox(
+                  width: 420,
+                  child: UserQuestionFlow(
+                    questions: testQuestions(),
+                    expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+                    onSubmit: (_) {},
+                    onCancel: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(Focus.of(tester.element(find.byKey(page))).hasPrimaryFocus, isTrue);
+
+    await tapVisible(
+      tester,
+      find.byKey(const ValueKey('user-question-custom-option')),
+    );
+    await tester.pump();
+
+    final input = find.descendant(
+      of: find.byKey(const ValueKey('user-question-custom-input')),
+      matching: find.byType(EditableText),
+    );
+    expect(
+      tester.widget<EditableText>(input).focusNode.hasPrimaryFocus,
+      isTrue,
+    );
+    tester.testTextInput.enterText('保留角色特征');
+    await tester.pump();
+    expect(tester.widget<EditableText>(input).controller.text, '保留角色特征');
+  });
+}
+
+class _DefaultShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
 }

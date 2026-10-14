@@ -7,6 +7,7 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
+import '../../../widgets/common/focus_on_appear.dart';
 import '../../../widgets/common/library_classification_drag.dart';
 import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/gallery/gallery_album_tree_view.dart';
@@ -444,23 +445,24 @@ class _CategoryItemState extends State<_CategoryItem> {
                     // 名称
                     Expanded(
                       child: _isEditing
-                          ? ThemedInput(
-                              controller: _editController,
-                              autofocus: true,
-                              style: const TextStyle(fontSize: 13),
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
+                          ? FocusOnAppear(
+                              child: ThemedInput(
+                                controller: _editController,
+                                style: const TextStyle(fontSize: 13),
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                onSubmitted: (value) {
+                                  if (value.trim().isNotEmpty) {
+                                    widget.onRename?.call(value.trim());
+                                  }
+                                  setState(() => _isEditing = false);
+                                },
+                                onTapOutside: (_) {
+                                  setState(() => _isEditing = false);
+                                },
                               ),
-                              onSubmitted: (value) {
-                                if (value.trim().isNotEmpty) {
-                                  widget.onRename?.call(value.trim());
-                                }
-                                setState(() => _isEditing = false);
-                              },
-                              onTapOutside: (_) {
-                                setState(() => _isEditing = false);
-                              },
                             )
                           : Text(
                               widget.label,
