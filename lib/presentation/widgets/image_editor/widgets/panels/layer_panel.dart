@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart'
     show WebViewEnvironment;
@@ -462,6 +463,10 @@ class _LayerTileState extends State<_LayerTile>
     with AutomaticKeepAliveClientMixin {
   bool _isEditing = false;
   late TextEditingController _nameController;
+  late final FocusNode _nameFocusNode = FocusNode(
+    debugLabel: 'LayerRename',
+    onKeyEvent: _handleNameKeyEvent,
+  );
 
   @override
   bool get wantKeepAlive => true;
@@ -471,6 +476,30 @@ class _LayerTileState extends State<_LayerTile>
     super.initState();
     _nameController = TextEditingController(text: widget.layer.name);
   }
+
+  // Esc 在此消费，不能冒泡给外层面板或页面的 Esc 绑定
+  KeyEventResult _handleNameKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      _stopEditing();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  // 每次进入都从当前名称开始，取消或空名留下的草稿随之丢弃
+  void _startEditing() {
+    _nameController.text = widget.layer.name;
+    setState(() => _isEditing = true);
+  }
+
+  void _commitEditing(String value) {
+    final name = value.trim();
+    if (name.isNotEmpty) widget.onRename(name);
+    _stopEditing();
+  }
+
+  void _stopEditing() => setState(() => _isEditing = false);
 
   @override
   void didUpdateWidget(_LayerTile oldWidget) {
@@ -483,6 +512,7 @@ class _LayerTileState extends State<_LayerTile>
 
   @override
   void dispose() {
+    _nameFocusNode.dispose();
     _nameController.dispose();
     super.dispose();
   }
@@ -545,6 +575,7 @@ class _LayerTileState extends State<_LayerTile>
                       ? FocusOnAppear(
                           child: ThemedInput(
                             controller: _nameController,
+                            focusNode: _nameFocusNode,
                             style: theme.textTheme.bodySmall,
                             decoration: const InputDecoration(
                               isDense: true,
@@ -553,22 +584,14 @@ class _LayerTileState extends State<_LayerTile>
                                 vertical: 4,
                               ),
                             ),
-                            onSubmitted: (value) {
-                              widget.onRename(value);
-                              setState(() => _isEditing = false);
-                            },
-                            onEditingComplete: () {
-                              widget.onRename(_nameController.text);
-                              setState(() => _isEditing = false);
-                            },
+                            onSubmitted: _commitEditing,
+                            onTapOutside: (_) => _stopEditing(),
                           ),
                         )
                       : GestureDetector(
                           // 3D 图层(onDoubleTap 非空)双击名字进入 3D 编辑器;
                           // 普通图层保留双击重命名。3D 图层仍可经右键菜单重命名。
-                          onDoubleTap:
-                              widget.onDoubleTap ??
-                              () => setState(() => _isEditing = true),
+                          onDoubleTap: widget.onDoubleTap ?? _startEditing,
                           child: Text(
                             widget.layer.name,
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -764,7 +787,7 @@ class _LayerTileState extends State<_LayerTile>
         widget.onLockToggle();
         break;
       case 'rename':
-        setState(() => _isEditing = true);
+        _startEditing();
         break;
       case 'move_up':
         commands.moveUp(widget.layer);
