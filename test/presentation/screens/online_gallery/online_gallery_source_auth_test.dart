@@ -1307,6 +1307,65 @@ void main() {
     expect(selection.selectedIds, hasLength(80));
   });
 
+  testWidgets('日期范围弹层打开即可按 Esc 关闭，日期框失焦后仍可关闭，关闭后页面快捷键可用', (tester) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _ScrollableGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    final popup = find.byKey(const ValueKey('online-gallery-date-range-popup'));
+    Future<void> openPopup() async {
+      await tester.tap(find.byIcon(Icons.date_range));
+      await tester.pumpAndSettle();
+      expect(popup, findsOneWidget);
+    }
+
+    Future<void> pressEscape() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+    }
+
+    await openPopup();
+    await pressEscape();
+    expect(popup, findsNothing);
+
+    await openPopup();
+    final startDate = find
+        .descendant(of: popup, matching: find.byType(EditableText))
+        .first;
+    await tester.tap(startDate, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(
+      tester.widget<EditableText>(startDate).focusNode.hasPrimaryFocus,
+      isTrue,
+    );
+    await tester.tap(
+      find.descendant(of: popup, matching: find.text('Date Range')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    await pressEscape();
+    expect(popup, findsNothing);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    final selection = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    ).read(onlineGallerySelectionNotifierProvider);
+    expect(selection.selectedIds, hasLength(80));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
   testWidgets('favorites source selector switches back to Danbooru', (
     tester,
   ) async {
