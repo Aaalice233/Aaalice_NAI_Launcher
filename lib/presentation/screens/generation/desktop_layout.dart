@@ -184,10 +184,9 @@ class _DesktopGenerationLayoutState
             },
           ),
       ],
-      main: ShortcutAwareWidget(
+      main: PageShortcuts(
         contextType: ShortcutContext.generation,
         shortcuts: _shortcuts,
-        autofocus: true,
         child: MainWorkspace(
           onToggleMaximize: _togglePromptMaximize,
           promptInputController: widget.promptInputController,

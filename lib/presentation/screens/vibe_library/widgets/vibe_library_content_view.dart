@@ -93,6 +93,7 @@ class _VibeLibraryContentViewState
       commands: ref.read(vibeLibrarySelectionNotifierProvider.notifier),
       orderedIds: entries.map((e) => e.id).toList(),
       child: CardSelectionShortcuts(
+        reclaimFallbackFocus: true,
         child: _build3DCardView(state, entries, selectionState, categoryLabels),
       ),
     );

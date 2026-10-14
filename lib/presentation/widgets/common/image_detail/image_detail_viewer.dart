@@ -560,50 +560,58 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     return PageShortcuts(
       contextType: ShortcutContext.viewer,
       shortcuts: shortcuts,
-      child: Focus(
+      reclaimFallbackFocus: false,
+      child: FallbackFocusHome(
         focusNode: _focusNode,
-        onKeyEvent: _handleKeyEvent,
-        child: Scaffold(
-          backgroundColor: ImageViewportSurface.background,
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final showSideMetadata = constraints.maxWidth >= 1100;
-              if (!showSideMetadata || !widget.showMetadataPanel) {
-                return _buildMainContent(
-                  showMetadataAction: widget.showMetadataPanel,
-                );
-              }
-
-              final maximumPanelWidth =
-                  WorkspaceSidePanelContract.constrainedWorkspaceWidth(
-                    workspaceWidth: constraints.maxWidth,
-                    preferredWidth: WorkspaceSidePanelContract.maximumWidth,
-                    occupiedWidth: ResizeHandle.extentOf(context),
-                    minimumPrimaryWidth: _minimumImagePaneWidth,
-                    minimumWidth: _minimumMetadataPanelWidth,
+        child: Focus(
+          focusNode: _focusNode,
+          onKeyEvent: _handleKeyEvent,
+          child: Scaffold(
+            backgroundColor: ImageViewportSurface.background,
+            body: LayoutBuilder(
+              builder: (context, constraints) {
+                final showSideMetadata = constraints.maxWidth >= 1100;
+                if (!showSideMetadata || !widget.showMetadataPanel) {
+                  return _buildMainContent(
+                    showMetadataAction: widget.showMetadataPanel,
                   );
-              return Row(
-                children: [
-                  Expanded(child: _buildMainContent(showMetadataAction: false)),
-                  ResizeHandle(
-                    key: const ValueKey('image-detail-metadata-resize-handle'),
-                    onDrag: (delta) =>
-                        _metadataPanelWidthController.resizeBy(-delta),
-                  ),
-                  ResizablePane(
-                    controller: _metadataPanelWidthController,
-                    minimumWidth: _minimumMetadataPanelWidth,
-                    maximumWidth: maximumPanelWidth,
-                    child: DetailMetadataPanel(
-                      currentImage: _currentImage,
-                      initialExpanded: true,
-                      collapsible: false,
-                      fillAvailableWidth: true,
+                }
+
+                final maximumPanelWidth =
+                    WorkspaceSidePanelContract.constrainedWorkspaceWidth(
+                      workspaceWidth: constraints.maxWidth,
+                      preferredWidth: WorkspaceSidePanelContract.maximumWidth,
+                      occupiedWidth: ResizeHandle.extentOf(context),
+                      minimumPrimaryWidth: _minimumImagePaneWidth,
+                      minimumWidth: _minimumMetadataPanelWidth,
+                    );
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _buildMainContent(showMetadataAction: false),
                     ),
-                  ),
-                ],
-              );
-            },
+                    ResizeHandle(
+                      key: const ValueKey(
+                        'image-detail-metadata-resize-handle',
+                      ),
+                      onDrag: (delta) =>
+                          _metadataPanelWidthController.resizeBy(-delta),
+                    ),
+                    ResizablePane(
+                      controller: _metadataPanelWidthController,
+                      minimumWidth: _minimumMetadataPanelWidth,
+                      maximumWidth: maximumPanelWidth,
+                      child: DetailMetadataPanel(
+                        currentImage: _currentImage,
+                        initialExpanded: true,
+                        collapsible: false,
+                        fillAvailableWidth: true,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),

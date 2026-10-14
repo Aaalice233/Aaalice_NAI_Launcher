@@ -661,9 +661,8 @@ class _VibeDetailViewerState extends ConsumerState<VibeDetailViewer> {
 
     return ColoredBox(
       color: ImageViewportSurface.background,
-      child: ShortcutAwareWidget(
+      child: PageShortcuts(
         contextType: ShortcutContext.vibeDetail,
-        autofocus: true,
         shortcuts: {
           ShortcutIds.vibeDetailSendToGeneration: _sendToGeneration,
           ShortcutIds.vibeDetailExport: _export,

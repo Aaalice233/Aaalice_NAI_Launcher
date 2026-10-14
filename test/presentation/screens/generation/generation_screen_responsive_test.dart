@@ -11,6 +11,7 @@ import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/generation_layout_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/workflow_panel_reveal_provider.dart';
@@ -206,6 +207,58 @@ void main() {
 
     expect(drawer, findsOneWidget);
   });
+
+  for (final mode in GenerationLayoutMode.values) {
+    testWidgets('${mode.name} 布局输入框失焦后焦点回到生成页快捷键锚点', (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.windows,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWith(
+            (ref) => _PromptStateTestStorage(),
+          ),
+          shortcutConfigNotifierProvider.overrideWith(
+            _FakeShortcutConfigNotifier.new,
+          ),
+          generationLayoutModeNotifierProvider.overrideWith(
+            () => _FixedLayoutModeNotifier(mode),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.binding.setSurfaceSize(const Size(1600, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpGeneration(
+        tester,
+        container: container,
+        interactionPolicy: const InteractionPolicy(
+          modality: InteractionModality.pointer,
+          touchAvailable: false,
+          precisePointerAvailable: true,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      const anchorLabel = 'ShortcutAwareWidget(generation)';
+      expect(FocusManager.instance.primaryFocus?.debugLabel, anchorLabel);
+
+      final fieldFocus = tester
+          .widget<EditableText>(find.byType(EditableText).first)
+          .focusNode;
+      fieldFocus.requestFocus();
+      await tester.pump();
+      // 与桌面端点输入框外部的处理一致
+      fieldFocus.unfocus();
+      await tester.pump();
+
+      expect(FocusManager.instance.primaryFocus?.debugLabel, anchorLabel);
+
+      // 提示词 token 计数的 400ms 防抖
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 150));
+    });
+  }
 
   testWidgets('layout state survives the 840 precise-pointer boundary', (
     tester,
@@ -543,6 +596,15 @@ Future<void> _pumpGeneration(
 class _ExpandedFixedTagsLayoutNotifier extends LayoutStateNotifier {
   @override
   LayoutState build() => const LayoutState(fixedTagsSidebarExpanded: true);
+}
+
+class _FixedLayoutModeNotifier extends GenerationLayoutModeNotifier {
+  _FixedLayoutModeNotifier(this.mode);
+
+  final GenerationLayoutMode mode;
+
+  @override
+  GenerationLayoutMode build() => mode;
 }
 
 class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {

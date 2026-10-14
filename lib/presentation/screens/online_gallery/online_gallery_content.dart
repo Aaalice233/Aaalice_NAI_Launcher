@@ -55,6 +55,7 @@ class OnlineGalleryContent extends ConsumerWidget {
             .peekDetail,
       ),
       child: CardSelectionShortcuts(
+        reclaimFallbackFocus: true,
         child: _OnlineGalleryContentPresenter(
           context: context,
           ref: ref,

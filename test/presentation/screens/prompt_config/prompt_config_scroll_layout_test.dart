@@ -276,6 +276,20 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('搜索框失焦后搜索快捷键仍然可用', (tester) async {
+    await _pumpScreen(tester, size: const Size(1180, 900));
+    await _pressFind(tester, LogicalKeyboardKey.controlLeft);
+    expect(_searchFocus(tester).hasPrimaryFocus, isTrue);
+
+    // 与桌面端点输入框外部的处理一致
+    _searchFocus(tester).unfocus();
+    await tester.pumpAndSettle();
+    expect(_searchFocus(tester).hasFocus, isFalse);
+    await _pressFind(tester, LogicalKeyboardKey.controlLeft);
+
+    expect(_searchFocus(tester).hasPrimaryFocus, isTrue);
+  });
+
   for (final locale in ['zh', 'en']) {
     for (final textScale in [1.0, 3.0]) {
       testWidgets('随机词库在 320–1600 宽度、$locale、${textScale}x 文字下无溢出且各分区操作可达', (
