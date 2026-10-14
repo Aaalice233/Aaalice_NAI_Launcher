@@ -10,6 +10,8 @@ download native binaries or sources during a build.
   source files are unchanged. `src/miniz_export.h` configures private linkage.
 - The library is built with native compiler optimization, including in Flutter
   debug mode. The shared library is bundled through Dart code assets.
+- Android and Linux builds link `libm` and pass `-Wl,--no-undefined`, so a
+  missing native dependency fails the build instead of `dlopen` on device.
 
 `sanitizePngPixels` expects the caller to have removed non-rendering ancillary
 chunks and trailing bytes. It decodes without gamma conversion, preserves RGB
