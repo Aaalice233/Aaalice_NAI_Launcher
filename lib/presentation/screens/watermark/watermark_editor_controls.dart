@@ -173,11 +173,15 @@ class WatermarkEditorControls extends StatelessWidget {
           const SizedBox(height: 12),
           ListTile(
             contentPadding: EdgeInsets.zero,
+            enabled: !text.autoTone,
             leading: CircleAvatar(
               backgroundColor: Color(text.colorArgb),
               child: const Icon(Icons.palette_outlined),
             ),
             title: Text(context.l10n.editor_toolColorPicker),
+            subtitle: text.autoTone
+                ? Text(context.l10n.watermark_colorFromAutoTone)
+                : null,
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _pickColor(context, Color(text.colorArgb), (color) {
               onSettingsChanged(
@@ -187,6 +191,18 @@ class WatermarkEditorControls extends StatelessWidget {
               );
             }),
           ),
+          _AutoToneControls(
+            enabled: text.autoTone,
+            contrast: text.toneContrast,
+            hint: context.l10n.watermark_autoToneTextHint,
+            onEnabledChanged: (value) => onSettingsChanged(
+              settings.copyWith(textStyle: text.copyWith(autoTone: value)),
+            ),
+            onContrastChanged: (value) => onSettingsChanged(
+              settings.copyWith(textStyle: text.copyWith(toneContrast: value)),
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             context.l10n.watermark_alignment,
             style: Theme.of(context).textTheme.labelLarge,
@@ -287,6 +303,18 @@ class WatermarkEditorControls extends StatelessWidget {
                   : context.l10n.watermark_chooseLogo,
             ),
           ),
+          const SizedBox(height: 8),
+          _AutoToneControls(
+            enabled: logo.autoTone,
+            contrast: logo.toneContrast,
+            hint: context.l10n.watermark_autoToneLogoHint,
+            onEnabledChanged: (value) => onSettingsChanged(
+              settings.copyWith(logoStyle: logo.copyWith(autoTone: value)),
+            ),
+            onContrastChanged: (value) => onSettingsChanged(
+              settings.copyWith(logoStyle: logo.copyWith(toneContrast: value)),
+            ),
+          ),
         ],
         const SizedBox(height: 12),
         LabeledSliderRows(
@@ -361,7 +389,15 @@ class WatermarkEditorControls extends StatelessWidget {
             }
           },
         ),
-        const SizedBox(height: 12),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(context.l10n.watermark_autoPlacement),
+          subtitle: Text(context.l10n.watermark_autoPlacementHint),
+          value: settings.autoPlacement,
+          onChanged: (value) =>
+              onSettingsChanged(settings.copyWith(autoPlacement: value)),
+        ),
+        const SizedBox(height: 4),
         DropdownButtonFormField<WatermarkLayerArrangement>(
           initialValue: settings.composition.arrangement,
           decoration: _controlDecoration(
@@ -525,6 +561,48 @@ class _WatermarkColorFormState extends State<_WatermarkColorForm> {
       ],
     );
   }
+}
+
+class _AutoToneControls extends StatelessWidget {
+  const _AutoToneControls({
+    required this.enabled,
+    required this.contrast,
+    required this.hint,
+    required this.onEnabledChanged,
+    required this.onContrastChanged,
+  });
+
+  final bool enabled;
+  final double contrast;
+  final String hint;
+  final ValueChanged<bool> onEnabledChanged;
+  final ValueChanged<double> onContrastChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(context.l10n.watermark_autoTone),
+        subtitle: Text(hint),
+        value: enabled,
+        onChanged: onEnabledChanged,
+      ),
+      if (enabled)
+        LabeledSliderRows(
+          sliders: [
+            _ratioSlider(
+              label: context.l10n.watermark_toneContrast,
+              value: contrast,
+              min: 0,
+              max: 1,
+              onChanged: onContrastChanged,
+            ),
+          ],
+        ),
+    ],
+  );
 }
 
 enum WatermarkEditableLayer { text, logo }

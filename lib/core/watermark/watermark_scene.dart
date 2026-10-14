@@ -4,7 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../data/models/watermark/watermark_settings.dart';
+import 'watermark_auto_placement.dart';
 import 'watermark_font_catalog.dart';
+import 'watermark_source_analysis.dart';
+import 'watermark_tone.dart';
 
 enum WatermarkLayoutKind { universal, portrait, square, landscape }
 
@@ -28,6 +31,31 @@ class WatermarkSceneResult {
     }
     return null;
   }
+}
+
+/// 按原图内容得出的自动调整；与画布缩放无关，在原尺寸上判定后可用于任意尺寸的预览
+class WatermarkAutoDecision {
+  const WatermarkAutoDecision({
+    this.mirror = WatermarkMirror.none,
+    this.textTone,
+    this.logoFilter,
+  });
+
+  static const none = WatermarkAutoDecision();
+
+  final WatermarkMirror mirror;
+  final WatermarkTextTone? textTone;
+  final ColorFilter? logoFilter;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WatermarkAutoDecision &&
+      other.mirror == mirror &&
+      other.textTone == textTone &&
+      other.logoFilter == logoFilter;
+
+  @override
+  int get hashCode => Object.hash(mirror, textTone, logoFilter);
 }
 
 class WatermarkScene {
@@ -73,81 +101,172 @@ class WatermarkScene {
     };
   }
 
+  static WatermarkAutoDecision decide({
+    required Size canvasSize,
+    required WatermarkSettings settings,
+    required WatermarkSourceAnalysis analysis,
+    ui.Image? logo,
+    WatermarkLogoLuminance? logoLuminance,
+  }) {
+    if (!settings.usesSourceAnalysis) return WatermarkAutoDecision.none;
+    final layers = _measure(settings, canvasSize, logo);
+    if (layers.isEmpty) return WatermarkAutoDecision.none;
+    WatermarkRegionStats regionOf(Rect bounds) => analysis.regionStats(
+      Rect.fromLTRB(
+        bounds.left / canvasSize.width,
+        bounds.top / canvasSize.height,
+        bounds.right / canvasSize.width,
+        bounds.bottom / canvasSize.height,
+      ),
+    );
+
+    final mirror = settings.autoPlacement
+        ? WatermarkAutoPlacement.choose({
+            for (final candidate in WatermarkMirror.values)
+              candidate: _resolveBounds(layers, settings, canvasSize, candidate)
+                  .fold(
+                    0.0,
+                    (cost, bounds) =>
+                        cost +
+                        WatermarkAutoPlacement.placementCost(regionOf(bounds)),
+                  ),
+          })
+        : WatermarkMirror.none;
+    final bounds = _resolveBounds(layers, settings, canvasSize, mirror);
+    WatermarkTextTone? textTone;
+    ColorFilter? logoFilter;
+    for (var index = 0; index < layers.length; index++) {
+      // 背景完全透明时无从取亮度，保留用户设定的颜色
+      final background = regionOf(bounds[index]).meanLightness;
+      if (background == null) continue;
+      switch (layers[index].kind) {
+        case WatermarkLayerKind.text when settings.textStyle.autoTone:
+          textTone = WatermarkTextTone.forBackground(
+            background: background,
+            contrast: settings.textStyle.toneContrast,
+          );
+        case WatermarkLayerKind.logo
+            when settings.logoStyle.autoTone && logoLuminance != null:
+          logoFilter = logoLuminance.filterFor(
+            WatermarkTone.targets(
+              background: background,
+              contrast: settings.logoStyle.toneContrast,
+            ).foreground,
+          );
+        case WatermarkLayerKind.text || WatermarkLayerKind.logo:
+          break;
+      }
+    }
+    return WatermarkAutoDecision(
+      mirror: mirror,
+      textTone: textTone,
+      logoFilter: logoFilter,
+    );
+  }
+
   static WatermarkSceneResult paint({
     required Canvas canvas,
     required Size canvasSize,
     required WatermarkSettings settings,
     ui.Image? logo,
+    WatermarkAutoDecision decision = WatermarkAutoDecision.none,
   }) {
-    final layout = layoutFor(settings, canvasSize);
-    final textPainter =
-        settings.textStyle.enabled && settings.textStyle.text.trim().isNotEmpty
-        ? _buildTextPainter(
-            settings.textStyle,
-            layout.textPlacement,
-            canvasSize,
-          )
-        : null;
-    final logoSize = settings.logoStyle.enabled && logo != null
-        ? _logoSize(logo, layout.logoPlacement, canvasSize)
-        : null;
+    final layers = _measure(settings, canvasSize, logo);
+    if (layers.isEmpty) return const WatermarkSceneResult([]);
+    final bounds = _resolveBounds(
+      layers,
+      settings,
+      canvasSize,
+      decision.mirror,
+    );
+    final textStyle =
+        decision.textTone?.applyTo(settings.textStyle) ?? settings.textStyle;
+    final textAlignment = decision.mirror.alignment(textStyle.alignment);
+    final shortEdge = math.min(canvasSize.width, canvasSize.height);
 
-    final specs = <_LayerSpec>[];
-    if (textPainter != null) {
-      specs.add(
-        _LayerSpec(
-          kind: WatermarkLayerKind.text,
-          size: textPainter.size,
-          placement: layout.textPlacement,
-          zIndex: layout.textPlacement.zIndex,
-          draw: (offset) => _paintText(
-            canvas,
-            textPainter,
-            offset,
-            settings.textStyle,
-            math.min(canvasSize.width, canvasSize.height),
-          ),
-        ),
-      );
-    }
-    if (logoSize != null && logo != null) {
-      specs.add(
-        _LayerSpec(
-          kind: WatermarkLayerKind.logo,
-          size: logoSize,
-          placement: layout.logoPlacement,
-          zIndex: layout.logoPlacement.zIndex,
-          draw: (offset) => _paintLogo(
-            canvas,
-            logo,
-            offset & logoSize,
-            settings.logoStyle.opacity,
-          ),
-        ),
-      );
-    }
-    if (specs.isEmpty) return const WatermarkSceneResult([]);
-
-    final bounds =
-        settings.composition.arrangement ==
-            WatermarkLayerArrangement.independent
-        ? _resolveIndependent(specs, canvasSize)
-        : _resolveGroup(
-            specs,
-            canvasSize,
-            settings.composition,
-            layout.textPlacement,
-          );
-
-    final indexes = List<int>.generate(specs.length, (index) => index)
-      ..sort((a, b) => specs[a].zIndex.compareTo(specs[b].zIndex));
+    final indexes = List<int>.generate(layers.length, (index) => index)
+      ..sort((a, b) => layers[a].zIndex.compareTo(layers[b].zIndex));
     for (final index in indexes) {
-      specs[index].draw(bounds[index].topLeft);
+      final layer = layers[index];
+      switch (layer.kind) {
+        case WatermarkLayerKind.text:
+          _paintText(
+            canvas,
+            layer.textPainter!,
+            bounds[index].topLeft,
+            textStyle,
+            textAlignment,
+            shortEdge,
+          );
+        case WatermarkLayerKind.logo:
+          _paintLogo(
+            canvas,
+            logo!,
+            bounds[index],
+            settings.logoStyle.opacity,
+            decision.logoFilter,
+          );
+      }
     }
     return WatermarkSceneResult([
-      for (var index = 0; index < specs.length; index++)
-        WatermarkResolvedLayer(kind: specs[index].kind, bounds: bounds[index]),
+      for (var index = 0; index < layers.length; index++)
+        WatermarkResolvedLayer(kind: layers[index].kind, bounds: bounds[index]),
     ]);
+  }
+
+  static List<_MeasuredLayer> _measure(
+    WatermarkSettings settings,
+    Size canvasSize,
+    ui.Image? logo,
+  ) {
+    final layout = layoutFor(settings, canvasSize);
+    final textStyle = settings.textStyle;
+    return [
+      if (textStyle.enabled && textStyle.text.trim().isNotEmpty)
+        _MeasuredLayer.text(
+          _buildTextPainter(textStyle, layout.textPlacement, canvasSize),
+          layout.textPlacement,
+        ),
+      if (settings.logoStyle.enabled && logo != null)
+        _MeasuredLayer.logo(
+          size: _logoSize(logo, layout.logoPlacement, canvasSize),
+          placement: layout.logoPlacement,
+        ),
+    ];
+  }
+
+  static List<Rect> _resolveBounds(
+    List<_MeasuredLayer> layers,
+    WatermarkSettings settings,
+    Size canvasSize,
+    WatermarkMirror mirror,
+  ) {
+    final composition = settings.composition;
+    return switch (composition.arrangement) {
+      WatermarkLayerArrangement.independent => [
+        for (final layer in layers)
+          _anchoredRect(
+            layer.size,
+            mirror.placement(layer.placement),
+            canvasSize,
+          ),
+      ],
+      // 镜像后紧贴边缘的仍是原来那一层，所以沿排列方向翻转时顺序也反过来
+      WatermarkLayerArrangement.horizontal => _resolveGroup(
+        layers,
+        canvasSize,
+        composition,
+        mirror.placement(layoutFor(settings, canvasSize).textPlacement),
+        reversed: mirror.flipsX,
+      ),
+      WatermarkLayerArrangement.vertical => _resolveGroup(
+        layers,
+        canvasSize,
+        composition,
+        mirror.placement(layoutFor(settings, canvasSize).textPlacement),
+        reversed: mirror.flipsY,
+      ),
+    };
   }
 
   static TextPainter _buildTextPainter(
@@ -189,15 +308,18 @@ class WatermarkScene {
         letterSpacing: style.letterSpacingRatio * fontSize,
       ),
     ),
-    textAlign: switch (style.alignment) {
-      WatermarkTextAlignment.left => TextAlign.left,
-      WatermarkTextAlignment.center => TextAlign.center,
-      WatermarkTextAlignment.right => TextAlign.right,
-    },
+    textAlign: _textAlign(style.alignment),
     textDirection: TextDirection.ltr,
     maxLines: 8,
     ellipsis: '…',
   );
+
+  static TextAlign _textAlign(WatermarkTextAlignment alignment) =>
+      switch (alignment) {
+        WatermarkTextAlignment.left => TextAlign.left,
+        WatermarkTextAlignment.center => TextAlign.center,
+        WatermarkTextAlignment.right => TextAlign.right,
+      };
 
   static Size _logoSize(
     ui.Image logo,
@@ -210,40 +332,36 @@ class WatermarkScene {
     return Size(logo.width * scale, logo.height * scale);
   }
 
-  static List<Rect> _resolveIndependent(
-    List<_LayerSpec> specs,
-    Size canvasSize,
-  ) => [
-    for (final spec in specs)
-      _anchoredRect(spec.size, spec.placement, canvasSize),
-  ];
-
   static List<Rect> _resolveGroup(
-    List<_LayerSpec> specs,
+    List<_MeasuredLayer> layers,
     Size canvasSize,
     WatermarkComposition composition,
-    WatermarkPlacement placement,
-  ) {
+    WatermarkPlacement placement, {
+    required bool reversed,
+  }) {
     final shortEdge = math.min(canvasSize.width, canvasSize.height);
     final gap = composition.gapRatio * shortEdge;
     final horizontal =
         composition.arrangement == WatermarkLayerArrangement.horizontal;
     final rawSize = horizontal
         ? Size(
-            specs.fold<double>(0, (value, spec) => value + spec.size.width) +
-                gap * math.max(0, specs.length - 1),
-            specs.fold<double>(
+            layers.fold<double>(0, (value, layer) => value + layer.size.width) +
+                gap * math.max(0, layers.length - 1),
+            layers.fold<double>(
               0,
-              (value, spec) => math.max(value, spec.size.height),
+              (value, layer) => math.max(value, layer.size.height),
             ),
           )
         : Size(
-            specs.fold<double>(
+            layers.fold<double>(
               0,
-              (value, spec) => math.max(value, spec.size.width),
+              (value, layer) => math.max(value, layer.size.width),
             ),
-            specs.fold<double>(0, (value, spec) => value + spec.size.height) +
-                gap * math.max(0, specs.length - 1),
+            layers.fold<double>(
+                  0,
+                  (value, layer) => value + layer.size.height,
+                ) +
+                gap * math.max(0, layers.length - 1),
           );
     final margin = placement.marginRatio * shortEdge;
     final scale = math.min(
@@ -259,10 +377,11 @@ class WatermarkScene {
       placement.copyWith(sizeRatio: 1),
       canvasSize,
     );
-    final result = <Rect>[];
+    final order = List<int>.generate(layers.length, (index) => index);
+    final result = List<Rect>.filled(layers.length, Rect.zero);
     var cursor = 0.0;
-    for (final spec in specs) {
-      final size = spec.size * scale;
+    for (final index in reversed ? order.reversed : order) {
+      final size = layers[index].size * scale;
       final offset = horizontal
           ? Offset(
               groupRect.left + cursor,
@@ -272,7 +391,7 @@ class WatermarkScene {
               groupRect.center.dx - size.width / 2,
               groupRect.top + cursor,
             );
-      result.add(offset & size);
+      result[index] = offset & size;
       cursor += (horizontal ? size.width : size.height) + gap * scale;
     }
     return result;
@@ -342,10 +461,12 @@ class WatermarkScene {
     TextPainter metrics,
     Offset offset,
     WatermarkTextStyle style,
+    WatermarkTextAlignment alignment,
     double shortEdge,
   ) {
     final baseText = metrics.text as TextSpan;
     final alpha = style.opacity.clamp(0.0, 1.0);
+    final textAlign = _textAlign(alignment);
     if (style.strokeWidthRatio > 0) {
       final stroke = TextPainter(
         text: TextSpan(
@@ -358,7 +479,7 @@ class WatermarkScene {
               ..color = Color(style.strokeColorArgb).withValues(alpha: alpha),
           ),
         ),
-        textAlign: metrics.textAlign,
+        textAlign: textAlign,
         textDirection: TextDirection.ltr,
         maxLines: metrics.maxLines,
         ellipsis: metrics.ellipsis,
@@ -382,7 +503,7 @@ class WatermarkScene {
           ],
         ),
       ),
-      textAlign: metrics.textAlign,
+      textAlign: textAlign,
       textDirection: TextDirection.ltr,
       maxLines: metrics.maxLines,
       ellipsis: metrics.ellipsis,
@@ -395,6 +516,7 @@ class WatermarkScene {
     ui.Image logo,
     Rect destination,
     double opacity,
+    ColorFilter? colorFilter,
   ) {
     canvas.drawImageRect(
       logo,
@@ -402,23 +524,28 @@ class WatermarkScene {
       destination,
       Paint()
         ..filterQuality = FilterQuality.high
+        ..colorFilter = colorFilter
         ..color = Colors.white.withValues(alpha: opacity.clamp(0.0, 1.0)),
     );
   }
 }
 
-class _LayerSpec {
-  const _LayerSpec({
-    required this.kind,
-    required this.size,
-    required this.placement,
-    required this.zIndex,
-    required this.draw,
-  });
+class _MeasuredLayer {
+  _MeasuredLayer.text(TextPainter painter, this.placement)
+    : kind = WatermarkLayerKind.text,
+      size = painter.size,
+      textPainter = painter;
+
+  const _MeasuredLayer.logo({required this.size, required this.placement})
+    : kind = WatermarkLayerKind.logo,
+      textPainter = null;
 
   final WatermarkLayerKind kind;
   final Size size;
+
+  /// 用户设定的位置，镜像在求边界时才施加
   final WatermarkPlacement placement;
-  final int zIndex;
-  final void Function(Offset offset) draw;
+  final TextPainter? textPainter;
+
+  int get zIndex => placement.zIndex;
 }

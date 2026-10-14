@@ -422,6 +422,110 @@ void main() {
     expect(find.text('82%'), findsOneWidget);
   });
 
+  testWidgets('auto placement switch is global and keeps the anchor', (
+    tester,
+  ) async {
+    WatermarkSettings? changed;
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _controlsApp(
+        settings: const WatermarkSettings(),
+        selectedLayer: WatermarkEditableLayer.logo,
+        onSettingsChanged: (value) => changed = value,
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Auto placement'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Auto placement'));
+    await tester.pump();
+
+    expect(changed?.autoPlacement, isTrue);
+    expect(
+      changed?.universalLayout.textPlacement.anchor,
+      WatermarkAnchor.bottomRight,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('text auto grayscale replaces the color picker with a slider', (
+    tester,
+  ) async {
+    WatermarkSettings? changed;
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _controlsApp(
+        settings: const WatermarkSettings(),
+        selectedLayer: WatermarkEditableLayer.text,
+        onSettingsChanged: (value) => changed = value,
+      ),
+    );
+
+    expect(find.text('Tone difference'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Auto grayscale'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Auto grayscale'));
+    await tester.pump();
+    expect(changed?.textStyle.autoTone, isTrue);
+    expect(changed?.logoStyle.autoTone, isFalse);
+
+    await tester.pumpWidget(
+      _controlsApp(
+        settings: changed!,
+        selectedLayer: WatermarkEditableLayer.text,
+        onSettingsChanged: (value) => changed = value,
+      ),
+    );
+    await tester.pump();
+
+    final colorTile = tester.widget<ListTile>(
+      find.ancestor(
+        of: find.text('Color Picker'),
+        matching: find.byType(ListTile),
+      ),
+    );
+    expect(colorTile.enabled, isFalse);
+    expect(find.text('Color is set by auto grayscale'), findsOneWidget);
+    expect(find.text('Tone difference'), findsOneWidget);
+    expect(find.text('70%'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('logo auto grayscale is switched separately', (tester) async {
+    WatermarkSettings? changed;
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      _controlsApp(
+        settings: const WatermarkSettings(
+          logoStyle: WatermarkLogoStyle(enabled: true),
+        ),
+        selectedLayer: WatermarkEditableLayer.logo,
+        onSettingsChanged: (value) => changed = value,
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Auto grayscale'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Auto grayscale'));
+    await tester.pump();
+
+    expect(changed?.logoStyle.autoTone, isTrue);
+    expect(changed?.textStyle.autoTone, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final locale in const ['en', 'ja']) {
     for (final width in labeledRowWidths) {
       for (final scale in labeledRowTextScales) {
@@ -484,6 +588,30 @@ void main() {
     }
   }
 }
+
+Widget _controlsApp({
+  required WatermarkSettings settings,
+  required WatermarkEditableLayer selectedLayer,
+  required ValueChanged<WatermarkSettings> onSettingsChanged,
+}) => MaterialApp(
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(
+    body: WatermarkEditorControls(
+      settings: settings,
+      layout: settings.universalLayout,
+      selectedLayer: selectedLayer,
+      logoAvailable: true,
+      preserveMetadata: false,
+      onOpenMetadataSettings: () {},
+      onSettingsChanged: onSettingsChanged,
+      onLayoutChanged: (_) {},
+      onSelectedLayerChanged: (_) {},
+      onChooseLogo: () {},
+    ),
+  ),
+);
 
 Uint8List _pngBytes(int width, int height) {
   final image = img.Image(width: width, height: height, numChannels: 4);

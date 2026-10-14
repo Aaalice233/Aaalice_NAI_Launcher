@@ -14671,6 +14671,49 @@ class AppLocalizationsJa extends AppLocalizations {
       'この画像を開けませんでした。有効な静止 PNG、JPEG、WebP、または BMP 画像であることを確認して、もう一度お試しください。';
 
   @override
+  String get watermark_autoPlacement => '自動配置';
+
+  @override
+  String get watermark_autoPlacementHint =>
+      '設定したアンカーを優先します。別の隅のほうが明らかに空いている場合は、ウォーターマーク全体をそちらへ反転します。';
+
+  @override
+  String get watermark_autoPlacementKept => '自動配置：優先位置のまま';
+
+  @override
+  String get watermark_autoPlacementMirroredHorizontal => '自動配置：左右反転';
+
+  @override
+  String get watermark_autoPlacementMirroredVertical => '自動配置：上下反転';
+
+  @override
+  String get watermark_autoPlacementMirroredBoth => '自動配置：対角へ移動';
+
+  @override
+  String get watermark_autoAnalyzing => '画像を解析中…';
+
+  @override
+  String get watermark_autoAnalysisFailed =>
+      '画像を解析できなかったため、プレビューには自動調整が反映されていません。保存時に再解析します。';
+
+  @override
+  String get watermark_autoTone => '自動グレースケール';
+
+  @override
+  String get watermark_autoToneTextHint =>
+      'テキスト下の背景の明るさからグレーを選び、アウトラインと影は反対側のグレーにします。';
+
+  @override
+  String get watermark_autoToneLogoHint =>
+      'ロゴを下の背景の明るさに合わせたグレーに変換し、ロゴ自体の濃淡は保ちます。';
+
+  @override
+  String get watermark_toneContrast => '明暗差';
+
+  @override
+  String get watermark_colorFromAutoTone => '色は自動グレースケールで決まります';
+
+  @override
   String get promptAssistant_responseTimeoutTitle => '応答待機タイムアウト';
 
   @override
