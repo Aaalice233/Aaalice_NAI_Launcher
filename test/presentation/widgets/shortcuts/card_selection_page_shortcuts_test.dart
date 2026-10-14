@@ -78,6 +78,7 @@ const _orderedIds = ['a', 'b', 'c'];
 const _blankKey = ValueKey('blank-area');
 const _renameKey = ValueKey('rename-field');
 final _searchField = find.byKey(const ValueKey('search-field'));
+const _outsideKey = ValueKey('outside-page');
 
 Future<_Harness> _pumpPage(
   WidgetTester tester, {
@@ -99,43 +100,15 @@ Future<_Harness> _pumpPage(
         ),
       ],
       child: MaterialApp(
-        home: ListenableBuilder(
-          listenable: selection,
-          builder: (context, _) => CardSelectionScope(
-            selection: selection.state,
-            commands: selection,
-            orderedIds: _orderedIds,
-            child: CardSelectionPageShortcuts(
-              contextType: ShortcutContext.gallery,
-              shortcuts: {
-                ShortcutIds.refreshGallery: () => harness.refreshes++,
-              },
-              child: Material(
-                child: StatefulBuilder(
-                  builder: (context, setState) {
-                    harness._setContentState = setState;
-                    return Column(
-                      children: [
-                        SizedBox(
-                          width: 240,
-                          child: TextField(
-                            key: const ValueKey('search-field'),
-                            focusNode: searchFocus,
-                          ),
-                        ),
-                        if (harness._showRenameField)
-                          const SizedBox(
-                            width: 240,
-                            child: TextField(key: _renameKey, autofocus: true),
-                          ),
-                        const Expanded(child: SizedBox.expand(key: _blankKey)),
-                      ],
-                    );
-                  },
-                ),
-              ),
+        home: Column(
+          children: [
+            Expanded(child: _buildPage(selection, harness, searchFocus)),
+            TextButton(
+              key: _outsideKey,
+              onPressed: () {},
+              child: const Text('outside'),
             ),
-          ),
+          ],
         ),
       ),
     ),
@@ -144,6 +117,47 @@ Future<_Harness> _pumpPage(
   await tester.pump();
   return harness;
 }
+
+Widget _buildPage(
+  _Selection selection,
+  _Harness harness,
+  FocusNode searchFocus,
+) => ListenableBuilder(
+  listenable: selection,
+  builder: (context, _) => CardSelectionScope(
+    selection: selection.state,
+    commands: selection,
+    orderedIds: _orderedIds,
+    child: CardSelectionPageShortcuts(
+      contextType: ShortcutContext.gallery,
+      shortcuts: {ShortcutIds.refreshGallery: () => harness.refreshes++},
+      child: Material(
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            harness._setContentState = setState;
+            return Column(
+              children: [
+                SizedBox(
+                  width: 240,
+                  child: TextField(
+                    key: const ValueKey('search-field'),
+                    focusNode: searchFocus,
+                  ),
+                ),
+                if (harness._showRenameField)
+                  const SizedBox(
+                    width: 240,
+                    child: TextField(key: _renameKey, autofocus: true),
+                  ),
+                const Expanded(child: SizedBox.expand(key: _blankKey)),
+              ],
+            );
+          },
+        ),
+      ),
+    ),
+  ),
+);
 
 bool _primaryFocusInsidePage() =>
     FocusManager.instance.primaryFocus?.context
@@ -231,5 +245,19 @@ void main() {
     await tester.pump();
 
     expect(harness.searchFocus.hasPrimaryFocus, isTrue);
+  });
+
+  testWidgets('Tab 到页面末尾后离开内层作用域，不在页面内绕圈', (tester) async {
+    final harness = await _pumpPage(tester);
+    harness.searchFocus.requestFocus();
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+
+    expect(
+      Focus.of(tester.element(find.text('outside'))).hasPrimaryFocus,
+      isTrue,
+    );
   });
 }
