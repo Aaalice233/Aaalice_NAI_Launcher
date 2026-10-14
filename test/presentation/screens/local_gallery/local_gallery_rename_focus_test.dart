@@ -2,6 +2,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
@@ -133,6 +134,55 @@ Future<List<(String, String, String)>> _pumpGallery(WidgetTester tester) async {
   return renames;
 }
 
+Finder _renameField() => find.descendant(
+  of: find.byType(LocalGalleryCategoryPanel),
+  matching: find.byType(EditableText),
+);
+
+EditableText _renameEditable(WidgetTester tester) =>
+    tester.widget<EditableText>(_renameField());
+
+Future<void> _openRename(WidgetTester tester, String label) async {
+  await tester.tap(
+    find.text(label),
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryButton,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('重命名').last);
+  // 菜单项在菜单关闭后延时切换到编辑态
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
+  expect(_renameField(), findsOneWidget);
+  expect(_renameEditable(tester).focusNode.hasPrimaryFocus, isTrue);
+}
+
+/// 再次进入编辑时输入框显示当前名称，随后用 Esc 关闭以停掉光标闪烁计时器
+Future<void> _expectReopensWithName(WidgetTester tester, String label) async {
+  await _openRename(tester, label);
+  expect(_renameEditable(tester).controller.text, label);
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+  expect(_renameField(), findsNothing);
+}
+
+/// 路由作用域位于分类面板与页面级 Esc 绑定之间，冒泡的 Esc 必先经过它
+List<KeyEvent> _recordBubbledEscapes(WidgetTester tester) {
+  final scope = FocusScope.of(
+    tester.element(find.byType(LocalGalleryCategoryPanel)),
+  );
+  final previousHandler = scope.onKeyEvent;
+  final escapes = <KeyEvent>[];
+  scope.onKeyEvent = (node, event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      escapes.add(event);
+    }
+    return KeyEventResult.ignored;
+  };
+  addTearDown(() => scope.onKeyEvent = previousHandler);
+  return escapes;
+}
+
 void main() {
   for (final (kind, label, id) in const [
     ('album', '测试相簿', 'album'),
@@ -175,6 +225,49 @@ void main() {
 
       expect(renames, [(kind, id, '新名字')]);
       expect(search.controller.text, isEmpty);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+    testWidgets('重命名$label时按 Esc 放弃修改并退出，按键不冒泡给页面', (tester) async {
+      final renames = await _pumpGallery(tester);
+      await _openRename(tester, label);
+      final escapes = _recordBubbledEscapes(tester);
+
+      tester.testTextInput.enterText('草稿');
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(escapes, isEmpty, reason: 'Esc 应被重命名框消费');
+      expect(_renameField(), findsNothing);
+      expect(renames, isEmpty);
+      await _expectReopensWithName(tester, label);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+    testWidgets('重命名$label时点外部放弃修改，再次进入显示当前名称', (tester) async {
+      final renames = await _pumpGallery(tester);
+      await _openRename(tester, label);
+
+      tester.testTextInput.enterText('草稿');
+      await tester.pump();
+      await tester.tapAt(const Offset(800, 600), kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle();
+
+      expect(_renameField(), findsNothing);
+      expect(renames, isEmpty);
+      await _expectReopensWithName(tester, label);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+    testWidgets('重命名$label时空白名称按回车不提交，再次进入显示当前名称', (tester) async {
+      final renames = await _pumpGallery(tester);
+      await _openRename(tester, label);
+
+      tester.testTextInput.enterText('   ');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(_renameField(), findsNothing);
+      expect(renames, isEmpty);
+      await _expectReopensWithName(tester, label);
     }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
   }
 }

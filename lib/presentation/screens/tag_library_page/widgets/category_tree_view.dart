@@ -7,7 +7,7 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
-import '../../../widgets/common/focus_on_appear.dart';
+import '../../../widgets/common/inline_rename_field.dart';
 import '../../../widgets/common/library_classification_drag.dart';
 import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/gallery/gallery_album_tree_view.dart';
@@ -16,7 +16,6 @@ import '../../../widgets/gallery/library_sidebar_drag_item.dart';
 import '../../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../utils/library_sidebar_sort.dart';
 import '../../../utils/library_category_counts.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 分类树视图
 class CategoryTreeView extends StatefulWidget {
@@ -354,19 +353,13 @@ class _CategoryItemState extends State<_CategoryItem> {
   bool _isHovering = false;
   bool _isEditing = false;
   bool _isActionMenuOpen = false;
-  late TextEditingController _editController;
 
-  @override
-  void initState() {
-    super.initState();
-    _editController = TextEditingController(text: widget.label);
+  void _submitRename(String name) {
+    widget.onRename?.call(name);
+    _stopEditing();
   }
 
-  @override
-  void dispose() {
-    _editController.dispose();
-    super.dispose();
-  }
+  void _stopEditing() => setState(() => _isEditing = false);
 
   @override
   Widget build(BuildContext context) {
@@ -445,24 +438,15 @@ class _CategoryItemState extends State<_CategoryItem> {
                     // 名称
                     Expanded(
                       child: _isEditing
-                          ? FocusOnAppear(
-                              child: ThemedInput(
-                                controller: _editController,
-                                style: const TextStyle(fontSize: 13),
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                onSubmitted: (value) {
-                                  if (value.trim().isNotEmpty) {
-                                    widget.onRename?.call(value.trim());
-                                  }
-                                  setState(() => _isEditing = false);
-                                },
-                                onTapOutside: (_) {
-                                  setState(() => _isEditing = false);
-                                },
+                          ? InlineRenameField(
+                              name: widget.label,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
                               ),
+                              onSubmit: _submitRename,
+                              onCancel: _stopEditing,
                             )
                           : Text(
                               widget.label,
@@ -598,7 +582,6 @@ class _CategoryItemState extends State<_CategoryItem> {
   void _handleAction(_CategoryAction action) {
     switch (action) {
       case _CategoryAction.rename:
-        _editController.text = widget.label;
         setState(() => _isEditing = true);
       case _CategoryAction.addSubCategory:
         widget.onAddSubCategory?.call();

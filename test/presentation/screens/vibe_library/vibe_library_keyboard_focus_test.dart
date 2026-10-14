@@ -84,6 +84,88 @@ void main() {
       'second',
     });
   }, variant: desktop);
+
+  testWidgets('重命名分类时按 Esc 放弃修改并退出，按键不冒泡给页面', (tester) async {
+    final container = await _pumpScreen(tester);
+    final categories =
+        container.read(vibeLibraryCategoryNotifierProvider.notifier)
+            as _OneCategoryNotifier;
+    await _openRename(tester);
+    final escapes = _recordBubbledEscapes(tester);
+
+    tester.testTextInput.enterText('草稿');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(escapes, isEmpty, reason: 'Esc 应被重命名框消费');
+    expect(_renameField(), findsNothing);
+    expect(categories.renames, isEmpty);
+    await _expectReopensWithName(tester);
+  }, variant: desktop);
+
+  testWidgets('重命名分类时空白名称按回车不提交，再次进入显示当前名称', (tester) async {
+    final container = await _pumpScreen(tester);
+    final categories =
+        container.read(vibeLibraryCategoryNotifierProvider.notifier)
+            as _OneCategoryNotifier;
+    await _openRename(tester);
+
+    tester.testTextInput.enterText('   ');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(_renameField(), findsNothing);
+    expect(categories.renames, isEmpty);
+    await _expectReopensWithName(tester);
+  }, variant: desktop);
+}
+
+Finder _renameField() => find.descendant(
+  of: find.byType(VibeCategoryItem),
+  matching: find.byType(EditableText),
+);
+
+EditableText _renameEditable(WidgetTester tester) =>
+    tester.widget<EditableText>(_renameField());
+
+Future<void> _openRename(WidgetTester tester) async {
+  await tester.tap(
+    find.text('分类A'),
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryButton,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('重命名').last);
+  // 菜单项在菜单关闭后延时切换到编辑态
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
+  expect(_renameField(), findsOneWidget);
+  expect(_renameEditable(tester).focusNode.hasPrimaryFocus, isTrue);
+}
+
+/// 再次进入编辑时输入框显示当前名称，随后用 Esc 关闭以停掉光标闪烁计时器
+Future<void> _expectReopensWithName(WidgetTester tester) async {
+  await _openRename(tester);
+  expect(_renameEditable(tester).controller.text, '分类A');
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await tester.pumpAndSettle();
+  expect(_renameField(), findsNothing);
+}
+
+/// 路由作用域位于分类项与页面级 Esc 绑定之间，冒泡的 Esc 必先经过它
+List<KeyEvent> _recordBubbledEscapes(WidgetTester tester) {
+  final scope = FocusScope.of(tester.element(_renameField()));
+  final previousHandler = scope.onKeyEvent;
+  final escapes = <KeyEvent>[];
+  scope.onKeyEvent = (node, event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      escapes.add(event);
+    }
+    return KeyEventResult.ignored;
+  };
+  addTearDown(() => scope.onKeyEvent = previousHandler);
+  return escapes;
 }
 
 Future<ProviderContainer> _pumpScreen(WidgetTester tester) async {

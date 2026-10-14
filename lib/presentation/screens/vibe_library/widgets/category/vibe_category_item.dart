@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
-import '../../../../widgets/common/focus_on_appear.dart';
+import '../../../../widgets/common/inline_rename_field.dart';
 import '../../../../widgets/common/library_classification_drag.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
 import '../../../../adaptive/interaction_policy.dart';
@@ -54,41 +53,13 @@ class VibeCategoryItem extends StatefulWidget {
 class _VibeCategoryItemState extends State<VibeCategoryItem> {
   bool _isHovering = false;
   bool _isEditing = false;
-  late TextEditingController _editController;
-  late FocusNode _editFocusNode;
 
-  @override
-  void initState() {
-    super.initState();
-    _editController = TextEditingController(text: widget.label);
-    _editFocusNode = FocusNode();
-    _editFocusNode.onKeyEvent = _handleEditKeyEvent;
+  void _submitRename(String name) {
+    widget.onRename?.call(name);
+    _stopEditing();
   }
 
-  KeyEventResult _handleEditKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.escape) {
-      _editController.text = widget.label;
-      setState(() => _isEditing = false);
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
-
-  @override
-  void didUpdateWidget(covariant VibeCategoryItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.label != widget.label && !_isEditing) {
-      _editController.text = widget.label;
-    }
-  }
-
-  @override
-  void dispose() {
-    _editFocusNode.dispose();
-    _editController.dispose();
-    super.dispose();
-  }
+  void _stopEditing() => setState(() => _isEditing = false);
 
   @override
   Widget build(BuildContext context) {
@@ -170,32 +141,18 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                     // 名称（编辑模式或显示模式）
                     Expanded(
                       child: _isEditing
-                          ? FocusOnAppear(
-                              child: TextField(
-                                controller: _editController,
-                                focusNode: _editFocusNode,
-                                style: const TextStyle(fontSize: 13),
-                                decoration: const InputDecoration(
-                                  filled: false,
-                                  isDense: true,
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                onSubmitted: (value) {
-                                  if (value.trim().isNotEmpty) {
-                                    widget.onRename?.call(value.trim());
-                                  }
-                                  if (mounted) {
-                                    setState(() => _isEditing = false);
-                                  }
-                                },
-                                onTapOutside: (_) {
-                                  _editController.text = widget.label;
-                                  if (mounted) {
-                                    setState(() => _isEditing = false);
-                                  }
-                                },
+                          ? InlineRenameField(
+                              name: widget.label,
+                              framed: false,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: const InputDecoration(
+                                filled: false,
+                                isDense: true,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
                               ),
+                              onSubmit: _submitRename,
+                              onCancel: _stopEditing,
                             )
                           : Text(
                               widget.label,
