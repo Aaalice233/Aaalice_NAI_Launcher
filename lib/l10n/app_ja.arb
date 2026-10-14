@@ -4133,6 +4133,8 @@
   "shortcut_action_reuse_params": "パラメータの再利用",
   "shortcut_action_previous_image": "前の画像",
   "shortcut_action_next_image": "次の画像",
+  "shortcut_action_first_image": "最初の画像",
+  "shortcut_action_last_image": "最後の画像",
   "shortcut_action_zoom_in": "ズームイン",
   "shortcut_action_zoom_out": "ズームアウト",
   "shortcut_action_reset_zoom": "ズームをリセット",

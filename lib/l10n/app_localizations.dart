@@ -15660,6 +15660,18 @@ abstract class AppLocalizations {
   /// **'Next Image'**
   String get shortcut_action_next_image;
 
+  /// No description provided for @shortcut_action_first_image.
+  ///
+  /// In en, this message translates to:
+  /// **'First Image'**
+  String get shortcut_action_first_image;
+
+  /// No description provided for @shortcut_action_last_image.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Image'**
+  String get shortcut_action_last_image;
+
   /// No description provided for @shortcut_action_zoom_in.
   ///
   /// In en, this message translates to:

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -282,6 +283,178 @@ void main() {
     expect(find.byType(ImageDetailViewer), findsNothing);
     expect(find.text('open'), findsOneWidget);
   });
+
+  group('查看器按键读取快捷键配置', () {
+    List<ImageDetailData> threeImages() => [
+      _TestImageData('first', _validPngBytes),
+      _TestImageData('second', _validPngBytes),
+      _TestImageData('third', _validPngBytes),
+    ];
+
+    Future<void> pumpThree(
+      WidgetTester tester, {
+      ShortcutConfig? config,
+    }) async {
+      await tester.binding.setSurfaceSize(const Size(840, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpViewer(tester, images: threeImages(), config: config);
+      await tester.pump();
+    }
+
+    testWidgets('默认 ←/→ 翻页、Home/End 跳到首尾', (tester) async {
+      await pumpThree(tester);
+
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(find.text('2 / 3'), findsOneWidget);
+      await _press(tester, LogicalKeyboardKey.arrowLeft);
+      expect(find.text('1 / 3'), findsOneWidget);
+      await _press(tester, LogicalKeyboardKey.end);
+      expect(find.text('3 / 3'), findsOneWidget);
+      await _press(tester, LogicalKeyboardKey.home);
+      expect(find.text('1 / 3'), findsOneWidget);
+    });
+
+    testWidgets('改绑翻页与首尾键后，原 ←/→/Home/End 不再翻页', (tester) async {
+      await pumpThree(
+        tester,
+        config: ShortcutConfig.createDefault()
+            .setCustomShortcut(ShortcutIds.previousImage, 'arrowup')
+            .setCustomShortcut(ShortcutIds.nextImage, 'arrowdown')
+            .setCustomShortcut(ShortcutIds.firstImage, 'ctrl+home')
+            .setCustomShortcut(ShortcutIds.lastImage, 'ctrl+end'),
+      );
+
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _press(tester, LogicalKeyboardKey.end);
+      expect(find.text('1 / 3'), findsOneWidget);
+
+      await _press(tester, LogicalKeyboardKey.arrowDown);
+      expect(find.text('2 / 3'), findsOneWidget);
+      await _press(tester, LogicalKeyboardKey.arrowLeft);
+      await _press(tester, LogicalKeyboardKey.home);
+      expect(find.text('2 / 3'), findsOneWidget);
+      await _press(tester, LogicalKeyboardKey.arrowUp);
+      expect(find.text('1 / 3'), findsOneWidget);
+
+      await _press(tester, LogicalKeyboardKey.end, control: true);
+      expect(find.text('3 / 3'), findsOneWidget);
+      await _press(tester, LogicalKeyboardKey.home, control: true);
+      expect(find.text('1 / 3'), findsOneWidget);
+    });
+
+    testWidgets('单项禁用后对应按键不再处理', (tester) async {
+      await pumpThree(
+        tester,
+        config: ShortcutConfig.createDefault()
+            .setEnabled(ShortcutIds.nextImage, false)
+            .setEnabled(ShortcutIds.lastImage, false),
+      );
+
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _press(tester, LogicalKeyboardKey.end);
+      expect(find.text('1 / 3'), findsOneWidget);
+    });
+
+    testWidgets('快捷键总开关关闭后翻页与首尾键不处理', (tester) async {
+      await pumpThree(
+        tester,
+        config: ShortcutConfig.createDefault().copyWith(enableShortcuts: false),
+      );
+
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _press(tester, LogicalKeyboardKey.end);
+      expect(find.text('1 / 3'), findsOneWidget);
+    });
+
+    testWidgets('默认 Esc 关闭查看器', (tester) async {
+      await _pumpViewerRoute(
+        tester,
+        image: _TestImageData('route', _validPngBytes),
+      );
+
+      await _press(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(ImageDetailViewer), findsNothing);
+    });
+
+    testWidgets('改绑关闭键后 Esc 不再关闭，新键关闭', (tester) async {
+      await _pumpViewerRoute(
+        tester,
+        image: _TestImageData('route', _validPngBytes),
+        config: ShortcutConfig.createDefault().setCustomShortcut(
+          ShortcutIds.closeViewer,
+          'ctrl+w',
+        ),
+      );
+
+      await _press(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(ImageDetailViewer), findsOneWidget);
+
+      await _press(tester, LogicalKeyboardKey.keyW, control: true);
+      expect(find.byType(ImageDetailViewer), findsNothing);
+    });
+
+    testWidgets('快捷键总开关关闭后 Esc 不关闭查看器', (tester) async {
+      await _pumpViewerRoute(
+        tester,
+        image: _TestImageData('route', _validPngBytes),
+        config: ShortcutConfig.createDefault().copyWith(enableShortcuts: false),
+      );
+
+      await _press(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(ImageDetailViewer), findsOneWidget);
+    });
+  });
+}
+
+Future<void> _press(
+  WidgetTester tester,
+  LogicalKeyboardKey key, {
+  bool control = false,
+}) async {
+  if (control) await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(key);
+  if (control) await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  // 关闭在帧后回调里执行，按键本身不排帧；静止画面上不补一帧，关闭与否都看不出来
+  tester.binding.scheduleFrame();
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpViewerRoute(
+  WidgetTester tester, {
+  required ImageDetailData image,
+  ShortcutConfig? config,
+}) async {
+  await tester.binding.setSurfaceSize(const Size(840, 700));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        shortcutConfigNotifierProvider.overrideWith(
+          () => _FakeShortcutConfigNotifier(config),
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => ImageDetailViewer.showSingle(
+                context,
+                image: image,
+                showMetadataPanel: false,
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('open'));
+  await tester.pumpAndSettle();
+  expect(find.byType(ImageDetailViewer), findsOneWidget);
 }
 
 Future<void> _pumpViewer(
@@ -290,12 +463,13 @@ Future<void> _pumpViewer(
   ImageDetailCallbacks? callbacks,
   bool showMetadataPanel = true,
   TextScaler textScaler = TextScaler.noScaling,
+  ShortcutConfig? config,
 }) {
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
         shortcutConfigNotifierProvider.overrideWith(
-          _FakeShortcutConfigNotifier.new,
+          () => _FakeShortcutConfigNotifier(config),
         ),
       ],
       child: MaterialApp(
@@ -321,8 +495,13 @@ final Uint8List _validPngBytes = base64Decode(
 );
 
 class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {
+  _FakeShortcutConfigNotifier([this.config]);
+
+  final ShortcutConfig? config;
+
   @override
-  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
+  Future<ShortcutConfig> build() async =>
+      config ?? ShortcutConfig.createDefault();
 }
 
 class _TestImageData extends ImageDetailData {

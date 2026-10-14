@@ -32,6 +32,8 @@ class ShortcutIds {
   // 画廊快捷键（查看器）
   static const String previousImage = 'previous_image';
   static const String nextImage = 'next_image';
+  static const String firstImage = 'first_image';
+  static const String lastImage = 'last_image';
   static const String zoomIn = 'zoom_in';
   static const String zoomOut = 'zoom_out';
   static const String resetZoom = 'reset_zoom';
@@ -140,6 +142,8 @@ class DefaultShortcuts {
     // 画廊查看器
     ShortcutIds.previousImage: 'arrowleft',
     ShortcutIds.nextImage: 'arrowright',
+    ShortcutIds.firstImage: 'home',
+    ShortcutIds.lastImage: 'end',
     ShortcutIds.zoomIn: 'equal',
     ShortcutIds.zoomOut: 'minus',
     ShortcutIds.resetZoom: '0',
@@ -241,6 +245,8 @@ class DefaultShortcuts {
       // 画廊查看器
       case ShortcutIds.previousImage:
       case ShortcutIds.nextImage:
+      case ShortcutIds.firstImage:
+      case ShortcutIds.lastImage:
       case ShortcutIds.zoomIn:
       case ShortcutIds.zoomOut:
       case ShortcutIds.resetZoom:
