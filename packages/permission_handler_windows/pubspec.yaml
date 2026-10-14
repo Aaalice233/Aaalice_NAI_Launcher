@@ -1,0 +1,20 @@
+name: permission_handler_windows
+description: Dart-only Windows implementation of permission_handler for Aaalice NAI Launcher.
+version: 0.2.2+launcher
+publish_to: none
+
+environment:
+  sdk: '>=3.10.7 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  permission_handler_platform_interface: ^4.1.0
+
+flutter:
+  plugin:
+    implements: permission_handler
+    platforms:
+      windows:
+        dartPluginClass: PermissionHandlerWindows
