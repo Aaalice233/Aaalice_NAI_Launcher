@@ -12,6 +12,7 @@ import '../../../data/models/gallery/gallery_category.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../common/context_menu_anchor.dart';
 import '../common/inline_rename_field.dart';
+import '../common/menu_action_label.dart';
 import '../common/surface_ink_well.dart';
 import '../common/themed_divider.dart';
 import 'gallery_scan_progress_panel.dart';
@@ -168,12 +169,9 @@ class _GalleryCategoryTreeViewState extends State<GalleryCategoryTreeView> {
       items: [
         PopupMenuItem(
           onTap: () => widget.onAddSubCategory?.call(null),
-          child: Row(
-            children: [
-              const Icon(Icons.create_new_folder, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.localGallery_createCategoryTitle),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.create_new_folder),
+            label: context.l10n.localGallery_createCategoryTitle,
           ),
         ),
       ],
@@ -635,63 +633,42 @@ class _CategoryItemState extends State<_CategoryItem> {
             onTap: () => Future.delayed(const Duration(milliseconds: 100), () {
               if (mounted) setState(() => _isEditing = true);
             }),
-            child: Row(
-              children: [
-                const Icon(Icons.edit, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.common_rename),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.edit),
+              label: context.l10n.common_rename,
             ),
           ),
         if (widget.onAddSubCategory != null)
           PopupMenuItem(
             onTap: widget.onAddSubCategory,
-            child: Row(
-              children: [
-                const Icon(Icons.create_new_folder, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_createSubCategoryTitle),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.create_new_folder),
+              label: context.l10n.localGallery_createSubCategoryTitle,
             ),
           ),
         if (widget.onMoveUp != null)
           PopupMenuItem(
             onTap: widget.onMoveUp,
-            child: Row(
-              children: [
-                const Icon(Icons.arrow_upward, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_moveCategoryUp),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.arrow_upward),
+              label: context.l10n.localGallery_moveCategoryUp,
             ),
           ),
         if (widget.onMoveToRoot != null)
           PopupMenuItem(
             onTap: widget.onMoveToRoot,
-            child: Row(
-              children: [
-                const Icon(Icons.drive_file_move_outline, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_moveToRoot),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.drive_file_move_outline),
+              label: context.l10n.localGallery_moveToRoot,
             ),
           ),
         if (widget.onDelete != null)
           PopupMenuItem(
             onTap: widget.onDelete,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.delete,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.common_delete,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.delete),
+              label: context.l10n.common_delete,
+              destructive: true,
             ),
           ),
       ],

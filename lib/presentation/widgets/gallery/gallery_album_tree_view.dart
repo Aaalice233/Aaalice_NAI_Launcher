@@ -8,6 +8,7 @@ import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../common/context_menu_anchor.dart';
 import '../common/inline_rename_field.dart';
+import '../common/menu_action_label.dart';
 import '../common/surface_ink_well.dart';
 import '../../utils/gallery_drop_reader.dart';
 import 'gallery_sidebar.dart';
@@ -740,63 +741,42 @@ class _AlbumItemState extends State<_AlbumItem> {
             onTap: () => Future.delayed(const Duration(milliseconds: 100), () {
               if (mounted) setState(() => _isEditing = true);
             }),
-            child: Row(
-              children: [
-                const Icon(Icons.edit, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.common_rename),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.edit),
+              label: context.l10n.common_rename,
             ),
           ),
         if (widget.onAddSubAlbum != null)
           PopupMenuItem(
             onTap: widget.onAddSubAlbum,
-            child: Row(
-              children: [
-                const Icon(Icons.create_new_folder, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_createSubAlbum),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.create_new_folder),
+              label: context.l10n.localGallery_createSubAlbum,
             ),
           ),
         if (widget.onMoveUp != null)
           PopupMenuItem(
             onTap: widget.onMoveUp,
-            child: Row(
-              children: [
-                const Icon(Icons.arrow_upward, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_moveAlbumUp),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.arrow_upward),
+              label: context.l10n.localGallery_moveAlbumUp,
             ),
           ),
         if (widget.onMoveToRoot != null)
           PopupMenuItem(
             onTap: widget.onMoveToRoot,
-            child: Row(
-              children: [
-                const Icon(Icons.drive_file_move_outline, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_moveAlbumToRoot),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.drive_file_move_outline),
+              label: context.l10n.localGallery_moveAlbumToRoot,
             ),
           ),
         if (widget.onDelete != null)
           PopupMenuItem(
             onTap: widget.onDelete,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.delete,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.common_delete,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.delete),
+              label: context.l10n.common_delete,
+              destructive: true,
             ),
           ),
       ],

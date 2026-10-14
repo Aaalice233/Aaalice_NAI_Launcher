@@ -8,6 +8,7 @@ import '../../../../../data/models/online_gallery/danbooru_post.dart';
 import '../../../../../data/services/danbooru_auth_service.dart';
 import '../../../../../data/services/gelbooru_auth_service.dart';
 import '../../../../adaptive/interaction_policy.dart';
+import '../../../../widgets/common/menu_action_label.dart';
 import '../../../../providers/online_gallery_provider.dart';
 import 'online_gallery_auth_dialogs.dart';
 import 'online_gallery_toolbar.dart';
@@ -220,12 +221,9 @@ class OnlineGalleryToolbarAuthControls {
           const PopupMenuDivider(),
           PopupMenuItem<String>(
             value: 'logout',
-            child: Row(
-              children: [
-                const Icon(Icons.logout, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.onlineGallery_logout),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.logout),
+              label: context.l10n.onlineGallery_logout,
             ),
           ),
         ],

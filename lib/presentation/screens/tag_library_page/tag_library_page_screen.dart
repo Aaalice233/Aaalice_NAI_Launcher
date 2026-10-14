@@ -29,6 +29,7 @@ import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/library_classification_drag.dart';
 import '../../widgets/common/context_menu_anchor.dart';
+import '../../widgets/common/menu_action_label.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/gallery/gallery_album_tree_view.dart';
@@ -884,12 +885,9 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
         PopupMenuItem(
           key: const Key('tag-library-context-create-entry'),
           value: true,
-          child: Row(
-            children: [
-              const Icon(Icons.add_box_outlined, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.tagLibrary_addEntry),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.add_box_outlined),
+            label: context.l10n.tagLibrary_addEntry,
           ),
         ),
       ],

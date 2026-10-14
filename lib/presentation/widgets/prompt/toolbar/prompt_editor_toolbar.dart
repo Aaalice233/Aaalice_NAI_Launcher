@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../adaptive/interaction_policy.dart';
+import '../../common/menu_action_label.dart';
 import 'prompt_editor_toolbar_config.dart';
 
 /// 提示词编辑器工具栏组件
@@ -250,20 +251,11 @@ class PromptEditorToolbar extends StatelessWidget {
       itemBuilder: (context) => [
         PopupMenuItem<bool>(
           value: true,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.delete_outline,
-                size: isCompact ? 16 : 18,
-                color: theme.colorScheme.error,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.toolbar_confirmClear,
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.delete_outline),
+            label: l10n.toolbar_confirmClear,
+            destructive: true,
+            iconSize: isCompact ? 16 : 18,
           ),
         ),
       ],

@@ -12,6 +12,7 @@ import '../../../data/models/character/character_prompt.dart';
 import '../../providers/character_position_canvas_provider.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../common/decoded_memory_image.dart';
+import '../common/menu_action_label.dart';
 import '../common/translated_tag_text.dart';
 import 'add_to_library_dialog.dart';
 import 'inline_character_editor.dart';
@@ -582,13 +583,11 @@ class _CharacterMenuLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = color ?? Theme.of(context).colorScheme.onSurface;
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: foreground),
-        const SizedBox(width: 10),
-        Text(label, style: TextStyle(color: foreground)),
-      ],
+    return MenuActionLabel(
+      leading: Icon(icon),
+      label: label,
+      color: color ?? Theme.of(context).colorScheme.onSurface,
+      gap: 10,
     );
   }
 }
