@@ -404,6 +404,53 @@ void main() {
       expect(find.byType(ImageDetailViewer), findsOneWidget);
     });
   });
+
+  group('画面静止时关闭立即生效', () {
+    testWidgets('按默认 Esc 立即关闭', (tester) async {
+      await _pumpViewerRoute(
+        tester,
+        image: _TestImageData('route', _validPngBytes),
+      );
+      await _settleIdle(tester);
+
+      await _press(tester, LogicalKeyboardKey.escape);
+      expect(find.byType(ImageDetailViewer), findsNothing);
+    });
+
+    testWidgets('按改绑后的关闭键立即关闭', (tester) async {
+      await _pumpViewerRoute(
+        tester,
+        image: _TestImageData('route', _validPngBytes),
+        config: ShortcutConfig.createDefault().setCustomShortcut(
+          ShortcutIds.closeViewer,
+          'ctrl+w',
+        ),
+      );
+      await _settleIdle(tester);
+
+      await _press(tester, LogicalKeyboardKey.keyW, control: true);
+      expect(find.byType(ImageDetailViewer), findsNothing);
+    });
+
+    testWidgets('点关闭按钮立即关闭', (tester) async {
+      await _pumpViewerRoute(
+        tester,
+        image: _TestImageData('route', _validPngBytes),
+      );
+      await _settleIdle(tester);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(find.byType(ImageDetailViewer), findsNothing);
+    });
+  });
+}
+
+// 首次按键会切换焦点高亮模式并顺带排帧，先按一次无关键把画面带到真正静止
+Future<void> _settleIdle(WidgetTester tester) async {
+  await _press(tester, LogicalKeyboardKey.keyQ);
+  expect(find.byType(ImageDetailViewer), findsOneWidget);
+  expect(tester.binding.hasScheduledFrame, isFalse);
 }
 
 Future<void> _press(
@@ -414,8 +461,6 @@ Future<void> _press(
   if (control) await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
   await tester.sendKeyEvent(key);
   if (control) await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-  // 关闭在帧后回调里执行，按键本身不排帧；静止画面上不补一帧，关闭与否都看不出来
-  tester.binding.scheduleFrame();
   await tester.pumpAndSettle();
 }
 

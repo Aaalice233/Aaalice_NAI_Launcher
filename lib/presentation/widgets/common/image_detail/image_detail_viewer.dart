@@ -375,6 +375,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         }
       });
     });
+    // 按键不会排帧，画面静止时帧后回调要等到下一次重绘才执行
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   ImageDetailData get _currentImage => widget.images[_currentIndex];
