@@ -11,6 +11,8 @@ import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../utils/image_share_sanitizer.dart';
 import '../utils/isolate_pool.dart';
 import 'watermark_scene.dart';
+import 'watermark_source_analysis.dart';
+import 'watermark_tone.dart';
 
 class WatermarkCancelledException implements Exception {
   const WatermarkCancelledException();
@@ -147,14 +149,22 @@ class WatermarkRenderService {
           'The source image size is invalid.',
         );
       }
+      final canvasSize = ui.Size(width.toDouble(), height.toDouble());
+      final decision = await _decideAutoAdjust(
+        request,
+        canvasSize: canvasSize,
+        logo: logoImage,
+      );
+      token.throwIfCancelled();
       final recorder = ui.PictureRecorder();
       final canvas = ui.Canvas(recorder);
       canvas.drawImage(sourceImage, ui.Offset.zero, ui.Paint());
       WatermarkScene.paint(
         canvas: canvas,
-        canvasSize: ui.Size(width.toDouble(), height.toDouble()),
+        canvasSize: canvasSize,
         settings: request.settings,
         logo: logoImage,
+        decision: decision,
       );
       final picture = recorder.endRecording();
       try {
@@ -222,6 +232,32 @@ class WatermarkRenderService {
       sourceDescriptor?.dispose();
       sourceBuffer?.dispose();
     }
+  }
+
+  static Future<WatermarkAutoDecision> _decideAutoAdjust(
+    WatermarkRenderRequest request, {
+    required ui.Size canvasSize,
+    ui.Image? logo,
+  }) async {
+    final settings = request.settings;
+    if (!settings.usesSourceAnalysis) return WatermarkAutoDecision.none;
+    final analysis = await WatermarkSourceAnalysis.fromEncoded(
+      request.sourceBytes,
+    );
+    final logoBytes = request.logoBytes;
+    final logoLuminance =
+        settings.logoStyle.enabled &&
+            settings.logoStyle.autoTone &&
+            logoBytes != null
+        ? await WatermarkLogoLuminance.fromEncoded(logoBytes)
+        : null;
+    return WatermarkScene.decide(
+      canvasSize: canvasSize,
+      settings: settings,
+      analysis: analysis,
+      logo: logo,
+      logoLuminance: logoLuminance,
+    );
   }
 
   static String buildOutputFileName(String sourceFileName) {

@@ -14505,6 +14505,46 @@ class AppLocalizationsZh extends AppLocalizations {
       '无法打开此图片。请确认文件是有效的静态 PNG、JPEG、WebP 或 BMP 图片后重试。';
 
   @override
+  String get watermark_autoPlacement => '自动选位';
+
+  @override
+  String get watermark_autoPlacementHint => '以设定的锚点为首选位置；其他角明显更干净时，整套水印镜像过去。';
+
+  @override
+  String get watermark_autoPlacementKept => '自动选位：保持首选位置';
+
+  @override
+  String get watermark_autoPlacementMirroredHorizontal => '自动选位：已左右镜像';
+
+  @override
+  String get watermark_autoPlacementMirroredVertical => '自动选位：已上下镜像';
+
+  @override
+  String get watermark_autoPlacementMirroredBoth => '自动选位：已镜像到对角';
+
+  @override
+  String get watermark_autoAnalyzing => '正在分析画面…';
+
+  @override
+  String get watermark_autoAnalysisFailed => '无法分析画面，预览未应用自动调整；保存时会重新分析。';
+
+  @override
+  String get watermark_autoTone => '自动灰阶';
+
+  @override
+  String get watermark_autoToneTextHint => '按文字下方的背景亮度取灰，描边和阴影向相反方向取灰。';
+
+  @override
+  String get watermark_autoToneLogoHint =>
+      '按 Logo 下方的背景亮度去色调灰，保留 Logo 自身的明暗层次。';
+
+  @override
+  String get watermark_toneContrast => '明暗差';
+
+  @override
+  String get watermark_colorFromAutoTone => '颜色由自动灰阶决定';
+
+  @override
   String get promptAssistant_responseTimeoutTitle => '响应等待超时';
 
   @override
@@ -29724,6 +29764,47 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get watermark_sourceLoadFailed =>
       '無法開啟此圖片。請確認檔案是有效的靜態 PNG、JPEG、WebP 或 BMP 圖片後再試一次。';
+
+  @override
+  String get watermark_autoPlacement => '自動選位';
+
+  @override
+  String get watermark_autoPlacementHint =>
+      '以設定的錨點為首選位置；其他角落明顯更乾淨時，整套浮水印會鏡像過去。';
+
+  @override
+  String get watermark_autoPlacementKept => '自動選位：保持首選位置';
+
+  @override
+  String get watermark_autoPlacementMirroredHorizontal => '自動選位：已左右鏡像';
+
+  @override
+  String get watermark_autoPlacementMirroredVertical => '自動選位：已上下鏡像';
+
+  @override
+  String get watermark_autoPlacementMirroredBoth => '自動選位：已鏡像到對角';
+
+  @override
+  String get watermark_autoAnalyzing => '正在分析畫面…';
+
+  @override
+  String get watermark_autoAnalysisFailed => '無法分析畫面，預覽未套用自動調整；儲存時會重新分析。';
+
+  @override
+  String get watermark_autoTone => '自動灰階';
+
+  @override
+  String get watermark_autoToneTextHint => '依文字下方的背景亮度取灰，描邊與陰影朝相反方向取灰。';
+
+  @override
+  String get watermark_autoToneLogoHint =>
+      '依 Logo 下方的背景亮度去色調灰，保留 Logo 本身的明暗層次。';
+
+  @override
+  String get watermark_toneContrast => '明暗差';
+
+  @override
+  String get watermark_colorFromAutoTone => '顏色由自動灰階決定';
 
   @override
   String get promptAssistant_responseTimeoutTitle => '回應等待逾時';

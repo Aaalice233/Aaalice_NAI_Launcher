@@ -26302,6 +26302,84 @@ abstract class AppLocalizations {
   /// **'This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.'**
   String get watermark_sourceLoadFailed;
 
+  /// No description provided for @watermark_autoPlacement.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto placement'**
+  String get watermark_autoPlacement;
+
+  /// No description provided for @watermark_autoPlacementHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The anchor you set is preferred; when another corner is clearly cleaner, the whole watermark is mirrored there.'**
+  String get watermark_autoPlacementHint;
+
+  /// No description provided for @watermark_autoPlacementKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto placement: kept at the preferred position'**
+  String get watermark_autoPlacementKept;
+
+  /// No description provided for @watermark_autoPlacementMirroredHorizontal.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto placement: mirrored left to right'**
+  String get watermark_autoPlacementMirroredHorizontal;
+
+  /// No description provided for @watermark_autoPlacementMirroredVertical.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto placement: mirrored top to bottom'**
+  String get watermark_autoPlacementMirroredVertical;
+
+  /// No description provided for @watermark_autoPlacementMirroredBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto placement: moved to the opposite corner'**
+  String get watermark_autoPlacementMirroredBoth;
+
+  /// No description provided for @watermark_autoAnalyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing image…'**
+  String get watermark_autoAnalyzing;
+
+  /// No description provided for @watermark_autoAnalysisFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The image could not be analyzed, so the preview shows no automatic adjustments. Saving analyzes it again.'**
+  String get watermark_autoAnalysisFailed;
+
+  /// No description provided for @watermark_autoTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto grayscale'**
+  String get watermark_autoTone;
+
+  /// No description provided for @watermark_autoToneTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Picks a gray from the background under the text; the outline and shadow take the opposite side.'**
+  String get watermark_autoToneTextHint;
+
+  /// No description provided for @watermark_autoToneLogoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Converts the logo to a gray matched to the background beneath it, keeping the logo’s own shading.'**
+  String get watermark_autoToneLogoHint;
+
+  /// No description provided for @watermark_toneContrast.
+  ///
+  /// In en, this message translates to:
+  /// **'Tone difference'**
+  String get watermark_toneContrast;
+
+  /// No description provided for @watermark_colorFromAutoTone.
+  ///
+  /// In en, this message translates to:
+  /// **'Color is set by auto grayscale'**
+  String get watermark_colorFromAutoTone;
+
   /// No description provided for @promptAssistant_responseTimeoutTitle.
   ///
   /// In en, this message translates to:

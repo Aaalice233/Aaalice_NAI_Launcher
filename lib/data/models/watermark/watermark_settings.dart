@@ -42,6 +42,8 @@ class WatermarkTextStyle {
     this.shadowBlurRatio = 0.008,
     this.shadowOffsetXRatio = 0.002,
     this.shadowOffsetYRatio = 0.003,
+    this.autoTone = false,
+    this.toneContrast = WatermarkSettings.defaultToneContrast,
   });
 
   final bool enabled;
@@ -57,6 +59,8 @@ class WatermarkTextStyle {
   final double shadowBlurRatio;
   final double shadowOffsetXRatio;
   final double shadowOffsetYRatio;
+  final bool autoTone;
+  final double toneContrast;
 
   WatermarkTextStyle copyWith({
     bool? enabled,
@@ -72,6 +76,8 @@ class WatermarkTextStyle {
     double? shadowBlurRatio,
     double? shadowOffsetXRatio,
     double? shadowOffsetYRatio,
+    bool? autoTone,
+    double? toneContrast,
   }) => WatermarkTextStyle(
     enabled: enabled ?? this.enabled,
     text: text ?? this.text,
@@ -86,6 +92,8 @@ class WatermarkTextStyle {
     shadowBlurRatio: shadowBlurRatio ?? this.shadowBlurRatio,
     shadowOffsetXRatio: shadowOffsetXRatio ?? this.shadowOffsetXRatio,
     shadowOffsetYRatio: shadowOffsetYRatio ?? this.shadowOffsetYRatio,
+    autoTone: autoTone ?? this.autoTone,
+    toneContrast: toneContrast ?? this.toneContrast,
   );
 
   Map<String, Object?> toJson() => {
@@ -102,22 +110,42 @@ class WatermarkTextStyle {
     'shadowBlurRatio': shadowBlurRatio,
     'shadowOffsetXRatio': shadowOffsetXRatio,
     'shadowOffsetYRatio': shadowOffsetYRatio,
+    'autoTone': autoTone,
+    'toneContrast': toneContrast,
   };
 }
 
 class WatermarkLogoStyle {
-  const WatermarkLogoStyle({this.enabled = false, this.opacity = 0.85});
+  const WatermarkLogoStyle({
+    this.enabled = false,
+    this.opacity = 0.85,
+    this.autoTone = false,
+    this.toneContrast = WatermarkSettings.defaultToneContrast,
+  });
 
   final bool enabled;
   final double opacity;
+  final bool autoTone;
+  final double toneContrast;
 
-  WatermarkLogoStyle copyWith({bool? enabled, double? opacity}) =>
-      WatermarkLogoStyle(
-        enabled: enabled ?? this.enabled,
-        opacity: opacity ?? this.opacity,
-      );
+  WatermarkLogoStyle copyWith({
+    bool? enabled,
+    double? opacity,
+    bool? autoTone,
+    double? toneContrast,
+  }) => WatermarkLogoStyle(
+    enabled: enabled ?? this.enabled,
+    opacity: opacity ?? this.opacity,
+    autoTone: autoTone ?? this.autoTone,
+    toneContrast: toneContrast ?? this.toneContrast,
+  );
 
-  Map<String, Object?> toJson() => {'enabled': enabled, 'opacity': opacity};
+  Map<String, Object?> toJson() => {
+    'enabled': enabled,
+    'opacity': opacity,
+    'autoTone': autoTone,
+    'toneContrast': toneContrast,
+  };
 }
 
 class WatermarkComposition {
@@ -220,6 +248,7 @@ class WatermarkSettings {
     this.enabled = false,
     this.preserveMetadata = false,
     this.rememberLayoutsByOrientation = false,
+    this.autoPlacement = false,
     this.textStyle = const WatermarkTextStyle(),
     this.logoStyle = const WatermarkLogoStyle(),
     this.composition = const WatermarkComposition(),
@@ -229,7 +258,9 @@ class WatermarkSettings {
     this.landscapeLayout = defaultLayout,
   });
 
+  // 新增字段一律可选，不升版本：云同步里的旧客户端遇到更高版本会整份判为损坏
   static const currentSchemaVersion = 1;
+  static const defaultToneContrast = 0.7;
   static const defaultTextPlacement = WatermarkPlacement(
     anchor: WatermarkAnchor.bottomRight,
     sizeRatio: 0.1,
@@ -251,6 +282,7 @@ class WatermarkSettings {
   final bool enabled;
   final bool preserveMetadata;
   final bool rememberLayoutsByOrientation;
+  final bool autoPlacement;
   final WatermarkTextStyle textStyle;
   final WatermarkLogoStyle logoStyle;
   final WatermarkComposition composition;
@@ -259,10 +291,14 @@ class WatermarkSettings {
   final WatermarkLayout squareLayout;
   final WatermarkLayout landscapeLayout;
 
+  bool get usesSourceAnalysis =>
+      autoPlacement || textStyle.autoTone || logoStyle.autoTone;
+
   WatermarkSettings copyWith({
     bool? enabled,
     bool? preserveMetadata,
     bool? rememberLayoutsByOrientation,
+    bool? autoPlacement,
     WatermarkTextStyle? textStyle,
     WatermarkLogoStyle? logoStyle,
     WatermarkComposition? composition,
@@ -275,6 +311,7 @@ class WatermarkSettings {
     preserveMetadata: preserveMetadata ?? this.preserveMetadata,
     rememberLayoutsByOrientation:
         rememberLayoutsByOrientation ?? this.rememberLayoutsByOrientation,
+    autoPlacement: autoPlacement ?? this.autoPlacement,
     textStyle: textStyle ?? this.textStyle,
     logoStyle: logoStyle ?? this.logoStyle,
     composition: composition ?? this.composition,
@@ -289,6 +326,7 @@ class WatermarkSettings {
     'enabled': enabled,
     'preserveMetadata': preserveMetadata,
     'rememberLayoutsByOrientation': rememberLayoutsByOrientation,
+    'autoPlacement': autoPlacement,
     'textStyle': textStyle.toJson(),
     'logoStyle': logoStyle.toJson(),
     'composition': composition.toJson(),
@@ -357,6 +395,7 @@ class _WatermarkJsonReader {
         'rememberLayoutsByOrientation',
         false,
       ),
+      autoPlacement: _optionalBool(root, 'autoPlacement', false),
       textStyle: _textStyle(_map(root, 'textStyle')),
       logoStyle: _logoStyle(_map(root, 'logoStyle')),
       composition: _composition(_map(root, 'composition')),
@@ -438,6 +477,14 @@ class _WatermarkJsonReader {
         -0.25,
         0.25,
       ),
+      autoTone: _optionalBool(value, 'autoTone', fallback.autoTone),
+      toneContrast: _optionalDouble(
+        value,
+        'toneContrast',
+        fallback.toneContrast,
+        0,
+        1,
+      ),
     );
   }
 
@@ -446,6 +493,14 @@ class _WatermarkJsonReader {
     return WatermarkLogoStyle(
       enabled: _bool(value, 'enabled', fallback.enabled),
       opacity: _double(value, 'opacity', fallback.opacity, 0, 1),
+      autoTone: _optionalBool(value, 'autoTone', fallback.autoTone),
+      toneContrast: _optionalDouble(
+        value,
+        'toneContrast',
+        fallback.toneContrast,
+        0,
+        1,
+      ),
     );
   }
 
@@ -523,6 +578,23 @@ class _WatermarkJsonReader {
     if (value is bool) return value;
     migrated = true;
     return fallback;
+  }
+
+  // 后加的字段缺失属于正常的旧配置，只有存在却无效才算需要迁移
+  bool _optionalBool(Map<dynamic, dynamic> map, String key, bool fallback) {
+    if (!map.containsKey(key)) return fallback;
+    return _bool(map, key, fallback);
+  }
+
+  double _optionalDouble(
+    Map<dynamic, dynamic> map,
+    String key,
+    double fallback,
+    double min,
+    double max,
+  ) {
+    if (!map.containsKey(key)) return fallback;
+    return _double(map, key, fallback, min, max);
   }
 
   String _string(Map<dynamic, dynamic> map, String key, String fallback) {

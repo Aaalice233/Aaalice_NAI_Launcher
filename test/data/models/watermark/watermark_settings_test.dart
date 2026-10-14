@@ -11,6 +11,10 @@ void main() {
     expect(settings.enabled, isFalse);
     expect(settings.preserveMetadata, isFalse);
     expect(settings.rememberLayoutsByOrientation, isFalse);
+    expect(settings.autoPlacement, isFalse);
+    expect(settings.textStyle.autoTone, isFalse);
+    expect(settings.logoStyle.autoTone, isFalse);
+    expect(settings.usesSourceAnalysis, isFalse);
     expect(settings.textStyle.enabled, isTrue);
     expect(settings.logoStyle.enabled, isFalse);
     expect(settings.universalLayout.scaleBasis, WatermarkScaleBasis.shortEdge);
@@ -29,8 +33,19 @@ void main() {
       enabled: true,
       preserveMetadata: true,
       rememberLayoutsByOrientation: true,
-      textStyle: WatermarkTextStyle(text: 'Alice', opacity: 0.6),
-      logoStyle: WatermarkLogoStyle(enabled: true, opacity: 0.7),
+      autoPlacement: true,
+      textStyle: WatermarkTextStyle(
+        text: 'Alice',
+        opacity: 0.6,
+        autoTone: true,
+        toneContrast: 0.4,
+      ),
+      logoStyle: WatermarkLogoStyle(
+        enabled: true,
+        opacity: 0.7,
+        autoTone: true,
+        toneContrast: 0.25,
+      ),
       composition: WatermarkComposition(
         arrangement: WatermarkLayerArrangement.horizontal,
         gapRatio: 0.02,
@@ -71,6 +86,45 @@ void main() {
       loaded.settings.landscapeLayout.textPlacement.anchor,
       WatermarkAnchor.bottomRight,
     );
+  });
+
+  test('configurations saved before auto adjustments load without notice', () {
+    final json = const WatermarkSettings(enabled: true).toJson()
+      ..remove('autoPlacement');
+    for (final style in [json['textStyle'], json['logoStyle']]) {
+      (style! as Map<String, Object?>)
+        ..remove('autoTone')
+        ..remove('toneContrast');
+    }
+
+    final loaded = WatermarkSettings.decode(jsonEncode(json));
+
+    expect(loaded.issue, isNull);
+    expect(loaded.settings.enabled, isTrue);
+    expect(loaded.settings.autoPlacement, isFalse);
+    expect(loaded.settings.textStyle.autoTone, isFalse);
+    expect(
+      loaded.settings.textStyle.toneContrast,
+      WatermarkSettings.defaultToneContrast,
+    );
+    expect(loaded.settings.logoStyle.autoTone, isFalse);
+    expect(
+      loaded.settings.logoStyle.toneContrast,
+      WatermarkSettings.defaultToneContrast,
+    );
+  });
+
+  test('present but invalid auto adjustment values migrate', () {
+    final json = const WatermarkSettings().toJson()..['autoPlacement'] = 'yes';
+    (json['textStyle']! as Map<String, Object?>)['toneContrast'] = 3;
+    (json['logoStyle']! as Map<String, Object?>)['autoTone'] = 1;
+
+    final loaded = WatermarkSettings.decode(jsonEncode(json));
+
+    expect(loaded.issue, WatermarkSettingsLoadIssue.migrated);
+    expect(loaded.settings.autoPlacement, isFalse);
+    expect(loaded.settings.textStyle.toneContrast, 1);
+    expect(loaded.settings.logoStyle.autoTone, isFalse);
   });
 
   test('invalid schemas are rejected without reading their fields', () {

@@ -15172,6 +15172,53 @@ class AppLocalizationsEn extends AppLocalizations {
       'This image could not be opened. Check that it is a valid, static PNG, JPEG, WebP, or BMP image, then try again.';
 
   @override
+  String get watermark_autoPlacement => 'Auto placement';
+
+  @override
+  String get watermark_autoPlacementHint =>
+      'The anchor you set is preferred; when another corner is clearly cleaner, the whole watermark is mirrored there.';
+
+  @override
+  String get watermark_autoPlacementKept =>
+      'Auto placement: kept at the preferred position';
+
+  @override
+  String get watermark_autoPlacementMirroredHorizontal =>
+      'Auto placement: mirrored left to right';
+
+  @override
+  String get watermark_autoPlacementMirroredVertical =>
+      'Auto placement: mirrored top to bottom';
+
+  @override
+  String get watermark_autoPlacementMirroredBoth =>
+      'Auto placement: moved to the opposite corner';
+
+  @override
+  String get watermark_autoAnalyzing => 'Analyzing image…';
+
+  @override
+  String get watermark_autoAnalysisFailed =>
+      'The image could not be analyzed, so the preview shows no automatic adjustments. Saving analyzes it again.';
+
+  @override
+  String get watermark_autoTone => 'Auto grayscale';
+
+  @override
+  String get watermark_autoToneTextHint =>
+      'Picks a gray from the background under the text; the outline and shadow take the opposite side.';
+
+  @override
+  String get watermark_autoToneLogoHint =>
+      'Converts the logo to a gray matched to the background beneath it, keeping the logo’s own shading.';
+
+  @override
+  String get watermark_toneContrast => 'Tone difference';
+
+  @override
+  String get watermark_colorFromAutoTone => 'Color is set by auto grayscale';
+
+  @override
   String get promptAssistant_responseTimeoutTitle => 'Response wait timeout';
 
   @override
