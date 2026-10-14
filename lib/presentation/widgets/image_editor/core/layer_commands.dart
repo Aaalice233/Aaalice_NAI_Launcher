@@ -40,6 +40,7 @@ class LayerCommands {
     Uint8List bytes, {
     required String name,
     Offset offset = Offset.zero,
+    LayerRole role = LayerRole.image,
   }) async {
     final ui.Image image;
     ui.Codec? codec;
@@ -57,13 +58,97 @@ class LayerCommands {
       visible: true,
       locked: false,
       opacity: 1.0,
+      role: role,
       content: LayerContentSnapshot(
         baseImage: image,
         baseImageBytes: bytes,
         baseImageOffset: offset,
       ),
     );
-    return _insert(data, LayerRole.image, 'Import Image Layer');
+    return _insert(
+      data,
+      role,
+      role == LayerRole.mask ? 'Load Mask' : 'Import Image Layer',
+    );
+  }
+
+  /// 蒙版像素的写入目标：当前蒙版层，其次第一个未锁定的蒙版层
+  Layer? get writableMaskLayer {
+    final active = _layers.activeLayer;
+    if (active != null && active.isMask && !active.locked) {
+      return active;
+    }
+    for (final layer in _layers.maskLayers) {
+      if (!layer.locked) {
+        return layer;
+      }
+    }
+    return null;
+  }
+
+  /// 把新增的蒙版像素叠进 [writableMaskLayer]，没有可写蒙版层时连同新蒙版层一起插入；都只占一步撤销。
+  /// [patch] 的所有权移交给本方法，左上角落在文档坐标 [offset]
+  Layer addMaskPixels(
+    ui.Image patch, {
+    required Offset offset,
+    required String newLayerName,
+    required String description,
+  }) {
+    final target = writableMaskLayer;
+    if (target == null) {
+      final data = LayerData(
+        id: const Uuid().v4(),
+        name: newLayerName,
+        visible: true,
+        locked: false,
+        opacity: 1.0,
+        role: LayerRole.mask,
+        content: LayerContentSnapshot(
+          baseImage: patch,
+          baseImageOffset: offset,
+        ),
+      );
+      return _insert(data, LayerRole.mask, description);
+    }
+
+    final BakedLayerImage baked;
+    try {
+      baked = LayerPatchBaker.paintOver(
+        target,
+        dirtyRect:
+            offset & Size(patch.width.toDouble(), patch.height.toDouble()),
+        paint: (canvas) => canvas.drawImage(patch, offset, Paint()),
+        extentLock: _policy.extentLockFor(target),
+      );
+    } finally {
+      patch.dispose();
+    }
+    _state.historyManager.execute(
+      ReplaceLayerImageAction.baked(
+        layerId: target.id,
+        pixels: baked,
+        actionDescription: description,
+      ),
+      _state,
+    );
+    _layers.setActiveLayer(target.id);
+    return target;
+  }
+
+  /// 清空蒙版：全部蒙版层换成一个空蒙版层，一步撤销
+  Layer resetMaskLayers({required String name}) {
+    final action = ResetMaskLayersAction(
+      replacement: LayerData(
+        id: const Uuid().v4(),
+        name: name,
+        visible: true,
+        locked: false,
+        opacity: 1.0,
+        role: LayerRole.mask,
+      ),
+    );
+    _state.historyManager.execute(action, _state);
+    return _layers.getLayerById(action.replacementId)!;
   }
 
   Layer _insert(LayerData data, LayerRole role, String description) {

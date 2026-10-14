@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/core/history_manager.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_controller.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_workspace.dart';
@@ -52,6 +53,67 @@ void main() {
     expect(blurButton, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'closed region fill writes into the outline layer even when it crosses the frame',
+    (tester) async {
+      final (_, session) = await _pumpInpaintWorkspace(tester);
+      final state = session.editorState;
+      final mask = state.layerManager.activeLayer!;
+      StrokeData outline(List<Offset> points) => StrokeData(
+        points: points,
+        size: 8,
+        color: const Color(0xFFFFFFFF),
+        opacity: 1,
+        hardness: 1,
+      );
+      state.historyManager.execute(
+        AddStrokeAction(
+          layerId: mask.id,
+          stroke: outline(const [
+            Offset(100, 100),
+            Offset(300, 100),
+            Offset(300, 300),
+            Offset(100, 300),
+            Offset(100, 100),
+          ]),
+        ),
+        state,
+      );
+      // 伸出取景框的一笔：旧实现会因此保留原层，再叠一个同名蒙版层
+      state.historyManager.execute(
+        AddStrokeAction(
+          layerId: mask.id,
+          stroke: outline(const [Offset(-40, 200), Offset(-10, 200)]),
+        ),
+        state,
+      );
+      const probe = Rect.fromLTRB(-50, 90, 310, 310);
+
+      await tester.runAsync(
+        () => state.fillClosedRegionAt(const Offset(200, 200)),
+      );
+      await tester.pump();
+
+      expect(state.layerManager.maskLayers.toList(), [mask]);
+      final filled = (await tester.runAsync(
+        () => LayerPixels.of(mask, probe),
+      ))!;
+      expect(filled.alphaAt(200, 200), greaterThan(0));
+      expect(filled.alphaAt(-25, 200), greaterThan(0));
+
+      expect(state.undo(), isTrue);
+      expect(state.layerManager.maskLayers.toList(), [mask]);
+      expect(mask.strokes, hasLength(2));
+      final restored = (await tester.runAsync(
+        () => LayerPixels.of(mask, probe),
+      ))!;
+      expect(restored.alphaAt(200, 200), 0);
+
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('dropped images become image layers under the masks', (
     tester,

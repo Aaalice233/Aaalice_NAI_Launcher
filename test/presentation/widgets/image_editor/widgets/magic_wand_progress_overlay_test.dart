@@ -56,8 +56,6 @@ class _ProcessingMagicWandController extends MagicWandController {
         session: session,
         editorState: session.editorState,
         config: const ImageEditorSessionConfig.empty(),
-        addMaskLayer: (name) =>
-            session.editorState.layerManager.addLayer(name: name),
       );
 
   @override

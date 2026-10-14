@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import '../layers/layer.dart';
 import '../layers/layer_patch_baker.dart';
+import '../layers/layer_role.dart';
 import 'editor_state.dart';
 import 'history_manager.dart';
 
@@ -69,6 +70,70 @@ class RemoveLayerAction extends EditorAction {
 
   @override
   String get description => 'Delete Layer';
+}
+
+/// 清空蒙版：全部蒙版层换成一个空蒙版层；撤销按原位置找回全部蒙版层
+class ResetMaskLayersAction extends EditorAction {
+  ResetMaskLayersAction({required LayerData replacement})
+    : _replacement = replacement;
+
+  final LayerData _replacement;
+  final List<(int, LayerData)> _removed = [];
+  String? _activeBefore;
+
+  String get replacementId => _replacement.id;
+
+  @override
+  void execute(EditorState state) {
+    final layers = state.layerManager;
+    _disposeRemoved();
+    _activeBefore = layers.activeLayerId;
+    for (final layer in layers.maskLayers) {
+      _removed.add((layers.indexOfLayer(layer.id), layer.toData()));
+    }
+    layers.runBatch(() {
+      for (final (_, data) in _removed) {
+        layers.removeLayer(data.id);
+      }
+      layers.insertLayerFromData(
+        _replacement,
+        state.rolePolicy.insertIndexFor(layers, LayerRole.mask),
+        setActive: true,
+      );
+    });
+  }
+
+  @override
+  void undo(EditorState state) {
+    final layers = state.layerManager;
+    layers.runBatch(() {
+      layers.removeLayer(_replacement.id);
+      // 按原索引升序插回，每层都落回原位
+      for (final (index, data) in _removed) {
+        layers.insertLayerFromData(data, index);
+      }
+      final active = _activeBefore;
+      if (active != null && layers.getLayerById(active) != null) {
+        layers.setActiveLayer(active);
+      }
+    });
+  }
+
+  void _disposeRemoved() {
+    for (final (_, data) in _removed) {
+      data.dispose();
+    }
+    _removed.clear();
+  }
+
+  @override
+  void dispose() {
+    _disposeRemoved();
+    _replacement.dispose();
+  }
+
+  @override
+  String get description => 'Reset Mask';
 }
 
 /// 在图层栈里移动一个图层；索引 0 在最上层

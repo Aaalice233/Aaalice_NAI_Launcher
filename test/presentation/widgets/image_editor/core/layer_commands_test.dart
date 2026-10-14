@@ -387,6 +387,219 @@ void main() {
       expect(state.layerCommands.canMergeDown(session.mask), isFalse);
     });
 
+    group('writableMaskLayer', () {
+      testWidgets('is the active mask layer', (tester) async {
+        final session = _inpaintSession();
+        final mask2 = session.state.layerCommands.addLayer(
+          name: 'mask2',
+          role: LayerRole.mask,
+        );
+
+        expect(session.state.layerCommands.writableMaskLayer, same(mask2));
+      });
+
+      testWidgets('falls back to the first unlocked mask layer', (
+        tester,
+      ) async {
+        final session = _inpaintSession();
+        final state = session.state;
+        final locked = state.layerCommands.addLayer(
+          name: 'locked',
+          role: LayerRole.mask,
+        )..locked = true;
+        expect(state.layerManager.activeLayer, same(locked));
+        expect(state.layerCommands.writableMaskLayer, same(session.mask));
+
+        state.layerManager.setActiveLayer(session.source.id);
+        expect(state.layerCommands.writableMaskLayer, same(session.mask));
+      });
+
+      testWidgets('ignores image layers and locked masks', (tester) async {
+        final session = _inpaintSession();
+        session.mask.locked = true;
+        session.state.layerManager.setActiveLayer(session.source.id);
+
+        expect(session.state.layerCommands.writableMaskLayer, isNull);
+      });
+    });
+
+    testWidgets(
+      'addMaskPixels paints into the active mask without touching other layers',
+      (tester) async {
+        await tester.runAsync(() async {
+          final session = _inpaintSession();
+          final state = session.state;
+          final layers = state.layerManager;
+          final hidden = state.layerCommands.addLayer(
+            name: 'hidden',
+            role: LayerRole.mask,
+          )..visible = false;
+          final locked = state.layerCommands.addLayer(
+            name: 'locked',
+            role: LayerRole.mask,
+          );
+          await fillLayer(layers, hidden, size: const Size(4, 4), color: _red);
+          await fillLayer(layers, locked, size: const Size(4, 4), color: _red);
+          locked.locked = true;
+          // 内容伸出取景框：封闭填充曾因此保留旧层、再叠一个新层
+          await fillLayer(
+            layers,
+            session.mask,
+            size: const Size(8, 8),
+            color: _red,
+            offset: const Offset(-4, -4),
+          );
+          layers.setActiveLayer(session.mask.id);
+          final before = List.of(layers.layers);
+
+          final target = state.layerCommands.addMaskPixels(
+            await solidImage(4, 4, _blue),
+            offset: const Offset(10, 10),
+            newLayerName: 'new mask',
+            description: 'test',
+          );
+
+          expect(target, same(session.mask));
+          expect(layers.layers, before);
+          expect(layers.activeLayer, same(session.mask));
+          expect(
+            session.mask.contentBounds,
+            const Rect.fromLTWH(-4, -4, 18, 18),
+          );
+          var pixels = await LayerPixels.of(
+            session.mask,
+            const Rect.fromLTWH(-4, -4, 18, 18),
+          );
+          expect(pixels.at(-2, -2), [255, 0, 0, 255]);
+          expect(pixels.at(12, 12), [0, 0, 255, 255]);
+          expect(pixels.alphaAt(8, 8), 0);
+          expect(hidden.contentBounds, const Rect.fromLTWH(0, 0, 4, 4));
+          expect(locked.contentBounds, const Rect.fromLTWH(0, 0, 4, 4));
+
+          expect(state.undo(), isTrue);
+          expect(layers.layers, before);
+          expect(session.mask.contentBounds, const Rect.fromLTWH(-4, -4, 8, 8));
+          pixels = await LayerPixels.of(
+            session.mask,
+            const Rect.fromLTWH(-4, -4, 8, 8),
+          );
+          expect(pixels.at(-2, -2), [255, 0, 0, 255]);
+        });
+      },
+    );
+
+    testWidgets(
+      'addMaskPixels inserts a mask layer in one undo step when none is writable',
+      (tester) async {
+        await tester.runAsync(() async {
+          final session = _inpaintSession();
+          final state = session.state;
+          final layers = state.layerManager;
+          session.mask.locked = true;
+          layers.setActiveLayer(session.source.id);
+
+          final created = state.layerCommands.addMaskPixels(
+            await solidImage(4, 4, _blue),
+            offset: const Offset(6, 2),
+            newLayerName: 'new mask',
+            description: 'test',
+          );
+
+          expect(layers.layers, [created, session.mask, session.source]);
+          expect(created.name, 'new mask');
+          expect(created.role, LayerRole.mask);
+          expect(created.contentBounds, const Rect.fromLTWH(6, 2, 4, 4));
+          expect(layers.activeLayer, same(created));
+
+          expect(state.undo(), isTrue);
+          expect(layers.layers, [session.mask, session.source]);
+        });
+      },
+    );
+
+    testWidgets(
+      'resetMaskLayers swaps every mask for one empty layer and undo brings them back',
+      (tester) async {
+        await tester.runAsync(() async {
+          final session = _inpaintSession();
+          final state = session.state;
+          final layers = state.layerManager;
+          final locked = state.layerCommands.addLayer(
+            name: 'locked',
+            role: LayerRole.mask,
+          );
+          await fillLayer(
+            layers,
+            session.mask,
+            size: const Size(4, 4),
+            color: _red,
+            offset: const Offset(2, 2),
+          );
+          locked
+            ..locked = true
+            ..visible = false;
+          layers.setActiveLayer(session.mask.id);
+          final image = state.layerCommands.addLayer(name: 'image');
+          layers.setActiveLayer(session.mask.id);
+          final before = layers.layers.map((l) => l.id).toList();
+
+          final empty = state.layerCommands.resetMaskLayers(name: 'mask');
+
+          expect(layers.layers, [empty, image, session.source]);
+          expect(empty.role, LayerRole.mask);
+          expect(empty.hasContent, isFalse);
+          expect(layers.activeLayer, same(empty));
+
+          expect(state.undo(), isTrue);
+          expect(layers.layers.map((l) => l.id), before);
+          expect(layers.activeLayerId, session.mask.id);
+          final restoredMask = layers.getLayerById(session.mask.id)!;
+          final restoredLocked = layers.getLayerById(locked.id)!;
+          expect(restoredLocked.locked, isTrue);
+          expect(restoredLocked.visible, isFalse);
+          final pixels = await LayerPixels.of(
+            restoredMask,
+            const Rect.fromLTWH(2, 2, 4, 4),
+          );
+          expect(pixels.at(3, 3), [255, 0, 0, 255]);
+
+          expect(state.redo(), isTrue);
+          expect(layers.layers.map((l) => l.id), [
+            empty.id,
+            image.id,
+            session.source.id,
+          ]);
+        });
+      },
+    );
+
+    testWidgets('addImageLayer with the mask role lands in the mask group', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final session = _inpaintSession();
+        final state = session.state;
+        final layers = state.layerManager;
+        state.layerCommands.addLayer(name: 'image');
+        layers.setActiveLayer(session.source.id);
+
+        final loaded = await state.layerCommands.addImageLayer(
+          await solidPng(4, 4, _blue),
+          name: 'loaded',
+          offset: const Offset(3, 3),
+          role: LayerRole.mask,
+        );
+
+        expect(loaded, isNotNull);
+        expect(loaded!.role, LayerRole.mask);
+        expect(layers.layers.indexOf(loaded), 0);
+        expect(loaded.contentBounds, const Rect.fromLTWH(3, 3, 4, 4));
+
+        expect(state.undo(), isTrue);
+        expect(layers.getLayerById(loaded.id), isNull);
+      });
+    });
+
     testWidgets('pixel edits on the source keep its extent locked', (
       tester,
     ) async {
