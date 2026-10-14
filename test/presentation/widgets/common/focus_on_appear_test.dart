@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/common/focus_on_appear.dart';
 
@@ -104,5 +105,54 @@ void main() {
     await _startEditing(tester, page);
 
     expect(field.hasPrimaryFocus, isTrue);
+  });
+
+  group('FocusOnAppear.self', () {
+    late int escapes;
+    Widget popup() => CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): () => escapes++,
+      },
+      child: FocusOnAppear.self(child: TextField(focusNode: field)),
+    );
+
+    setUp(() => escapes = 0);
+
+    testWidgets('出现后焦点停在弹层本身，外层 Esc 绑定立即可用', (tester) async {
+      final page = await _pumpPage(tester, anchor, popup);
+
+      await _startEditing(tester, page);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+
+      expect(field.hasFocus, isFalse);
+      expect(anchor.hasPrimaryFocus, isFalse);
+      expect(escapes, 1);
+    });
+
+    testWidgets('内部输入框失焦后焦点收回到弹层，Esc 仍可用', (tester) async {
+      final page = await _pumpPage(tester, anchor, popup);
+      await _startEditing(tester, page);
+      field.requestFocus();
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+
+      field.unfocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+
+      expect(escapes, 1);
+    });
+
+    testWidgets('弹层移除后焦点回到页面原持有者', (tester) async {
+      final page = await _pumpPage(tester, anchor, popup);
+      await _startEditing(tester, page);
+      expect(anchor.hasPrimaryFocus, isFalse);
+
+      // ignore: invalid_use_of_protected_member
+      page.setState(() => page.editing = false);
+      await tester.pump();
+
+      expect(anchor.hasPrimaryFocus, isTrue);
+    });
   });
 }
