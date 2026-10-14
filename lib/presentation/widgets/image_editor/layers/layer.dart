@@ -714,10 +714,10 @@ class Layer {
     if (group == null) return;
 
     final magnified = pixelScale > 1;
-    _withMaskOverlay(canvas, group, () {
+    _withMaskOverlay(canvas, group, (overlay) {
       for (final (mask, bounds, live) in members) {
         mask._paintMaskCoverage(
-          canvas,
+          overlay,
           bounds: bounds,
           viewportBounds: viewportBounds,
           filterQuality: filterQuality,
@@ -766,15 +766,21 @@ class Layer {
   static void _withMaskOverlay(
     Canvas canvas,
     Rect bounds,
-    void Function() drawCoverage,
+    void Function(Canvas overlay) drawCoverage,
   ) {
-    canvas.saveLayer(
+    // Impeller 的 saveLayer 会沿用同一画面里前面留下的图片着色器（棋盘格）而跳过 colorFilter，嵌套 Picture 回放时画笔状态会重置
+    final recorder = ui.PictureRecorder();
+    final overlay = Canvas(recorder);
+    overlay.saveLayer(
       bounds,
       Paint()
         ..color = const Color.fromRGBO(255, 255, 255, MaskPaintStyle.opacity),
     );
-    drawCoverage();
-    canvas.restore();
+    drawCoverage(overlay);
+    overlay.restore();
+    final picture = recorder.endRecording();
+    canvas.drawPicture(picture);
+    picture.dispose();
   }
 
   /// 蒙版只表达哪里被覆盖：笔迹各自的透明度与重叠先归一成满覆盖，再施加本层的不透明度。
@@ -992,12 +998,12 @@ class Layer {
     // 缩小时矢量笔画比缓存图降采样清晰，细笔画不会断开
     if (visible && isMask) {
       final bounds = contentBounds;
-      _withMaskOverlay(canvas, bounds, () {
+      _withMaskOverlay(canvas, bounds, (overlay) {
         _withMaskCoverage(
-          canvas,
+          overlay,
           bounds,
           () => _drawDirect(
-            canvas,
+            overlay,
             Paint()..filterQuality = FilterQuality.medium,
           ),
           magnified: false,
