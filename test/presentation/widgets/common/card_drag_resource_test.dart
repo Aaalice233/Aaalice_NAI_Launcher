@@ -1,6 +1,8 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_drag_resource.dart';
 
 void main() {
@@ -35,6 +37,33 @@ void main() {
       expect(prepared, ['a', 'b', 'c']);
     },
   );
+
+  test('members prepare in parallel, bounded by the compute gate', () async {
+    final limit = ComputeGate().maxConcurrentTasks;
+    var active = 0;
+    var peak = 0;
+    final resources = [
+      for (var i = 0; i < limit * 3; i++)
+        CardDragResource(
+          id: '$i',
+          fileName: '$i.png',
+          prepare: () async {
+            peak = math.max(peak, ++active);
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+            active--;
+            return Uint8List.fromList([i]);
+          },
+        ),
+    ];
+    final session = CardDragPreparation(resources);
+
+    final results = await session.prepare();
+
+    expect(peak, limit);
+    expect(results, [
+      for (var i = 0; i < limit * 3; i++) Uint8List.fromList([i]),
+    ]);
+  });
 
   test('a failed member prevents successful-looking partial exports', () async {
     final failure = StateError('missing original');

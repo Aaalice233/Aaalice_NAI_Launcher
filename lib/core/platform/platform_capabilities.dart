@@ -2,6 +2,18 @@ import 'dart:io' as io;
 
 import 'package:flutter/foundation.dart';
 
+/// How a dragged card hands generated file contents to other applications.
+enum DragFileExportMode {
+  /// The receiver pulls the contents through an asynchronous file promise.
+  virtualFile,
+
+  /// A real file is written the first time a receiver asks for its path.
+  onDemandFile,
+
+  /// A real file is written before the drag starts.
+  preparedFile,
+}
+
 /// Centralized platform feature matrix.
 ///
 /// Layout decisions still belong to the adaptive presentation layer. This
@@ -72,4 +84,12 @@ class PlatformCapabilities {
   bool get supportsManagedFileImports => isAndroid;
   bool get supportsInAppPackageInstall => isWindows || isAndroid;
   bool get requiresExternalInstallerFlow => isAndroid;
+
+  // Windows OLE receivers may read a virtual file stream inside their Drop
+  // callback while the stream waits for this platform thread: a deadlock.
+  DragFileExportMode get dragFileExportMode => switch (platform) {
+    TargetPlatform.macOS || TargetPlatform.iOS => DragFileExportMode.virtualFile,
+    TargetPlatform.windows => DragFileExportMode.onDemandFile,
+    _ => DragFileExportMode.preparedFile,
+  };
 }

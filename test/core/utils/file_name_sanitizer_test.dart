@@ -30,5 +30,16 @@ void main() {
         'abc',
       );
     });
+
+    test('share names keep the extension and stay valid on Windows', () {
+      expect(FileNameSanitizer.shareName('dir/a:b?.png'), 'a_b_.png');
+      expect(FileNameSanitizer.shareName('x/name. .png'), 'name.png');
+      expect(FileNameSanitizer.shareName('.png'), '.png');
+      expect(FileNameSanitizer.shareName('  .png'), 'image.png');
+      expect(
+        FileNameSanitizer.shareName('${'x' * 300}.webp'),
+        '${'x' * 120}.webp',
+      );
+    });
   });
 }

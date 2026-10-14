@@ -6,6 +6,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../widgets/common/app_toast.dart';
+import '../widgets/common/card_drag_resource.dart';
 import 'card_drag_format.dart';
 import 'native_drop_callback.dart';
 
@@ -28,8 +29,7 @@ bool canAcceptGalleryDrop(
       if (galleryInternalDragPathFromLocalData(item.localData) != null) {
         return true;
       }
-      final local = item.localData;
-      if (local is Map && local.containsKey('cardDragId')) return false;
+      if (CardDragResource.isPayload(item.localData)) return false;
       return !internalOnly && item.canProvide(Formats.fileUri);
     });
 

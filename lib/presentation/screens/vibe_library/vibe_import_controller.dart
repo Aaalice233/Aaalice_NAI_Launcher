@@ -28,6 +28,7 @@ import '../../../data/services/auth_provider.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/common/card_drag_resource.dart';
 import 'vibe_drop_import_preprocessor.dart';
 import 'vibe_library_screen_controller.dart';
 import 'widgets/vibe_bundle_import_dialog.dart' as bundle_dialog;
@@ -157,6 +158,7 @@ class VibeImportController {
       final inputs = await Future.wait([
         for (final item in items)
           if (decodeLocalAgentResource(item.localData) == null &&
+              !CardDragResource.isPayload(item.localData) &&
               item.canProvide(Formats.fileUri))
             readGalleryDropPaths([item]).then(
               (paths) => (paths: paths, resources: <CardDroppedResource>[]),
