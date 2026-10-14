@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart'
     show WebViewEnvironment;
 
 import '../../../common/checkerboard_pattern.dart';
+import '../../../common/focus_on_appear.dart';
 import '../../../common/image_viewport_surface.dart';
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/app_logger.dart';
@@ -541,25 +542,26 @@ class _LayerTileState extends State<_LayerTile>
                 // 图层名称
                 Expanded(
                   child: _isEditing
-                      ? ThemedInput(
-                          controller: _nameController,
-                          autofocus: true,
-                          style: theme.textTheme.bodySmall,
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
+                      ? FocusOnAppear(
+                          child: ThemedInput(
+                            controller: _nameController,
+                            style: theme.textTheme.bodySmall,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                             ),
+                            onSubmitted: (value) {
+                              widget.onRename(value);
+                              setState(() => _isEditing = false);
+                            },
+                            onEditingComplete: () {
+                              widget.onRename(_nameController.text);
+                              setState(() => _isEditing = false);
+                            },
                           ),
-                          onSubmitted: (value) {
-                            widget.onRename(value);
-                            setState(() => _isEditing = false);
-                          },
-                          onEditingComplete: () {
-                            widget.onRename(_nameController.text);
-                            setState(() => _isEditing = false);
-                          },
                         )
                       : GestureDetector(
                           // 3D 图层(onDoubleTap 非空)双击名字进入 3D 编辑器;

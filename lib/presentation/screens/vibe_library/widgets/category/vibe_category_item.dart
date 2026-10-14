@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../widgets/common/context_menu_anchor.dart';
+import '../../../../widgets/common/focus_on_appear.dart';
 import '../../../../widgets/common/library_classification_drag.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
 import '../../../../adaptive/interaction_policy.dart';
@@ -169,31 +170,32 @@ class _VibeCategoryItemState extends State<VibeCategoryItem> {
                     // 名称（编辑模式或显示模式）
                     Expanded(
                       child: _isEditing
-                          ? TextField(
-                              controller: _editController,
-                              focusNode: _editFocusNode,
-                              autofocus: true,
-                              style: const TextStyle(fontSize: 13),
-                              decoration: const InputDecoration(
-                                filled: false,
-                                isDense: true,
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.zero,
+                          ? FocusOnAppear(
+                              child: TextField(
+                                controller: _editController,
+                                focusNode: _editFocusNode,
+                                style: const TextStyle(fontSize: 13),
+                                decoration: const InputDecoration(
+                                  filled: false,
+                                  isDense: true,
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                onSubmitted: (value) {
+                                  if (value.trim().isNotEmpty) {
+                                    widget.onRename?.call(value.trim());
+                                  }
+                                  if (mounted) {
+                                    setState(() => _isEditing = false);
+                                  }
+                                },
+                                onTapOutside: (_) {
+                                  _editController.text = widget.label;
+                                  if (mounted) {
+                                    setState(() => _isEditing = false);
+                                  }
+                                },
                               ),
-                              onSubmitted: (value) {
-                                if (value.trim().isNotEmpty) {
-                                  widget.onRename?.call(value.trim());
-                                }
-                                if (mounted) {
-                                  setState(() => _isEditing = false);
-                                }
-                              },
-                              onTapOutside: (_) {
-                                _editController.text = widget.label;
-                                if (mounted) {
-                                  setState(() => _isEditing = false);
-                                }
-                              },
                             )
                           : Text(
                               widget.label,
