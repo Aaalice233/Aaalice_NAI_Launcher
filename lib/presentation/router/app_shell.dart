@@ -19,6 +19,7 @@ import '../providers/prompt_maximize_provider.dart';
 import '../widgets/app_branch_visibility.dart';
 import '../widgets/drop/global_drop_handler.dart';
 import '../widgets/drop/incoming_image_share_handler.dart';
+import '../widgets/shortcuts/editable_text_focus.dart';
 import '../widgets/shortcuts/shortcut_aware_widget.dart';
 import '../widgets/shortcuts/shortcut_help_dialog.dart';
 import 'app_branch.dart';
@@ -58,6 +59,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     debugLabel: 'main-shell-panel-overlay',
   );
   final Map<int, bool> _branchCanHandlePop = <int, bool>{};
+  final Map<int, FocusScopeNode> _branchFocusScopes = <int, FocusScopeNode>{};
   ProviderSubscription<AuthPromptRequest?>? _authPromptSubscription;
   late final TimingsCallback _frameTimingsCallback;
   Timer? _navigationTraceTimer;
@@ -75,6 +77,7 @@ class _MainShellState extends ConsumerState<MainShell> {
     super.initState();
     _previousIndex = widget.navigationShell.currentIndex;
     _visitedBranchIndices.add(widget.navigationShell.currentIndex);
+    FocusManager.instance.addListener(_handlePrimaryFocusChange);
     _frameTimingsCallback = _recordNavigationFrameTimings;
     if (PlatformCapabilities.operatingSystem.supportsDlssEnhancement) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -113,7 +116,48 @@ class _MainShellState extends ConsumerState<MainShell> {
       SchedulerBinding.instance.removeTimingsCallback(_frameTimingsCallback);
     }
     _authPromptSubscription?.close();
+    FocusManager.instance.removeListener(_handlePrimaryFocusChange);
+    for (final scope in _branchFocusScopes.values) {
+      scope.dispose();
+    }
     super.dispose();
+  }
+
+  FocusScopeNode _branchFocusScope(int index) => _branchFocusScopes.putIfAbsent(
+    index,
+    () => FocusScopeNode(
+      debugLabel: 'MainShell branch ${AppBranch.values[index].name}',
+      traversalEdgeBehavior: TraversalEdgeBehavior.parentScope,
+    ),
+  );
+
+  // IndexedStack 排除隐藏分支的焦点、外壳面板关闭后焦点会退到分支之上，只接管这种退回
+  void _handlePrimaryFocusChange() {
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    final branchScope = _branchFocusScopes[widget.navigationShell.currentIndex];
+    if (primaryFocus == null ||
+        branchScope == null ||
+        branchScope.hasFocus ||
+        !branchScope.ancestors.contains(primaryFocus)) {
+      return;
+    }
+    _restoreBranchFocus(branchScope);
+  }
+
+  void _restoreBranchFocus(FocusScopeNode branchScope) {
+    FocusNode target = branchScope;
+    while (target is FocusScopeNode) {
+      final focusedChild = target.focusedChild;
+      if (focusedChild == null || !focusedChild.canRequestFocus) break;
+      target = focusedChild;
+    }
+    // 不回到输入框，否则手机上会重新弹出键盘；停在它的作用域，由页面收回焦点
+    final textScope = isEditableTextNode(target) ? target.enclosingScope : null;
+    if (textScope != null) {
+      textScope.requestScopeFocus();
+    } else {
+      target.requestFocus();
+    }
   }
 
   @override
@@ -227,9 +271,12 @@ class _MainShellState extends ConsumerState<MainShell> {
         // 只在首次访问时挂载分支，避免启动时构建全部页面；挂载后始终
         // 保留 Element/Navigator/滚动状态，隐藏时暂停动画及后台工作。
         final branchContent = _visitedBranchIndices.contains(index)
-            ? AppBranchVisibility(
-                isVisible: isActive,
-                child: TickerMode(enabled: isActive, child: child),
+            ? FocusScope(
+                node: _branchFocusScope(index),
+                child: AppBranchVisibility(
+                  isVisible: isActive,
+                  child: TickerMode(enabled: isActive, child: child),
+                ),
               )
             : const SizedBox.shrink();
 
