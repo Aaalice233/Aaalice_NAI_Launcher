@@ -85,4 +85,39 @@ void main() {
       unorderedEquals(['viewer-left', 'generation-left']),
     );
   });
+
+  test('ParsedShortcut.isTextEditingKey 区分输入框里的编辑键', () {
+    bool editing(String shortcut) =>
+        ShortcutParser.parse(shortcut)!.isTextEditingKey;
+
+    for (final shortcut in [
+      'f',
+      'delete',
+      'enter',
+      'arrowleft',
+      'shift+arrowleft',
+      'pagedown',
+      'ctrl+a',
+      'ctrl+c',
+      'meta+v',
+      'ctrl+shift+z',
+      'ctrl+y',
+      'ctrl+arrowleft',
+      'alt+backspace',
+    ]) {
+      expect(editing(shortcut), isTrue, reason: shortcut);
+    }
+    for (final shortcut in [
+      'escape',
+      'f5',
+      'ctrl+enter',
+      'ctrl+shift+enter',
+      'ctrl+f',
+      'ctrl+l',
+      'alt+z',
+      'ctrl+1',
+    ]) {
+      expect(editing(shortcut), isFalse, reason: shortcut);
+    }
+  });
 }

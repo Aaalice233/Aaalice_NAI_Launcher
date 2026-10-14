@@ -361,6 +361,46 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('搜索框里的 Delete 与 Ctrl+C 交给输入框，不被批量操作快捷键截走', (tester) async {
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _DialogTagLibraryPageNotifier.new);
+    final search = find.descendant(
+      of: find.byType(TagLibraryToolbar),
+      matching: find.byType(EditableText),
+    );
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    await tester.enterText(search, 'abc');
+    await tester.pump();
+    final controller = tester.widget<EditableText>(search).controller;
+    controller.selection = const TextSelection.collapsed(offset: 0);
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(controller.text, 'bc');
+
+    controller.selection = const TextSelection(baseOffset: 0, extentOffset: 2);
+    await tester.pump();
+    await _pressCtrl(tester, LogicalKeyboardKey.keyC);
+    expect(copied, ['bc']);
+  });
 }
 
 Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {

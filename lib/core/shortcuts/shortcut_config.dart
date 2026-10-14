@@ -213,6 +213,55 @@ class ParsedShortcut {
   /// 检查是否包含修饰键
   bool hasModifier(ShortcutModifier modifier) => modifiers.contains(modifier);
 
+  /// 输入框聚焦时应交给输入框的按键：不带 Ctrl/Alt/⌘ 的键（Esc、功能键除外），
+  /// Ctrl/⌘ 加全选、剪贴板、撤销重做，以及修饰键加方向、行首尾、删除
+  bool get isTextEditingKey {
+    final withPrimary =
+        hasModifier(ShortcutModifier.control) ||
+        hasModifier(ShortcutModifier.meta);
+    if (!withPrimary && !hasModifier(ShortcutModifier.alt)) {
+      return !_nonEditingKeys.contains(key);
+    }
+    return _caretEditingKeys.contains(key) ||
+        (withPrimary && _editingCommandKeys.contains(key));
+  }
+
+  static const _nonEditingKeys = {
+    ShortcutKey.escape,
+    ShortcutKey.f1,
+    ShortcutKey.f2,
+    ShortcutKey.f3,
+    ShortcutKey.f4,
+    ShortcutKey.f5,
+    ShortcutKey.f6,
+    ShortcutKey.f7,
+    ShortcutKey.f8,
+    ShortcutKey.f9,
+    ShortcutKey.f10,
+    ShortcutKey.f11,
+    ShortcutKey.f12,
+  };
+
+  static const _caretEditingKeys = {
+    ShortcutKey.arrowleft,
+    ShortcutKey.arrowright,
+    ShortcutKey.arrowup,
+    ShortcutKey.arrowdown,
+    ShortcutKey.home,
+    ShortcutKey.end,
+    ShortcutKey.backspace,
+    ShortcutKey.delete,
+  };
+
+  static const _editingCommandKeys = {
+    ShortcutKey.keyA,
+    ShortcutKey.keyC,
+    ShortcutKey.keyV,
+    ShortcutKey.keyX,
+    ShortcutKey.keyY,
+    ShortcutKey.keyZ,
+  };
+
   /// 获取显示文本
   String get displayLabel {
     final parts = <String>[

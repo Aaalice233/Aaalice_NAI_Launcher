@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/shortcuts/default_shortcuts.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/widgets/shortcuts/editable_text_focus.dart';
 import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 
 class _ControlledShortcutConfigNotifier extends ShortcutConfigNotifier {
@@ -518,4 +520,232 @@ void main() {
       expect(outerPresses, 1);
     });
   });
+
+  group('嵌套包装器与输入框', () {
+    testWidgets('内层页面持有焦点时外层包装器的快捷键仍回到外层回调', (tester) async {
+      var navigations = 0;
+      var generations = 0;
+      final textFocus = FocusNode(debugLabel: 'page-text');
+      addTearDown(textFocus.dispose);
+      await _pumpPage(
+        tester,
+        ShortcutAwareWidget(
+          contextType: ShortcutContext.global,
+          shortcuts: {ShortcutIds.navigateToGeneration: () => navigations++},
+          autofocus: true,
+          child: PageShortcuts(
+            contextType: ShortcutContext.generation,
+            shortcuts: {ShortcutIds.generateImage: () => generations++},
+            child: Material(child: TextField(focusNode: textFocus)),
+          ),
+        ),
+      );
+
+      textFocus.requestFocus();
+      await tester.pump();
+      await _pressCtrl(tester, LogicalKeyboardKey.digit1);
+      await _pressCtrl(tester, LogicalKeyboardKey.enter);
+      expect(navigations, 1);
+      expect(generations, 1);
+
+      textFocus.unfocus();
+      await tester.pump();
+      expect(
+        FocusManager.instance.primaryFocus?.debugLabel,
+        'ShortcutAwareWidget(generation)',
+      );
+      await _pressCtrl(tester, LogicalKeyboardKey.digit1);
+      await _pressCtrl(tester, LogicalKeyboardKey.enter);
+      expect(navigations, 2);
+      expect(generations, 2);
+    });
+
+    testWidgets('输入框聚焦时编辑键交给输入框，Esc 与命令组合仍触发页面快捷键', (tester) async {
+      final counts = <String, int>{};
+      final copied = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add((call.arguments as Map)['text'] as String);
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      final controller = TextEditingController(text: 'abc');
+      final textFocus = FocusNode(debugLabel: 'search');
+      addTearDown(controller.dispose);
+      addTearDown(textFocus.dispose);
+      await _pumpPage(
+        tester,
+        PageShortcuts(
+          contextType: ShortcutContext.tagLibrary,
+          shortcuts: {
+            for (final id in const [
+              ShortcutIds.batchDeleteTags,
+              ShortcutIds.sendToHome,
+              ShortcutIds.batchCopyTags,
+              ShortcutIds.exitSelectionMode,
+              ShortcutIds.searchTags,
+            ])
+              id: () => counts[id] = (counts[id] ?? 0) + 1,
+          },
+          child: Material(
+            child: TextField(controller: controller, focusNode: textFocus),
+          ),
+        ),
+      );
+      textFocus.requestFocus();
+      await tester.pump();
+      controller.selection = const TextSelection.collapsed(offset: 0);
+      await tester.pump();
+
+      await _pressKey(tester, LogicalKeyboardKey.delete);
+      await _pressKey(tester, LogicalKeyboardKey.enter);
+      controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 2,
+      );
+      await tester.pump();
+      await _pressCtrl(tester, LogicalKeyboardKey.keyC);
+
+      expect(controller.text, 'bc');
+      expect(copied, ['bc']);
+      expect(counts[ShortcutIds.batchDeleteTags], isNull);
+      expect(counts[ShortcutIds.sendToHome], isNull);
+      expect(counts[ShortcutIds.batchCopyTags], isNull);
+
+      await _pressKey(tester, LogicalKeyboardKey.escape);
+      await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+      expect(counts[ShortcutIds.exitSelectionMode], 1);
+      expect(counts[ShortcutIds.searchTags], 1);
+
+      textFocus.unfocus();
+      await tester.pump();
+      await _pressKey(tester, LogicalKeyboardKey.delete);
+      await _pressCtrl(tester, LogicalKeyboardKey.keyC);
+      expect(counts[ShortcutIds.batchDeleteTags], 1, reason: '离开输入框后恢复');
+      expect(counts[ShortcutIds.batchCopyTags], 1);
+    });
+
+    testWidgets('只读的可选中文本不拦截页面快捷键', (tester) async {
+      var deletes = 0;
+      final textFocus = FocusNode(debugLabel: 'selectable');
+      addTearDown(textFocus.dispose);
+      await _pumpPage(
+        tester,
+        PageShortcuts(
+          contextType: ShortcutContext.viewer,
+          shortcuts: {ShortcutIds.deleteImage: () => deletes++},
+          child: Material(child: SelectableText('abc', focusNode: textFocus)),
+        ),
+      );
+      textFocus.requestFocus();
+      await tester.pump();
+
+      await _pressKey(tester, LogicalKeyboardKey.delete);
+
+      expect(deletes, 1);
+    });
+
+    testWidgets('页面锚点在输入框点外部失焦后收回焦点', (tester) async {
+      var generations = 0;
+      await _pumpPage(
+        tester,
+        PageShortcuts(
+          contextType: ShortcutContext.generation,
+          shortcuts: {ShortcutIds.generateImage: () => generations++},
+          child: _fieldAndBlank(),
+        ),
+      );
+
+      await _clickFieldThenBlank(tester);
+
+      expect(_isAnchor(FocusManager.instance.primaryFocus), isTrue);
+      await _pressCtrl(tester, LogicalKeyboardKey.enter);
+      expect(generations, 1);
+    }, variant: _desktop);
+
+    testWidgets('未开启收回的锚点不改变失焦落点', (tester) async {
+      await _pumpPage(
+        tester,
+        ShortcutAwareWidget(
+          contextType: ShortcutContext.generation,
+          shortcuts: {ShortcutIds.generateImage: () {}},
+          autofocus: true,
+          child: _fieldAndBlank(),
+        ),
+      );
+
+      await _clickFieldThenBlank(tester);
+
+      expect(FocusManager.instance.primaryFocus, isA<FocusScopeNode>());
+    }, variant: _desktop);
+
+    testWidgets('锚点让出 autofocus 时也不收回失焦的焦点', (tester) async {
+      await _pumpMountedAfterReady(
+        tester,
+        config: _defaults.copyWith(enableShortcuts: false),
+        child: PageShortcuts(
+          contextType: ShortcutContext.generation,
+          shortcuts: {ShortcutIds.generateImage: () {}},
+          child: _fieldAndBlank(),
+        ),
+      );
+
+      await _clickFieldThenBlank(tester);
+
+      expect(FocusManager.instance.primaryFocus, isA<FocusScopeNode>());
+    }, variant: _desktop);
+  });
+}
+
+final _desktop = TargetPlatformVariant.only(TargetPlatform.windows);
+
+Future<void> _pumpPage(WidgetTester tester, Widget page) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        shortcutConfigNotifierProvider.overrideWith(
+          _ControlledShortcutConfigNotifier.new,
+        ),
+      ],
+      child: MaterialApp(home: page),
+    ),
+  );
+  await tester.pump();
+}
+
+Future<void> _pressKey(WidgetTester tester, LogicalKeyboardKey key) async {
+  await tester.sendKeyEvent(key);
+  await tester.pump();
+}
+
+const _fieldKey = ValueKey('page-field');
+const _blankKey = ValueKey('page-blank');
+
+Widget _fieldAndBlank() => const Material(
+  child: Column(
+    children: [
+      SizedBox(width: 240, child: TextField(key: _fieldKey)),
+      Expanded(child: SizedBox.expand(key: _blankKey)),
+    ],
+  ),
+);
+
+Future<void> _clickFieldThenBlank(WidgetTester tester) async {
+  await tester.tap(find.byKey(_fieldKey), kind: PointerDeviceKind.mouse);
+  await tester.pump();
+  expect(isEditableTextFocused(), isTrue);
+  await tester.tapAt(
+    tester.getCenter(find.byKey(_blankKey)),
+    kind: PointerDeviceKind.mouse,
+  );
+  await tester.pump();
 }
