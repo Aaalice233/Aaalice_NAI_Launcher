@@ -983,6 +983,7 @@ class _PreciseRefLibraryScreenState
       commands: ref.read(preciseRefLibrarySelectionNotifierProvider.notifier),
       orderedIds: entries.map((e) => e.id).toList(),
       child: CardSelectionShortcuts(
+        reclaimFallbackFocus: true,
         child: GridView.builder(
           key: const PageStorageKey('precise_ref_library_grid'),
           padding: EdgeInsets.all(layout.padding),

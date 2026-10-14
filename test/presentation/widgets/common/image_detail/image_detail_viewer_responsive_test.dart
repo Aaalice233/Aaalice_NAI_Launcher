@@ -169,6 +169,28 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('焦点退回路由作用域后查看器按键仍然生效', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(840, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpViewer(
+      tester,
+      images: [
+        _TestImageData('first', _validPngBytes),
+        _TestImageData('second', _validPngBytes),
+        _TestImageData('third', _validPngBytes),
+      ],
+    );
+    await tester.pump();
+
+    // 可选中文本点外部失焦时同样走这条路径
+    FocusManager.instance.primaryFocus!.unfocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 / 3'), findsOneWidget);
+  });
+
   testWidgets('failed image replaces loading state with explicit error', (
     tester,
   ) async {

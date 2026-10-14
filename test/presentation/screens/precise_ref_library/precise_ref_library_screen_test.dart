@@ -1,7 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
@@ -12,6 +13,7 @@ import 'package:nai_launcher/presentation/providers/precise_ref_library_provider
 import 'package:nai_launcher/presentation/providers/precise_ref_library_selection_provider.dart';
 import 'package:nai_launcher/presentation/screens/precise_ref_library/precise_ref_library_screen.dart';
 import 'package:nai_launcher/presentation/utils/precise_ref_library_import_helper.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/gallery_library_toolbar.dart';
 
 class _EmptyLibraryNotifier extends PreciseRefLibraryNotifier {
   @override
@@ -266,4 +268,55 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('搜索框点外部失焦后 Ctrl+A 仍全选卡片', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    late ProviderContainer container;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          preciseRefLibraryNotifierProvider.overrideWith(
+            _PopulatedLibraryNotifier.new,
+          ),
+          preciseRefLibraryStorageServiceProvider.overrideWithValue(
+            _ThumbnailFreeStorage(),
+          ),
+        ],
+        child: Builder(
+          builder: (context) {
+            container = ProviderScope.containerOf(context);
+            return const MaterialApp(
+              locale: Locale('zh'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: PreciseRefLibraryScreen(),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final search = find.descendant(
+      of: find.byType(GalleryLibrarySearchField),
+      matching: find.byType(EditableText),
+    );
+
+    await tester.tap(search, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(tester.widget<EditableText>(search).focusNode.hasFocus, isTrue);
+    await tester.tapAt(const Offset(1100, 700), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(tester.widget<EditableText>(search).focusNode.hasFocus, isFalse);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    expect(
+      container.read(preciseRefLibrarySelectionNotifierProvider).selectedIds,
+      {'first', 'second'},
+    );
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

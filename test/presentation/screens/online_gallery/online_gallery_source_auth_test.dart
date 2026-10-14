@@ -1273,6 +1273,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('搜索框失焦后 Ctrl+A 仍全选卡片', (tester) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onlineGalleryNotifierProvider.overrideWith(
+            _ScrollableGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    final search = tester.widget<EditableText>(find.byType(EditableText).first);
+    search.focusNode.requestFocus();
+    await tester.pump();
+    // 与桌面端点输入框外部的处理一致
+    search.focusNode.unfocus();
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    final selection = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    ).read(onlineGallerySelectionNotifierProvider);
+    expect(selection.isActive, isTrue);
+    expect(selection.selectedIds, hasLength(80));
+  });
+
   testWidgets('favorites source selector switches back to Danbooru', (
     tester,
   ) async {

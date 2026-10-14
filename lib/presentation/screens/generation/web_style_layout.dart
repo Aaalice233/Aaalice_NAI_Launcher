@@ -141,10 +141,9 @@ class _WebStyleGenerationLayoutState
       agentChatDockProvider.select((dock) => dock.sideBySideChatWidthDemand),
     );
 
-    return ShortcutAwareWidget(
+    return PageShortcuts(
       contextType: ShortcutContext.generation,
       shortcuts: _shortcuts,
-      autofocus: true,
       child: GenerationWorkspaceRow(
         occupiedLeadingWidth: occupiedLeadingWidth,
         overlayableLeading: const FixedTagsSidebarSlot(),
