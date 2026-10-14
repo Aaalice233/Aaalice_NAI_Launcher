@@ -5,14 +5,13 @@ import '../../services/library_sidebar_move_service.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/platform/platform_capabilities.dart';
-import '../../../core/shortcuts/shortcut_manager.dart';
+import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/novelai_vibe_codec.dart';
@@ -28,6 +27,7 @@ import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/pro_context_menu.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
+import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'vibe_import_controller.dart';
 import 'vibe_library_commands.dart';
 import 'vibe_library_screen_controller.dart';
@@ -118,40 +118,24 @@ class _VibeLibraryScreenState extends ConsumerState<VibeLibraryScreen> {
           }
         },
         child: Scaffold(
-          body: Shortcuts(
+          // 页面焦点归属在内层多选处理器上，这里只分派快捷键
+          body: ShortcutAwareWidget(
+            contextType: ShortcutContext.global,
             shortcuts: {
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.keyI,
-              ): const VibeImportIntent(),
-              LogicalKeySet(
-                LogicalKeyboardKey.control,
-                LogicalKeyboardKey.keyE,
-              ): const VibeExportIntent(),
-            },
-            child: Actions(
-              actions: {
-                VibeImportIntent: CallbackAction<VibeImportIntent>(
-                  onInvoke: (_) {
-                    if (!_controller.isBusy) unawaited(_imports.importFiles());
-                    return null;
-                  },
-                ),
-                VibeExportIntent: CallbackAction<VibeExportIntent>(
-                  onInvoke: (_) {
-                    if (library.entries.isNotEmpty) unawaited(_export());
-                    return null;
-                  },
-                ),
+              ShortcutIds.vibeImport: () {
+                if (!_controller.isBusy) unawaited(_imports.importFiles());
               },
-              child: VibeLibraryWorkspace(
-                libraryState: library,
-                categoryState: categories,
-                selectionState: selection,
-                currentModel: model,
-                controller: _controller,
-                onCommand: _handleCommand,
-              ),
+              ShortcutIds.vibeExport: () {
+                if (library.entries.isNotEmpty) unawaited(_export());
+              },
+            },
+            child: VibeLibraryWorkspace(
+              libraryState: library,
+              categoryState: categories,
+              selectionState: selection,
+              currentModel: model,
+              controller: _controller,
+              onCommand: _handleCommand,
             ),
           ),
         ),
