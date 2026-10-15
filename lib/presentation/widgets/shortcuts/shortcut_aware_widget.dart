@@ -21,17 +21,12 @@ class ShortcutAwareWidget extends ConsumerStatefulWidget {
   /// 首次挂载时有生效的快捷键才自动聚焦锚点，否则让给子组件自己的 autofocus
   final bool autofocus;
 
-  /// 锚点焦点节点（可选），调用方负责销毁
-  /// 按原样使用，不改写 skipTraversal；换节点时锚点上的焦点会转移到新节点
-  final FocusNode? focusNode;
-
   const ShortcutAwareWidget({
     super.key,
     required this.child,
     required this.contextType,
     required this.shortcuts,
     this.autofocus = false,
-    this.focusNode,
   });
 
   @override
@@ -39,7 +34,10 @@ class ShortcutAwareWidget extends ConsumerStatefulWidget {
 }
 
 class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
-  late FocusNode _focusNode;
+  late final FocusNode _focusNode = FocusNode(
+    debugLabel: 'ShortcutAwareWidget(${widget.contextType.name})',
+    skipTraversal: true,
+  );
 
   bool? _anchorAutofocus;
 
@@ -48,44 +46,17 @@ class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
   };
 
   @override
-  void initState() {
-    super.initState();
-    _focusNode = widget.focusNode ?? _createOwnedFocusNode();
-  }
-
-  @override
   void didUpdateWidget(ShortcutAwareWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.autofocus != oldWidget.autofocus) {
       _anchorAutofocus = null;
     }
-    if (widget.focusNode != oldWidget.focusNode) {
-      _replaceFocusNode(ownedPrevious: oldWidget.focusNode == null);
-    }
   }
 
   @override
   void dispose() {
-    if (widget.focusNode == null) {
-      _focusNode.dispose();
-    }
+    _focusNode.dispose();
     super.dispose();
-  }
-
-  FocusNode _createOwnedFocusNode() => FocusNode(
-    debugLabel: 'ShortcutAwareWidget(${widget.contextType.name})',
-    skipTraversal: true,
-  );
-
-  void _replaceFocusNode({required bool ownedPrevious}) {
-    final hadPrimaryFocus = _focusNode.hasPrimaryFocus;
-    if (ownedPrevious) {
-      _focusNode.dispose();
-    }
-    _focusNode = widget.focusNode ?? _createOwnedFocusNode();
-    if (hadPrimaryFocus) {
-      _focusNode.requestFocus();
-    }
   }
 
   @override
@@ -94,7 +65,7 @@ class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
       ref.watch(shortcutConfigNotifierProvider),
     );
     final shortcuts = _resolveShortcuts(config);
-    // 只在首次挂载判定：无生效快捷键时把 autofocus 让给子组件，之后也不因配置变化抢焦点
+    // 只在首次挂载时判定，之后配置变化不抢焦点
     final anchorAutofocus = _anchorAutofocus ??=
         widget.autofocus && shortcuts.isNotEmpty;
 
