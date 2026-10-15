@@ -12,8 +12,8 @@ import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../utils/generation_error_l10n.dart';
 import '../common/translated_tag_text.dart';
-import '../generation/generation_error_text.dart';
 import 'queue_task_thumbnail.dart';
 
 enum _TaskItemAction { select, edit, delete }

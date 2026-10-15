@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/widgets/generation/generation_error_text.dart';
+import 'package:nai_launcher/presentation/utils/generation_error_l10n.dart';
 
 void main() {
   final emptyMaskMessage = const EmptyInpaintMaskException(
