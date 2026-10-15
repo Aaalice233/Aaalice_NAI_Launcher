@@ -138,13 +138,8 @@ class OnlineGallerySearchService {
     required CancelToken cancelToken,
     required OnlineGalleryDetailLoader detailLoader,
   }) async {
-    final feedAppliedQuery = capabilities.appliesOrdinaryQuery(feedKind);
-    final needsLocalValidation =
-        plan.query.ordinaryClauses.isNotEmpty &&
-        (!feedAppliedQuery ||
-            plan.requiresLocalFiltering ||
-            capabilities.validatesPushdownLocally);
-    if (!needsLocalValidation || candidates.isEmpty) {
+    if (!capabilities.requiresLocalQueryValidation(plan, feedKind) ||
+        candidates.isEmpty) {
       return (items: candidates, detailFailures: 0, filterMicros: 0);
     }
     final stopwatch = Stopwatch()..start();

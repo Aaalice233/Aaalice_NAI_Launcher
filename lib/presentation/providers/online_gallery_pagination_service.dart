@@ -143,12 +143,8 @@ class OnlineGalleryPaginationService {
         metadataLoader: _ref.read(onlineGalleryTagMetadataLoaderProvider),
       );
       if (!_isCurrent(generation, cacheKey)) return;
-      final tagCapabilities = sourceId.capabilities.tagSearch;
-      final requiresLocalQueryValidation =
-          tagPlan.query.ordinaryClauses.isNotEmpty &&
-          (!tagCapabilities.appliesOrdinaryQuery(state.activeFeedKind) ||
-              tagPlan.requiresLocalFiltering ||
-              tagCapabilities.validatesPushdownLocally);
+      final requiresLocalQueryValidation = sourceId.capabilities.tagSearch
+          .requiresLocalQueryValidation(tagPlan, state.activeFeedKind);
       AiTagSourceConfig? aiTagConfig;
       if (adapter is AiTagGallerySourceAdapter) {
         aiTagConfig = await adapter.getConfig(cancelToken: requestCancelToken);
