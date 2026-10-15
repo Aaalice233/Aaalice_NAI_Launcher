@@ -683,9 +683,7 @@ class NAIImageRequestBuilder {
       inpaintMaskArtifacts = await maskArtifactsFuture;
       // 空 latent 蒙版发出去只会原样返回底图，白白占用一次付费请求。
       if (inpaintMaskArtifacts.isLatentMaskEmpty) {
-        throw EmptyInpaintMaskException(
-          latentGridSize: inpaintMaskArtifacts.latentGridSize,
-        );
+        throw const EmptyInpaintMaskException();
       }
       normalizedSourceImageBytes = normalizedSource;
       requestParameters['image'] = base64Encode(normalizedSource);

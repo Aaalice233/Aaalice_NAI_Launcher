@@ -5,9 +5,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/utils/generation_error_l10n.dart';
 
 void main() {
-  final emptyMaskMessage = const EmptyInpaintMaskException(
-    latentGridSize: 8,
-  ).toString();
+  final emptyMaskMessage = const EmptyInpaintMaskException().toString();
 
   const locales = {
     'zh': Locale('zh'),

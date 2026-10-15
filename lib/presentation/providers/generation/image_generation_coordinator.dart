@@ -572,7 +572,7 @@ class ImageGenerationCoordinator {
   // The request is rejected locally from the same inputs, so retrying only
   // delays the error.
   static bool _isDeterministicFailure(Object error) =>
-      EmptyInpaintMaskException.tryParse(error) != null;
+      EmptyInpaintMaskException.matches(error);
 
   static bool _isConcurrencyLimited(Object error) {
     if (error is DioException) return error.response?.statusCode == 429;

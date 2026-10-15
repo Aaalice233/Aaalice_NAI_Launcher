@@ -977,7 +977,7 @@ void main() {
     final chunks = await service.generateImageStream(params).toList();
 
     expect(chunks.single.hasError, isTrue);
-    expect(EmptyInpaintMaskException.tryParse(chunks.single.error), isNotNull);
+    expect(EmptyInpaintMaskException.matches(chunks.single.error), isTrue);
     expect(adapter.requests, isEmpty);
     expect(networkActivity.isActive, isFalse);
   });

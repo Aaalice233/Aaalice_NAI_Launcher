@@ -625,7 +625,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         next.status == GenerationStatus.error) {
       final errorMessage = next.errorMessage;
       if (errorMessage != null &&
-          EmptyInpaintMaskException.tryParse(errorMessage) != null) {
+          EmptyInpaintMaskException.matches(errorMessage)) {
         unawaited(_settleUnretryableTaskError(errorMessage));
         return;
       }

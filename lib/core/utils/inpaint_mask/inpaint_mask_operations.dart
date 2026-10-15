@@ -661,7 +661,7 @@ class InpaintMaskUtils {
     required int targetHeight,
     int closingIterations = 0,
     int expansionIterations = 0,
-    int latentGridSize = 8,
+    int latentGridSize = novelAiLatentGridSize,
     int latentDilationIterations = 4,
     int blurRadius = 20,
     int blurIterations = 2,
@@ -694,7 +694,7 @@ class InpaintMaskUtils {
     required int targetHeight,
     int closingIterations = 0,
     int expansionIterations = 0,
-    int latentGridSize = 8,
+    int latentGridSize = novelAiLatentGridSize,
     int latentDilationIterations = 4,
     int blurRadius = 20,
     int blurIterations = 2,
@@ -720,7 +720,6 @@ class InpaintMaskUtils {
         requestHeight: targetHeight,
         latentWidth: latentWidth,
         latentHeight: latentHeight,
-        latentGridSize: latentGridSize,
         // Undecodable bytes are forwarded untouched, so emptiness is unknown.
         isLatentMaskEmpty: false,
       );
@@ -832,7 +831,6 @@ class InpaintMaskUtils {
       requestHeight: targetHeight,
       latentWidth: latentWidth,
       latentHeight: latentHeight,
-      latentGridSize: latentGridSize,
       isLatentMaskEmpty: !latentBinaryMask.contains(1),
     );
   }
@@ -844,7 +842,7 @@ class InpaintMaskUtils {
     required int targetHeight,
     int closingIterations = 0,
     int expansionIterations = 0,
-    int latentGridSize = 8,
+    int latentGridSize = novelAiLatentGridSize,
     int latentDilationIterations = 4,
     int blurRadius = 20,
     int blurIterations = 2,
@@ -937,7 +935,7 @@ class InpaintMaskUtils {
     int closingIterations = 0,
     int expansionIterations = 0,
     bool alignToLatentGrid = false,
-    int latentGridSize = 8,
+    int latentGridSize = novelAiLatentGridSize,
   }) {
     img.Image? decoded;
     try {
@@ -988,7 +986,7 @@ class InpaintMaskUtils {
     required int targetHeight,
     int closingIterations = 0,
     int expansionIterations = 0,
-    int latentGridSize = 8,
+    int latentGridSize = novelAiLatentGridSize,
   }) {
     return prepareNovelAiInpaintMaskArtifacts(
       bytes,
@@ -1010,7 +1008,7 @@ class InpaintMaskUtils {
     required int targetHeight,
     int closingIterations = 0,
     int expansionIterations = 0,
-    int latentGridSize = 8,
+    int latentGridSize = novelAiLatentGridSize,
   }) {
     return ComputeGate().runIsolate(
       () => prepareNovelAiInpaintMaskArtifacts(
@@ -1031,7 +1029,7 @@ class InpaintMaskUtils {
     required int targetHeight,
     int closingIterations = 0,
     int expansionIterations = 0,
-    int latentGridSize = 8,
+    int latentGridSize = novelAiLatentGridSize,
   }) {
     return prepareNovelAiInpaintMaskArtifacts(
       bytes,
