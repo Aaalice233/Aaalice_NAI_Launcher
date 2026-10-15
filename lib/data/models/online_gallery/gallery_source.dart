@@ -47,7 +47,6 @@ class GalleryTagSearchCapabilities {
     this.searchMetatagPrefixes = const {},
     this.rankingMetatagPrefixes = const {},
     this.rankingAppliesOrdinaryQuery = false,
-    this.validatesPushdownLocally = false,
   });
 
   final GalleryTagSearchStrategy strategy;
@@ -60,7 +59,6 @@ class GalleryTagSearchCapabilities {
   final Set<String> searchMetatagPrefixes;
   final Set<String> rankingMetatagPrefixes;
   final bool rankingAppliesOrdinaryQuery;
-  final bool validatesPushdownLocally;
 
   Set<String> metatagPrefixes(GalleryFeedKind feed) => switch (feed) {
     GalleryFeedKind.search => searchMetatagPrefixes,
@@ -73,6 +71,15 @@ class GalleryTagSearchCapabilities {
     GalleryFeedKind.ranking => rankingAppliesOrdinaryQuery,
     GalleryFeedKind.favorites => false,
   };
+
+  /// Ordinary clauses need a local re-check when the feed ignores them or the
+  /// plan keeps part of the query out of the server request.
+  bool requiresLocalQueryValidation(
+    GalleryTagQueryPlan plan,
+    GalleryFeedKind feed,
+  ) =>
+      plan.query.ordinaryClauses.isNotEmpty &&
+      (!appliesOrdinaryQuery(feed) || plan.requiresLocalFiltering);
 
   int serverLimit({required bool authenticated, int? accountLevel}) {
     final level = accountLevel;
@@ -147,6 +154,8 @@ class GallerySourceCapabilities {
 ///   https://gelbooru.com/index.php?page=post&s=list&tags=1girl+solo+smile+long_hair+looking_at_viewer+blue_eyes
 /// - AI TAG live config/search contracts: https://aitag.win/api/config and
 ///   https://aitag.win/api/ai_works_search?page=1&page_size=60&q=1girl
+/// - AI TAG ranking applies the same q with `-` exclusion (2026-10-15):
+///   https://aitag.win/api/rank/monthly/real?page=1&page_size=60&q=1girl+-masterpiece
 /// - QuickTagCloud fixed codex format:
 ///   https://github.com/AgIzT/NovelAI-Tag
 const Map<GallerySourceId, GallerySourceCapabilities>

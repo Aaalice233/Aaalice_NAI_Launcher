@@ -214,8 +214,47 @@ void main() {
       expect(danbooru.appliesOrdinaryQuery(GalleryFeedKind.ranking), isFalse);
       expect(aiTag.metatagPrefixes(GalleryFeedKind.search), isEmpty);
       expect(aiTag.appliesOrdinaryQuery(GalleryFeedKind.ranking), isTrue);
-      expect(aiTag.validatesPushdownLocally, isFalse);
       expect(aiTag.supportsNegativePushdown, isTrue);
+    });
+
+    test('local re-check runs only where the server skips ordinary tags', () {
+      final danbooru =
+          gallerySourceCapabilities[GallerySourceId.danbooru]!.tagSearch;
+      final aiTag = gallerySourceCapabilities[GallerySourceId.aiTag]!.tagSearch;
+      GalleryTagQueryPlan plan(String raw, int limit) =>
+          GalleryTagQueryPlanner.plan(
+            GalleryTagQueryParser.parse(raw),
+            serverTagLimit: limit,
+          );
+
+      for (final feed in [GalleryFeedKind.search, GalleryFeedKind.ranking]) {
+        expect(
+          aiTag.requiresLocalQueryValidation(plan('1girl -solo', 6), feed),
+          isFalse,
+          reason: '$feed',
+        );
+      }
+      expect(
+        danbooru.requiresLocalQueryValidation(
+          plan('1girl', 2),
+          GalleryFeedKind.ranking,
+        ),
+        isTrue,
+      );
+      expect(
+        danbooru.requiresLocalQueryValidation(
+          plan('1girl solo smile', 2),
+          GalleryFeedKind.search,
+        ),
+        isTrue,
+      );
+      expect(
+        danbooru.requiresLocalQueryValidation(
+          plan('', 2),
+          GalleryFeedKind.ranking,
+        ),
+        isFalse,
+      );
     });
 
     test('other source limits select their native or residual strategy', () {
