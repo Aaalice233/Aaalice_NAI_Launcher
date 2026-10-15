@@ -201,7 +201,6 @@ void main() {
       final undecodable = prepare(Uint8List.fromList([1, 2, 3]));
 
       expect(thin.isLatentMaskEmpty, isTrue);
-      expect(thin.latentGridSize, 8);
       expect(
         img.decodeImage(thin.requestMaskBytes)!.every((p) => p.r.toInt() == 0),
         isTrue,
@@ -237,33 +236,23 @@ void main() {
       },
     );
 
-    test('EmptyInpaintMaskException round-trips through error strings', () {
-      const error = EmptyInpaintMaskException(latentGridSize: 8);
+    test('EmptyInpaintMaskException is recognized through error strings', () {
+      const error = EmptyInpaintMaskException();
 
+      expect(EmptyInpaintMaskException.matches(error), isTrue);
+      expect(EmptyInpaintMaskException.matches(error.toString()), isTrue);
       expect(
-        EmptyInpaintMaskException.tryParse(error)?.latentGridSize,
-        equals(8),
+        EmptyInpaintMaskException.matches(Exception(error.encodedMessage)),
+        isTrue,
       );
       expect(
-        EmptyInpaintMaskException.tryParse(error.toString())?.latentGridSize,
-        equals(8),
-      );
-      expect(
-        EmptyInpaintMaskException.tryParse(
-          Exception(error.encodedMessage),
-        )?.latentGridSize,
-        equals(8),
-      );
-      expect(error.toString(), contains('mask'));
-      expect(error.toString(), contains('empty'));
-      expect(EmptyInpaintMaskException.tryParse('API_ERROR_500|x'), isNull);
-      expect(
-        EmptyInpaintMaskException.tryParse(
-          '${EmptyInpaintMaskException.errorCode}|oops',
+        EmptyInpaintMaskException.matches(
+          '${EmptyInpaintMaskException.errorCode}|8|persisted queue message',
         ),
-        isNull,
+        isTrue,
       );
-      expect(EmptyInpaintMaskException.tryParse(null), isNull);
+      expect(EmptyInpaintMaskException.matches('API_ERROR_500|x'), isFalse);
+      expect(EmptyInpaintMaskException.matches(null), isFalse);
     });
 
     test(
@@ -327,7 +316,6 @@ void main() {
         expect(asyncResult.requestHeight, syncResult.requestHeight);
         expect(asyncResult.latentWidth, syncResult.latentWidth);
         expect(asyncResult.latentHeight, syncResult.latentHeight);
-        expect(asyncResult.latentGridSize, syncResult.latentGridSize);
         expect(asyncResult.isLatentMaskEmpty, syncResult.isLatentMaskEmpty);
       },
     );

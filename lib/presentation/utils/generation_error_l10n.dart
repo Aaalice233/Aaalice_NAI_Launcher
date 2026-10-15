@@ -41,11 +41,10 @@ String summarizeGenerationError(BuildContext context, String message) {
     return (l10n.generation_cancelGeneration, null);
   }
 
-  final emptyMask = EmptyInpaintMaskException.tryParse(message);
-  if (emptyMask != null) {
+  if (EmptyInpaintMaskException.matches(message)) {
     return (
       l10n.generation_emptyInpaintMask,
-      l10n.generation_emptyInpaintMaskHint(emptyMask.latentGridSize),
+      l10n.generation_emptyInpaintMaskHint(novelAiLatentGridSize),
     );
   }
 

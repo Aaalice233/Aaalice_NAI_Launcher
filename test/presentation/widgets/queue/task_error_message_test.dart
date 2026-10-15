@@ -14,7 +14,7 @@ void main() {
     prompt: 'thin mask prompt',
     createdAt: DateTime(2026),
     status: ReplicationTaskStatus.failed,
-    errorMessage: const EmptyInpaintMaskException(latentGridSize: 8).toString(),
+    errorMessage: const EmptyInpaintMaskException().toString(),
   );
 
   testWidgets('failed queue items show the localized empty-mask reason', (

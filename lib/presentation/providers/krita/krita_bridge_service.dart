@@ -488,7 +488,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
   }
 
   KritaBridgeErrorCode _mapErrorCode(Object error) {
-    if (EmptyInpaintMaskException.tryParse(error) != null) {
+    if (EmptyInpaintMaskException.matches(error)) {
       return KritaBridgeErrorCode.emptyMask;
     }
     final message = error.toString().toLowerCase();

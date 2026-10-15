@@ -26,9 +26,7 @@ class _DefaultShortcutConfigNotifier extends ShortcutConfigNotifier {
 }
 
 void main() {
-  final emptyMaskMessage = const EmptyInpaintMaskException(
-    latentGridSize: 8,
-  ).toString();
+  final emptyMaskMessage = const EmptyInpaintMaskException().toString();
 
   for (final locale in const [Locale('zh'), Locale('en')]) {
     for (final size in const [

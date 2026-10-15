@@ -195,7 +195,7 @@ void main() {
     await generation.waitForStart(0);
     generation.fail(
       0,
-      message: const EmptyInpaintMaskException(latentGridSize: 8).toString(),
+      message: const EmptyInpaintMaskException().toString(),
     );
     await _waitForCurrentTask(container, tasks[1].id);
     generation.settle(0);
@@ -207,10 +207,7 @@ void main() {
         .failedTasks
         .single;
     expect(failedTask.id, tasks[0].id);
-    expect(
-      EmptyInpaintMaskException.tryParse(failedTask.errorMessage),
-      isNotNull,
-    );
+    expect(EmptyInpaintMaskException.matches(failedTask.errorMessage), isTrue);
     expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
   });
 
