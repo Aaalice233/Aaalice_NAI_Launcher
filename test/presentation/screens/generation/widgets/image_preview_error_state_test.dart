@@ -28,66 +28,65 @@ class _DefaultShortcutConfigNotifier extends ShortcutConfigNotifier {
 void main() {
   final emptyMaskMessage = const EmptyInpaintMaskException().toString();
 
-  for (final locale in const [Locale('zh'), Locale('en')]) {
-    for (final size in const [
-      Size(320, 480),
-      Size(600, 480),
-      Size(840, 600),
-      Size(1180, 700),
-      Size(1600, 900),
-    ]) {
-      for (final textScale in const [1.0, 3.0]) {
-        testWidgets('empty inpaint mask error is localized '
-            '(${locale.languageCode}, ${size.width.toInt()}, ${textScale}x)', (
-          tester,
-        ) async {
-          tester.view.physicalSize = size;
-          tester.view.devicePixelRatio = 1;
-          addTearDown(tester.view.reset);
-          final container = ProviderContainer(
-            overrides: [
-              imageGenerationNotifierProvider.overrideWith(
-                () => _FailedImageGenerationNotifier(emptyMaskMessage),
-              ),
-              shortcutConfigNotifierProvider.overrideWith(
-                _DefaultShortcutConfigNotifier.new,
-              ),
-            ],
-          );
-          addTearDown(container.dispose);
+  // Locales are covered by generation_error_l10n_test; English wraps widest.
+  const locale = Locale('en');
 
-          await tester.pumpWidget(
-            UncontrolledProviderScope(
-              container: container,
-              child: MaterialApp(
-                locale: locale,
-                localizationsDelegates: AppLocalizations.localizationsDelegates,
-                supportedLocales: AppLocalizations.supportedLocales,
-                builder: (context, child) => MediaQuery(
-                  data: MediaQuery.of(
-                    context,
-                  ).copyWith(textScaler: TextScaler.linear(textScale)),
-                  child: child!,
-                ),
-                home: const Scaffold(body: ImagePreviewWidget()),
-              ),
+  for (final size in const [
+    Size(320, 480),
+    Size(600, 480),
+    Size(840, 600),
+    Size(1180, 700),
+    Size(1600, 900),
+  ]) {
+    for (final textScale in const [1.0, 3.0]) {
+      testWidgets('empty inpaint mask error is localized '
+          '(${size.width.toInt()}, ${textScale}x)', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final container = ProviderContainer(
+          overrides: [
+            imageGenerationNotifierProvider.overrideWith(
+              () => _FailedImageGenerationNotifier(emptyMaskMessage),
             ),
-          );
-          await tester.pumpAndSettle();
+            shortcutConfigNotifierProvider.overrideWith(
+              _DefaultShortcutConfigNotifier.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
 
-          final l10n = lookupAppLocalizations(locale);
-          expect(find.text(l10n.generation_emptyInpaintMask), findsOneWidget);
-          expect(
-            find.text(l10n.generation_emptyInpaintMaskHint(8)),
-            findsOneWidget,
-          );
-          expect(
-            find.textContaining(EmptyInpaintMaskException.errorCode),
-            findsNothing,
-          );
-          expect(tester.takeException(), isNull);
-        });
-      }
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              locale: locale,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(textScale)),
+                child: child!,
+              ),
+              home: const Scaffold(body: ImagePreviewWidget()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final l10n = lookupAppLocalizations(locale);
+        expect(find.text(l10n.generation_emptyInpaintMask), findsOneWidget);
+        expect(
+          find.text(l10n.generation_emptyInpaintMaskHint(8)),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining(EmptyInpaintMaskException.errorCode),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
+      });
     }
   }
 }

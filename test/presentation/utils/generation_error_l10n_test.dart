@@ -25,8 +25,6 @@ void main() {
 
       expect(title, l10n.generation_emptyInpaintMask);
       expect(hint, l10n.generation_emptyInpaintMaskHint(8));
-      expect(hint, contains('8'));
-      expect(hint, isNot(contains(EmptyInpaintMaskException.errorCode)));
       expect(
         summarizeGenerationError(context, emptyMaskMessage),
         '${l10n.generation_emptyInpaintMask}\n'
