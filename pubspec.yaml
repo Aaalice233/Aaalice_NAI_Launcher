@@ -163,11 +163,9 @@ dev_dependencies:
   path_provider_platform_interface: any
   plugin_platform_interface: any
   sqlite3: ^2.9.4
-  # Windows 权限实现的回归测试直接引用
-  permission_handler_windows:
-    path: packages/permission_handler_windows
 dependency_overrides:
-  # 上游 Windows 原生插件注册时就订阅定位，应用一启动即占用定位
+  # 上游 Windows 原生插件注册时就订阅定位，应用一启动即占用定位；
+  # Baseflow/flutter-permission-handler#1394 修复后移除
   permission_handler_windows:
     path: packages/permission_handler_windows
 flutter:
