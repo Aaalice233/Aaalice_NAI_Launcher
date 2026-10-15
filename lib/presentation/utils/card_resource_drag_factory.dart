@@ -156,11 +156,7 @@ class CardResourceDragFactory {
     final item = _ref
         .read(onlineGalleryNotifierProvider)
         .posts
-        .where(
-          (item) =>
-              item.sourceId == identity.source &&
-              item.sourceWorkId == identity.workId,
-        )
+        .where(identity.matches)
         .firstOrNull;
     if (item == null) return null;
     final mediaId = identity.mediaId;

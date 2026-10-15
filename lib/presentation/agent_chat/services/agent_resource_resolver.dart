@@ -213,11 +213,7 @@ class AgentResourceResolver {
       _ref
           .read(onlineGalleryNotifierProvider)
           .posts
-          .where(
-            (value) =>
-                value.sourceId == identity.source &&
-                value.sourceWorkId == identity.workId,
-          )
+          .where(identity.matches)
           .firstOrNull;
 
   bool _onlineExistsLocally(OnlineGalleryResourceIdentity identity) {

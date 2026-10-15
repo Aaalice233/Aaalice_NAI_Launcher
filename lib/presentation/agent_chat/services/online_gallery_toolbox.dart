@@ -47,7 +47,8 @@ class OnlineGalleryToolbox {
         'When source is omitted, the request uses danbooru; an explicit valid source is always respected. '
         'A query may contain at most 6 ordinary tags globally. Sources can enforce lower server limits, so the client pushes down a supported seed and applies remaining tags as residual local filters. '
         'When random=true, limit=N means randomly sample exactly N items from the matching feed (when available); never fetch a larger page and choose items yourself. '
-        'To show returned media, pass 1-12 resource_ref objects to display_images.',
+        'To show returned media, pass 1-12 resource_ref objects to display_images. '
+        'media_id is null when the listing has no real cover yet; that resource_ref resolves to the first media of the work.',
     parameters: toolboxObject(
       properties: {
         'source': {
@@ -386,11 +387,14 @@ class OnlineGalleryToolbox {
   GalleryItem? _find(Map<String, dynamic> params) {
     final source = _source(params['source']);
     if (source == null) return null;
-    final workId = params['work_id'] as String;
+    final identity = OnlineGalleryResourceIdentity(
+      source: source,
+      workId: params['work_id'] as String,
+    );
     return _ref
         .read(onlineGalleryNotifierProvider)
         .posts
-        .where((item) => item.sourceId == source && item.sourceWorkId == workId)
+        .where(identity.matches)
         .firstOrNull;
   }
 }
