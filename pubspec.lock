@@ -1244,7 +1244,7 @@ packages:
     source: hosted
     version: "4.4.0"
   permission_handler_windows:
-    dependency: "direct dev"
+    dependency: "direct overridden"
     description:
       path: "packages/permission_handler_windows"
       relative: true
