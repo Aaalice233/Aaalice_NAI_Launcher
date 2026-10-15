@@ -72,7 +72,7 @@ def encode_frame(payload: bytes, *, opcode: int, mask: bool = False) -> bytes:
     return b"".join([header, key, *_masked_blocks(payload, key)])
 
 
-def apply_mask(data: BytesLike, mask_key: bytes) -> bytes:
+def _apply_mask(data: BytesLike, mask_key: bytes) -> bytes:
     return b"".join(_masked_blocks(data, mask_key))
 
 
@@ -156,7 +156,7 @@ def _materialize_frame(data: BytesLike, header: FrameHeader) -> ParsedFrame:
         if header.mask_key is None:
             payload = bytes(payload_view)
         else:
-            payload = apply_mask(payload_view, header.mask_key)
+            payload = _apply_mask(payload_view, header.mask_key)
     return ParsedFrame(
         opcode=header.opcode,
         payload=payload,

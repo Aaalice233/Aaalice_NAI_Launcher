@@ -13,7 +13,7 @@ MAX_V1_CANVAS_EDGE = 4096
 PREVIEW_LAYER_NAME = "NAI Preview"
 FOCUS_PREVIEW_LAYER_NAME = "NAI Focus Preview"
 MASK_SOURCE_SELECTION = "selection"
-# The launcher only keeps mask coverage above 155 when building NovelAI requests.
+# Write raw bytes: Grayscale8 setPixel reads 255 as QRgb 0x000000FF (39 or 0 by Qt build).
 SELECTED_MASK_VALUE = 255
 _SELECTION_TO_MASK = bytes([0]) + bytes([SELECTED_MASK_VALUE]) * 255
 # NovelAI web build d7e955f-production, verified 2026-07-14.

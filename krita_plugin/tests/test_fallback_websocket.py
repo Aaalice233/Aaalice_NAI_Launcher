@@ -51,7 +51,7 @@ class FallbackWebSocketTests(unittest.TestCase):
             for key in keys:
                 with self.subTest(length=length, key=key.hex()):
                     self.assertEqual(
-                        fallback.apply_mask(payload, key),
+                        fallback._apply_mask(payload, key),
                         _reference_mask(payload, key),
                     )
 
