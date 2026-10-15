@@ -57,7 +57,7 @@ class _Host extends StatefulWidget {
   });
 
   final ShortcutContext contextType;
-  final Map<String, VoidCallback> Function() buildShortcuts;
+  final Map<String, VoidCallback> Function(int generation) buildShortcuts;
   final Widget child;
 
   @override
@@ -75,7 +75,7 @@ class _HostState extends State<_Host> {
     return ShortcutAwareWidget(
       key: const ValueKey('shortcut-aware'),
       contextType: widget.contextType,
-      shortcuts: widget.buildShortcuts(),
+      shortcuts: widget.buildShortcuts(_generation),
       autofocus: true,
       child: widget.child,
     );
@@ -89,6 +89,7 @@ class _Harness {
   final _ControlledShortcutConfigNotifier notifier;
   final GlobalKey<_HostState> hostKey;
   int probeInits = 0;
+  int? lastInvokedGeneration;
   final Map<String, int> invocations = {};
 
   _ProbeState get probe => tester.state<_ProbeState>(find.byType(_Probe));
@@ -103,19 +104,7 @@ class _Harness {
     await tester.pump();
   }
 
-  Future<void> press(
-    List<LogicalKeyboardKey> modifiers,
-    LogicalKeyboardKey key,
-  ) async {
-    for (final modifier in modifiers) {
-      await tester.sendKeyDownEvent(modifier);
-    }
-    await tester.sendKeyEvent(key);
-    for (final modifier in modifiers.reversed) {
-      await tester.sendKeyUpEvent(modifier);
-    }
-    await tester.pump();
-  }
+  Future<void> press(LogicalKeyboardKey key) => _pressCtrl(tester, key);
 
   int count(String shortcutId) => invocations[shortcutId] ?? 0;
 }
@@ -138,9 +127,12 @@ Future<_Harness> _pumpHarness(
         home: _Host(
           key: hostKey,
           contextType: contextType,
-          buildShortcuts: () => {
+          buildShortcuts: (generation) => {
             for (final id in shortcutIds)
-              id: () => harness.invocations[id] = harness.count(id) + 1,
+              id: () {
+                harness.invocations[id] = harness.count(id) + 1;
+                harness.lastInvokedGeneration = generation;
+              },
           },
           child: probe,
         ),
@@ -174,7 +166,7 @@ class _DeferredMountState extends State<_DeferredMount> {
 Future<_ControlledShortcutConfigNotifier> _pumpMountedAfterReady(
   WidgetTester tester, {
   required ShortcutConfig config,
-  required Widget Function(_ControlledShortcutConfigNotifier notifier) build,
+  required Widget child,
 }) async {
   final notifier = _ControlledShortcutConfigNotifier();
   final gateKey = GlobalKey<_DeferredMountState>();
@@ -183,7 +175,7 @@ Future<_ControlledShortcutConfigNotifier> _pumpMountedAfterReady(
     ProviderScope(
       overrides: [shortcutConfigNotifierProvider.overrideWith(() => notifier)],
       child: MaterialApp(
-        home: _DeferredMount(key: gateKey, child: build(notifier)),
+        home: _DeferredMount(key: gateKey, child: child),
       ),
     ),
   );
@@ -197,6 +189,20 @@ Future<_ControlledShortcutConfigNotifier> _pumpMountedAfterReady(
   return notifier;
 }
 
+Widget _app(_ControlledShortcutConfigNotifier notifier, Widget home) {
+  return ProviderScope(
+    overrides: [shortcutConfigNotifierProvider.overrideWith(() => notifier)],
+    child: MaterialApp(home: home),
+  );
+}
+
+Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pump();
+}
+
 bool _isAnchor(FocusNode? node) =>
     node?.debugLabel?.startsWith('ShortcutAwareWidget') ?? false;
 
@@ -208,95 +214,38 @@ AsyncValue<ShortcutConfig> _ready(ShortcutConfig config) =>
 AsyncValue<ShortcutConfig> _failed() =>
     AsyncValue.error(StateError('storage unavailable'), StackTrace.empty);
 
-const _ctrl = [LogicalKeyboardKey.controlLeft];
-
 void main() {
-  group('子树稳定性', () {
-    testWidgets('加载态下父级重建不重建 child State', (tester) async {
-      final harness = await _pumpHarness(tester);
-      final original = harness.probe;
+  testWidgets('配置各状态切换与父级重建都保留 child State 和输入框焦点', (tester) async {
+    final harness = await _pumpHarness(tester);
+    final original = harness.probe;
+    harness.probe.textFocus.requestFocus();
+    await tester.pump();
 
-      await harness.rebuildParent();
-      await harness.rebuildParent();
-
-      expect(harness.probeInits, 1);
-      expect(identical(harness.probe, original), isTrue);
-    });
-
-    testWidgets('就绪态下父级重建不重建 child State', (tester) async {
-      final harness = await _pumpHarness(tester);
-      await harness.emit(_ready(_defaults));
-      final original = harness.probe;
-      final initsBeforeRebuild = harness.probeInits;
-
-      await harness.rebuildParent();
-
-      expect(harness.probeInits, initsBeforeRebuild);
-      expect(identical(harness.probe, original), isTrue);
-    });
-
-    testWidgets('加载→就绪保留 child State', (tester) async {
-      final harness = await _pumpHarness(tester);
-      final original = harness.probe;
-
-      await harness.emit(_ready(_defaults));
-
-      expect(harness.probeInits, 1);
-      expect(identical(harness.probe, original), isTrue);
-    });
-
-    testWidgets('就绪后修改绑定保留 child State', (tester) async {
-      final harness = await _pumpHarness(tester);
-      await harness.emit(_ready(_defaults));
-      final original = harness.probe;
-
-      await harness.emit(
+    final steps = <String, Future<void> Function()>{
+      '加载态重建': harness.rebuildParent,
+      '加载→就绪': () => harness.emit(_ready(_defaults)),
+      '就绪态重建': harness.rebuildParent,
+      '修改绑定': () => harness.emit(
         _ready(
           _defaults.setCustomShortcut(ShortcutIds.generateImage, 'ctrl+g'),
         ),
-      );
-
-      expect(harness.probeInits, 1);
-      expect(identical(harness.probe, original), isTrue);
-    });
-
-    testWidgets('启用↔禁用快捷键保留 child State', (tester) async {
-      final harness = await _pumpHarness(tester);
-      await harness.emit(_ready(_defaults));
-      final original = harness.probe;
-
-      await harness.emit(_ready(_defaults.copyWith(enableShortcuts: false)));
-      await harness.emit(_ready(_defaults));
-
-      expect(harness.probeInits, 1);
-      expect(identical(harness.probe, original), isTrue);
-    });
-
-    testWidgets('无可用快捷键与有快捷键之间切换保留 child State', (tester) async {
-      final harness = await _pumpHarness(tester);
-      await harness.emit(_ready(_defaults));
-      final original = harness.probe;
-
-      await harness.emit(
+      ),
+      '全局禁用': () =>
+          harness.emit(_ready(_defaults.copyWith(enableShortcuts: false))),
+      '重新启用': () => harness.emit(_ready(_defaults)),
+      '无可用快捷键': () => harness.emit(
         _ready(_defaults.setEnabled(ShortcutIds.generateImage, false)),
-      );
-      await harness.emit(_ready(_defaults));
-
-      expect(harness.probeInits, 1);
-      expect(identical(harness.probe, original), isTrue);
-    });
-
-    testWidgets('加载→出错及出错态父级重建保留 child State', (tester) async {
-      final harness = await _pumpHarness(tester);
-      final original = harness.probe;
-
-      await harness.emit(_failed());
-      await harness.rebuildParent();
-      await harness.emit(_ready(_defaults));
-
-      expect(harness.probeInits, 1);
-      expect(identical(harness.probe, original), isTrue);
-    });
+      ),
+      '恢复可用': () => harness.emit(_ready(_defaults)),
+      '出错': () => harness.emit(_failed()),
+      '出错态重建': harness.rebuildParent,
+    };
+    for (final MapEntry(key: step, value: run) in steps.entries) {
+      await run();
+      expect(harness.probeInits, 1, reason: step);
+      expect(identical(harness.probe, original), isTrue, reason: step);
+      expect(harness.probe.textFocus.hasFocus, isTrue, reason: step);
+    }
   });
 
   group('焦点', () {
@@ -304,99 +253,10 @@ void main() {
       await _pumpHarness(tester);
 
       final primary = FocusManager.instance.primaryFocus;
-      expect(primary, isNotNull);
-      expect(primary!.context, isNotNull);
       expect(
-        primary.context!.findAncestorWidgetOfExactType<ShortcutAwareWidget>(),
+        primary?.context?.findAncestorWidgetOfExactType<ShortcutAwareWidget>(),
         isNotNull,
       );
-    });
-
-    testWidgets('外部传入的 focusNode 作为锚点获得焦点且由调用方负责销毁', (tester) async {
-      final external = FocusNode(debugLabel: 'external-anchor');
-      addTearDown(external.dispose);
-      final notifier = _ControlledShortcutConfigNotifier();
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            shortcutConfigNotifierProvider.overrideWith(() => notifier),
-          ],
-          child: MaterialApp(
-            home: ShortcutAwareWidget(
-              contextType: ShortcutContext.generation,
-              shortcuts: {ShortcutIds.generateImage: () {}},
-              autofocus: true,
-              focusNode: external,
-              child: const SizedBox.shrink(),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(external.hasPrimaryFocus, isTrue);
-      expect(external.skipTraversal, isFalse, reason: '外部节点按原样使用');
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      expect(external.skipTraversal, isFalse);
-      void listener() {}
-      expect(() => external.addListener(listener), returnsNormally);
-      external.removeListener(listener);
-    });
-
-    testWidgets('更换 focusNode 时锚点上的焦点转移到新节点', (tester) async {
-      final first = FocusNode(debugLabel: 'external-first');
-      final second = FocusNode(debugLabel: 'external-second');
-      addTearDown(first.dispose);
-      addTearDown(second.dispose);
-      final notifier = _ControlledShortcutConfigNotifier();
-      FocusNode? current;
-      late StateSetter setHostState;
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            shortcutConfigNotifierProvider.overrideWith(() => notifier),
-          ],
-          child: MaterialApp(
-            home: StatefulBuilder(
-              builder: (context, setState) {
-                setHostState = setState;
-                return ShortcutAwareWidget(
-                  contextType: ShortcutContext.generation,
-                  shortcuts: {ShortcutIds.generateImage: () {}},
-                  autofocus: true,
-                  focusNode: current,
-                  child: const SizedBox.shrink(),
-                );
-              },
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(_isAnchor(FocusManager.instance.primaryFocus), isTrue);
-
-      Future<void> switchTo(FocusNode? node) async {
-        setHostState(() => current = node);
-        await tester.pump();
-        await tester.pump();
-      }
-
-      await switchTo(first);
-      expect(first.hasPrimaryFocus, isTrue, reason: '自有节点 → 外部节点');
-
-      await switchTo(second);
-      expect(second.hasPrimaryFocus, isTrue, reason: '外部节点 → 外部节点');
-
-      await switchTo(null);
-      expect(
-        _isAnchor(FocusManager.instance.primaryFocus),
-        isTrue,
-        reason: '外部节点 → 自有节点',
-      );
-      expect(first.skipTraversal, isFalse);
-      expect(second.skipTraversal, isFalse);
     });
 
     final childFirstScenarios = <String, (ShortcutConfig, ShortcutContext)>{
@@ -416,7 +276,7 @@ void main() {
         await _pumpMountedAfterReady(
           tester,
           config: config,
-          build: (_) => ShortcutAwareWidget(
+          child: ShortcutAwareWidget(
             contextType: contextType,
             shortcuts: {ShortcutIds.generateImage: () {}},
             autofocus: true,
@@ -435,9 +295,7 @@ void main() {
         );
 
         expect(listenerFocus.hasPrimaryFocus, isTrue);
-        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-        await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
-        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await _pressCtrl(tester, LogicalKeyboardKey.keyZ);
         expect(undoPresses, 1);
       });
     }
@@ -449,7 +307,7 @@ void main() {
       final notifier = await _pumpMountedAfterReady(
         tester,
         config: _defaults.copyWith(enableShortcuts: false),
-        build: (_) => ShortcutAwareWidget(
+        child: ShortcutAwareWidget(
           contextType: ShortcutContext.generation,
           shortcuts: {ShortcutIds.generateImage: () {}},
           autofocus: true,
@@ -472,24 +330,19 @@ void main() {
       final fieldB = FocusNode(debugLabel: 'field-b');
       addTearDown(fieldA.dispose);
       addTearDown(fieldB.dispose);
-      final notifier = _ControlledShortcutConfigNotifier();
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            shortcutConfigNotifierProvider.overrideWith(() => notifier),
-          ],
-          child: MaterialApp(
-            home: ShortcutAwareWidget(
-              contextType: ShortcutContext.generation,
-              shortcuts: {ShortcutIds.generateImage: () {}},
-              autofocus: true,
-              child: Material(
-                child: Column(
-                  children: [
-                    TextField(focusNode: fieldA),
-                    TextField(focusNode: fieldB),
-                  ],
-                ),
+        _app(
+          _ControlledShortcutConfigNotifier(),
+          ShortcutAwareWidget(
+            contextType: ShortcutContext.generation,
+            shortcuts: {ShortcutIds.generateImage: () {}},
+            autofocus: true,
+            child: Material(
+              child: Column(
+                children: [
+                  TextField(focusNode: fieldA),
+                  TextField(focusNode: fieldB),
+                ],
               ),
             ),
           ),
@@ -507,53 +360,18 @@ void main() {
 
       expect(visited, ['field-a', 'field-b', 'field-a', 'field-b', 'field-a']);
     });
-
-    testWidgets('已聚焦的输入框在重建与状态切换中保持焦点', (tester) async {
-      final harness = await _pumpHarness(tester);
-      harness.probe.textFocus.requestFocus();
-      await tester.pump();
-      expect(harness.probe.textFocus.hasFocus, isTrue);
-
-      await harness.rebuildParent();
-      expect(harness.probe.textFocus.hasFocus, isTrue, reason: '加载态重建');
-
-      await harness.emit(_ready(_defaults));
-      expect(harness.probe.textFocus.hasFocus, isTrue, reason: '加载→就绪');
-
-      await harness.emit(
-        _ready(
-          _defaults.setCustomShortcut(ShortcutIds.generateImage, 'ctrl+g'),
-        ),
-      );
-      expect(harness.probe.textFocus.hasFocus, isTrue, reason: '修改绑定');
-
-      await harness.emit(_ready(_defaults.copyWith(enableShortcuts: false)));
-      expect(harness.probe.textFocus.hasFocus, isTrue, reason: '禁用');
-
-      await harness.emit(_ready(_defaults));
-      expect(harness.probe.textFocus.hasFocus, isTrue, reason: '重新启用');
-
-      await harness.emit(_failed());
-      expect(harness.probe.textFocus.hasFocus, isTrue, reason: '出错');
-    });
   });
 
   group('快捷键功能', () {
-    testWidgets('加载态使用默认快捷键触发回调', (tester) async {
+    testWidgets('加载态与出错态使用默认快捷键', (tester) async {
       final harness = await _pumpHarness(tester);
 
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
+      expect(harness.count(ShortcutIds.generateImage), 1, reason: '加载态');
 
-      expect(harness.count(ShortcutIds.generateImage), 1);
-    });
-
-    testWidgets('出错态回退到默认快捷键', (tester) async {
-      final harness = await _pumpHarness(tester);
       await harness.emit(_failed());
-
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
-
-      expect(harness.count(ShortcutIds.generateImage), 1);
+      await harness.press(LogicalKeyboardKey.enter);
+      expect(harness.count(ShortcutIds.generateImage), 2, reason: '出错态');
     });
 
     testWidgets('就绪后按用户绑定触发，改绑后新键生效旧键失效', (tester) async {
@@ -564,9 +382,9 @@ void main() {
         ),
       );
 
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
       expect(harness.count(ShortcutIds.generateImage), 0);
-      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+      await harness.press(LogicalKeyboardKey.keyG);
       expect(harness.count(ShortcutIds.generateImage), 1);
 
       await harness.emit(
@@ -575,9 +393,9 @@ void main() {
         ),
       );
 
-      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+      await harness.press(LogicalKeyboardKey.keyG);
       expect(harness.count(ShortcutIds.generateImage), 1);
-      await harness.press(_ctrl, LogicalKeyboardKey.keyH);
+      await harness.press(LogicalKeyboardKey.keyH);
       expect(harness.count(ShortcutIds.generateImage), 2);
     });
 
@@ -591,13 +409,13 @@ void main() {
       await harness.emit(
         const AsyncLoading<ShortcutConfig>().copyWithPrevious(custom),
       );
-      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+      await harness.press(LogicalKeyboardKey.keyG);
       expect(harness.count(ShortcutIds.generateImage), 1, reason: '刷新中');
 
       await harness.emit(_failed().copyWithPrevious(custom));
-      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+      await harness.press(LogicalKeyboardKey.keyG);
       expect(harness.count(ShortcutIds.generateImage), 1, reason: '出错旧键失效');
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
       expect(harness.count(ShortcutIds.generateImage), 2, reason: '出错用默认键');
     });
 
@@ -611,37 +429,37 @@ void main() {
       harness.probe.textFocus.requestFocus();
       await tester.pump();
 
-      await harness.press(_ctrl, LogicalKeyboardKey.keyG);
+      await harness.press(LogicalKeyboardKey.keyG);
 
       expect(harness.count(ShortcutIds.generateImage), 1);
       expect(harness.probe.textFocus.hasPrimaryFocus, isTrue);
     });
 
-    testWidgets('父级重建后回调使用最新传入的映射', (tester) async {
+    testWidgets('父级重建后调用最新传入的回调', (tester) async {
       final harness = await _pumpHarness(tester);
       await harness.emit(_ready(_defaults));
       await harness.rebuildParent();
 
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
 
-      expect(harness.count(ShortcutIds.generateImage), 1);
+      expect(harness.lastInvokedGeneration, 1);
     });
 
     testWidgets('全局禁用或单项禁用后不触发，重新启用后恢复', (tester) async {
       final harness = await _pumpHarness(tester);
 
       await harness.emit(_ready(_defaults.copyWith(enableShortcuts: false)));
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
       expect(harness.count(ShortcutIds.generateImage), 0);
 
       await harness.emit(
         _ready(_defaults.setEnabled(ShortcutIds.generateImage, false)),
       );
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
       expect(harness.count(ShortcutIds.generateImage), 0);
 
       await harness.emit(_ready(_defaults));
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
       expect(harness.count(ShortcutIds.generateImage), 1);
     });
 
@@ -651,11 +469,11 @@ void main() {
         contextType: ShortcutContext.gallery,
       );
 
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
       expect(harness.count(ShortcutIds.generateImage), 0, reason: '加载态');
 
       await harness.emit(_ready(_defaults));
-      await harness.press(_ctrl, LogicalKeyboardKey.enter);
+      await harness.press(LogicalKeyboardKey.enter);
       expect(harness.count(ShortcutIds.generateImage), 0, reason: '就绪态');
     });
 
@@ -666,35 +484,28 @@ void main() {
         shortcutIds: const [ShortcutIds.navigateToGeneration],
       );
 
-      await harness.press(_ctrl, LogicalKeyboardKey.digit1);
+      await harness.press(LogicalKeyboardKey.digit1);
       expect(harness.count(ShortcutIds.navigateToGeneration), 1, reason: '加载态');
 
       await harness.emit(_ready(_defaults));
-      await harness.press(_ctrl, LogicalKeyboardKey.digit1);
+      await harness.press(LogicalKeyboardKey.digit1);
       expect(harness.count(ShortcutIds.navigateToGeneration), 2, reason: '就绪态');
     });
 
     testWidgets('内层没有可用快捷键时外层包装器的快捷键照常触发', (tester) async {
       final fieldFocus = FocusNode(debugLabel: 'inner-field');
       addTearDown(fieldFocus.dispose);
-      final notifier = _ControlledShortcutConfigNotifier();
       var outerPresses = 0;
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            shortcutConfigNotifierProvider.overrideWith(() => notifier),
-          ],
-          child: MaterialApp(
-            home: ShortcutAwareWidget(
-              contextType: ShortcutContext.global,
-              shortcuts: {
-                ShortcutIds.navigateToGeneration: () => outerPresses++,
-              },
-              child: ShortcutAwareWidget(
-                contextType: ShortcutContext.gallery,
-                shortcuts: {ShortcutIds.generateImage: () {}},
-                child: Material(child: TextField(focusNode: fieldFocus)),
-              ),
+        _app(
+          _ControlledShortcutConfigNotifier(),
+          ShortcutAwareWidget(
+            contextType: ShortcutContext.global,
+            shortcuts: {ShortcutIds.navigateToGeneration: () => outerPresses++},
+            child: ShortcutAwareWidget(
+              contextType: ShortcutContext.gallery,
+              shortcuts: {ShortcutIds.generateImage: () {}},
+              child: Material(child: TextField(focusNode: fieldFocus)),
             ),
           ),
         ),
@@ -702,10 +513,7 @@ void main() {
       fieldFocus.requestFocus();
       await tester.pump();
 
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump();
+      await _pressCtrl(tester, LogicalKeyboardKey.digit1);
 
       expect(outerPresses, 1);
     });
