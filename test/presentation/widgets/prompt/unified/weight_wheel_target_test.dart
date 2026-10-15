@@ -61,39 +61,36 @@ Future<void> _pumpInput(
 
 /// 滚轮调整选区所在的已有权重，而不是在其内外再套一层；按住鼠标键时滚轮只滚动。
 void main() {
-  for (final (name, text, part, dy, expected) in [
-    ('双击选中带权重标签的文字', 'a, 1.05::iu::, b', 'iu', -40.0, 'a, 1.1::iu::, b'),
-    ('选区带上前面的逗号', 'a, 1.05::iu::, b', ', 1.05::iu::', 40.0, 'a, iu, b'),
-    ('修复旧版本叠出的嵌套权重', '0.9::1.05::iu::::', 'iu', -40.0, '1.1::iu::'),
-  ]) {
-    testWidgets(name, (tester) async {
-      final host = TextEditingController(text: text);
-      addTearDown(host.dispose);
-      final reported = <String>[];
-      await _pumpInput(tester, host, onChanged: reported.add);
-      await tester.tap(find.byType(EditableText).first);
-      await tester.pump();
-      final start = text.indexOf(part);
-      tester.testTextInput.updateEditingValue(
-        TextEditingValue(
-          text: text,
-          selection: TextSelection(
-            baseOffset: start,
-            extentOffset: start + part.length,
-          ),
+  // 选区解析的各种形态由 prompt_weight_editing_test 覆盖，这里只验证滚轮接线
+  testWidgets('双击选中带权重标签的文字后滚轮改写该权重', (tester) async {
+    const text = 'a, 1.05::iu::, b';
+    const part = 'iu';
+    final host = TextEditingController(text: text);
+    addTearDown(host.dispose);
+    final reported = <String>[];
+    await _pumpInput(tester, host, onChanged: reported.add);
+    await tester.tap(find.byType(EditableText).first);
+    await tester.pump();
+    final start = text.indexOf(part);
+    tester.testTextInput.updateEditingValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection(
+          baseOffset: start,
+          extentOffset: start + part.length,
         ),
-      );
-      await tester.pump();
+      ),
+    );
+    await tester.pump();
 
-      final pointer = TestPointer(1, PointerDeviceKind.mouse)
-        ..hover(tester.getCenter(find.byType(EditableText).first));
-      await tester.sendEventToBinding(pointer.scroll(Offset(0, dy)));
-      await tester.pump();
+    final pointer = TestPointer(1, PointerDeviceKind.mouse)
+      ..hover(tester.getCenter(find.byType(EditableText).first));
+    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -40)));
+    await tester.pump();
 
-      expect(host.text, expected);
-      expect(reported.last, expected);
-    });
-  }
+    expect(host.text, 'a, 1.1::iu::, b');
+    expect(reported.last, 'a, 1.1::iu::, b');
+  });
 
   testWidgets(
     '按住鼠标拖选时滚轮滚动文本，松开后才调整权重',

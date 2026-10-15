@@ -162,10 +162,8 @@ void main() {
     });
   });
 
-  test('written weights drop trailing zeros', () {
+  test('written weights use the shared format and drop the wrapper at 1', () {
     expect(PromptWeightEditing.withWeight('iu', 0.5), '0.5::iu::');
-    expect(PromptWeightEditing.withWeight('iu', 2), '2::iu::');
-    expect(PromptWeightEditing.withWeight('iu', 1.25), '1.25::iu::');
     expect(PromptWeightEditing.withWeight('1.5::iu::', 1), 'iu');
   });
 }

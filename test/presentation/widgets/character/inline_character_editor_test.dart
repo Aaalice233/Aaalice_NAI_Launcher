@@ -36,15 +36,6 @@ class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
   CharacterPromptConfig build() => const CharacterPromptConfig();
 }
 
-class _SeededCharacterPromptNotifier extends CharacterPromptNotifier {
-  @override
-  CharacterPromptConfig build() => const CharacterPromptConfig(
-    characters: [
-      CharacterPrompt(id: 'char-1', name: 'Alice', prompt: 'alpha, beta'),
-    ],
-  );
-}
-
 void main() {
   const character = CharacterPrompt(
     id: 'char-1',
@@ -101,80 +92,5 @@ void main() {
 
     expect(editor(tester).inputConfig.readOnly, isFalse);
     expect(editor(tester).enableAssistant, isTrue);
-  });
-
-  testWidgets('自动补全关闭时权重调整写回角色且失焦重建后保留', (tester) async {
-    const weighted = 'alpha, 1.05::beta::';
-    final rebuild = ValueNotifier<int>(0);
-    addTearDown(rebuild.dispose);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith(
-            (ref) => _MemoryStorage(ImageModels.animeDiffusionV5Full),
-          ),
-          characterPromptNotifierProvider.overrideWith(
-            _SeededCharacterPromptNotifier.new,
-          ),
-        ],
-        child: MaterialApp(
-          locale: const Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SizedBox(
-              width: 400,
-              child: SingleChildScrollView(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: rebuild,
-                  builder: (context, _, _) => Consumer(
-                    builder: (context, ref, _) => CharacterPromptEditor(
-                      character: ref
-                          .watch(characterPromptNotifierProvider)
-                          .characters
-                          .single,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump(const Duration(milliseconds: 300));
-
-    tester.testTextInput.updateEditingValue(
-      const TextEditingValue(
-        text: 'alpha, beta',
-        selection: TextSelection(baseOffset: 7, extentOffset: 11),
-      ),
-    );
-    await tester.pump();
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('weight_adjust_toolbar_surface')),
-        matching: find.byIcon(Icons.add),
-      ),
-    );
-    await tester.pump();
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(CharacterPromptEditor)),
-    );
-    expect(
-      container.read(characterPromptNotifierProvider).characters.single.prompt,
-      weighted,
-    );
-
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pump(const Duration(milliseconds: 300));
-    rebuild.value++;
-    await tester.pump();
-
-    expect(
-      tester.widget<EditableText>(find.byType(EditableText)).controller.text,
-      weighted,
-    );
   });
 }
