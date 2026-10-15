@@ -40,15 +40,12 @@ bool canDownloadGalleryItem(GalleryItem item) =>
 Future<GalleryDownloadPlan> planGalleryDownloads(
   List<GalleryItem> posts, {
   required GalleryDownloadDetailLoader loadDetail,
-  int concurrency = 4,
+  required int concurrency,
 }) async {
   final jobs = <GalleryDownloadJob>[];
   var unresolvedCount = 0;
   for (var start = 0; start < posts.length; start += concurrency) {
-    final batch = posts.sublist(
-      start,
-      min(start + concurrency, posts.length),
-    );
+    final batch = posts.sublist(start, min(start + concurrency, posts.length));
     final resolved = await Future.wait(
       batch.map((post) => _jobsFor(post, loadDetail)),
     );

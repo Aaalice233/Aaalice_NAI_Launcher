@@ -12,6 +12,7 @@ void main() {
         requested.add(item.sourceWorkId);
         return _detail(item, mediaCount: 1);
       },
+      concurrency: 4,
     );
 
     expect(requested, ['101']);
@@ -29,6 +30,7 @@ void main() {
     final plan = await planGalleryDownloads(
       [_pendingAiTagItem(102, mediaCount: 3)],
       loadDetail: (item) async => _detail(item, mediaCount: 3),
+      concurrency: 4,
     );
 
     expect(
@@ -44,6 +46,7 @@ void main() {
         if (item.id == 103) throw StateError('offline');
         return GalleryDetail(item: item, media: const []);
       },
+      concurrency: 4,
     );
 
     expect(plan.jobs, isEmpty);
@@ -64,6 +67,7 @@ void main() {
         ),
       ],
       loadDetail: (_) => fail('detail must not be requested'),
+      concurrency: 4,
     );
 
     expect(
@@ -83,6 +87,7 @@ void main() {
     final plan = await planGalleryDownloads(
       [empty],
       loadDetail: (_) => fail('detail must not be requested'),
+      concurrency: 4,
     );
 
     expect(canDownloadGalleryItem(empty), isFalse);

@@ -75,7 +75,7 @@ class OnlineGalleryDetailLauncher {
           );
         }
       }
-      // The caller's context may live outside the subtree that owns ref.
+      // 调用方的 context 可能不在持有 ref 的子树里
       if (!context.mounted || !this.context.mounted) return;
       final l10n = context.l10n;
       final galleryState = ref.read(onlineGalleryNotifierProvider);
@@ -579,7 +579,7 @@ class OnlineGalleryDetailLauncher {
           ],
         ),
       );
-      // The dialog sits on the root navigator and can outlive the ref owner.
+      // 对话框挂在根导航器上，可能比持有 ref 的组件存活更久
       if (!dialogContext.mounted || !context.mounted) return;
       if (success) {
         final count = ref.read(
