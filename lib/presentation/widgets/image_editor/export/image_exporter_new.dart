@@ -214,7 +214,6 @@ class ImageExporterNew {
     if (byteData == null) {
       throw Exception('Failed to convert mask to bytes');
     }
-    // 归一化只把像素收敛成 0/255，二值判定结果不变，省掉一轮编解码。
     final decoded = await InpaintMaskUtils.decodeBinaryMaskAsync(
       byteData.buffer.asUint8List(),
     );
