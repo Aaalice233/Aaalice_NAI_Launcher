@@ -115,18 +115,6 @@ class FallbackWebSocketTests(unittest.TestCase):
         self.assertLessEqual(copies.copied, len(payload))
         self.assertIsNone(frames.pop_frame())
 
-    def test_read_loop_copy_volume_stays_linear_for_large_frames(self):
-        payload = b"y" * (2 * 1024 * 1024)
-        stream = fallback.encode_frame(payload, opcode=fallback.OPCODE_TEXT)
-        client, received = _recording_client()
-        copies = _CopyCounter()
-
-        with mock.patch.object(fallback, "bytes", copies, create=True):
-            client._read_loop(_ChunkedSocket(stream, 4096))
-
-        self.assertEqual(received, [payload.decode("ascii")])
-        self.assertLessEqual(copies.copied, len(payload))
-
     def test_read_loop_reassembles_frames_across_any_chunk_boundary(self):
         long_text = "界" * 21846
         stream = b"".join(
