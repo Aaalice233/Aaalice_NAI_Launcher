@@ -213,12 +213,11 @@ void main() {
       expect(state.installFailure, UpdateInstallFailure.updaterNotStarted);
     });
 
-    test('a failed updater run reports its log without the raw message', () async {
+    test('a failed updater run reports its log', () async {
       final state = await initializeWith(
         const UpdateExecutionResult(
           success: false,
           version: '2.0.0',
-          message: 'Installer exited with code 2.',
           logPath: r'C:\Temp\update_2.0.0.log',
         ),
       );

@@ -21,7 +21,6 @@ import 'windows_update_script.dart';
 
 part 'update_installer_service.g.dart';
 
-/// 应用内更新下载、安装与上次执行结果的失败类别。
 enum UpdateInstallFailure {
   unsupported,
   packageNotFound,
@@ -124,9 +123,6 @@ class RestoredDownloadedUpdate {
 class UpdateExecutionResult {
   final bool success;
   final String version;
-
-  /// 脚本记录的原始消息，只用于日志。
-  final String? message;
   final String? logPath;
 
   /// 脚本写出启动标记后没有留下结果。
@@ -135,7 +131,6 @@ class UpdateExecutionResult {
   const UpdateExecutionResult({
     required this.success,
     required this.version,
-    this.message,
     this.logPath,
     this.interrupted = false,
   });
@@ -400,12 +395,11 @@ class UpdateInstallerService {
       final result = UpdateExecutionResult(
         success: data['success'] == true,
         version: data['version'] as String? ?? '',
-        message: data['message'] as String?,
         logPath: data['logPath'] as String?,
       );
       if (!result.success) {
         AppLogger.w(
-          'Updater reported failure for ${result.version}: ${result.message}',
+          'Updater reported failure for ${result.version}: ${data['message']}',
           'UpdateInstaller',
         );
       }
