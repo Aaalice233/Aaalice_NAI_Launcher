@@ -4,8 +4,6 @@ import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 
 /// Source work identity behind an online gallery resource reference.
-///
-/// The only place that maps raw gallery ids to and from reference ids.
 final class OnlineGalleryResourceIdentity {
   const OnlineGalleryResourceIdentity({
     required this.source,
@@ -23,6 +21,9 @@ final class OnlineGalleryResourceIdentity {
   final GallerySourceId source;
   final String workId;
   final String? mediaId;
+
+  bool matches(GalleryItem item) =>
+      item.sourceId == source && item.sourceWorkId == workId;
 
   /// Returns null for other kinds, unknown sources, or malformed ids.
   static OnlineGalleryResourceIdentity? fromReference(
