@@ -267,6 +267,8 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
           source: GallerySourceId.aiTag,
         );
       }
+      final emptyPage = _emptyListPageForNotFound(error.response, cursor);
+      if (emptyPage != null) return emptyPage;
       throw mapGalleryDioException(error, sourceId);
     } catch (error) {
       throw GallerySourceException(
@@ -275,6 +277,28 @@ class AiTagGallerySourceAdapter implements GallerySourceAdapter {
         cause: error,
       );
     }
+  }
+
+  // 列表接口无结果或页码越界时返回 404，body 为空 items 或 no_content。
+  static GalleryPage? _emptyListPageForNotFound(
+    Response<dynamic>? response,
+    String cursor,
+  ) {
+    if (response?.statusCode != 404) return null;
+    final data = response!.data;
+    if (data is! Map) return null;
+    final items = data['items'];
+    final isEmptyList = items is List && items.isEmpty;
+    final isNoContent = data['error'] == 'no_content';
+    if (!isEmptyList && !isNoContent) return null;
+    return GalleryPage(
+      items: const [],
+      cursor: cursor,
+      nextCursor: null,
+      total: _asInt(data['total']),
+      hasMore: false,
+      rawPageIdentity: '',
+    );
   }
 
   @override
