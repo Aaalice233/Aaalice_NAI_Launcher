@@ -402,6 +402,48 @@ void main() {
       expect(sent.single['code'], KritaBridgeErrorCode.emptyMask.value);
     });
 
+    test('empty-mask rejections skip cooldown and billing refresh', () async {
+      final sent = <Map<String, dynamic>>[];
+      var streamCalls = 0;
+      var refreshCalls = 0;
+      final service = KritaBridgeService(
+        readBaseParams: () => const ImageParams(),
+        send: sent.add,
+        isUiGenerating: () => false,
+        authGuard: () => true,
+        generateStream: (_) {
+          streamCalls++;
+          throw const EmptyInpaintMaskException();
+        },
+        generateFallback: (_) async => const [],
+        registerExternalImage: (_, {required params, addToDisplay}) async =>
+            null,
+        cancelGeneration: () {},
+        schedulePostBillingRefresh: () => refreshCalls++,
+        failureCooldown: const Duration(seconds: 5),
+      );
+
+      for (final id in ['thin-mask-1', 'thin-mask-2']) {
+        await service.handle(
+          KritaImg2ImgMessage(
+            id: id,
+            image: Uint8List.fromList([1]),
+            prompt: '',
+            negativePrompt: '',
+            strength: 0.5,
+            noise: 0.0,
+          ),
+        );
+      }
+
+      expect(streamCalls, 2);
+      expect(refreshCalls, 0);
+      expect([
+        for (final message in sent) message['code'],
+      ], everyElement(KritaBridgeErrorCode.emptyMask.value));
+      expect(sent, hasLength(2));
+    });
+
     test('maps explicit API failures to stable bridge error codes', () async {
       final cases = <({String error, KritaBridgeErrorCode code})>[
         (

@@ -13,6 +13,7 @@ import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
+import '../generation/generation_error_classifier.dart';
 
 typedef KritaBridgeBaseParamsReader = ImageParams Function();
 typedef KritaBridgePromptSnapshot = ({String prompt, String negativePrompt});
@@ -258,6 +259,7 @@ class KritaBridgeService implements KritaBridgeMessageService {
       _logTag,
     );
 
+    var rejectedLocally = false;
     try {
       final request = KritaBridgeGenerateRequest(
         id: id,
@@ -295,6 +297,8 @@ class KritaBridgeService implements KritaBridgeMessageService {
       );
       AppLogger.i('Completed Krita request: ${request.id}', _logTag);
     } catch (error) {
+      // 本地拒绝时请求没有发出，立即改选区重试不该被冷却挡住，也没有扣费
+      rejectedLocally = isDeterministicGenerationError(error);
       if (!_cancelled) {
         final code = _mapErrorCode(error);
         AppLogger.e(
@@ -303,11 +307,11 @@ class KritaBridgeService implements KritaBridgeMessageService {
           null,
           _logTag,
         );
-        _startFailureCooldown();
+        if (!rejectedLocally) _startFailureCooldown();
         _sendError(id, code, _publicErrorMessage(code));
       }
     } finally {
-      _schedulePostBillingRefresh();
+      if (!rejectedLocally) _schedulePostBillingRefresh();
       _isBridgeGenerating = false;
       _activeRequestId = null;
       _activeRequestReporter?.call(null);
