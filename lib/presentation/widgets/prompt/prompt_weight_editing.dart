@@ -15,9 +15,9 @@ class PromptWeightValue {
   const PromptWeightValue({required this.baseText, required this.weight});
 }
 
-/// 调权重实际改写的范围；[group] 非空时只改写该组的权重包装
-class PromptWeightTarget {
-  const PromptWeightTarget(
+// A non-null [group] rewrites only that group's weight wrapper.
+class _PromptWeightTarget {
+  const _PromptWeightTarget(
     this.start,
     this.end, {
     required this.numericAllowed,
@@ -86,15 +86,15 @@ class PromptWeightEditing {
   }
 
   static PromptWeightValue parseSelection(TextEditingController controller) {
-    final target = resolveTarget(controller.text, controller.selection);
+    final target = _resolveTarget(controller.text, controller.selection);
     if (target == null) {
       return const PromptWeightValue(baseText: '', weight: 1.0);
     }
     return _valueOf(controller.text, target);
   }
 
-  /// 选区落在已有权重里时改写该权重，避免在原权重内外再套一层。
-  static PromptWeightTarget? resolveTarget(
+  // A selection inside an existing weight rewrites it instead of nesting.
+  static _PromptWeightTarget? _resolveTarget(
     String text,
     TextSelection selection,
   ) {
@@ -174,7 +174,6 @@ class PromptWeightEditing {
       numericWrapper ||
       (!insideEmphasis && !content.any((part) => part.contains('::')));
 
-  /// 只重写权重包装，组内的标签与嵌套权重保持原样。
   static (String, String) rewrap(
     PromptEditSpan span,
     double weight, {
@@ -196,11 +195,11 @@ class PromptWeightEditing {
   static bool _weighted(List<PromptEditSpan> ancestors) =>
       ancestors.any((ancestor) => isEmphasisPrefix(ancestor.prefix));
 
-  static PromptWeightTarget _spanTarget(
+  static _PromptWeightTarget _spanTarget(
     PromptEditSpan span,
     List<PromptEditSpan> ancestors, {
     bool group = false,
-  }) => PromptWeightTarget(
+  }) => _PromptWeightTarget(
     span.start,
     span.end,
     group: group ? span : null,
@@ -211,12 +210,12 @@ class PromptWeightEditing {
     ),
   );
 
-  static PromptWeightTarget _freeTarget(
+  static _PromptWeightTarget _freeTarget(
     String text,
     int start,
     int end,
     List<PromptEditSpan> ancestors,
-  ) => PromptWeightTarget(
+  ) => _PromptWeightTarget(
     start,
     end,
     numericAllowed: allowsNumericWeight(
@@ -227,7 +226,7 @@ class PromptWeightEditing {
   );
 
   // Inline weights inside an unweighted tag, e.g. a sentence, are edited in place.
-  static PromptWeightTarget _partialTarget(
+  static _PromptWeightTarget _partialTarget(
     String text,
     PromptEditSpan tag,
     int start,
@@ -261,26 +260,12 @@ class PromptWeightEditing {
       }
       return _freeTarget(text, from, to, ancestors);
     }
-    var region = innermost;
-    // Consecutive bracket shells describe one weight.
-    while (_isBracket(text[region.$1])) {
-      final inner = region;
-      final shell = ranges
-          .where(
-            (range) =>
-                range.$1 == inner.$1 - 1 &&
-                range.$2 == inner.$2 + 1 &&
-                _isBracket(text[range.$1]),
-          )
-          .firstOrNull;
-      if (shell == null) break;
-      region = shell;
-    }
+    final region = innermost;
     final (regionStart, regionEnd) = region;
     if (regionStart == tag.start && regionEnd == tag.end) {
       return _spanTarget(tag, ancestors);
     }
-    return PromptWeightTarget(
+    return _PromptWeightTarget(
       regionStart,
       regionEnd,
       numericAllowed: allowsNumericWeight(
@@ -298,7 +283,7 @@ class PromptWeightEditing {
     );
   }
 
-  static PromptWeightValue _valueOf(String text, PromptWeightTarget target) {
+  static PromptWeightValue _valueOf(String text, _PromptWeightTarget target) {
     final group = target.group;
     if (group == null) {
       return parseWeightSyntax(text.substring(target.start, target.end));
@@ -355,7 +340,7 @@ class PromptWeightEditing {
 
   static bool applyWeight(TextEditingController controller, double newWeight) {
     final text = controller.text;
-    final target = resolveTarget(text, controller.selection);
+    final target = _resolveTarget(text, controller.selection);
     if (target == null || _valueOf(text, target).baseText.isEmpty) {
       return false;
     }
@@ -391,10 +376,7 @@ class PromptWeightEditing {
   }
 
   static bool stepWeight(TextEditingController controller, double step) =>
-      applyWeight(
-        controller,
-        (parseSelection(controller).weight + step).clamp(0.1, 3.0),
-      );
+      applyWeight(controller, parseSelection(controller).weight + step);
 
   static String withWeight(
     String source,
