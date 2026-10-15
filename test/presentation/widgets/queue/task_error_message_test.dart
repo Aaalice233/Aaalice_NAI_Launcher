@@ -35,10 +35,11 @@ void main() {
     final summary =
         '${l10n.generation_emptyInpaintMask}\n'
         '${l10n.generation_emptyInpaintMaskHint(8)}';
-    expect(find.text(summary), findsNWidgets(2));
+    expect(find.text(summary), findsOneWidget, reason: 'failed list shows the summary');
     expect(
-      find.textContaining(EmptyInpaintMaskException.errorCode),
-      findsNothing,
+      find.text('$summary\n\n${failedTask.errorMessage}'),
+      findsOneWidget,
+      reason: 'detail keeps the original error for troubleshooting',
     );
     expect(tester.takeException(), isNull);
   });

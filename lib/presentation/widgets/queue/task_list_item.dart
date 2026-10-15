@@ -914,10 +914,7 @@ class QueueTaskDetailView extends StatelessWidget {
               const SizedBox(height: 18),
               _QueuePromptSection(
                 title: l10n.common_error,
-                text: summarizeGenerationError(
-                  context,
-                  task.errorMessage!.trim(),
-                ),
+                text: detailGenerationError(context, task.errorMessage!.trim()),
                 color: theme.colorScheme.error,
               ),
             ],
