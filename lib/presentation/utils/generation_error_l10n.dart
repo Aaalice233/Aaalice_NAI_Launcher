@@ -25,6 +25,12 @@ String summarizeGenerationError(BuildContext context, String message) {
   return hint == null ? title : '$title\n$hint';
 }
 
+/// 识别出的错误在本地化文案后附上原文，服务端给出的具体原因仍可用于排障。
+String detailGenerationError(BuildContext context, String message) {
+  final summary = summarizeGenerationError(context, message);
+  return summary == message ? message : '$summary\n\n$message';
+}
+
 (String, String?)? _tryDescribeGenerationError(
   BuildContext context,
   String message,
