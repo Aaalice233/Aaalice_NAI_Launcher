@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 
-import '../../../core/utils/inpaint_mask_utils.dart';
-import '../../../core/utils/localization_extension.dart';
-import '../../providers/generation/generation_error_classifier.dart';
-import '../../providers/prompt_config_provider.dart';
+import '../../core/utils/inpaint_mask_utils.dart';
+import '../../core/utils/localization_extension.dart';
+import '../providers/generation/generation_error_classifier.dart';
+import '../providers/prompt_config_provider.dart';
 
-/// 生成失败消息的本地化（标题, 提示）；无法识别时标题退回“生成失败”，原文作为提示。
+/// 无法识别的消息以“生成失败”为标题、原文为提示。
 (String, String?) describeGenerationError(
   BuildContext context,
   String? message,
@@ -13,20 +13,19 @@ import '../../providers/prompt_config_provider.dart';
   if (message == null || message.isEmpty) {
     return (context.l10n.generation_generationFailed, null);
   }
-  return tryDescribeGenerationError(context, message) ??
+  return _tryDescribeGenerationError(context, message) ??
       (context.l10n.generation_generationFailed, message);
 }
 
-/// 只展示一段文字的位置使用：识别出的错误换成本地化文案，其余原样保留。
+/// 无法识别的消息原样返回。
 String summarizeGenerationError(BuildContext context, String message) {
-  final described = tryDescribeGenerationError(context, message);
+  final described = _tryDescribeGenerationError(context, message);
   if (described == null) return message;
   final (title, hint) = described;
   return hint == null ? title : '$title\n$hint';
 }
 
-/// 解析 `ERROR_CODE|详情` 形式的生成错误；未知消息返回 null。
-(String, String?)? tryDescribeGenerationError(
+(String, String?)? _tryDescribeGenerationError(
   BuildContext context,
   String message,
 ) {
