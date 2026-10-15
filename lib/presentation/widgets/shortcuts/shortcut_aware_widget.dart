@@ -102,7 +102,8 @@ class _ShortcutAwareWidgetState extends ConsumerState<ShortcutAwareWidget> {
     return Shortcuts(
       shortcuts: shortcuts,
       child: Actions(
-        actions: _actions,
+        // Actions 从主焦点就近派发意图，空包装器也注册会吞掉外层包装器的快捷键
+        actions: shortcuts.isEmpty ? const {} : _actions,
         child: Focus(
           focusNode: _focusNode,
           autofocus: anchorAutofocus,

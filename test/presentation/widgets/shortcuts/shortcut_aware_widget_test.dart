@@ -673,5 +673,41 @@ void main() {
       await harness.press(_ctrl, LogicalKeyboardKey.digit1);
       expect(harness.count(ShortcutIds.navigateToGeneration), 2, reason: '就绪态');
     });
+
+    testWidgets('内层没有可用快捷键时外层包装器的快捷键照常触发', (tester) async {
+      final fieldFocus = FocusNode(debugLabel: 'inner-field');
+      addTearDown(fieldFocus.dispose);
+      final notifier = _ControlledShortcutConfigNotifier();
+      var outerPresses = 0;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            shortcutConfigNotifierProvider.overrideWith(() => notifier),
+          ],
+          child: MaterialApp(
+            home: ShortcutAwareWidget(
+              contextType: ShortcutContext.global,
+              shortcuts: {
+                ShortcutIds.navigateToGeneration: () => outerPresses++,
+              },
+              child: ShortcutAwareWidget(
+                contextType: ShortcutContext.gallery,
+                shortcuts: {ShortcutIds.generateImage: () {}},
+                child: Material(child: TextField(focusNode: fieldFocus)),
+              ),
+            ),
+          ),
+        ),
+      );
+      fieldFocus.requestFocus();
+      await tester.pump();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.digit1);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(outerPresses, 1);
+    });
   });
 }
