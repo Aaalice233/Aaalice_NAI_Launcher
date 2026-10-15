@@ -18,8 +18,10 @@ on:
       - "dart_test.yaml"
       - "fonts/**"
       - "installer/windows/**"
+      - "krita_plugin/**"
       - "l10n.yaml"
       - "lib/**"
+      - "packages/**"
       - "pubspec.lock"
       - "pubspec.yaml"
       - "scripts/**"
@@ -43,8 +45,10 @@ on:
       - "dart_test.yaml"
       - "fonts/**"
       - "installer/windows/**"
+      - "krita_plugin/**"
       - "l10n.yaml"
       - "lib/**"
+      - "packages/**"
       - "pubspec.lock"
       - "pubspec.yaml"
       - "scripts/**"
@@ -72,6 +76,7 @@ jobs:
     outputs:
       windows_build: ${{ steps.filter.outputs.windows_build }}
       windows_package: ${{ steps.filter.outputs.windows_package }}
+      krita_plugin: ${{ steps.filter.outputs.krita_plugin }}
 
     steps:
       - name: Classify pull request files
@@ -91,6 +96,7 @@ jobs:
               - 'fonts/**'
               - 'l10n.yaml'
               - 'lib/**'
+              - 'packages/**'
               - 'pubspec.lock'
               - 'pubspec.yaml'
               - 'scripts/build_mcp_cli.ps1'
@@ -108,6 +114,9 @@ jobs:
               - 'scripts/verify_windows_portable_package.ps1'
               - 'scripts/validate_windows_installer_process_handling.ps1'
               - 'windows/**'
+            krita_plugin:
+              - '.github/workflows/pull-request-validation.yml'
+              - 'krita_plugin/**'
 
   quality:
     name: Generate, validate, and analyze
@@ -229,6 +238,29 @@ jobs:
             throw 'A test shard or cloud-sync benchmark did not pass.'
           }
           Write-Host 'All test shards and cloud-sync budgets passed.'
+
+  krita-plugin:
+    name: Krita plugin tests
+    runs-on: windows-2022
+    needs: changes
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.krita_plugin == 'true'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout without LFS payloads
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run plugin tests
+        run: python -m unittest discover -s krita_plugin/tests
 
   windows-build:
     name: Build Windows debug
@@ -362,6 +394,7 @@ jobs:
       - changes
       - quality
       - tests
+      - krita-plugin
       - windows-build
       - windows-package
 
