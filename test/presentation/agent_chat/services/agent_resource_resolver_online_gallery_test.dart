@@ -13,6 +13,9 @@ import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_res
 import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 
+import '../../../helpers/empty_gallery_source_adapter.dart';
+import '../../../helpers/memory_local_storage.dart';
+
 final _refProvider = Provider<Ref>((ref) => ref);
 
 void main() {
@@ -26,7 +29,7 @@ void main() {
     quickTagCloud = _QuickTagCloudAdapter();
     container = ProviderContainer(
       overrides: [
-        localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+        localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
         onlineGalleryTagMetadataLoaderProvider.overrideWithValue(
           (_) async => const {},
         ),
@@ -35,7 +38,7 @@ void main() {
             source: switch (source) {
               GallerySourceId.aiTag => adapter,
               GallerySourceId.quickTagCloud => quickTagCloud,
-              _ => _EmptyAdapter(source),
+              _ => EmptyGallerySourceAdapter(source),
             },
         }),
       ],
@@ -286,42 +289,5 @@ class _AiTagAdapter extends GallerySourceAdapter {
       item: item.copyWith(cover: _media.first),
       media: _media,
     );
-  }
-}
-
-class _EmptyAdapter extends GallerySourceAdapter {
-  _EmptyAdapter(this.sourceId);
-
-  @override
-  final GallerySourceId sourceId;
-
-  @override
-  Future<GalleryPage> search(
-    GallerySearchRequest request, {
-    CancelToken? cancelToken,
-  }) async => GalleryPage(
-    items: const [],
-    cursor: request.cursor,
-    nextCursor: null,
-    hasMore: false,
-    rawItemCount: 0,
-  );
-}
-
-class _MemoryStorage extends LocalStorageService {
-  final Map<String, Object?> _values = {};
-
-  @override
-  T? getSetting<T>(String key, {T? defaultValue}) =>
-      (_values[key] ?? defaultValue) as T?;
-
-  @override
-  Future<void> setSetting<T>(String key, T value) async {
-    _values[key] = value;
-  }
-
-  @override
-  Future<void> deleteSetting(String key) async {
-    _values.remove(key);
   }
 }

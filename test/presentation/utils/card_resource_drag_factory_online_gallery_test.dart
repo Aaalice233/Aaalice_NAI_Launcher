@@ -12,6 +12,9 @@ import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_too
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
 import 'package:nai_launcher/presentation/utils/card_resource_drag_factory.dart';
 
+import '../../helpers/empty_gallery_source_adapter.dart';
+import '../../helpers/memory_local_storage.dart';
+
 final _refProvider = Provider<Ref>((ref) => ref);
 
 void main() {
@@ -20,7 +23,7 @@ void main() {
   setUp(() async {
     container = ProviderContainer(
       overrides: [
-        localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+        localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
         onlineGalleryTagMetadataLoaderProvider.overrideWithValue(
           (_) async => const {},
         ),
@@ -29,7 +32,7 @@ void main() {
             source: switch (source) {
               GallerySourceId.aiTag => _AiTagAdapter(),
               GallerySourceId.quickTagCloud => _QuickTagCloudAdapter(),
-              _ => _EmptyAdapter(source),
+              _ => EmptyGallerySourceAdapter(source),
             },
         }),
       ],
@@ -182,41 +185,4 @@ class _QuickTagCloudAdapter extends GallerySourceAdapter {
     total: 1,
     rawItemCount: 1,
   );
-}
-
-class _EmptyAdapter extends GallerySourceAdapter {
-  _EmptyAdapter(this.sourceId);
-
-  @override
-  final GallerySourceId sourceId;
-
-  @override
-  Future<GalleryPage> search(
-    GallerySearchRequest request, {
-    CancelToken? cancelToken,
-  }) async => GalleryPage(
-    items: const [],
-    cursor: request.cursor,
-    nextCursor: null,
-    hasMore: false,
-    rawItemCount: 0,
-  );
-}
-
-class _MemoryStorage extends LocalStorageService {
-  final Map<String, Object?> _values = {};
-
-  @override
-  T? getSetting<T>(String key, {T? defaultValue}) =>
-      (_values[key] ?? defaultValue) as T?;
-
-  @override
-  Future<void> setSetting<T>(String key, T value) async {
-    _values[key] = value;
-  }
-
-  @override
-  Future<void> deleteSetting(String key) async {
-    _values.remove(key);
-  }
 }
