@@ -68,12 +68,16 @@ class UpdateState {
     DownloadedUpdate? downloadedUpdate,
     bool? notificationVisible,
   }) {
+    // 失败详情属于当前状态：只改提示可见性等字段时沿用，切换状态时清空
+    final keepsFailure = status == null;
     return UpdateState(
       status: status ?? this.status,
       versionInfo: versionInfo ?? this.versionInfo,
-      checkFailureType: checkFailureType,
-      installFailure: installFailure,
-      errorLogPath: errorLogPath,
+      checkFailureType:
+          checkFailureType ?? (keepsFailure ? this.checkFailureType : null),
+      installFailure:
+          installFailure ?? (keepsFailure ? this.installFailure : null),
+      errorLogPath: errorLogPath ?? (keepsFailure ? this.errorLogPath : null),
       downloadProgress: downloadProgress ?? this.downloadProgress,
       receivedBytes: receivedBytes ?? this.receivedBytes,
       totalBytes: totalBytes ?? this.totalBytes,

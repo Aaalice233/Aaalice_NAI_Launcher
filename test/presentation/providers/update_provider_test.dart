@@ -77,6 +77,8 @@ void main() {
   );
 
   group('install failures are exposed as types for localization', () {
+    setUpAll(() => registerFallbackValue(Duration.zero));
+
     const asset = ReleaseAssetInfo(
       type: ReleaseAssetType.windowsPortable,
       platform: 'windows',
@@ -94,12 +96,15 @@ void main() {
       isNewer: true,
     );
 
-    Future<UpdateState> download(_ScriptedInstaller installer) async {
+    Future<ProviderContainer> downloadIn(_ScriptedInstaller installer) async {
       final checkService = _MockUpdateCheckService();
       when(
         () => checkService.checkForUpdates(ignoreSkipped: false),
       ).thenAnswer((_) async => versionInfo);
       when(checkService.clearReminder).thenAnswer((_) async {});
+      when(
+        () => checkService.remindLater(delay: any(named: 'delay')),
+      ).thenAnswer((_) async {});
       final container = ProviderContainer(
         overrides: [
           updateCheckServiceProvider.overrideWithValue(checkService),
@@ -113,6 +118,11 @@ void main() {
       if (container.read(updateStateNotifierProvider).hasDownloadedUpdate) {
         await notifier.installAndRestart();
       }
+      return container;
+    }
+
+    Future<UpdateState> download(_ScriptedInstaller installer) async {
+      final container = await downloadIn(installer);
       return container.read(updateStateNotifierProvider);
     }
 
@@ -147,6 +157,30 @@ void main() {
       expect(state.versionInfo, versionInfo);
       expect(state.installFailure, UpdateInstallFailure.diskFull);
       expect(state.checkFailureType, isNull);
+    });
+
+    test('remind later and re-show keep the failure type', () async {
+      final container = await downloadIn(
+        _ScriptedInstaller(
+          downloadError: const UpdateInstallException(
+            '磁盘空间不足，无法保存更新包',
+            failure: UpdateInstallFailure.diskFull,
+          ),
+        ),
+      );
+      final notifier = container.read(updateStateNotifierProvider.notifier);
+
+      await notifier.remindLater(delay: const Duration(days: 1));
+      expect(
+        container.read(updateStateNotifierProvider).notificationVisible,
+        isFalse,
+      );
+      notifier.showNotification();
+
+      final state = container.read(updateStateNotifierProvider);
+      expect(state.notificationVisible, isTrue);
+      expect(state.status, UpdateStatus.error);
+      expect(state.installFailure, UpdateInstallFailure.diskFull);
     });
 
     test('unexpected errors fall back to the unknown install failure', () async {
