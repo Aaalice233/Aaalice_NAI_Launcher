@@ -254,8 +254,8 @@ class GoogleDriveCloudSyncBackend
     final effective = {...trustedRevisions};
     for (final candidate in candidates) {
       final file = filesByObjectId[candidate.objectId]!;
-      // Proofs persisted before checksum revisions embed version; an unchanged
-      // version still pins the exact bytes that were verified.
+      // Stored proofs may embed version; they stay valid only while that
+      // version is unchanged, since it pins the exact bytes that were verified.
       final legacyProof = _proof(file.id, file.legacyRevision);
       if (_verifiedObjectProofs[_fileName('object', candidate.objectId)] ==
               candidate.verificationRevision ||

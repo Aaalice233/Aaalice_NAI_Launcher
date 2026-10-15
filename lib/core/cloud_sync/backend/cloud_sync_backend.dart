@@ -41,8 +41,9 @@ class CloudObjectRead {
 
   final Uint8List bytes;
 
-  /// Changes only when the stored bytes change; callers compare it across reads
-  /// to detect other writers, so metadata-only provider tags must not leak here.
+  /// Must change whenever the stored bytes change and should stay stable across
+  /// metadata-only updates: callers compare it across reads to detect other
+  /// writers, so a coarser fallback tag costs a spurious conflict, not data.
   final String revision;
 }
 

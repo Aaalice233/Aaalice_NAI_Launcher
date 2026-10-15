@@ -46,14 +46,14 @@
 
 当前调度默认 Android 2 路/16 MiB 在途 payload，桌面 4 路/32 MiB；更保守的后端限制仍需遵守。暂停/取消阻止新任务，manifest/HEAD 的提交顺序保持串行。
 
-后端读出的 revision 只能随存储字节变化：协调器跨请求比较它来判断其他写入者，服务端的元数据处理不能被当成远端前进。provider 的元数据级标签只用作条件请求的前提，已持久化的旧格式校验凭据仅在原标签未变时继续有效。
+后端读出的 revision 必须随存储字节变化，并应在只有元数据变化时保持不变：协调器跨请求比较它来判断其他写入者，服务端的元数据处理不能被当成远端前进；缺少内容级标签时才退回更粗的标签，代价是一次多余的冲突或重读。provider 的元数据级标签只用作条件请求的前提，已持久化的旧格式校验凭据仅在原标签未变时继续有效。
 
 对象的校验凭据只由后端签发：上传、按 SHA-256 校验的读取与清单校验产出同一格式，上传器只持久化 `verifiedObjectProofs` 返回的凭据，不持久化 `putObject`/`readObject` 的原始 revision。凭据必须绑定本实例确实写入或校验过的字节；无法证明绑定时（如 WebDAV 的 PUT 响应缺少强 ETag）不签发，下次照常校验。
 
 | 后端 | 维护约束 |
 |---|---|
 | OneDrive | 已有目录先只读解析，缺失时按明确的 fail 冲突语义创建并处理并发创建；复用分页 inventory；revision 取 `cTag`，上传后会自行变化的 `eTag` 只作 `If-Match`；HEAD 条件更新先核对 `cTag` 再用当时的 `eTag`，前提失败后重读核对、有限重试；模糊响应读回校验 |
-| Google Drive | 授权审核未通过，新增连接入口暂时禁用；保留已保存连接、备份读取和后端实现。保持 `manualBackupOnly`，不把 version/headRevisionId 当作强 CAS；revision 取 `md5Checksum`，缺失时才退回含 version 的组合 |
+| Google Drive | 授权审核未通过，新增连接入口暂时禁用；保留已保存连接、备份读取和后端实现。保持 `manualBackupOnly`，不把 version/headRevisionId 当作强 CAS；revision 取 `id:md5Checksum`，缺失 md5 时才退回含 version 的组合 |
 | GitHub | 读取固定 commit/tree；对象通过 Git Database API 组织，tree/commit/ref 一次发布，禁止逐文件 Contents API 替代原子提交 |
 | WebDAV | 根据实际 ETag/条件写能力决定模式；能力不足保持手动备份；坚果云单并发，不自动合并或恢复历史 |
 | WebDAV 远端维护 | 不执行自动 GC；缺少可证明安全的删除协调时不能猜测共享对象已无引用 |

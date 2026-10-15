@@ -203,8 +203,8 @@ class OneDriveCloudSyncBackend
     final effective = {...trustedRevisions};
     for (final candidate in candidates) {
       final listed = listedItems[candidate.objectId]!;
-      // Proofs persisted before content tags were keyed by eTag; an unchanged
-      // eTag still pins the exact bytes that were verified.
+      // Stored proofs may be keyed by eTag; they stay valid only while that
+      // eTag is unchanged, since it pins the exact bytes that were verified.
       final legacyProof = _proof(listed.id!, listed.eTag);
       if (_verifiedObjectProofs[candidate.objectId] ==
               candidate.verificationRevision ||
