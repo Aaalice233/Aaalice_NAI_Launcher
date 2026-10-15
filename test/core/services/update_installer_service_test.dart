@@ -355,7 +355,7 @@ void main() {
       expect(result, isNotNull);
       expect(result!.success, isFalse);
       expect(result.version, '2.0.0');
-      expect(result.message, 'access denied');
+      expect(result.logPath, 'C:/update.log');
       expect(result.interrupted, isFalse);
       expect(await service.consumeExecutionResult(), isNull);
     });

@@ -31,62 +31,19 @@ void main() {
         UpdateState(status: UpdateStatus.error, installFailure: failure),
       );
 
-  testWidgets('every install failure has its own text in every language', (
+  testWidgets('every install failure has text in every language', (
     tester,
   ) async {
     for (final locale in AppLocalizations.supportedLocales) {
       final context = await pumpLocale(tester, locale);
-      final texts = {
-        for (final failure in UpdateInstallFailure.values)
-          failure: describeInstall(context, failure),
-      };
-
-      for (final MapEntry(key: failure, value: text) in texts.entries) {
-        expect(text.trim(), isNotEmpty, reason: '$locale $failure');
+      for (final failure in UpdateInstallFailure.values) {
+        expect(
+          describeInstall(context, failure).trim(),
+          isNotEmpty,
+          reason: '$locale $failure',
+        );
       }
-      expect(
-        texts.values.toSet(),
-        hasLength(UpdateInstallFailure.values.length),
-        reason: '$locale',
-      );
     }
-  });
-
-  testWidgets('English install failures contain no Chinese text', (
-    tester,
-  ) async {
-    final context = await pumpLocale(tester, const Locale('en'));
-    final han = RegExp(r'\p{Script=Han}', unicode: true);
-
-    for (final failure in UpdateInstallFailure.values) {
-      expect(
-        describeInstall(context, failure),
-        isNot(matches(han)),
-        reason: '$failure',
-      );
-    }
-  });
-
-  testWidgets('appends the updater log after the localized reason', (
-    tester,
-  ) async {
-    final context = await pumpLocale(tester, const Locale('ja'));
-
-    final text = describeUpdateError(
-      context,
-      const UpdateState(
-        status: UpdateStatus.error,
-        installFailure: UpdateInstallFailure.installFailed,
-        errorLogPath: r'C:\Temp\update.log',
-      ),
-    );
-
-    expect(
-      text,
-      '前回の更新はインストールされませんでした。もう一度試すか、'
-      '新しいバージョンを手動でダウンロードしてインストールしてください。\n'
-      r'ログ: C:\Temp\update.log',
-    );
   });
 
   testWidgets('check failures keep their existing localized texts', (

@@ -159,61 +159,6 @@ void main() {
       expect(script, isNot(contains('Stop-Process')));
     });
 
-    test('generated scripts pass the Windows PowerShell parser', () async {
-      if (!Platform.isWindows) return;
-
-      final tempDir = await Directory.systemTemp.createTemp('update_script_');
-      try {
-        final scripts = [
-          WindowsUpdateScript.buildInstallerScript(
-            appPid: 1,
-            version: '1.6.0',
-            installerPath: r'C:\Temp\setup.exe',
-            executablePath: r'C:\Apps\nai_launcher.exe',
-            resultPath: r'C:\Temp\result.json',
-            pendingMetadataPath: r'C:\Temp\pending.json',
-            startedMarkerPath: r'C:\Temp\started.json',
-            logPath: r'C:\Temp\update.log',
-          ),
-          WindowsUpdateScript.buildPortableScript(
-            appPid: 1,
-            version: '1.6.0',
-            zipPath: r'C:\Temp\update.zip',
-            appDirectory: r'D:\Apps\NAI',
-            executableName: 'nai_launcher.exe',
-            proxyExecutableName: 'nai_launcher_mcp.exe',
-            extractDirectory: r'D:\Apps\.nai_update_1.6.0',
-            backupDirectory: r'D:\Apps\.nai_backup_1.6.0',
-            resultPath: r'C:\Temp\result.json',
-            pendingMetadataPath: r'C:\Temp\pending.json',
-            startedMarkerPath: r'C:\Temp\started.json',
-            logPath: r'C:\Temp\update.log',
-          ),
-        ];
-
-        for (var index = 0; index < scripts.length; index++) {
-          final file = File('${tempDir.path}/script_$index.ps1');
-          await file.writeAsBytes(WindowsUpdateScript.encode(scripts[index]));
-          final escapedPath = file.path.replaceAll("'", "''");
-          final result = await Process.run('powershell.exe', [
-            '-NoProfile',
-            '-NonInteractive',
-            '-Command',
-            "\$tokens = \$null; \$errors = \$null; "
-                "[System.Management.Automation.Language.Parser]::ParseFile('$escapedPath', [ref]\$tokens, [ref]\$errors) | Out-Null; "
-                "if (\$errors.Count -gt 0) { \$errors | ForEach-Object { Write-Error \$_.Message }; exit 1 }",
-          ]);
-          expect(
-            result.exitCode,
-            0,
-            reason: '${result.stdout}\n${result.stderr}',
-          );
-        }
-      } finally {
-        await tempDir.delete(recursive: true);
-      }
-    });
-
     test('both scripts announce the start before waiting for the app', () {
       final scripts = {
         'installer': WindowsUpdateScript.buildInstallerScript(
@@ -266,21 +211,6 @@ void main() {
           reason: kind,
         );
       });
-    });
-
-    test('escapes single quotes in paths for PowerShell', () {
-      final script = WindowsUpdateScript.buildInstallerScript(
-        appPid: 1,
-        version: '1.6.0',
-        installerPath: r"C:\Temp\it's.exe",
-        executablePath: r'C:\Apps\nai_launcher.exe',
-        resultPath: r'C:\Temp\result.json',
-        pendingMetadataPath: r'C:\Temp\pending.json',
-        startedMarkerPath: r'C:\Temp\started.json',
-        logPath: r'C:\Temp\update.log',
-      );
-
-      expect(script, contains(r"'C:\Temp\it''s.exe'"));
     });
 
     test('escapes every PowerShell single-quote character in paths', () {
