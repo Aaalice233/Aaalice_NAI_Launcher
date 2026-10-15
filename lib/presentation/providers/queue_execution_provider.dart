@@ -8,12 +8,12 @@ import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
 import '../../core/utils/app_logger.dart';
-import '../../core/utils/inpaint_mask_utils.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../data/models/queue/replication_task_status.dart';
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'character_prompt_provider.dart';
+import 'generation/generation_error_classifier.dart';
 import 'image_generation_provider.dart';
 import '../../data/services/auth_provider.dart';
 import 'krita/krita_bridge_notifier.dart';
@@ -517,15 +517,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         'QueueExecution',
       );
       if (taskId != null) {
-        final message = 'Invalid generation snapshot: $error';
-        await ref
-            .read(replicationQueueNotifierProvider.notifier)
-            .updateTaskStatus(
-              taskId,
-              ReplicationTaskStatus.running,
-              errorMessage: message,
-            );
-        await _handleFailedTask(errorMessage: message, retryable: false);
+        await _settleUnretryableTaskError(
+          'Invalid generation snapshot: $error',
+        );
       } else {
         state = state.copyWith(
           status: QueueExecutionStatus.idle,
@@ -625,7 +619,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         next.status == GenerationStatus.error) {
       final errorMessage = next.errorMessage;
       if (errorMessage != null &&
-          EmptyInpaintMaskException.matches(errorMessage)) {
+          isDeterministicGenerationError(errorMessage)) {
         unawaited(_settleUnretryableTaskError(errorMessage));
         return;
       }
