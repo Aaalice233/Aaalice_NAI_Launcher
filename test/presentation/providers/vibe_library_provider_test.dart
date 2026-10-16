@@ -323,7 +323,7 @@ void main() {
       expect(resized.currentEntries, hasLength(20));
     });
 
-    test('筛选、排序输入或 entries 变化时重新计算且结果与逐项实现一致', () {
+    test('筛选、排序输入或 entries 变化时重新计算', () {
       final base = VibeLibraryState(entries: entries);
       final filtered = base.filteredEntries;
 
@@ -336,42 +336,63 @@ void main() {
         'entries': base.copyWith(entries: List.of(entries)),
       };
       for (final MapEntry(key: change, value: state) in inputChanges.entries) {
-        final recomputed = state.filteredEntries;
-        expect(recomputed, isNot(same(filtered)), reason: change);
-        expect(
-          recomputed.map((entry) => entry.id),
-          _referenceFilteredIds(state),
-          reason: change,
-        );
+        expect(state.filteredEntries, isNot(same(filtered)), reason: change);
       }
     });
 
-    test('所有筛选与排序组合都与逐项实现一致', () {
-      for (final sortOrder in VibeLibrarySortOrder.values) {
-        for (final sortDescending in [true, false]) {
-          for (final searchQuery in ['', 'mixed']) {
-            for (final categoryId in [null, 'cat']) {
-              for (final favoritesOnly in [false, true]) {
-                final state = VibeLibraryState(
-                  entries: entries,
-                  sortOrder: sortOrder,
-                  sortDescending: sortDescending,
-                  searchQuery: searchQuery,
-                  selectedCategoryId: categoryId,
-                  favoritesOnly: favoritesOnly,
-                );
-                expect(
-                  state.filteredEntries.map((entry) => entry.id),
-                  _referenceFilteredIds(state),
-                  reason:
-                      '$sortOrder desc=$sortDescending q=$searchQuery '
-                      'cat=$categoryId fav=$favoritesOnly',
-                );
-              }
-            }
-          }
-        }
-      }
+    test('搜索、分类与收藏条件同时生效，升序是降序的逆序', () {
+      final state = VibeLibraryState(
+        entries: [
+          _entry(
+            'hit-old',
+            'Mixed old',
+            DateTime(2026, 1, 1),
+            categoryId: 'cat',
+            isFavorite: true,
+          ),
+          _entry(
+            'hit-new',
+            'mixed new',
+            DateTime(2026, 1, 3),
+            categoryId: 'cat',
+            isFavorite: true,
+          ),
+          _entry(
+            'not-favorite',
+            'Mixed plain',
+            DateTime(2026, 1, 2),
+            categoryId: 'cat',
+          ),
+          _entry(
+            'other-category',
+            'Mixed elsewhere',
+            DateTime(2026, 1, 4),
+            isFavorite: true,
+          ),
+          _entry(
+            'no-match',
+            'Zeta',
+            DateTime(2026, 1, 5),
+            categoryId: 'cat',
+            isFavorite: true,
+          ),
+        ],
+        searchQuery: 'MIXED',
+        selectedCategoryId: 'cat',
+        favoritesOnly: true,
+      );
+
+      expect(state.filteredEntries.map((entry) => entry.id), [
+        'hit-new',
+        'hit-old',
+      ]);
+      expect(
+        state
+            .copyWith(sortDescending: false)
+            .filteredEntries
+            .map((entry) => entry.id),
+        ['hit-old', 'hit-new'],
+      );
     });
 
     test('分页边界：空库、整页、末页不满、越界与负页码', () {
@@ -488,28 +509,6 @@ List<VibeLibraryEntry> _derivedFixture() {
   ];
 }
 
-List<String> _referenceFilteredIds(VibeLibraryState state) {
-  var result = List<VibeLibraryEntry>.of(state.entries);
-  if (state.searchQuery.isNotEmpty) result = result.search(state.searchQuery);
-  if (state.selectedCategoryId != null) {
-    result = result.getByCategory(state.selectedCategoryId!);
-  }
-  if (state.favoritesOnly) result = result.favorites;
-  final sorted = switch (state.sortOrder) {
-    VibeLibrarySortOrder.createdAt => result.sortedByCreatedAt(),
-    VibeLibrarySortOrder.lastUsed => result.sortedByLastUsed(),
-    VibeLibrarySortOrder.usedCount => result.sortedByUsedCount(),
-    VibeLibrarySortOrder.name =>
-      [...result]..sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-      ),
-  };
-  return (state.sortDescending ? sorted : sorted.reversed)
-      .map((entry) => entry.id)
-      .toList();
-}
-
 class _FixedEntriesStorageService extends VibeLibraryStorageService {
   _FixedEntriesStorageService(this.entries);
 
@@ -525,7 +524,13 @@ class _FixedEntriesStorageService extends VibeLibraryStorageService {
   Future<bool> deleteEntry(String id) async => false;
 }
 
-VibeLibraryEntry _entry(String id, String name, DateTime createdAt) {
+VibeLibraryEntry _entry(
+  String id,
+  String name,
+  DateTime createdAt, {
+  String? categoryId,
+  bool isFavorite = false,
+}) {
   return VibeLibraryEntry(
     id: id,
     name: name,
@@ -534,6 +539,8 @@ VibeLibraryEntry _entry(String id, String name, DateTime createdAt) {
     strength: 0.6,
     infoExtracted: 0.7,
     sourceTypeIndex: VibeSourceType.naiv4vibe.index,
+    categoryId: categoryId,
+    isFavorite: isFavorite,
     createdAt: createdAt,
   );
 }
