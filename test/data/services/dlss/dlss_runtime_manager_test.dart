@@ -143,6 +143,24 @@ void main() {
     },
   );
 
+  test('archive extraction waits for the shared compute gate', () async {
+    final zipFile = await File(
+      p.join(directory.path, 'gated.zip'),
+    ).writeAsBytes(archive);
+    final output = await Directory(p.join(directory.path, 'gated')).create();
+
+    final hashes = await expectQueuedBehindSharedComputeGate(
+      () => extractDlssRuntimeIsolated(
+        zipFile.path,
+        output.path,
+        archive.length,
+        sha256.convert(archive).toString(),
+      ),
+    );
+
+    expect(hashes.keys, unorderedEquals(dlssRuntimeFiles));
+  });
+
   test('component verification waits for the shared compute gate', () async {
     await install(release(1, archive));
     final active = (await manager.active())!;

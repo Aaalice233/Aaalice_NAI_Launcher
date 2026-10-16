@@ -174,7 +174,7 @@ class VibeImportController {
           if (!mounted()) return;
           await _runImport((epoch) async {
             final paths = [for (final input in inputs) ...input.paths];
-            final classified = await compute(_classifyPaths, paths);
+            final classified = await classifyVibeDropPaths(paths);
             for (final folder in classified.folders) {
               final nested = await _scanFolder(folder);
               classified.images.addAll(nested.images);
@@ -633,9 +633,6 @@ typedef VibeDropPathTypeReader =
     Future<FileSystemEntityType> Function(String path);
 typedef VibeDropFolderExistsReader = Future<bool> Function(String path);
 typedef VibeDropFolderLister = Stream<FileSystemEntity> Function(String path);
-
-Future<VibeDropClassifiedPaths> _classifyPaths(List<String> paths) =>
-    classifyVibeDropPaths(paths);
 
 @visibleForTesting
 Future<VibeDropClassifiedPaths> classifyVibeDropPaths(
