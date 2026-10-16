@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 typedef _FieldBuilder =
@@ -11,8 +10,6 @@ typedef _FieldBuilder =
 final _components = <String, _FieldBuilder>{
   'ThemedInput': ({helperText, decoration}) =>
       ThemedInput(helperText: helperText, decoration: decoration),
-  'ThemedFormInput': ({helperText, decoration}) =>
-      ThemedFormInput(helperText: helperText, decoration: decoration),
 };
 
 void main() {
