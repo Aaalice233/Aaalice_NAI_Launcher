@@ -251,6 +251,7 @@ class WatermarkRenderService {
       output = UnifiedMetadataParser.copySupportedMetadata(
         source: source,
         targetPng: output,
+        decodedBy: SourcePixelDecoder.flutterEngine,
       );
     } on FormatException catch (error) {
       throw WatermarkRenderException(
