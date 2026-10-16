@@ -5931,7 +5931,6 @@
     }
   },
 
-  "diy_dependencyTitle": "依存関係設定",
   "diy_dependencySubtitle": "タグ選択間の依存関係を設定します",
   "diy_dependencyType": "依存タイプ",
   "diy_sourceCategory": "ソースカテゴリ",
@@ -5977,7 +5976,6 @@
       "index": {"type": "int"}
     }
   },
-  "diy_conditionalTitle": "条件分岐",
   "diy_conditionalSubtitle": "確率に基づいて分岐を選択します",
   "diy_branchCount": "{count} 件の分岐",
   "@diy_branchCount": {
@@ -6057,7 +6055,6 @@
   "diy_editRule": "ルールを編集",
   "diy_ruleName": "ルール名",
   "diy_enableRule": "このルールを有効化",
-  "diy_postProcessTitle": "後処理ルール",
   "diy_postProcessSubtitle": "タグの競合を自動的に解決します",
   "diy_sleepingRule": "睡眠ルール",
   "diy_sleepingRuleDescription": "キャラクターが眠っているときに目の色の記述を削除します",
@@ -6114,7 +6111,6 @@
   "diy_categoryCount": "カテゴリ数",
   "diy_totalTagCount": "タグ総数",
 
-  "diy_visibilityTitle": "表示ルール",
   "diy_visibilitySubtitle": "条件に基づいてカテゴリの表示を制御します",
   "diy_noVisibilityRules": "表示ルールはありません",
   "diy_noVisibilityRulesHint": "ルールを追加して現在の構成からカテゴリの表示を制御します",
@@ -6133,7 +6129,6 @@
   "diy_conditionValueNotInList": "値がリストに含まれない",
 
   "diy_timeDefaultName": "時間条件",
-  "diy_timeTitle": "時間条件",
   "diy_timeSubtitle": "指定した日付範囲内で有効化します",
   "diy_enableTimeCondition": "時間条件を有効化",
   "diy_enableTimeConditionHint": "設定した日付範囲内でのみ適用します",

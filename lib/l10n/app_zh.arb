@@ -5715,7 +5715,6 @@
     }
   },
 
-  "diy_dependencyTitle": "依赖配置",
   "diy_dependencySubtitle": "配置标签选择之间的依赖关系",
   "diy_dependencyType": "依赖类型",
   "diy_sourceCategory": "源类别",
@@ -5761,7 +5760,6 @@
       "index": {"type": "int"}
     }
   },
-  "diy_conditionalTitle": "条件分支配置",
   "diy_conditionalSubtitle": "根据概率选择不同分支",
   "diy_branchCount": "{count} 个分支",
   "@diy_branchCount": {
@@ -5841,7 +5839,6 @@
   "diy_editRule": "编辑规则",
   "diy_ruleName": "规则名称",
   "diy_enableRule": "启用此规则",
-  "diy_postProcessTitle": "后处理规则",
   "diy_postProcessSubtitle": "自动处理标签冲突",
   "diy_sleepingRule": "睡眠规则",
   "diy_sleepingRuleDescription": "角色睡眠时移除眼睛颜色描述",
@@ -5898,7 +5895,6 @@
   "diy_categoryCount": "类别数",
   "diy_totalTagCount": "总标签数",
 
-  "diy_visibilityTitle": "可见性规则",
   "diy_visibilitySubtitle": "根据条件控制类别可见性",
   "diy_noVisibilityRules": "暂无可见性规则",
   "diy_noVisibilityRulesHint": "添加规则以根据当前构图控制类别可见性",
@@ -5917,7 +5913,6 @@
   "diy_conditionValueNotInList": "值不在列表中",
 
   "diy_timeDefaultName": "时间条件",
-  "diy_timeTitle": "时间条件",
   "diy_timeSubtitle": "在指定日期范围内激活",
   "diy_enableTimeCondition": "启用时间条件",
   "diy_enableTimeConditionHint": "仅在设置的日期范围内生效",

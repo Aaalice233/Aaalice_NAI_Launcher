@@ -108,12 +108,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
   }
 
   Widget _buildHeader() {
-    return DiyPanelHeader(
-      icon: Icons.calendar_month_rounded,
-      accent: Theme.of(context).colorScheme.primary,
-      title: context.l10n.diy_timeTitle,
-      subtitle: context.l10n.diy_timeSubtitle,
-    );
+    return DiyPanelHeader(description: context.l10n.diy_timeSubtitle);
   }
 
   Widget _buildEnableSwitch() {

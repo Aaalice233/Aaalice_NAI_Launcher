@@ -95,10 +95,7 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DiyPanelHeader(
-          icon: Icons.auto_fix_high_rounded,
-          accent: colorScheme.tertiary,
-          title: l10n.diy_postProcessTitle,
-          subtitle: l10n.diy_postProcessSubtitle,
+          description: l10n.diy_postProcessSubtitle,
           trailing: rules.isEmpty
               ? null
               : DiyCountBadge(

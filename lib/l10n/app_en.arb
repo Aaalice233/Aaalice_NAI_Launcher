@@ -5962,7 +5962,6 @@
     }
   },
 
-  "diy_dependencyTitle": "Dependency Settings",
   "diy_dependencySubtitle": "Configure dependencies between tag selections",
   "diy_dependencyType": "Dependency Type",
   "diy_sourceCategory": "Source Category",
@@ -6008,7 +6007,6 @@
       "index": {"type": "int"}
     }
   },
-  "diy_conditionalTitle": "Conditional Branches",
   "diy_conditionalSubtitle": "Choose a branch by probability",
   "diy_branchCount": "{count} branches",
   "@diy_branchCount": {
@@ -6088,7 +6086,6 @@
   "diy_editRule": "Edit Rule",
   "diy_ruleName": "Rule Name",
   "diy_enableRule": "Enable This Rule",
-  "diy_postProcessTitle": "Post-processing Rules",
   "diy_postProcessSubtitle": "Automatically resolve tag conflicts",
   "diy_sleepingRule": "Sleeping Rule",
   "diy_sleepingRuleDescription": "Remove eye-color descriptions when the character is sleeping",
@@ -6145,7 +6142,6 @@
   "diy_categoryCount": "Categories",
   "diy_totalTagCount": "Total Tags",
 
-  "diy_visibilityTitle": "Visibility Rules",
   "diy_visibilitySubtitle": "Control category visibility with conditions",
   "diy_noVisibilityRules": "No visibility rules",
   "diy_noVisibilityRulesHint": "Add rules to control category visibility from the current composition",
@@ -6164,7 +6160,6 @@
   "diy_conditionValueNotInList": "Value Is Not in List",
 
   "diy_timeDefaultName": "Time Condition",
-  "diy_timeTitle": "Time Condition",
   "diy_timeSubtitle": "Activate within a specific date range",
   "diy_enableTimeCondition": "Enable Time Condition",
   "diy_enableTimeConditionHint": "Apply only within the configured date range",

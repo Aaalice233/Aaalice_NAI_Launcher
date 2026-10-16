@@ -5781,7 +5781,6 @@
       }
     }
   },
-  "diy_dependencyTitle": "依賴配置",
   "diy_dependencySubtitle": "配置標籤選擇之間的依賴關係",
   "diy_dependencyType": "依賴型別",
   "diy_sourceCategory": "源類別",
@@ -5830,7 +5829,6 @@
       }
     }
   },
-  "diy_conditionalTitle": "條件分支配置",
   "diy_conditionalSubtitle": "根據機率選擇不同分支",
   "diy_branchCount": "{count} 個分支",
   "@diy_branchCount": {
@@ -5919,7 +5917,6 @@
   "diy_editRule": "編輯規則",
   "diy_ruleName": "規則名稱",
   "diy_enableRule": "啟用此規則",
-  "diy_postProcessTitle": "後處理規則",
   "diy_postProcessSubtitle": "自動處理標籤衝突",
   "diy_sleepingRule": "睡眠規則",
   "diy_sleepingRuleDescription": "角色睡眠時移除眼睛顏色描述",
@@ -5984,7 +5981,6 @@
   "diy_description": "描述",
   "diy_categoryCount": "類別數",
   "diy_totalTagCount": "總標籤數",
-  "diy_visibilityTitle": "可見性規則",
   "diy_visibilitySubtitle": "根據條件控制類別可見性",
   "diy_noVisibilityRules": "暫無可見性規則",
   "diy_noVisibilityRulesHint": "新增規則以根據當前構圖控制類別可見性",
@@ -6002,7 +5998,6 @@
   "diy_conditionValueInList": "值在列表中",
   "diy_conditionValueNotInList": "值不在列表中",
   "diy_timeDefaultName": "時間條件",
-  "diy_timeTitle": "時間條件",
   "diy_timeSubtitle": "在指定日期範圍內啟用",
   "diy_enableTimeCondition": "啟用時間條件",
   "diy_enableTimeConditionHint": "僅在設定的日期範圍內生效",

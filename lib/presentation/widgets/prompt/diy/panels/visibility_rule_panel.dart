@@ -88,10 +88,7 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DiyPanelHeader(
-          icon: Icons.visibility_rounded,
-          accent: colorScheme.secondary,
-          title: l10n.diy_visibilityTitle,
-          subtitle: l10n.diy_visibilitySubtitle,
+          description: l10n.diy_visibilitySubtitle,
           trailing: rules.isEmpty
               ? null
               : DiyCountBadge(
