@@ -20,10 +20,13 @@ Future<void> Function() holdSharedComputeGate() =>
     holdComputeGate(ComputeGate());
 
 /// 占满 [gate] 后启动 [work]：断言它排进了闸门队列且许可归还前没有完成，归还后返回结果。
+///
+/// [whileQueued] 在 [work] 排队等待期间、归还许可之前调用。
 Future<T> expectQueuedBehindComputeGate<T>(
   ComputeGate gate,
-  Future<T> Function() work,
-) async {
+  Future<T> Function() work, {
+  FutureOr<void> Function()? whileQueued,
+}) async {
   final release = holdComputeGate(gate);
   final queuedBefore = gate.debugQueuedTasks;
   late final Future<T> pending;
@@ -39,14 +42,21 @@ Future<T> expectQueuedBehindComputeGate<T>(
       greaterThan(queuedBefore),
       reason: 'work never queued for ComputeGate',
     );
+    await whileQueued?.call();
   } finally {
     await release();
   }
   return pending;
 }
 
-Future<T> expectQueuedBehindSharedComputeGate<T>(Future<T> Function() work) =>
-    expectQueuedBehindComputeGate(ComputeGate(), work);
+Future<T> expectQueuedBehindSharedComputeGate<T>(
+  Future<T> Function() work, {
+  FutureOr<void> Function()? whileQueued,
+}) => expectQueuedBehindComputeGate(
+  ComputeGate(),
+  work,
+  whileQueued: whileQueued,
+);
 
 /// 占满 [gate] 后启动 [work]：断言它不经闸门就已完成。
 Future<T> expectRunsWithoutComputeGate<T>(
@@ -67,6 +77,9 @@ Future<T> expectRunsWithoutComputeGate<T>(
   }
   return pending;
 }
+
+Future<T> expectRunsWithoutSharedComputeGate<T>(Future<T> Function() work) =>
+    expectRunsWithoutComputeGate(ComputeGate(), work);
 
 bool Function() _settledFlag(Future<Object?> future) {
   var settled = false;

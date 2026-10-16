@@ -572,15 +572,11 @@ void main() {
     });
 
     test('settled cost does not wait when no mask bounds apply', () async {
-      final release = holdSharedComputeGate();
-      try {
-        final cost = await readSettledEstimatedCost(
-          container,
-        ).timeout(const Duration(seconds: 5));
-        expect(cost, container.read(estimatedCostProvider));
-      } finally {
-        await release();
-      }
+      final cost = await expectRunsWithoutSharedComputeGate(
+        () => readSettledEstimatedCost(container),
+      );
+
+      expect(cost, container.read(estimatedCostProvider));
     });
 
     test('should use regular inpaint strength for the base price', () {

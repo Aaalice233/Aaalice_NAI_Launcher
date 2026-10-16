@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -9,6 +8,7 @@ import 'package:nai_launcher/core/utils/exif_orientation.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 
 import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/shared_compute_gate.dart';
 
 void main() {
   group('DecodedImageSize.readHeader', () {
@@ -181,17 +181,14 @@ void main() {
       'answers header formats without waiting for the compute gate',
       () async {
         final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
-        final release = Completer<void>();
-        final occupied = gate.run(() => release.future);
+        final png = Uint8List.fromList(img.encodePng(_image(6, 4)));
 
-        final size = await DecodedImageSize.read(
-          Uint8List.fromList(img.encodePng(_image(6, 4))),
-          gate: gate,
+        final size = await expectRunsWithoutComputeGate(
+          gate,
+          () => DecodedImageSize.read(png, gate: gate),
         );
 
         expect(size, (6, 4));
-        release.complete();
-        await occupied;
       },
     );
 
@@ -200,19 +197,12 @@ void main() {
       final gif = Uint8List.fromList(img.encodeGif(_image(6, 4)));
       final bmp = Uint8List.fromList(img.encodeBmp(_image(5, 3)));
 
-      final release = Completer<void>();
-      final occupied = gate.run(() => release.future);
-      var gifResolved = false;
-      final gifSize = DecodedImageSize.read(
-        gif,
-        gate: gate,
-      ).whenComplete(() => gifResolved = true);
-      await Future<void>.delayed(Duration.zero);
-      expect(gifResolved, isFalse);
-      release.complete();
-      await occupied;
+      final gifSize = await expectQueuedBehindComputeGate(
+        gate,
+        () => DecodedImageSize.read(gif, gate: gate),
+      );
 
-      expect(await gifSize, _decodedSize(gif));
+      expect(gifSize, _decodedSize(gif));
       expect(await DecodedImageSize.read(bmp, gate: gate), _decodedSize(bmp));
     });
 

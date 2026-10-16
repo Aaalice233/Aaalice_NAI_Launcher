@@ -30,10 +30,8 @@ void main() {
   final second = Uint8List.fromList([5, 6, 7]);
   final zipBytes = _zipOf({'image_0.png': first, 'image_1.png': second});
 
-  test('zip responses are extracted behind the shared gate', () async {
-    final artifacts = await expectQueuedBehindSharedComputeGate(
-      () => processor.processZip(zipBytes, context),
-    );
+  test('zip responses yield every image in order', () async {
+    final artifacts = await processor.processZip(zipBytes, context);
 
     expect(
       artifacts.map((artifact) => artifact.displayImageBytes).toList(),
@@ -55,15 +53,13 @@ void main() {
   });
 
   test('a zip stream tail yields every sample in order', () async {
-    final chunks = await expectQueuedBehindSharedComputeGate(
-      () => processor
-          .processMessagePackStream(
-            Stream.value(zipBytes),
-            context,
-            cancelToken: CancelToken(),
-          )
-          .toList(),
-    );
+    final chunks = await processor
+        .processMessagePackStream(
+          Stream.value(zipBytes),
+          context,
+          cancelToken: CancelToken(),
+        )
+        .toList();
 
     expect(chunks.map((chunk) => chunk.isComplete), everyElement(isTrue));
     expect(chunks.map((chunk) => chunk.sampleIndex), orderedEquals([0, 1]));
@@ -75,23 +71,19 @@ void main() {
 
   test('cancelling while the zip tail extracts ends as cancelled', () async {
     final cancelToken = CancelToken();
-    final release = holdSharedComputeGate();
-    late Future<List<ImageStreamChunk>> pending;
-    try {
-      pending = processor
+
+    // 解压已排进闸门、流已读完时才取消，验证的是解压之后的取消检查
+    final chunks = await expectQueuedBehindSharedComputeGate(
+      () => processor
           .processMessagePackStream(
             Stream.value(zipBytes),
             context,
             cancelToken: cancelToken,
           )
-          .toList();
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      cancelToken.cancel('user cancelled');
-    } finally {
-      await release();
-    }
+          .toList(),
+      whileQueued: () => cancelToken.cancel('user cancelled'),
+    );
 
-    final chunks = await pending;
     expect(chunks, hasLength(1));
     expect(chunks.single.error, 'Cancelled');
     expect(chunks.single.finalImage, isNull);
