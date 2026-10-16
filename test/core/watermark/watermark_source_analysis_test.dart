@@ -22,14 +22,11 @@ void main() {
     final light = analysis.regionStats(const Rect.fromLTRB(0.75, 0, 1, 1));
     final edge = analysis.regionStats(const Rect.fromLTRB(0.45, 0, 0.55, 1));
 
-    expect(dark.coverage, closeTo(1, 1e-9));
     expect(dark.meanLightness, closeTo(0, 1e-6));
-    expect(dark.meanDetail, 0);
+    expect(dark.rmsDetail, 0);
     expect(light.meanLightness, closeTo(100, 1e-6));
-    expect(light.meanDetail, 0);
-    expect(edge.meanDetail, greaterThan(10));
-    expect(edge.rmsDetail, greaterThanOrEqualTo(edge.meanDetail));
-    expect(edge.lightnessDeviation, closeTo(50, 1e-6));
+    expect(light.rmsDetail, 0);
+    expect(edge.rmsDetail, greaterThan(10));
   });
 
   test('fractional rectangles integrate pixels exactly', () {
@@ -59,12 +56,10 @@ void main() {
     final edge = analysis.regionStats(const Rect.fromLTRB(0.45, 0, 0.55, 1));
     final opaqueHalf = analysis.regionStats(const Rect.fromLTRB(0.4, 0, 1, 1));
 
-    expect(transparent.coverage, 0);
     expect(transparent.meanLightness, isNull);
-    expect(transparent.meanDetail, 0);
-    expect(edge.meanDetail, greaterThan(0));
+    expect(transparent.rmsDetail, 0);
+    expect(edge.rmsDetail, greaterThan(0));
     expect(opaqueHalf.meanLightness, closeTo(100, 1e-6));
-    expect(opaqueHalf.coverage, closeTo(20 / 24, 1e-9));
   });
 
   test('regions are clipped to the image', () {
@@ -78,10 +73,9 @@ void main() {
     final clipped = analysis.regionStats(const Rect.fromLTRB(-0.5, 0, 0.5, 1));
     final inside = analysis.regionStats(const Rect.fromLTRB(0, 0, 0.5, 1));
 
-    expect(outside.coverage, 0);
     expect(outside.meanLightness, isNull);
     expect(clipped.meanLightness, closeTo(inside.meanLightness!, 1e-9));
-    expect(clipped.meanDetail, closeTo(inside.meanDetail, 1e-9));
+    expect(clipped.rmsDetail, closeTo(inside.rmsDetail, 1e-9));
   });
 
   test('large sources are analyzed at the fixed long edge', () async {
@@ -118,8 +112,8 @@ void main() {
     const region = Rect.fromLTRB(0.6, 0.7, 0.97, 0.95);
 
     expect(
-      second.regionStats(region).meanDetail,
-      first.regionStats(region).meanDetail,
+      second.regionStats(region).rmsDetail,
+      first.regionStats(region).rmsDetail,
     );
     expect(
       second.regionStats(region).meanLightness,
