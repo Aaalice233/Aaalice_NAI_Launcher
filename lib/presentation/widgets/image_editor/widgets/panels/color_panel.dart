@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/utils/app_logger.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
+import '../../../../adaptive/adaptive_form_footer.dart';
 import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../widgets/common/themed_input.dart';
 import '../../core/editor_state.dart';
@@ -340,45 +341,15 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
           ],
         ),
       ],
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Divider(height: 1),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      key: const Key('color_picker_cancel'),
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        context.l10n.common_cancel,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton(
-                      key: const Key('color_picker_confirm'),
-                      onPressed: () {
-                        widget.onColorChanged(_hsvColor.toColor());
-                        Navigator.pop(context);
-                      },
-                      child: Text(
-                        context.l10n.common_confirm,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      footer: AdaptiveFormFooter(
+        primary: FilledButton(
+          key: const Key('color_picker_confirm'),
+          onPressed: () {
+            widget.onColorChanged(_hsvColor.toColor());
+            Navigator.pop(context);
+          },
+          child: Text(context.l10n.common_confirm),
+        ),
       ),
     );
   }

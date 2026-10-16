@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/web_access/web_access_models.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/adaptive_form_footer.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../prompt_assistant/providers/web_access_provider.dart';
 
@@ -416,31 +417,17 @@ class _ApiKeyEditorFormState extends State<_ApiKeyEditorForm> {
           ),
         ),
       ],
-      footer: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (widget.hasKey)
-                TextButton(
-                  onPressed: () => _complete(_ApiKeyAction.clear),
-                  child: Text(context.l10n.promptAssistant_webAccessClearKey),
-                ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(context.l10n.common_cancel),
-              ),
-              FilledButton(
-                onPressed: () => _complete(_ApiKeyAction.save),
-                child: Text(context.l10n.common_save),
-              ),
-            ],
-          ),
+      footer: AdaptiveFormFooter(
+        leading: [
+          if (widget.hasKey)
+            TextButton(
+              onPressed: () => _complete(_ApiKeyAction.clear),
+              child: Text(context.l10n.promptAssistant_webAccessClearKey),
+            ),
+        ],
+        primary: FilledButton(
+          onPressed: () => _complete(_ApiKeyAction.save),
+          child: Text(context.l10n.common_save),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/mosaic/mosaic_settings.dart';
 import '../../../../data/models/watermark/watermark_settings.dart';
 import '../../../adaptive/adaptive_presenter.dart';
+import '../../../adaptive/adaptive_form_footer.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../providers/mosaic_settings_provider.dart';
 import '../../../providers/share_image_settings_provider.dart';
@@ -556,26 +557,10 @@ class _NumberEditorFormState extends State<_NumberEditorForm> {
           ),
         ),
       ],
-      footer: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(context.l10n.common_cancel),
-              ),
-              FilledButton(
-                onPressed: _save,
-                child: Text(context.l10n.common_save),
-              ),
-            ],
-          ),
+      footer: AdaptiveFormFooter(
+        primary: FilledButton(
+          onPressed: _save,
+          child: Text(context.l10n.common_save),
         ),
       ),
     );

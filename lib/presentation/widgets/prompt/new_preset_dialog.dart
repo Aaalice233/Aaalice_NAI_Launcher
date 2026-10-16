@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../adaptive/adaptive_form_footer.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../themes/core/layered_surface_style.dart';
@@ -81,7 +82,6 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
 
     return ContentSizedAdaptiveForm(
@@ -130,30 +130,11 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
           onTap: () => setState(() => _selectedMode = PresetCreationMode.blank),
         ),
       ],
-      footer: Container(
-        padding: const EdgeInsets.all(16),
-        color: sectionSurfaceColor(colorScheme),
-        child: SafeArea(
-          top: false,
-          left: false,
-          right: false,
-          child: Wrap(
-            alignment: WrapAlignment.end,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(l10n.common_cancel),
-              ),
-              FilledButton.icon(
-                onPressed: _validateAndSubmit,
-                icon: const Icon(Icons.check, size: 18),
-                label: Text(l10n.common_create),
-              ),
-            ],
-          ),
+      footer: AdaptiveFormFooter(
+        primary: FilledButton.icon(
+          onPressed: _validateAndSubmit,
+          icon: const Icon(Icons.check, size: 18),
+          label: Text(l10n.common_create),
         ),
       ),
     );

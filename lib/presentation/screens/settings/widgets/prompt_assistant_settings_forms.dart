@@ -4,12 +4,12 @@ import 'package:flutter/services.dart';
 import '../../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_form_footer.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/provider_icon.dart';
 import 'assistant_task_labels.dart';
-import 'settings_form_footer.dart';
 
 class PromptAssistantProviderFormResult {
   const PromptAssistantProviderFormResult({
@@ -245,7 +245,12 @@ class _PromptAssistantProviderFormState
           ),
         ],
       ],
-      footer: SettingsFormFooter(onSave: _save),
+      footer: AdaptiveFormFooter(
+        primary: FilledButton(
+          onPressed: _save,
+          child: Text(context.l10n.common_save),
+        ),
+      ),
     );
   }
 }
@@ -379,14 +384,18 @@ class _PromptAssistantRuleFormState extends State<PromptAssistantRuleForm> {
           ),
         ),
       ],
-      footer: SettingsFormFooter(
-        onSave: _save,
-        leading: rule != null && !rule.isDefault
-            ? TextButton(
-                onPressed: _delete,
-                child: Text(context.l10n.common_delete),
-              )
-            : null,
+      footer: AdaptiveFormFooter(
+        leading: [
+          if (rule != null && !rule.isDefault)
+            TextButton(
+              onPressed: _delete,
+              child: Text(context.l10n.common_delete),
+            ),
+        ],
+        primary: FilledButton(
+          onPressed: _save,
+          child: Text(context.l10n.common_save),
+        ),
       ),
     );
   }

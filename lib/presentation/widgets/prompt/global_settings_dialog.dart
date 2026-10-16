@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../common/themed_checkbox.dart';
+import '../../adaptive/adaptive_form_footer.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
@@ -171,6 +172,7 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
 
     return LayoutBuilder(
       builder: (context, constraints) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: ListView(
@@ -188,12 +190,18 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
               ],
             ),
           ),
-          const ThemedDivider(height: 1),
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: constraints.maxHeight * 0.45,
             ),
-            child: SingleChildScrollView(child: _buildFooter(theme, l10n)),
+            child: SingleChildScrollView(
+              child: AdaptiveFormFooter(
+                primary: FilledButton(
+                  onPressed: _saveChanges,
+                  child: Text(l10n.common_save),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -225,24 +233,6 @@ class _GlobalSettingsDialogState extends ConsumerState<GlobalSettingsDialog> {
               style: TextStyle(color: theme.colorScheme.error),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooter(ThemeData theme, AppLocalizations l10n) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        spacing: 12,
-        runSpacing: 8,
-        children: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.common_cancel),
-          ),
-          FilledButton(onPressed: _saveChanges, child: Text(l10n.common_save)),
         ],
       ),
     );

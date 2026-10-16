@@ -6,6 +6,7 @@ import 'package:nai_launcher/core/network/web_access/web_access_models.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_form_footer.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/web_access_settings.dart';
 
 import '../../../helpers/adaptive_panel_expectations.dart';
@@ -108,7 +109,7 @@ void main() {
     expect(find.text('Exa API Key'), findsWidgets);
     expectPanelHeaderScrollsWithContent(tester);
     expect(find.byType(SingleChildScrollView), findsWidgets);
-    expect(find.byType(Wrap), findsWidgets);
+    expect(find.byType(AdaptiveFormFooter), findsOneWidget);
     final editor = find.descendant(of: panel, matching: find.byType(TextField));
     await tester.enterText(editor, 'reachable-key');
     // 面板矮于固定页脚所需高度时，操作随正文滚动，先滚到再点
