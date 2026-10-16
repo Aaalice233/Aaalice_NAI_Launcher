@@ -530,6 +530,46 @@ void main() {
       expect(legacyBody['height'], 6);
     });
 
+    test('oriented jpeg uploads are sent as the png they display as', () async {
+      final source = _buildOrientedJpeg(orientation: 6);
+      final uploads = await _multipartUploadsFor(source);
+
+      for (final MapEntry(key: endpoint, value: upload) in uploads.entries) {
+        final sent = img.decodePng(upload.image);
+        expect(sent, isNotNull, reason: endpoint);
+        expect((sent!.width, sent.height), (4, 6), reason: endpoint);
+      }
+      final director = uploads['augment-image']!.request;
+      expect((director['width'], director['height']), (4, 6));
+    });
+
+    test('legacy upscale sends an oriented jpeg as a png', () async {
+      final body = await _legacyUpscaleBodyFor(
+        _buildOrientedJpeg(orientation: 8),
+      );
+
+      final sent = img.decodePng(base64Decode(body['image'] as String))!;
+      expect((sent.width, sent.height), (body['width'], body['height']));
+      expect((sent.width, sent.height), (4, 6));
+    });
+
+    test('unrotated uploads keep their exact bytes', () async {
+      final cases = <String, Uint8List>{
+        'jpeg orientation 1': _buildOrientedJpeg(orientation: 1),
+        'png': _buildPng(width: 6, height: 4),
+        'webp': _webpLossless,
+      };
+
+      for (final MapEntry(key: name, value: source) in cases.entries) {
+        final uploads = await _multipartUploadsFor(source);
+        for (final MapEntry(key: endpoint, value: upload) in uploads.entries) {
+          expect(upload.image, source, reason: '$name $endpoint');
+        }
+        final legacy = await _legacyUpscaleBodyFor(source);
+        expect(legacy['image'], base64Encode(source), reason: name);
+      }
+    });
+
     test('undecodable director sources keep the size error', () async {
       final service = NAIImageEnhancementApiService(_MockDio());
       final source = Uint8List.fromList(utf8.encode('not an image at all'));
@@ -591,6 +631,92 @@ Future<Map<String, dynamic>> _directorRequestFor(Uint8List source) async {
   await NAIImageEnhancementApiService(dio).declutter(source);
   return capture.requestJson;
 }
+
+typedef _Upload = ({Uint8List image, Map<String, dynamic> request});
+
+/// 依次调用 v2 放大、导演工具与 Vibe 编码，按端点记录上传的图片分块。
+Future<Map<String, _Upload>> _multipartUploadsFor(Uint8List source) async {
+  final dio = _MockDio();
+  final uploads = <String, _Upload>{};
+  final zipBytes = _buildZipWithSingleImage(_buildPng(width: 8, height: 8));
+  Future<Response<dynamic>> answer(Invocation invocation) async {
+    final url = invocation.positionalArguments.first as String;
+    final capture = _RequestCapture()..record(invocation);
+    uploads[url.split('/').last] = (
+      image: capture.parts.firstWhere((part) => part.name == 'image').bytes,
+      request: capture.requestJson,
+    );
+    return Response<dynamic>(
+      data: zipBytes,
+      requestOptions: RequestOptions(path: url),
+    );
+  }
+
+  when(
+    () => dio.post<dynamic>(
+      any(),
+      data: any(named: 'data'),
+      options: any(named: 'options'),
+    ),
+  ).thenAnswer(answer);
+  when(
+    () => dio.post<dynamic>(
+      any(),
+      data: any(named: 'data'),
+      options: any(named: 'options'),
+      onReceiveProgress: any(named: 'onReceiveProgress'),
+    ),
+  ).thenAnswer(answer);
+
+  final service = NAIImageEnhancementApiService(dio);
+  await service.upscaleImage(source);
+  await service.declutter(source);
+  await service.encodeVibe(source, model: 'nai-diffusion-4-5-full');
+  expect(
+    uploads.keys,
+    unorderedEquals(['upscale', 'augment-image', 'encode-vibe']),
+  );
+  return uploads;
+}
+
+Future<Map<String, dynamic>> _legacyUpscaleBodyFor(Uint8List source) async {
+  final dio = _MockDio();
+  final bodies = <Object?>[];
+  when(
+    () => dio.post<dynamic>(
+      any(),
+      data: any(named: 'data'),
+      options: any(named: 'options'),
+      onReceiveProgress: any(named: 'onReceiveProgress'),
+    ),
+  ).thenAnswer((invocation) async {
+    bodies.add(invocation.namedArguments[#data]);
+    if (bodies.length == 1) {
+      throw DioException(
+        requestOptions: RequestOptions(path: '/ai/upscale'),
+        response: Response<dynamic>(
+          statusCode: 404,
+          requestOptions: RequestOptions(path: '/ai/upscale'),
+        ),
+        type: DioExceptionType.badResponse,
+      );
+    }
+    return Response<dynamic>(
+      data: _buildZipWithSingleImage(_buildPng(width: 8, height: 8)),
+      requestOptions: RequestOptions(path: '/ai/upscale'),
+    );
+  });
+
+  await NAIImageEnhancementApiService(dio).upscaleImage(source);
+  return Map<String, dynamic>.from(bodies.last! as Map);
+}
+
+final _webpLossless = base64Decode(
+  'UklGRqAAAABXRUJQVlA4TJQAAAAvE0ADALkyRPQ/FgrSNmC6419vpZhp28b8Ebfdjuh//CUC'
+  'gEEjSYrqSQH617p0EhS3bePGmFx79WMUSZLi+Ebk8Yvxdx6YJFxMAOGaVt4jYOUS3RKsMPhm'
+  'JIIJEyqwAwNK8ECyAPfQYkXeIGEBAIVto8UCABfAbebs4ATAXzkF+FEcULLiAwANBxB2ALwg'
+  '1Xr3AwAS',
+);
 
 Uint8List _buildOrientedJpeg({required int orientation}) {
   final image = img.Image(width: 6, height: 4)

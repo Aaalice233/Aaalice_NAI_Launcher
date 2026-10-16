@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import '../constants/api_constants.dart';
 import 'decoded_image_size.dart';
 import 'isolate_pool.dart';
+import 'jpeg_exif_orientation.dart';
 import 'pica_lanczos_resizer.dart';
 
 /// NovelAI 分辨率适配器
@@ -346,7 +347,7 @@ class NaiResolutionAdapter {
     required int targetHeight,
   }) {
     // 先读元数据：尺寸已匹配时不解码、不重采样也不重新编码。
-    if (_imageSizeMatches(imageBytes, targetWidth, targetHeight)) {
+    if (_sendsUnchanged(imageBytes, targetWidth, targetHeight)) {
       return imageBytes;
     }
 
@@ -359,7 +360,9 @@ class NaiResolutionAdapter {
     if (decoded == null) return null;
 
     if (decoded.width == targetWidth && decoded.height == targetHeight) {
-      return imageBytes;
+      return JpegExifOrientation.transformsPixels(imageBytes)
+          ? JpegExifOrientation.encodeUpload(decoded)
+          : imageBytes;
     }
 
     final resized = PicaLanczosResizer.resizeImage(
@@ -497,7 +500,7 @@ class NaiResolutionAdapter {
     required int targetHeight,
   }) {
     // 尺寸已匹配时直接短路，连 isolate 往返都省掉。
-    if (_imageSizeMatches(imageBytes, targetWidth, targetHeight)) {
+    if (_sendsUnchanged(imageBytes, targetWidth, targetHeight)) {
       return Future.value(imageBytes);
     }
     return ComputeGate().runIsolate(
@@ -574,7 +577,9 @@ class NaiResolutionAdapter {
         bytes[7] == 0x0A;
   }
 
-  static bool _imageSizeMatches(Uint8List bytes, int width, int height) {
+  // 官网只发经 canvas 转正的 PNG，带方向的 JPEG 不能原样直通
+  static bool _sendsUnchanged(Uint8List bytes, int width, int height) {
+    if (JpegExifOrientation.transformsPixels(bytes)) return false;
     final size = readImageSize(bytes);
     return size != null && size.$1 == width && size.$2 == height;
   }
