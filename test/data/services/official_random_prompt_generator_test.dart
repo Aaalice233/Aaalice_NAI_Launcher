@@ -191,11 +191,13 @@ void main() {
 
   group('asset flags gate Character Prompts roles', () {
     late OfficialWordlist library;
+    late List<RandomPromptResult> results;
     late List<_Role> roles;
 
     setUpAll(() async {
       library = await service.getOfficialWordlist(WordlistType.v4);
-      roles = await _sampleRoles(generator, library, seeds: 8000);
+      results = await _sampleCharacterPrompts(generator, seeds: 8000);
+      roles = _rolesOf(results, library);
     });
 
     test('a role starts from the shared state plus its own gender flag', () {
@@ -350,33 +352,24 @@ void main() {
         expect(role.framing, 'full body', reason: role.prompt);
       }
     });
-  });
 
-  test('a scene with the corrected ocean holds no other location', () async {
-    final library = await service.getOfficialWordlist(WordlistType.v4);
-    // Scene types such as cityscape repeat a location without its flag.
-    final locations = _valuesWhere(
-      library,
-      'dz',
-      (entry) => entry.stringFieldValues(4).contains('location'),
-    ).difference(_values(library, 'dn'));
-    var oceans = 0;
-    for (var seed = 0; seed < 8000; seed++) {
-      final result = await generator.generate(
-        profile: RandomPromptProfile.characterPrompts,
-        seed: seed,
-      );
-      final tags = result.mainPrompt
-          .split(', ')
-          .map((tag) => tag.replaceAll(RegExp(r'^\{|\}$'), ''))
+    test('a scene with the corrected ocean holds no other location', () {
+      // Scene types such as cityscape repeat a location without its flag.
+      final locations = _valuesWhere(
+        library,
+        'dz',
+        (entry) => entry.stringFieldValues(4).contains('location'),
+      ).difference(_values(library, 'dn'));
+      final oceans = results
+          .map((result) => _tagsOf(result.mainPrompt))
+          .where((tags) => tags.contains('ocean'))
           .toList();
-      if (!tags.contains('ocean')) continue;
-      oceans++;
-      expect(tags.where(locations.contains), [
-        'ocean',
-      ], reason: result.mainPrompt);
-    }
-    expect(oceans, greaterThan(5));
+
+      expect(oceans.length, greaterThan(5));
+      for (final tags in oceans) {
+        expect(tags.where(locations.contains), ['ocean'], reason: '$tags');
+      }
+    });
   });
 
   group('toenail polish follows bare feet', () {
@@ -395,10 +388,12 @@ void main() {
       );
       final boosted = WordlistService(assetBundle: _StringAssetBundle(content));
       library = await boosted.getOfficialWordlist(WordlistType.v4);
-      final roles = await _sampleRoles(
-        OfficialRandomPromptGenerator(boosted),
+      final roles = _rolesOf(
+        await _sampleCharacterPrompts(
+          OfficialRandomPromptGenerator(boosted),
+          seeds: 8000,
+        ),
         library,
-        seeds: 8000,
       );
       girls = roles.where((role) => role.gender == 'girl').toList();
       footwear = _values(library, 'dI');
@@ -481,40 +476,32 @@ void main() {
   group('upstream filters take effect in Legacy and Furry', () {
     late OfficialWordlist legacy;
     late OfficialWordlist furry;
+    late List<List<String>> legacyPrompts;
+    late List<List<String>> furryPrompts;
 
     setUpAll(() async {
       legacy = await service.getOfficialWordlist(WordlistType.legacy);
       furry = await service.getOfficialWordlist(WordlistType.furry);
-    });
-
-    Future<List<List<String>>> soloPrompts(
-      RandomPromptProfile profile,
-      bool Function(List<String> tags) isSolo,
-    ) async {
-      final prompts = <List<String>>[];
-      for (var seed = 0; seed < 4000; seed++) {
-        final result = await generator.generate(profile: profile, seed: seed);
-        final tags = result.mainPrompt
-            .split(', ')
-            .map((tag) => tag.replaceAll(RegExp(r'^\{|\}$'), ''))
-            .toList();
-        if (isSolo(tags)) prompts.add(tags);
-      }
-      return prompts;
-    }
-
-    test('Legacy legless species skip bottoms, footwear and legwear', () async {
-      final prompts = await soloPrompts(
+      legacyPrompts = await _soloPrompts(
+        generator,
         RandomPromptProfile.legacyAnime,
         _isLegacySolo,
       );
+      furryPrompts = await _soloPrompts(
+        generator,
+        RandomPromptProfile.furryV3,
+        (tags) => tags.contains('solo'),
+      );
+    });
+
+    test('Legacy legless species skip bottoms, footwear and legwear', () {
       final colors = _values(legacy, 'cg');
       final legClothing = {
         'bottoms': _values(legacy, 'l9'),
         'footwear': _values(legacy, 'ce'),
         'legwear': _values(legacy, 'l4'),
       };
-      final legless = prompts
+      final legless = legacyPrompts
           .where(
             (tags) => tags.any(const {'mermaid', 'lamia', 'centaur'}.contains),
           )
@@ -531,7 +518,7 @@ void main() {
         }
         expect(tags.where((tag) => tag.contains('legwear')), isEmpty);
       }
-      final girls = prompts.where(
+      final girls = legacyPrompts.where(
         (tags) => tags.contains('1girl') && !legless.contains(tags),
       );
       for (final entry in legClothing.entries) {
@@ -543,18 +530,14 @@ void main() {
       }
     });
 
-    test('Furry legless species skip bottoms, footwear and legwear', () async {
-      final prompts = await soloPrompts(
-        RandomPromptProfile.furryV3,
-        (tags) => tags.contains('solo'),
-      );
+    test('Furry legless species skip bottoms, footwear and legwear', () {
       final colors = _values(furry, 'c8');
       final legClothing = {
         'bottoms': _values(furry, 'cY'),
         'footwear': _values(furry, 'cQ'),
         'legwear': _values(furry, 'cG'),
       };
-      final legless = prompts
+      final legless = furryPrompts
           .where((tags) => tags.any(_furryLeglessSpecies.contains))
           .toList();
 
@@ -572,7 +555,7 @@ void main() {
           isEmpty,
         );
       }
-      final legged = prompts.where(
+      final legged = furryPrompts.where(
         (tags) =>
             tags.contains('full-length portrait') && !legless.contains(tags),
       );
@@ -585,11 +568,7 @@ void main() {
       }
     });
 
-    test('sleeping or closed eyes remove eye colors', () async {
-      final legacyPrompts = await soloPrompts(
-        RandomPromptProfile.legacyAnime,
-        _isLegacySolo,
-      );
+    test('sleeping or closed eyes remove eye colors', () {
       final legacyEyes = _values(legacy, 'ch');
       final legacySleepy = legacyPrompts.where(
         (tags) => tags.any(
@@ -601,10 +580,6 @@ void main() {
         expect(tags.where(legacyEyes.contains), isEmpty, reason: '$tags');
       }
 
-      final furryPrompts = await soloPrompts(
-        RandomPromptProfile.furryV3,
-        (tags) => tags.contains('solo'),
-      );
       final furryEyes = {
         ..._values(furry, 'cP'),
         ..._values(furry, 'cz'),
@@ -687,27 +662,53 @@ class _Role {
   bool wears(Set<String> values) => _wears(tags, values, colors);
 }
 
-Future<List<_Role>> _sampleRoles(
+List<String> _tagsOf(String prompt) => prompt
+    .split(', ')
+    .map((tag) => tag.replaceAll(RegExp(r'^\{|\}$'), ''))
+    .toList();
+
+Future<List<List<String>>> _soloPrompts(
   OfficialRandomPromptGenerator generator,
-  OfficialWordlist library, {
+  RandomPromptProfile profile,
+  bool Function(List<String> tags) isSolo,
+) async {
+  final prompts = <List<String>>[];
+  for (var seed = 0; seed < 4000; seed++) {
+    final result = await generator.generate(profile: profile, seed: seed);
+    final tags = _tagsOf(result.mainPrompt);
+    if (isSolo(tags)) prompts.add(tags);
+  }
+  return prompts;
+}
+
+Future<List<RandomPromptResult>> _sampleCharacterPrompts(
+  OfficialRandomPromptGenerator generator, {
   required int seeds,
-}) async {
-  final colors = _values(library, 'dO');
-  final roles = <_Role>[];
-  for (var seed = 0; seed < seeds; seed++) {
-    final result = await generator.generate(
+}) async => [
+  for (var seed = 0; seed < seeds; seed++)
+    await generator.generate(
       profile: RandomPromptProfile.characterPrompts,
       seed: seed,
-    );
-    final framing = result.mainPrompt
-        .split(', ')
-        .where(_characterFramings.contains)
-        .firstOrNull;
-    for (final character in result.characters) {
-      roles.add(_Role(character.prompt, colors, framing: framing));
-    }
-  }
-  return roles;
+    ),
+];
+
+List<_Role> _rolesOf(
+  List<RandomPromptResult> results,
+  OfficialWordlist library,
+) {
+  final colors = _values(library, 'dO');
+  return [
+    for (final result in results)
+      for (final character in result.characters)
+        _Role(
+          character.prompt,
+          colors,
+          framing: result.mainPrompt
+              .split(', ')
+              .where(_characterFramings.contains)
+              .firstOrNull,
+        ),
+  ];
 }
 
 Future<RandomPromptResult> _firstCharacterResult(
