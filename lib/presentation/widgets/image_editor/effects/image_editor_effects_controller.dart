@@ -57,7 +57,7 @@ class ImageEditorEffectsController {
       sourceBytes: sourceBytes,
       cropRect: _selectionCropRect(region),
       processingService: session.processingService,
-      inPlacePreview: _inPlacePreview,
+      inPlacePreview: inPlacePreview,
     );
     if (selection == null || !context.mounted) return;
     await _apply(context, selection, onChanged);
@@ -86,13 +86,7 @@ class ImageEditorEffectsController {
 
   /// 原位效果的预览与应用走同一套计算，取景框内看到的就是应用后的结果；
   /// 没有可处理的内容时返回 null
-  @visibleForTesting
-  Future<Uint8List?> inPlacePreviewFor(
-    EditorEffectType type, {
-    int maxDimension = 768,
-  }) => _inPlacePreview(type, maxDimension: maxDimension);
-
-  Future<Uint8List?> _inPlacePreview(
+  Future<Uint8List?> inPlacePreview(
     EditorEffectType type, {
     int maxDimension = 768,
   }) async {

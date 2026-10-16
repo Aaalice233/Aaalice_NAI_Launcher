@@ -115,9 +115,6 @@ class TransformParams {
 
   static const double rotationSnapStep = math.pi / 12;
 
-  bool get isIdentity =>
-      center == source.center && scaleX == 1 && scaleY == 1 && rotation == 0;
-
   Matrix4 get matrix {
     final (cos, sin) = _cosSin(rotation);
     final rotate = Matrix4.identity()

@@ -57,10 +57,6 @@ class EditorToolSection {
 
   final EditorToolGroup group;
   final List<EditorToolSlot> slots;
-
-  List<EditorToolEntry> get entries => [
-    for (final slot in slots) ...slot.entries,
-  ];
 }
 
 /// 编辑会话的图层没有角色，随角色变化的工具只归入编辑组，也不分出重绘组；

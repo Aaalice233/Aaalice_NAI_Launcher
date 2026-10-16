@@ -60,15 +60,11 @@ class MaskOverlayPatch {
     required this.bytes,
     required this.left,
     required this.top,
-    required this.width,
-    required this.height,
   });
 
   final Uint8List bytes;
   final int left;
   final int top;
-  final int width;
-  final int height;
 }
 
 class MaskFillRegionResult {

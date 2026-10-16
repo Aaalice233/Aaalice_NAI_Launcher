@@ -205,7 +205,7 @@ void main() {
         final (effects, state, layer) = await _effectsWithLayer();
 
         expect(
-          await effects.inPlacePreviewFor(EditorEffectType.cropToSelection),
+          await effects.inPlacePreview(EditorEffectType.cropToSelection),
           isNull,
         );
         expect(
@@ -223,7 +223,7 @@ Future<img.Image> _preview(
   ImageEditorEffectsController effects,
   EditorEffectType type,
 ) async {
-  final bytes = await effects.inPlacePreviewFor(type);
+  final bytes = await effects.inPlacePreview(type);
   return img.decodePng(bytes!)!;
 }
 
