@@ -133,7 +133,7 @@ class LocalImageDetailData implements ImageDetailData {
     final recordMetadata = metadata;
     if (recordMetadata != null) return recordMetadata;
 
-    // 服务已在后台 isolate 走完整条解析链，换通道重解只会重复同一次整图解码。
+    // 服务已在后台 isolate 走完整条解析链，这里再兜底解析只会重复同一次整图解码。
     return ImageMetadataService().getMetadataImmediate(record.path);
   }
 
