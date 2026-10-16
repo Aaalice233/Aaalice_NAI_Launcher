@@ -64,9 +64,8 @@ class TestSubscriptionNotifier extends SubscriptionNotifier {
   }) async => true;
 }
 
-/// 记录请求与取消状态的假 HTTP 适配器。
-///
-/// 响应永不返回，模拟仍在服务器上运行的 NAI 生成请求。
+/// Never answers, like a NAI generation still running on the server, and
+/// records whether each request was cancelled.
 class _RecordingHttpAdapter implements HttpClientAdapter {
   final List<bool> cancelled = [];
 
@@ -990,7 +989,7 @@ void main() {
           );
 
       await notifier.generate(params);
-      // 重绘快照在后台 isolate 合成，落地后才进历史。
+      // Inpaint snapshots are composed in the background before landing.
       await notifier.flushGenerationHistory();
 
       final state = container.read(imageGenerationNotifierProvider);
@@ -1295,8 +1294,8 @@ void main() {
   );
 
   test('cancel must abort the in-flight HTTP request', () async {
-    // 不替换 naiImageGenerationApiServiceProvider：走真实服务链路，
-    // 复现 generate() 与 cancel() 分别 ref.read 服务实例的生产行为。
+    // Keep the real naiImageGenerationApiServiceProvider: production reads the
+    // service separately in generate() and cancel().
     final adapter = _RecordingHttpAdapter();
     final container = _createAuthenticatedContainer(
       overrides: [
@@ -1367,7 +1366,7 @@ void main() {
     ).thenAnswer((_) {
       streamCall += 1;
       if (streamCall == 1) {
-        // 模拟孤儿任务仍占用 NAI 并发额度
+        // An orphaned task still holds the NAI concurrency slot.
         return Stream.value(
           ImageStreamChunk.error(
             'API_ERROR_429|A previous request is still being processed',
@@ -1450,7 +1449,7 @@ void main() {
     final generation = notifier.generate(params);
     await _pumpUntil(() => streamCall >= 1);
 
-    // 此刻位于 429 等待期内，取消必须终止自动重试
+    // Cancelling during the 429 wait must stop the automatic retry.
     notifier.cancel();
     await generation;
 
