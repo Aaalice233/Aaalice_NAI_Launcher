@@ -193,7 +193,7 @@ class WatermarkScene {
           _paintText(
             canvas,
             layer.textPainter!,
-            bounds[index].topLeft,
+            bounds[index],
             textStyle,
             textAlignment,
             shortEdge,
@@ -459,11 +459,16 @@ class WatermarkScene {
   static void _paintText(
     Canvas canvas,
     TextPainter metrics,
-    Offset offset,
+    Rect bounds,
     WatermarkTextStyle style,
     WatermarkTextAlignment alignment,
     double shortEdge,
   ) {
+    // 组合超出画布时整组缩小，描边与阴影随文字一起缩放
+    canvas
+      ..save()
+      ..translate(bounds.left, bounds.top)
+      ..scale(bounds.width / metrics.width);
     final baseText = metrics.text as TextSpan;
     final alpha = style.opacity.clamp(0.0, 1.0);
     final textAlign = _textAlign(alignment);
@@ -484,7 +489,7 @@ class WatermarkScene {
         maxLines: metrics.maxLines,
         ellipsis: metrics.ellipsis,
       )..layout(maxWidth: metrics.width);
-      stroke.paint(canvas, offset);
+      stroke.paint(canvas, Offset.zero);
     }
     final fill = TextPainter(
       text: TextSpan(
@@ -508,7 +513,8 @@ class WatermarkScene {
       maxLines: metrics.maxLines,
       ellipsis: metrics.ellipsis,
     )..layout(maxWidth: metrics.width);
-    fill.paint(canvas, offset);
+    fill.paint(canvas, Offset.zero);
+    canvas.restore();
   }
 
   static void _paintLogo(
