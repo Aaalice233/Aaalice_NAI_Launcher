@@ -5,7 +5,6 @@ import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 import '../../../../core/utils/localization_extension.dart';
-import '../../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../adaptive/interaction_policy.dart';
@@ -168,60 +167,52 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    final panelHeader = AdaptivePanelHeaderScope.maybeHeaderOf(context);
-    // 词组与图集列表都很短，随表单一起滚动，整个表单只有这一个纵向滚动容器
     return Form(
       key: _formKey,
-      child: CustomScrollView(
-        key: const ValueKey('add-tag-group-form-scroll'),
-        controller: widget.scrollController,
-        slivers: [
-          if (panelHeader != null)
-            AdaptivePinnedHeaderSliver(child: panelHeader),
-          SliverList.list(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Text(
-                  context.l10n.randomManager_addTagGroupSubtitle(
-                    context.l10n.randomCategoryName(widget.category),
-                  ),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
+      child: ContentSizedAdaptiveForm(
+        scrollController: widget.scrollController,
+        scrollViewKey: const ValueKey('add-tag-group-form-scroll'),
+        padding: EdgeInsets.zero,
+        // 词组与图集列表都很短，直接排在表单里，整个表单只有这一个纵向滚动容器
+        content: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Text(
+              context.l10n.randomManager_addTagGroupSubtitle(
+                context.l10n.randomCategoryName(widget.category),
               ),
-              _buildNameSection(context),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: sectionSurfaceColor(colorScheme),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildSourceTabs(context),
-                      if (_sourceTabIndex > 0) _buildSearchBar(context),
-                      TabSwipeDetector(
-                        controller: _tabController,
-                        child: KeyedSubtree(
-                          key: ValueKey(
-                            'add-tag-group-source-$_sourceTabIndex',
-                          ),
-                          child: _buildTabContent(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
               ),
-              _buildFooter(context),
-            ],
+            ),
+          ),
+          _buildNameSection(context),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: sectionSurfaceColor(colorScheme),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildSourceTabs(context),
+                  if (_sourceTabIndex > 0) _buildSearchBar(context),
+                  TabSwipeDetector(
+                    controller: _tabController,
+                    child: KeyedSubtree(
+                      key: ValueKey('add-tag-group-source-$_sourceTabIndex'),
+                      child: _buildTabContent(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
+        footer: _buildFooter(context),
       ),
     );
   }

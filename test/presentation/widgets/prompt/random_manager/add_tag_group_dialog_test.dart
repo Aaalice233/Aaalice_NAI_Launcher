@@ -286,6 +286,7 @@ void main() {
       final surfaceRect = tester.getRect(surface);
       expect(surfaceRect.width, lessThanOrEqualTo(580));
       expect(surfaceRect.center.dx, moreOrLessEquals(600));
+      expect(surfaceRect.height, lessThan(900 - 32), reason: '内容不长时面板按内容收紧');
       expect(find.byType(Dialog), findsNothing);
       expect(find.text('Custom'), findsOneWidget);
       expect(find.text('Tag Group'), findsOneWidget);
