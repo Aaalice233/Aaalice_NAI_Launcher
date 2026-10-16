@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
-import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_group_sync_provider.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/preset_selector_bar.dart';
+
+import '../../../../helpers/random_preset_test_harness.dart';
+import '../../../../helpers/reachability_expectations.dart';
 
 // flutter_test 字体每个字形 1em：英文约为真实两倍作压力场景，日文接近真实
 const _locales = [Locale('en'), Locale('ja')];
@@ -14,16 +14,6 @@ const _widths = [320.0, 600.0, 840.0, 1180.0, 1600.0];
 const _textScales = [1.0, 3.0];
 const _minTouchExtent = 44.0;
 const _landscapePadding = FakeViewPadding(left: 32, right: 32, bottom: 16);
-
-class _FixedPresetNotifier extends RandomPresetNotifier {
-  @override
-  RandomPresetState build() => const RandomPresetState(
-    presets: [
-      RandomPreset(id: 'preset', name: 'Preset', isBasedOnDefault: true),
-    ],
-    selectedPresetId: 'preset',
-  );
-}
 
 /// 同步服务依赖本地存储，布局测试只需要空闲状态
 class _IdleSyncNotifier extends TagGroupSyncNotifier {
@@ -40,70 +30,31 @@ Future<void> _pumpBar(
   required double textScale,
   required Locale locale,
   FakeViewPadding padding = FakeViewPadding.zero,
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.padding = padding;
-  tester.view.viewPadding = padding;
-  addTearDown(tester.view.reset);
-
-  await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        randomPresetNotifierProvider.overrideWith(_FixedPresetNotifier.new),
-        tagGroupSyncNotifierProvider.overrideWith(_IdleSyncNotifier.new),
-      ],
-      child: MaterialApp(
-        locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => InteractionPolicyScope(
-          initialPolicy: InteractionPolicy.touchFirst,
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
-          ),
-        ),
-        home: Scaffold(
-          body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: PresetSelectorBar(
-                  showWorkspaceHeading: true,
-                  onImportExport: () {},
-                ),
-              ),
-            ),
+}) => pumpRandomManager(
+  tester,
+  size: size,
+  textScale: textScale,
+  locale: locale,
+  padding: padding,
+  presets: () => TestRandomPresetNotifier(
+    const RandomPreset(id: 'preset', name: 'Preset', isBasedOnDefault: true),
+  ),
+  overrides: [tagGroupSyncNotifierProvider.overrideWith(_IdleSyncNotifier.new)],
+  home: Scaffold(
+    body: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: PresetSelectorBar(
+            showWorkspaceHeading: true,
+            onImportExport: () {},
           ),
         ),
       ),
     ),
-  );
-  await tester.pumpAndSettle();
-}
-
-void _expectHittable(WidgetTester tester, Finder control, String reason) {
-  final rect = tester.getRect(control);
-  final target = tester.renderObject(control);
-  expect(
-    tester
-        .hitTestOnBinding(rect.center)
-        .path
-        .any((entry) => entry.target == target),
-    isTrue,
-    reason: '可点中 $reason',
-  );
-  expect(
-    rect.shortestSide,
-    greaterThanOrEqualTo(_minTouchExtent),
-    reason: '命中区 $reason',
-  );
-}
+  ),
+);
 
 /// 从更多操作菜单打开确认弹窗，断言无溢出、弹窗在安全区内且取消与确认都能点中
 Future<void> _expectConfirmUsable(
@@ -131,7 +82,7 @@ Future<void> _expectConfirmUsable(
   expect(dialog.bottom, lessThanOrEqualTo(size.height), reason: reason);
   final l10n = lookupAppLocalizations(const Locale('en'));
   for (final label in [l10n.common_cancel, confirm]) {
-    _expectHittable(
+    expectReachable(
       tester,
       find.ancestor(
         of: find.descendant(
@@ -142,7 +93,8 @@ Future<void> _expectConfirmUsable(
           (widget) => widget is ButtonStyleButton,
         ),
       ),
-      '$label $reason',
+      reason: '$label $reason',
+      minExtent: _minTouchExtent,
     );
   }
   await tester.tap(find.text(l10n.common_cancel));
@@ -176,7 +128,12 @@ void main() {
             final moreRect = tester.getRect(more);
             expect(moreRect.left, greaterThanOrEqualTo(heading.left));
             expect(moreRect.right, lessThanOrEqualTo(heading.right + 0.5));
-            _expectHittable(tester, more, 'more $reason');
+            expectReachable(
+              tester,
+              more,
+              reason: 'more $reason',
+              minExtent: _minTouchExtent,
+            );
           }
         },
       );

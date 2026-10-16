@@ -1,19 +1,14 @@
-import 'dart:math' as math;
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/weighted_tag.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
-import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/tag_group_card.dart';
 
+import '../../../../helpers/random_preset_test_harness.dart';
+import '../../../../helpers/reachability_expectations.dart';
 import '../../../../helpers/text_layout_expectations.dart';
 
 // flutter_test 字体每个字形 1em，英文宽度约为真实两倍，作为最窄的压力场景
@@ -34,31 +29,15 @@ final _group = RandomTagGroup(
   ],
 );
 
-class _FixedPresetNotifier extends RandomPresetNotifier {
-  _FixedPresetNotifier({required this.isDefault});
-
-  final bool isDefault;
-
-  @override
-  RandomPresetState build() => RandomPresetState(
-    presets: [
-      RandomPreset(
-        id: 'preset',
-        name: 'Preset',
-        isDefault: isDefault,
-        categories: [
-          RandomCategory(
-            id: 'cat-hair',
-            name: 'Hair',
-            key: 'hairColor',
-            groups: [_group],
-          ),
-        ],
+TestRandomPresetNotifier _presets({required bool isDefault}) =>
+    TestRandomPresetNotifier.categories([
+      RandomCategory(
+        id: 'cat-hair',
+        name: 'Hair',
+        key: 'hairColor',
+        groups: [_group],
       ),
-    ],
-    selectedPresetId: 'preset',
-  );
-}
+    ], isDefault: isDefault);
 
 final _l10n = lookupAppLocalizations(_locale);
 
@@ -133,47 +112,20 @@ Future<void> _openEditor(
   bool readOnly = false,
   FakeViewPadding padding = FakeViewPadding.zero,
 }) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.padding = padding;
-  tester.view.viewPadding = padding;
-  tester.view.viewInsets = FakeViewPadding.zero;
-  addTearDown(tester.view.reset);
-
-  // 同一用例内逐个尺寸打开，前一个弹窗路由必须随整棵树一起卸载
-  await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        randomPresetNotifierProvider.overrideWith(
-          () => _FixedPresetNotifier(isDefault: readOnly),
-        ),
-        tagTranslationLookupProvider.overrideWithValue(
-          TagTranslationLookup.fromResolver((_) async => const {}),
-        ),
-      ],
-      child: MaterialApp(
-        locale: _locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => InteractionPolicyScope(
-          initialPolicy: InteractionPolicy.touchFirst,
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
-          ),
-        ),
-        home: Scaffold(
-          body: TagGroupCard(
-            tagGroup: _group,
-            categoryId: 'cat-hair',
-            categoryKey: 'hairColor',
-            presetId: 'preset',
-            isPresetDefault: readOnly,
-          ),
-        ),
+  await pumpRandomManager(
+    tester,
+    size: size,
+    textScale: textScale,
+    padding: padding,
+    locale: _locale,
+    presets: () => _presets(isDefault: readOnly),
+    home: Scaffold(
+      body: TagGroupCard(
+        tagGroup: _group,
+        categoryId: 'cat-hair',
+        categoryKey: 'hairColor',
+        presetId: 'preset',
+        isPresetDefault: readOnly,
       ),
     ),
   );
@@ -205,14 +157,13 @@ Future<void> _setKeyboard(WidgetTester tester, double inset) async {
   await tester.pumpAndSettle();
 }
 
-/// 滚到控件后断言它完整落在容器左右边界内，露出的部分能被点中，按钮类命中区达标
+/// 滚到控件后断言它可见可点中、不越出容器左右边界，按钮类命中区达标
 Future<void> _expectReachable(
   WidgetTester tester,
   Finder control, {
   required Finder container,
   required String reason,
   bool touchTarget = true,
-  bool hittable = true,
 }) async {
   // 操作栏随正文滚动时视口很矮，下方控件可能尚在视口外，先往下滚到它出现
   if (control.evaluate().isEmpty) {
@@ -221,48 +172,13 @@ Future<void> _expectReachable(
   expect(control, findsOneWidget, reason: reason);
   await tester.ensureVisible(control);
   await tester.pumpAndSettle();
-
-  final rect = tester.getRect(control);
-  final bounds = tester.getRect(container);
-  expect(rect.left, greaterThanOrEqualTo(bounds.left - 0.5), reason: reason);
-  expect(rect.right, lessThanOrEqualTo(bounds.right + 0.5), reason: reason);
-
-  final insideScroll = find
-      .ancestor(of: control, matching: _editorScrollable())
-      .evaluate()
-      .isNotEmpty;
-  var viewport = tester.getRect(insideScroll ? _editorScrollable() : container);
-  final tabBar = find.byType(TabBar);
-  final underPinnedHeader =
-      insideScroll &&
-      find.ancestor(of: control, matching: tabBar).evaluate().isEmpty &&
-      !_actionsScrollWithContent();
-  if (underPinnedHeader) {
-    viewport = Rect.fromLTRB(
-      viewport.left,
-      math.max(viewport.top, tester.getRect(tabBar).bottom),
-      viewport.right,
-      viewport.bottom,
-    );
-  }
-  final visible = rect.intersect(viewport);
-  expect(visible.width > 0 && visible.height > 0, isTrue, reason: reason);
-  if (hittable) {
-    final target = tester.renderObject(control);
-    final path = tester.hitTestOnBinding(visible.center).path;
-    expect(
-      path.any((entry) => entry.target == target),
-      isTrue,
-      reason: '可点中 $reason',
-    );
-  }
-  if (touchTarget) {
-    expect(
-      rect.shortestSide,
-      greaterThanOrEqualTo(_minTouchExtent),
-      reason: '命中区 $reason',
-    );
-  }
+  expectReachable(
+    tester,
+    control,
+    reason: reason,
+    within: container,
+    minExtent: touchTarget ? _minTouchExtent : 0,
+  );
 }
 
 Future<void> _expectEditorUsable(
@@ -288,15 +204,28 @@ Future<void> _expectEditorUsable(
   }
 
   await _selectTab(tester, Icons.tune_rounded);
-  // 只读时名称输入整体禁用，只要求可见
-  await _expectReachable(
-    tester,
-    _nameField(),
-    container: editor,
-    touchTarget: false,
-    hittable: !readOnly,
-    reason: 'name $reason',
-  );
+  // 只读时名称输入整体禁用，不接收点按，只要求露出且不越出编辑区
+  if (readOnly) {
+    await tester.ensureVisible(_nameField());
+    await tester.pumpAndSettle();
+    final name = tester.getRect(_nameField());
+    final bounds = tester.getRect(editor);
+    expect(
+      name.overlaps(tester.getRect(_editorScrollable())) &&
+          name.left >= bounds.left - 0.5 &&
+          name.right <= bounds.right + 0.5,
+      isTrue,
+      reason: 'name $reason: $name',
+    );
+  } else {
+    await _expectReachable(
+      tester,
+      _nameField(),
+      container: editor,
+      touchTarget: false,
+      reason: 'name $reason',
+    );
+  }
   await _expectReachable(
     tester,
     find.descendant(of: editor, matching: find.byType(Slider)),

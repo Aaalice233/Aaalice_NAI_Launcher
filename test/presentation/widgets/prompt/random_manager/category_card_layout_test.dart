@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
-import 'package:nai_launcher/data/models/prompt/tag_library.dart';
 import 'package:nai_launcher/data/models/prompt/weighted_tag.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
-import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
-import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_slider.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/category_card.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/category_card_list.dart';
 
+import '../../../../helpers/random_preset_test_harness.dart';
+import '../../../../helpers/reachability_expectations.dart';
 import '../../../../helpers/text_layout_expectations.dart';
 
 // flutter_test 字体每个字形 1em，英文宽度约为真实两倍，作为最窄的压力场景
@@ -53,42 +49,11 @@ const _category = RandomCategory(
   ],
 );
 
-class _FixedPresetNotifier extends RandomPresetNotifier {
-  @override
-  RandomPresetState build() => const RandomPresetState(
-    presets: [
-      RandomPreset(
-        id: 'preset',
-        name: 'Preset',
-        categories: [
-          _category,
-          RandomCategory(id: 'cat-outfit', name: 'Outfit', key: 'custom2'),
-        ],
-      ),
-    ],
-    selectedPresetId: 'preset',
-  );
-}
-
-class _EmptyLibraryNotifier extends TagLibraryNotifier {
-  @override
-  TagLibraryState build() => TagLibraryState(
-    library: TagLibrary(
-      id: 'catalog',
-      name: 'Catalog',
-      lastUpdated: DateTime.utc(2026),
-      source: TagLibrarySource.catalog,
-      dataVersion: 'test',
-      sourceUrl: 'https://example.com/catalog.csv',
-      sourceCommit: 'test',
-      sourceLicense: 'Unlicense',
-      sourceVersionDate: DateTime.utc(2026),
-      sourceCatalogTagCount: 1,
-      sourceCatalogAliasCount: 0,
-      categories: const {},
-    ),
-  );
-}
+TestRandomPresetNotifier _presets() =>
+    TestRandomPresetNotifier.categories(const [
+      _category,
+      RandomCategory(id: 'cat-outfit', name: 'Outfit', key: 'custom2'),
+    ]);
 
 Finder _card() =>
     find.byKey(ValueKey('random-manager-category-${_category.id}'));
@@ -107,45 +72,15 @@ Future<void> _pump(
   required double textScale,
   required Widget body,
   FakeViewPadding padding = FakeViewPadding.zero,
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.padding = padding;
-  tester.view.viewPadding = padding;
-  tester.view.viewInsets = FakeViewPadding.zero;
-  addTearDown(tester.view.reset);
+}) => pumpRandomManager(
+  tester,
+  size: size,
+  textScale: textScale,
+  padding: padding,
+  presets: _presets,
+  home: Scaffold(body: SafeArea(child: body)),
+);
 
-  // 同一用例内逐个尺寸重建，展开状态不能沿用上一个尺寸
-  await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        randomPresetNotifierProvider.overrideWith(_FixedPresetNotifier.new),
-        tagLibraryNotifierProvider.overrideWith(_EmptyLibraryNotifier.new),
-      ],
-      child: MaterialApp(
-        locale: _locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => InteractionPolicyScope(
-          initialPolicy: InteractionPolicy.touchFirst,
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
-          ),
-        ),
-        home: Scaffold(body: SafeArea(child: body)),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
-/// 滚到控件后断言露出的部分在容器左右边界内且能被点中，按钮类命中区达标
-///
-/// 横向滚动条里的分段按钮在压力字体下可能比视口还宽，只要求露出的部分不越出容器
 Future<void> _expectReachable(
   WidgetTester tester,
   Finder control, {
@@ -156,36 +91,13 @@ Future<void> _expectReachable(
   expect(control, findsOneWidget, reason: reason);
   await tester.ensureVisible(control);
   await tester.pumpAndSettle();
-  final rect = tester.getRect(control);
-  var visible = rect;
-  final scrollables = find.ancestor(
-    of: control,
-    matching: find.byType(Scrollable),
+  expectReachable(
+    tester,
+    control,
+    reason: reason,
+    within: container,
+    minExtent: touchTarget ? _minTouchExtent : 0,
   );
-  for (var i = 0; i < scrollables.evaluate().length; i++) {
-    visible = visible.intersect(tester.getRect(scrollables.at(i)));
-  }
-  expect(visible.width > 0 && visible.height > 0, isTrue, reason: reason);
-  final bounds = tester.getRect(container);
-  expect(visible.left, greaterThanOrEqualTo(bounds.left - 0.5), reason: reason);
-  expect(visible.right, lessThanOrEqualTo(bounds.right + 0.5), reason: reason);
-
-  final target = tester.renderObject(control);
-  expect(
-    tester
-        .hitTestOnBinding(visible.center)
-        .path
-        .any((entry) => entry.target == target),
-    isTrue,
-    reason: '可点中 $reason',
-  );
-  if (touchTarget) {
-    expect(
-      rect.shortestSide,
-      greaterThanOrEqualTo(_minTouchExtent),
-      reason: '命中区 $reason',
-    );
-  }
 }
 
 Future<void> _expectTextComplete(
