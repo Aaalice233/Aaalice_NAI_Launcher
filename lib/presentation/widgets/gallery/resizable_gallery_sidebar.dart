@@ -89,9 +89,7 @@ class _ResizableGallerySidebarState
   @override
   Widget build(BuildContext context) {
     final policy = context.interactionPolicy;
-    final handleWidth = policy.prefersTouchPresentation
-        ? policy.minimumControlExtent
-        : ResizeHandle.defaultWidth;
+    final handleWidth = ResizeHandle.extentOf(context);
     final maximum = WorkspaceSidePanelContract.constrainedWorkspaceWidth(
       workspaceWidth: widget.workspaceWidth,
       preferredWidth: WorkspaceSidePanelContract.maximumWidth,

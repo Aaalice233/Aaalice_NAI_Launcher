@@ -69,7 +69,10 @@ class GenerationWorkspaceRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final layout = _resolve(constraints.maxWidth);
+        final layout = _resolve(
+          constraints.maxWidth,
+          ResizeHandle.extentOf(context),
+        );
         final allocation = layout.allocation;
 
         final workspaceRow = Row(
@@ -113,8 +116,7 @@ class GenerationWorkspaceRow extends StatelessWidget {
     );
   }
 
-  _WorkspaceLayout _resolve(double workspaceWidth) {
-    const handleWidth = ResizeHandle.defaultWidth;
+  _WorkspaceLayout _resolve(double workspaceWidth, double handleWidth) {
     final hasOverlayable = overlayableLeading != null;
     final inlineLeadingWidth =
         occupiedLeadingWidth + (hasOverlayable ? overlayableLeadingWidth : 0);
