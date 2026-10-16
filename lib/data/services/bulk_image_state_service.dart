@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../core/cache/gallery_cache_manager.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/bulk_tag_edit_utils.dart';
 import 'bulk_gallery_store.dart';
@@ -192,13 +193,16 @@ class BulkImageStateService {
     }
 
     // 未索引图片必须先读取文件属性建立记录，这一步无法合批。
+    var indexedCount = 0;
     for (final path in unindexed) {
       try {
         idsByPath[path] = await _indexImage(path);
+        indexedCount++;
       } catch (e) {
         failures[path] = e;
       }
     }
+    if (indexedCount > 0) GalleryCacheManager().invalidateStatistics();
 
     return _ResolvedPaths(idsByPath: idsByPath, failures: failures);
   }
