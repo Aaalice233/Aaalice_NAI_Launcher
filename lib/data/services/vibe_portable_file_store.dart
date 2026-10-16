@@ -29,10 +29,10 @@ class VibePortableFileStore {
 
     final directory = Directory(await VibeLibraryPathHelper.instance.getPath());
     await directory.create(recursive: true);
-    final baseName = FileNameSanitizer.sanitize(
+    final baseName = FileNameSanitizer.segment(
       p.basenameWithoutExtension(fileName),
       fallback: 'vibe',
-      maxLength: 120,
+      maxCodePoints: 120,
     );
     final target = File(
       p.join(directory.path, await _uniqueName(directory, baseName, extension)),

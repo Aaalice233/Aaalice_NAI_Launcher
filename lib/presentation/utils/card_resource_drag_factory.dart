@@ -34,12 +34,12 @@ class CardResourceDragFactory {
     final stripMetadata = _ref
         .read(shareImageSettingsProvider)
         .effectiveStripMetadataForCopyAndDrag;
-    final name = FileNameSanitizer.sanitize(
+    final name = FileNameSanitizer.segment(
       reference.display['name'] ??
           reference.display['title'] ??
           reference.resourceId,
       fallback: 'resource',
-      maxLength: 80,
+      maxCodePoints: 80,
     );
     var extension = 'png';
     FileFormat format = Formats.png;

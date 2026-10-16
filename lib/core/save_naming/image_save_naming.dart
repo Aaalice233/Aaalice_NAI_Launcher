@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/file_name_sanitizer.dart';
 import 'save_name_context.dart';
 import 'save_name_template.dart';
-import 'save_path_sanitizer.dart';
 
 enum SaveFolderPreset {
   byDate('{date}'),
@@ -98,15 +98,15 @@ final class ImageSaveNaming {
 
   List<String> folderSegments(SaveNameContext context) => [
     for (final raw in _compiled.folder.renderSegments(context))
-      if (SavePathSanitizer.segment(raw) case final segment
+      if (FileNameSanitizer.segment(raw) case final segment
           when segment.isNotEmpty)
         segment,
   ];
 
   String fileStem(SaveNameContext context) {
-    final stem = SavePathSanitizer.segment(_compiled.fileName.render(context));
+    final stem = FileNameSanitizer.segment(_compiled.fileName.render(context));
     if (stem.isNotEmpty) return stem;
-    return SavePathSanitizer.segment(_defaultFileName.render(context));
+    return FileNameSanitizer.segment(_defaultFileName.render(context));
   }
 
   String _preferredStem(
@@ -116,7 +116,7 @@ final class ImageSaveNaming {
   ) {
     final leaf = fileName.split(RegExp(r'[/\\]')).last;
     final dot = leaf.lastIndexOf('.');
-    final stem = SavePathSanitizer.segment(
+    final stem = FileNameSanitizer.segment(
       dot > 0 ? leaf.substring(0, dot) : leaf,
       protectedSuffix: protectedSuffix,
     );

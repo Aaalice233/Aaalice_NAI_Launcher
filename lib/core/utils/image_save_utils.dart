@@ -19,8 +19,8 @@ import '../enums/image_model_mode.dart';
 import '../enums/precise_ref_type.dart';
 import '../save_naming/image_save_naming.dart';
 import '../save_naming/save_name_context.dart';
-import '../save_naming/save_path_sanitizer.dart';
 import 'app_logger.dart';
+import 'file_name_sanitizer.dart';
 import 'isolate_pool.dart';
 import 'nai_resolution_adapter.dart';
 import 'novelai_dataset_prefix.dart';
@@ -708,7 +708,7 @@ class ImageSaveUtils {
     const collisionReserve = '-999.png';
     final budget =
         maxPathLength - directory.length - 1 - collisionReserve.length;
-    return SavePathSanitizer.fitLength(
+    return FileNameSanitizer.fitLength(
       stem,
       math.max(budget, _minStemLength),
       protectedSuffix: protectedSuffix,

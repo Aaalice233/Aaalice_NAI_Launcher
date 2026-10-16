@@ -512,7 +512,11 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
   }
 
   String _normalizeFileBaseName(String name) {
-    return FileNameSanitizer.sanitize(name, fallback: 'vibe', maxLength: 120);
+    return FileNameSanitizer.segment(
+      name,
+      fallback: 'vibe',
+      maxCodePoints: 120,
+    );
   }
 
   Map<String, dynamic>? _extractBundleImportInfo(
