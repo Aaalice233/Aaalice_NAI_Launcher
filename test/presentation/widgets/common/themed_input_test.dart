@@ -5,6 +5,8 @@ import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
+import '../../../helpers/input_surface_expectations.dart';
+
 void main() {
   group('ThemedInput 平面输入色面', () {
     testWidgets('以不占布局的主题色外轮廓表达聚焦状态', (tester) async {
@@ -110,6 +112,130 @@ void main() {
         ),
         findsNothing,
       );
+    });
+  });
+
+  group('ThemedInput 装饰与下方文字', () {
+    testWidgets('标签与图标显示在色面内，帮助与错误排在色面下方并点亮错误轮廓', (tester) async {
+      await tester.pumpWidget(
+        inputTestApp(
+          const Column(
+            children: [
+              ThemedInput(
+                key: ValueKey('helper'),
+                decoration: InputDecoration(
+                  labelText: 'Weight',
+                  prefixIcon: Icon(Icons.scale),
+                  helperText: 'Shown below',
+                ),
+              ),
+              ThemedInput(
+                key: ValueKey('error'),
+                decoration: InputDecoration(errorText: 'Name taken'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(insideInputSurface(find.text('Weight')), findsOneWidget);
+      expect(insideInputSurface(find.byIcon(Icons.scale)), findsOneWidget);
+      for (final (key, text, hasError) in [
+        ('helper', 'Shown below', false),
+        ('error', 'Name taken', true),
+      ]) {
+        final field = find.byKey(ValueKey(key));
+        expect(insideInputSurface(find.text(text)), findsNothing);
+        expect(
+          tester.getTopLeft(find.text(text)).dy,
+          greaterThanOrEqualTo(
+            tester
+                .getBottomLeft(
+                  find.descendant(
+                    of: field,
+                    matching: find.byType(InputSurfaceContainer),
+                  ),
+                )
+                .dy,
+          ),
+        );
+        expect(inputSurfaceOf(tester, field).hasError, hasError, reason: key);
+      }
+      expect(innerDecorationOf(tester).helperText, isNull);
+    });
+
+    testWidgets('错误随输入出现和消失时输入框不重建，焦点与输入法连接保持', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        inputTestApp(
+          StatefulBuilder(
+            builder: (context, setState) => ThemedInput(
+              controller: controller,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                errorText: controller.text == 'bad' ? 'Invalid' : null,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      final editable = tester.state(find.byType(EditableText));
+
+      for (final (text, error) in [
+        ('bad', findsOneWidget),
+        ('good', findsNothing),
+      ]) {
+        await tester.enterText(find.byType(TextField), text);
+        await tester.pump();
+        expect(find.text('Invalid'), error, reason: text);
+        expect(tester.state(find.byType(EditableText)), same(editable));
+        expect(tester.testTextInput.hasAnyClients, isTrue);
+      }
+      expect(
+        tester
+            .widget<EditableText>(find.byType(EditableText))
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
+    });
+
+    testWidgets('没有下方文字时色面填满调用方给定的高度', (tester) async {
+      await tester.pumpWidget(
+        inputTestApp(
+          const SizedBox(
+            height: 56,
+            child: ThemedInput(decoration: InputDecoration(isDense: true)),
+          ),
+        ),
+      );
+
+      expect(tester.getSize(find.byType(InputSurfaceContainer)).height, 56);
+    });
+
+    testWidgets('expands 时错误排在下方，色面填满其余高度', (tester) async {
+      await tester.pumpWidget(
+        inputTestApp(
+          const SizedBox(
+            height: 200,
+            child: ThemedInput(
+              expands: true,
+              maxLines: null,
+              decoration: InputDecoration(errorText: 'Too long'),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final surface = tester.getRect(find.byType(InputSurfaceContainer));
+      final error = tester.getRect(find.text('Too long'));
+      expect(error.top, greaterThanOrEqualTo(surface.bottom));
+      expect(error.bottom, lessThanOrEqualTo(surface.top + 200));
+      expect(surface.height, greaterThan(150));
     });
   });
 
