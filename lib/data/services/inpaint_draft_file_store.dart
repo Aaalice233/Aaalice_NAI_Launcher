@@ -2,13 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
-import '../../core/utils/exif_orientation.dart';
-import '../../core/utils/isolate_pool.dart';
-import '../../core/utils/nai_resolution_adapter.dart';
+import '../../core/utils/decoded_image_size.dart';
 import '../models/inpaint/inpaint_draft.dart';
 import 'inpaint_draft_repository.dart';
 import 'metadata/hash_calculator.dart';
@@ -20,7 +17,7 @@ typedef InpaintDraftImageSizeDecoder =
 /// Owns atomic file replacement and integrity checks for inpaint draft assets.
 class InpaintDraftFileStore {
   InpaintDraftFileStore({InpaintDraftImageSizeDecoder? decodeImageSize})
-    : _decodeImageSize = decodeImageSize ?? _decodeImageSizeInBackground;
+    : _decodeImageSize = decodeImageSize ?? DecodedImageSize.decode;
 
   static final Map<String, Future<void>> _pendingOperations = {};
 
@@ -102,8 +99,8 @@ class InpaintDraftFileStore {
     if (!await hasChecksum(data, expected)) {
       throw InpaintDraftIntegrityException('$label checksum or size mismatch');
     }
-    // GIF-like headers may report a canvas larger than the decoded frame.
-    if (_hasDimensions(NaiResolutionAdapter.readImageSize(data), expected) ||
+    // The full decode is authoritative: a header mismatch alone never discards a draft.
+    if (_hasDimensions(DecodedImageSize.readHeader(data), expected) ||
         _hasDimensions(await _decodeImageSize(data), expected)) {
       return;
     }
@@ -130,15 +127,6 @@ class InpaintDraftFileStore {
     return size != null &&
         size.$1 == expected.width &&
         size.$2 == expected.height;
-  }
-
-  static Future<(int, int)?> _decodeImageSizeInBackground(Uint8List bytes) {
-    return ComputeGate().runCompute(_decodeImageSizeSync, bytes);
-  }
-
-  static (int, int)? _decodeImageSizeSync(Uint8List bytes) {
-    final decoded = img.decodeImage(bytes);
-    return decoded == null ? null : ExifOrientation.uprightSize(bytes, decoded);
   }
 
   Future<void> _atomicWriteBytesUnlocked(File target, List<int> bytes) async {

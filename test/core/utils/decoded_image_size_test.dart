@@ -142,6 +142,40 @@ void main() {
     });
   });
 
+  group('DecodedImageSize.readDeclaredSize', () {
+    test('takes the declared canvas of formats without a header reader', () {
+      expect(
+        DecodedImageSize.readDeclaredSize(
+          Uint8List.fromList(img.encodeGif(_image(6, 4))),
+        ),
+        (6, 4),
+      );
+      expect(
+        DecodedImageSize.readDeclaredSize(
+          Uint8List.fromList(img.encodeBmp(_image(5, 3))),
+        ),
+        (5, 3),
+      );
+    });
+
+    test('never answers a header format with its unrotated frame', () async {
+      final jpeg = orientedCameraJpeg(orientation: 6);
+      final second = _segments(jpeg)[1];
+      // 段之间多一个字节：image 包仍认得它，但只能读出未转正的帧尺寸
+      final padded = Uint8List.fromList([
+        ...jpeg.sublist(0, second.offset),
+        0x00,
+        ...jpeg.sublist(second.offset),
+      ]);
+      final declared = img.findDecoderForData(padded)!.startDecode(padded)!;
+      expect((declared.width, declared.height), (6, 4));
+
+      expect(DecodedImageSize.readDeclaredSize(padded), isNull);
+      expect(await DecodedImageSize.read(padded), (4, 6));
+      expect(_decodedSize(padded), (4, 6));
+    });
+  });
+
   group('DecodedImageSize.read', () {
     test(
       'answers header formats without waiting for the compute gate',
