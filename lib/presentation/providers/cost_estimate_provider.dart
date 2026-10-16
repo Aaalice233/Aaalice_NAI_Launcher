@@ -94,7 +94,8 @@ _GenerationCostInput? _resolveGenerationCostInput(
   );
 }
 
-/// 当前蒙版的外接矩形，在后台 isolate 解码计算，只随蒙版字节变化重算。
+/// 当前蒙版的外接矩形，在后台 isolate 解码计算，只随蒙版字节变化重算；
+/// 费用预估与图生图预览的聚焦框共用这一次计算。
 @riverpod
 Future<FocusedInpaintMaskExtent?> focusedInpaintMaskExtent(Ref ref) async {
   final maskImage = ref.watch(
@@ -115,10 +116,7 @@ Future<FocusedInpaintMaskExtent?> focusedInpaintMaskExtent(Ref ref) async {
 AsyncValue<FocusedInpaintGeometry?> focusedInpaintMaskRequestSize(Ref ref) {
   final needsMaskSize = ref.watch(
     imageWorkflowControllerProvider.select(
-      (workflow) =>
-          workflow.focusedInpaintEnabled &&
-          workflow.focusedSelectionRect == null &&
-          workflow.focusedContextCrop == null,
+      (workflow) => workflow.focusesOnMaskExtent,
     ),
   );
   final isInpainting = ref.watch(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/comfyui/seedvr2_support.dart';
+import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
@@ -12,6 +13,7 @@ import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart'
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_panel.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_source_preview.dart';
 
 import '../../../../helpers/ink_expectations.dart';
 import '../../../../helpers/light_theme_contrast.dart';
@@ -169,6 +171,58 @@ void main() {
       expect(find.text('Focused Inpainting（聚焦重绘）'), findsOneWidget);
       expect(find.textContaining('Minimum Context Area'), findsNothing);
       expect(find.textContaining('重绘编辑器左上角按钮'), findsOneWidget);
+    });
+
+    testWidgets('聚焦框取自费用预估共用的蒙版外接矩形，有选区时不再计算', (tester) async {
+      const extent = FocusedInpaintMaskExtent(
+        maskWidth: 8,
+        maskHeight: 8,
+        bounds: FocusedInpaintCrop(x: 2, y: 2, width: 3, height: 3),
+      );
+      var extentBuilds = 0;
+      final container = ProviderContainer(
+        overrides: [
+          focusedInpaintMaskExtentProvider.overrideWith((ref) {
+            extentBuilds += 1;
+            return extent;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.binding.setSurfaceSize(const Size(1400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = container.read(
+        imageWorkflowControllerProvider.notifier,
+      );
+      controller.replaceSourceImage(_testImageBytes);
+      controller.enterInpaintMode();
+      controller.setFocusedInpaintEnabled(true);
+      controller.onMaskChanged(_testImageBytes);
+      controller.setPanelExpanded(true);
+      Img2ImgSourcePreview preview() =>
+          tester.widget(find.byType(Img2ImgSourcePreview));
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Scaffold(body: Img2ImgPanel()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(preview().maskExtent.value, same(extent));
+      expect(extentBuilds, 1);
+
+      controller.setFocusedSelectionRect(const Rect.fromLTWH(1, 1, 4, 4));
+      await tester.pumpAndSettle();
+
+      expect(preview().maskExtent.value, isNull);
+      expect(extentBuilds, 1);
     });
 
     testWidgets('增强面板里的开关行按压反馈画在面板底色之上', (tester) async {
