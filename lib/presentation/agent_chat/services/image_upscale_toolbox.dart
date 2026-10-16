@@ -9,12 +9,15 @@ import 'generation_save_path_exporter.dart';
 import 'generation_save_path_validator.dart';
 import 'image_upscale_service.dart';
 
-/// 跨注册表重建存活，审批阶段的估价与执行落在同一个实例上。
+/// 跨注册表重建存活，审批阶段的报价在权限模式切换后仍归执行使用。
 final class ImageUpscaleToolbox {
   ImageUpscaleToolbox(this._ref);
 
   final Ref _ref;
   ImageUpscaleService? _service;
+
+  /// 工具串行执行，同一时刻最多一笔待执行的报价。
+  ImageUpscaleQuote? _quote;
 
   /// 文件作用域随权限模式变化，每次构建注册表时重新配置。
   void configure({
@@ -42,8 +45,24 @@ final class ImageUpscaleToolbox {
     return service;
   }
 
-  Future<int?> estimateAnlas(Map<String, dynamic> args) =>
-      _configured.estimateAnlas(args);
+  /// 审批前估价。参数或原图本身不成立时这次调用不会发出请求，记为 0；
+  /// 原图超出计费分档返回 `AnlasCalculator.invalidCost`，由审批直接拦下。
+  Future<int?> estimateAnlas(Map<String, dynamic> args) async {
+    _quote = null;
+    _quote = await _configured.quote(args);
+    return _quote?.cost ?? 0;
+  }
+
+  Future<AgentToolResult> _upscale(
+    String toolCallId,
+    Map<String, dynamic> args,
+    AbortSignal? signal,
+    AgentToolUpdateCallback? onUpdate,
+  ) {
+    final quote = _quote;
+    _quote = null;
+    return _configured.upscale(toolCallId, args, quote, signal, onUpdate);
+  }
 
   List<AgentTool> tools() => [
     DefinedAgentTool(
@@ -95,8 +114,7 @@ final class ImageUpscaleToolbox {
         'additionalProperties': false,
       },
       executionModeOverride: ToolExecutionMode.sequential,
-      executeWithControl: (toolCallId, args, signal, onUpdate) =>
-          _configured.upscale(toolCallId, args, signal, onUpdate),
+      executeWithControl: _upscale,
     ),
   ];
 }
