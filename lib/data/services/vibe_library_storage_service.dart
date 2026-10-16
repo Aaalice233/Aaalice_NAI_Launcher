@@ -234,7 +234,6 @@ class VibeLibraryStorageService {
         scannedCount: 0,
         upsertedCount: 0,
         deletedCount: 0,
-        failedCount: 1,
         errors: [error.toString()],
       );
     }

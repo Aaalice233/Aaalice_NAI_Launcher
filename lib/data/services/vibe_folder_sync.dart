@@ -26,7 +26,6 @@ class VibeFolderSync {
     var scannedCount = 0;
     var upsertedCount = 0;
     var deletedCount = 0;
-    var failedCount = 0;
 
     final existingPathMap = <String, VibeLibraryEntry>{
       for (final entry in existingEntries)
@@ -82,7 +81,6 @@ class VibeFolderSync {
         currentPathSet.add(result.path);
 
         if (result.error != null) {
-          failedCount++;
           errors.add(result.error!);
         } else if (result.entry != null) {
           await onUpsertEntry(result.entry!);
@@ -104,7 +102,6 @@ class VibeFolderSync {
           await onDeleteEntry(entry);
           deletedCount++;
         } catch (e, stackTrace) {
-          failedCount++;
           errors.add('删除失效条目失败: $filePath, error: $e');
           AppLogger.e('删除失效条目失败: $filePath', e, stackTrace, _tag);
         }
@@ -115,7 +112,6 @@ class VibeFolderSync {
       scannedCount: scannedCount,
       upsertedCount: upsertedCount,
       deletedCount: deletedCount,
-      failedCount: failedCount,
       errors: errors,
     );
   }
