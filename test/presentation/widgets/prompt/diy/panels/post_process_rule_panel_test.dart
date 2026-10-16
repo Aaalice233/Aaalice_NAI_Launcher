@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/data/models/prompt/diy_category_references.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
+import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/diy/diy_category_field.dart';
@@ -36,7 +38,8 @@ void main() {
             child: PostProcessRulePanel(
               rules: const [],
               onRulesChanged: (rules) => changedRules = rules,
-              categoryOptions: _categoryOptions,
+              categoryOptions: _optionsOf(_categories),
+              categoryResolver: DiyCategoryReferenceResolver(_categories),
             ),
           ),
         ),
@@ -122,7 +125,7 @@ void main() {
     Future<List<PostProcessRule> Function()> addPreset(
       WidgetTester tester,
       String label, {
-      required List<DiyCategoryOption> options,
+      required List<RandomCategory> categories,
     }) async {
       tester.view.physicalSize = const Size(1180, 2400);
       tester.view.devicePixelRatio = 1;
@@ -140,7 +143,8 @@ void main() {
               child: PostProcessRulePanel(
                 rules: const [],
                 onRulesChanged: (rules) => changedRules = rules,
-                categoryOptions: options,
+                categoryOptions: _optionsOf(categories),
+                categoryResolver: DiyCategoryReferenceResolver(categories),
               ),
             ),
           ),
@@ -160,7 +164,7 @@ void main() {
       final rules = await addPreset(
         tester,
         'Sleeping Rule',
-        options: _categoryOptions,
+        categories: _categories,
       );
 
       expect(rules().single.targetCategoryIds, ['cat-eyes']);
@@ -173,9 +177,7 @@ void main() {
       final rules = await addPreset(
         tester,
         'Sleeping Rule',
-        options: const [
-          DiyCategoryOption(id: 'cat-outfit', label: 'Outfit', key: 'clothing'),
-        ],
+        categories: [_categories.last],
       );
 
       expect(rules().single.targetCategoryIds, isEmpty);
@@ -189,7 +191,7 @@ void main() {
       final rules = await addPreset(
         tester,
         'Mermaid Rule',
-        options: _categoryOptions,
+        categories: _categories,
       );
 
       final rule = rules().single;
@@ -207,7 +209,12 @@ void main() {
   });
 }
 
-const _categoryOptions = [
-  DiyCategoryOption(id: 'cat-eyes', label: 'Eyes', key: 'eyeColor'),
-  DiyCategoryOption(id: 'cat-outfit', label: 'Outfit', key: 'clothing'),
+const _categories = [
+  RandomCategory(id: 'cat-eyes', name: 'Eyes', key: 'eyeColor'),
+  RandomCategory(id: 'cat-outfit', name: 'Outfit', key: 'clothing'),
+];
+
+List<DiyCategoryOption> _optionsOf(List<RandomCategory> categories) => [
+  for (final category in categories)
+    DiyCategoryOption(id: category.id, label: category.name),
 ];
