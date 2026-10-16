@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_pinned_header_sliver.dart';
 
 /// 最上层面板的标题栏位于正文的纵向滚动视图中，矮视口里随正文滚走
 void expectPanelHeaderScrollsWithContent(
@@ -24,4 +25,16 @@ void expectPanelHeaderScrollsWithContent(
     findsOneWidget,
     reason: reason,
   );
+}
+
+/// [child] 所在的自适应固定头部
+RenderAdaptivePinnedHeaderSliver pinnedHeaderSliverOf(
+  WidgetTester tester,
+  Finder child,
+) {
+  RenderObject? node = tester.renderObject(child);
+  while (node is! RenderAdaptivePinnedHeaderSliver) {
+    node = node!.parent;
+  }
+  return node;
 }
