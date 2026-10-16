@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
 import 'package:nai_launcher/core/utils/app_logger.dart';
+import 'package:nai_launcher/data/services/metadata/isolate_metadata_protocol.dart';
 import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata/metadata_isolate_worker.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 void main() {
@@ -75,28 +77,31 @@ void main() {
     test(
       'does not complete a new parse with a cancelled request response',
       () async {
-        final oldFile = File('${tempDir.path}/old.png');
+        // One worker, so the new request lands where the old reply is held.
+        final heldService = IsolateMetadataService.forTesting(
+          maxWorkers: 1,
+          workerEntrypoint: _holdMarkedRepliesEntryPoint,
+        );
+        addTearDown(heldService.dispose);
+        final oldFile = File('${tempDir.path}/${_heldReplyMarker}old.png');
         final newFile = File('${tempDir.path}/new.png');
 
         await oldFile.writeAsBytes(
-          await _pngWithNovelAiMetadata(
-            prompt: 'old-prompt',
-            negativePrompt: _largeText('x'),
-          ),
+          await _pngWithNovelAiMetadata(prompt: 'old-prompt'),
         );
         await newFile.writeAsBytes(
           await _pngWithNovelAiMetadata(prompt: 'new-prompt'),
         );
 
-        final oldParse = service.parseMetadata(
+        final oldParse = heldService.parseMetadata(
           oldFile.path,
           config: const IsolateParseConfig(timeout: Duration(seconds: 10)),
         );
 
-        await _waitForActiveWorkers(service, 1);
-        service.cancelAll();
+        await _waitForActiveWorkers(heldService, 1);
+        heldService.cancelAll();
 
-        final newResult = await service.parseMetadata(
+        final newResult = await heldService.parseMetadata(
           newFile.path,
           config: const IsolateParseConfig(timeout: Duration(seconds: 10)),
         );
@@ -111,36 +116,34 @@ void main() {
     test(
       'dispatches queued tasks after timed-out workers become idle',
       () async {
-        final busyA = File('${tempDir.path}/busy_a.png');
-        final busyB = File('${tempDir.path}/busy_b.png');
+        final heldService = IsolateMetadataService.forTesting(
+          workerEntrypoint: _holdMarkedRepliesEntryPoint,
+        );
+        addTearDown(heldService.dispose);
+        final busyA = File('${tempDir.path}/${_heldReplyMarker}busy_a.png');
+        final busyB = File('${tempDir.path}/${_heldReplyMarker}busy_b.png');
         final queuedFile = File('${tempDir.path}/queued.png');
 
         await busyA.writeAsBytes(
-          await _pngWithNovelAiMetadata(
-            prompt: 'busy-a',
-            negativePrompt: _largeText('x'),
-          ),
+          await _pngWithNovelAiMetadata(prompt: 'busy-a'),
         );
         await busyB.writeAsBytes(
-          await _pngWithNovelAiMetadata(
-            prompt: 'busy-b',
-            negativePrompt: _largeText('y'),
-          ),
+          await _pngWithNovelAiMetadata(prompt: 'busy-b'),
         );
         await queuedFile.writeAsBytes(
           await _pngWithNovelAiMetadata(prompt: 'queued-prompt'),
         );
 
-        final first = service.parseMetadata(
+        final first = heldService.parseMetadata(
           busyA.path,
           config: const IsolateParseConfig(timeout: Duration.zero),
         );
-        final second = service.parseMetadata(
+        final second = heldService.parseMetadata(
           busyB.path,
           config: const IsolateParseConfig(timeout: Duration.zero),
         );
 
-        final queued = service.parseMetadata(
+        final queued = heldService.parseMetadata(
           queuedFile.path,
           config: const IsolateParseConfig(timeout: Duration(seconds: 2)),
         );
@@ -155,7 +158,7 @@ void main() {
         // restartedWorkers counts committed replacements, which land after the
         // timed-out futures resolve.
         await _waitForCondition(
-          () => service.getStatistics()['restartedWorkers'] == 2,
+          () => heldService.getStatistics()['restartedWorkers'] == 2,
           'Expected both timed-out workers to be replaced',
         );
       },
@@ -356,6 +359,7 @@ void main() {
       var initializationCalls = 0;
       final racingService = IsolateMetadataService.forTesting(
         maxWorkers: 2,
+        workerEntrypoint: _holdMarkedRepliesEntryPoint,
         workerInitializer: (_, initializeWorker) async {
           initializationCalls++;
           if (initializationCalls == 3 || initializationCalls == 4) {
@@ -367,8 +371,8 @@ void main() {
       addTearDown(racingService.dispose);
       await racingService.initialize();
 
-      final firstFile = File('${tempDir.path}/race_a.png');
-      final secondFile = File('${tempDir.path}/race_b.png');
+      final firstFile = File('${tempDir.path}/${_heldReplyMarker}race_a.png');
+      final secondFile = File('${tempDir.path}/${_heldReplyMarker}race_b.png');
       await firstFile.writeAsBytes(
         await _pngWithNovelAiMetadata(prompt: 'race-a'),
       );
@@ -421,6 +425,75 @@ void _neverReady(Object? _) {
   ReceivePort().listen((_) {});
 }
 
+const _heldReplyMarker = 'held_reply_';
+
+// Racing a real parse against a timer or cancel is nondeterministic, so marked
+// files keep their reply until the worker receives its next request.
+void _holdMarkedRepliesEntryPoint(Object? message) {
+  final init = message as MetadataWorkerInitMessage;
+  final relay = _HeldReplyRelay(init.sendPort);
+  metadataIsolateEntryPoint(
+    MetadataWorkerInitMessage(
+      sendPort: relay.parserReplies.sendPort,
+      workerId: init.workerId,
+    ),
+  );
+}
+
+class _HeldReplyRelay {
+  _HeldReplyRelay(this._pool) {
+    parserReplies.listen(_onParserReply);
+    _poolRequests.listen(_onPoolRequest);
+  }
+
+  final SendPort _pool;
+  final ReceivePort parserReplies = ReceivePort();
+  final ReceivePort _poolRequests = ReceivePort();
+  final List<Object?> _deferredRequests = [];
+  SendPort? _parser;
+  int? _heldRequestId;
+  Object? _heldReply;
+
+  void _onParserReply(Object? reply) {
+    if (reply is SendPort) {
+      _parser = reply;
+      _pool.send(_poolRequests.sendPort);
+      return;
+    }
+    if (reply is MetadataParseResponse && reply.requestId == _heldRequestId) {
+      _heldReply = reply;
+      _releaseHeldReply();
+      return;
+    }
+    _pool.send(reply);
+  }
+
+  void _onPoolRequest(Object? request) {
+    if (_heldRequestId != null) {
+      _deferredRequests.add(request);
+      _releaseHeldReply();
+      return;
+    }
+    if (request is MetadataParseRequest &&
+        request.filePath.contains(_heldReplyMarker)) {
+      _heldRequestId = request.requestId;
+    }
+    _parser!.send(request);
+  }
+
+  // The next request can arrive before the parser's reply to the held one.
+  void _releaseHeldReply() {
+    final heldReply = _heldReply;
+    if (heldReply == null || _deferredRequests.isEmpty) return;
+    _pool.send(heldReply);
+    _heldRequestId = null;
+    _heldReply = null;
+    final deferredRequests = List.of(_deferredRequests);
+    _deferredRequests.clear();
+    deferredRequests.forEach(_onPoolRequest);
+  }
+}
+
 String _novelAiComment({required String prompt}) {
   return jsonEncode({
     'prompt': prompt,
@@ -471,8 +544,6 @@ Uint8List _withoutPngTextChunks(Uint8List png) {
   }
   return output.takeBytes();
 }
-
-String _largeText(String char) => ''.padRight(6 * 1024 * 1024, char);
 
 Future<void> _deleteTempDirectoryWhenWorkersReleaseFiles(
   Directory directory,
