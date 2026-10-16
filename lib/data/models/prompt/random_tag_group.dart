@@ -270,47 +270,6 @@ class RandomTagGroup with _$RandomTagGroup {
   /// 是否为嵌套配置
   bool get isNested => nodeType == TagGroupNodeType.config;
 
-  /// 深拷贝分组（生成新的ID，包含嵌套）
-  ///
-  /// 以本词组 ID 为目标的可见性规则与指向子词组的条件分支随副本改写
-  RandomTagGroup deepCopy() {
-    final copyId = const Uuid().v4();
-    final copiedChildren = children.map((c) => c.deepCopy()).toList();
-    final childIds = {
-      for (var i = 0; i < children.length; i++)
-        children[i].id: copiedChildren[i].id,
-    };
-    return copyWith(
-      id: copyId,
-      tags: tags.map((t) => t.copyWith()).toList(),
-      children: copiedChildren,
-      visibilityRules: visibilityRules
-          .map(
-            (rule) => rule.targetCategoryId == id
-                ? rule.copyWith(targetCategoryId: copyId)
-                : rule,
-          )
-          .toList(),
-    ).mapBranchTargets((groupId) => childIds[groupId] ?? groupId);
-  }
-
-  /// 改写各分支输出的词组 ID
-  RandomTagGroup mapBranchTargets(String Function(String groupId) map) {
-    final branchConfig = conditionalBranchConfig;
-    if (branchConfig == null) return this;
-    return copyWith(
-      conditionalBranchConfig: branchConfig.copyWith(
-        branches: branchConfig.branches
-            .map(
-              (branch) => branch.copyWith(
-                tagGroupIds: branch.tagGroupIds.map(map).toList(),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
   /// 更新同步时间
   RandomTagGroup markSynced() {
     return copyWith(lastSyncedAt: DateTime.now());

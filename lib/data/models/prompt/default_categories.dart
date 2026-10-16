@@ -237,9 +237,6 @@ class DefaultCategories {
     return merged;
   }
 
-  static List<RandomCategory> createDefaultCopy() =>
-      createDefault().map((category) => category.deepCopy()).toList();
-
   static List<RandomCategory> createDefaultForVersion(WordlistType version) {
     return switch (version) {
       WordlistType.v4 => createDefault(),
