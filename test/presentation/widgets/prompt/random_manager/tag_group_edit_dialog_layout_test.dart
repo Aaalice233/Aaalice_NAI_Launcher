@@ -516,7 +516,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('正文上甩动切到相邻标签页，方向与原 TabBarView 一致', (tester) async {
+    testWidgets('正文上左甩切到下一页、右甩回到上一页，首页不再越界', (tester) async {
       await _openEditor(tester, size: const Size(412, 700), textScale: 1);
       await _selectTab(tester, Icons.sell_outlined);
       expect(tabIndex(tester), 1);
@@ -534,7 +534,7 @@ void main() {
       // 第一页再向右甩不越界
       await flingOn(
         tester,
-        find.text('${_l10n.randomManager_selectionMode}:'),
+        find.text(_l10n.randomManager_selectionMode),
         const Offset(200, 0),
       );
       expect(tabIndex(tester), 0);
@@ -605,7 +605,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('鼠标拖动不切换标签页，与原 TabBarView 的拖动设备一致', (tester) async {
+    testWidgets('鼠标拖动不切换标签页，只有滚动配置允许拖动的设备能切页', (tester) async {
       await _openEditor(tester, size: const Size(1180, 900), textScale: 1);
       await _selectTab(tester, Icons.sell_outlined);
       await flingOn(
