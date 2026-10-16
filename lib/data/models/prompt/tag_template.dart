@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/extensions/list_sort_extensions.dart';
 import 'prompt_tag.dart';
 
 part 'tag_template.freezed.dart';
@@ -122,9 +123,7 @@ class TagTemplate with _$TagTemplate {
 extension TagTemplateListExtension on List<TagTemplate> {
   /// 按名称排序
   List<TagTemplate> sortByName() {
-    final sorted = [...this];
-    sorted.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    return sorted;
+    return [...this]..sortByKey((template) => template.name.toLowerCase());
   }
 
   /// 按更新时间排序（最新的在前）

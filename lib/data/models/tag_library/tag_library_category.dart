@@ -1,6 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/extensions/list_sort_extensions.dart';
+
 part 'tag_library_category.freezed.dart';
 part 'tag_library_category.g.dart';
 
@@ -82,9 +84,7 @@ extension TagLibraryCategoryListExtension on List<TagLibraryCategory> {
 
   /// 按名称排序
   List<TagLibraryCategory> sortedByName() {
-    final sorted = [...this];
-    sorted.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    return sorted;
+    return [...this]..sortByKey((category) => category.name.toLowerCase());
   }
 
   /// 构建分类树

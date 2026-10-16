@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/extensions/list_sort_extensions.dart';
+
 part 'tag_library_entry.freezed.dart';
 part 'tag_library_entry.g.dart';
 
@@ -280,10 +282,7 @@ extension TagLibraryEntryListExtension on List<TagLibraryEntry> {
 
   /// 按名称排序
   List<TagLibraryEntry> sortedByName() {
-    return [...this]..sort(
-        (a, b) =>
-            a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-      );
+    return [...this]..sortByKey((entry) => entry.displayName.toLowerCase());
   }
 
   /// 更新排序顺序

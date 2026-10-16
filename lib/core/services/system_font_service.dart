@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../extensions/list_sort_extensions.dart';
 import '../platform/platform_capabilities.dart';
 
 part 'system_font_service.g.dart';
@@ -39,7 +40,5 @@ SystemFontService systemFontService(Ref ref) {
 Future<List<String>> systemFonts(Ref ref) async {
   final service = ref.read(systemFontServiceProvider);
   final fonts = await service.getSystemFonts();
-  // 按字母排序
-  fonts.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-  return fonts;
+  return fonts..sortByKey((font) => font.toLowerCase());
 }

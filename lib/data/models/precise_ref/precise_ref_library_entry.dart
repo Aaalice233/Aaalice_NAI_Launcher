@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
+import '../../../core/extensions/list_sort_extensions.dart';
 
 part 'precise_ref_library_entry.freezed.dart';
 part 'precise_ref_library_entry.g.dart';
@@ -131,8 +132,7 @@ extension PreciseRefLibraryEntryListExtension on List<PreciseRefLibraryEntry> {
 
   /// 按名称排序
   List<PreciseRefLibraryEntry> sortedByName({bool descending = false}) {
-    final sorted = [...this]
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final sorted = [...this]..sortByKey((entry) => entry.name.toLowerCase());
     return descending ? sorted.reversed.toList() : sorted;
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/list_sort_extensions.dart';
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../../prompt_assistant/models/assistant_model_capability.dart';
@@ -180,9 +181,7 @@ class _ProviderModelListState extends ConsumerState<ProviderModelList> {
       ));
     }
     for (final entries in groups.values) {
-      entries.sort(
-        (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
-      );
+      entries.sortByKey((entry) => entry.label.toLowerCase());
     }
     final groupNames = groups.keys.toList()..sort();
     final collapsedByDefault =
