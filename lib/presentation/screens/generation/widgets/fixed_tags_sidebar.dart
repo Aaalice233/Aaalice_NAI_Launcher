@@ -68,7 +68,7 @@ double _gridCardHeight(BuildContext context) {
   final scaledLabelSize = MediaQuery.textScalerOf(context).scale(14);
   // 底行取链接锚点与操作按钮中较高者：前者看有无精确指针，后者看有无触摸，两条规则会错配。
   final footerExtent = math.max(
-    context.interactionPolicy.precisePointerAvailable ? 24.0 : 44.0,
+    SidebarEntryTile.linkAnchorExtentOf(context),
     TileActionButton.extentOf(context),
   );
   // 带缩略图的卡片最紧：正文只有一行，但正文区仅分到卡片 5/8 高度，按它标定基准。
@@ -225,104 +225,154 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
     FixedTagsState fixedState,
     bool isListMode,
   ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
-      child: Row(
+    const iconSize = 18.0;
+    const iconGap = 8.0;
+    const minimumTitleGlyphs = 5;
+    final title = Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.push_pin_rounded,
-            size: 18,
-            color: theme.colorScheme.secondary,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.fixedTags_sidebarTitle,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  context.l10n.fixedTags_enabledCount(
-                    fixedState.enabledCount + fixedState.negativeEnabledCount,
-                    fixedState.entries.length,
-                  ),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          Text(
+            context.l10n.fixedTags_sidebarTitle,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-          IconButton(
-            tooltip: isListMode
-                ? context.l10n.fixedTags_switchGridView
-                : context.l10n.fixedTags_switchListView,
-            icon: Icon(
-              isListMode ? Icons.grid_view_rounded : Icons.view_agenda_outlined,
-              size: 18,
+          Text(
+            context.l10n.fixedTags_enabledCount(
+              fixedState.enabledCount + fixedState.negativeEnabledCount,
+              fixedState.entries.length,
             ),
-            onPressed: () {
-              ref
-                  .read(layoutStateNotifierProvider.notifier)
-                  .setFixedTagsSidebarViewMode(isListMode ? 'grid' : 'list');
-            },
-          ),
-          PopupMenuButton<_AddAction>(
-            tooltip: context.l10n.fixedTags_add,
-            icon: const Icon(Icons.add_rounded, size: 20),
-            onSelected: (action) {
-              switch (action) {
-                case _AddAction.positive:
-                  _addEntry();
-                  break;
-                case _AddAction.negative:
-                  _addEntry(promptType: FixedTagPromptType.negative);
-                  break;
-                case _AddAction.libraryPositive:
-                  _addFromLibrary(FixedTagPromptType.positive);
-                  break;
-                case _AddAction.libraryNegative:
-                  _addFromLibrary(FixedTagPromptType.negative);
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: _AddAction.positive,
-                child: Text(context.l10n.fixedTags_addPositive),
-              ),
-              PopupMenuItem(
-                value: _AddAction.negative,
-                child: Text(context.l10n.fixedTags_addNegative),
-              ),
-              const PopupMenuDivider(),
-              PopupMenuItem(
-                value: _AddAction.libraryPositive,
-                child: Text(context.l10n.fixedTags_addPositiveFromLibrary),
-              ),
-              PopupMenuItem(
-                value: _AddAction.libraryNegative,
-                child: Text(context.l10n.fixedTags_addNegativeFromLibrary),
-              ),
-            ],
-          ),
-          IconButton(
-            key: const ValueKey('fixed-tags-collapse-sidebar'),
-            tooltip: context.l10n.nav_collapseSidebar,
-            icon: const Icon(Icons.chevron_left_rounded, size: 20),
-            onPressed: () {
-              ref
-                  .read(layoutStateNotifierProvider.notifier)
-                  .setFixedTagsSidebarExpanded(false);
-            },
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
     );
+    final leading = [
+      Icon(
+        Icons.push_pin_rounded,
+        size: iconSize,
+        color: theme.colorScheme.secondary,
+      ),
+      const SizedBox(width: iconGap),
+    ];
+    final actions = _buildHeaderActions(isListMode);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final titleWidth =
+              constraints.maxWidth -
+              iconSize -
+              iconGap -
+              actions.length * context.interactionPolicy.minimumControlExtent;
+          final glyphWidth = MediaQuery.textScalerOf(
+            context,
+          ).scale(theme.textTheme.titleSmall?.fontSize ?? 14);
+          // 标题放不下几个字时操作整体换到第二行，否则标题会被逐字折行。
+          if (titleWidth >= glyphWidth * minimumTitleGlyphs) {
+            return Row(children: [...leading, title, ...actions]);
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: [...leading, title]),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(mainAxisSize: MainAxisSize.min, children: actions),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // 显式定尺寸，换行判断才能按交互策略算出操作组宽度，不受主题密度和点击区补齐影响。
+  ButtonStyle _headerActionStyle() {
+    final extent = context.interactionPolicy.minimumControlExtent;
+    return IconButton.styleFrom(
+      minimumSize: Size.square(extent),
+      maximumSize: Size.square(extent),
+      padding: EdgeInsets.zero,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.standard,
+    );
+  }
+
+  List<Widget> _buildHeaderActions(bool isListMode) {
+    final style = _headerActionStyle();
+    return [
+      IconButton(
+        tooltip: isListMode
+            ? context.l10n.fixedTags_switchGridView
+            : context.l10n.fixedTags_switchListView,
+        style: style,
+        icon: Icon(
+          isListMode ? Icons.grid_view_rounded : Icons.view_agenda_outlined,
+          size: 18,
+        ),
+        onPressed: () {
+          ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setFixedTagsSidebarViewMode(isListMode ? 'grid' : 'list');
+        },
+      ),
+      PopupMenuButton<_AddAction>(
+        tooltip: context.l10n.fixedTags_add,
+        style: style,
+        icon: const Icon(Icons.add_rounded, size: 20),
+        onSelected: (action) {
+          switch (action) {
+            case _AddAction.positive:
+              _addEntry();
+              break;
+            case _AddAction.negative:
+              _addEntry(promptType: FixedTagPromptType.negative);
+              break;
+            case _AddAction.libraryPositive:
+              _addFromLibrary(FixedTagPromptType.positive);
+              break;
+            case _AddAction.libraryNegative:
+              _addFromLibrary(FixedTagPromptType.negative);
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: _AddAction.positive,
+            child: Text(context.l10n.fixedTags_addPositive),
+          ),
+          PopupMenuItem(
+            value: _AddAction.negative,
+            child: Text(context.l10n.fixedTags_addNegative),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: _AddAction.libraryPositive,
+            child: Text(context.l10n.fixedTags_addPositiveFromLibrary),
+          ),
+          PopupMenuItem(
+            value: _AddAction.libraryNegative,
+            child: Text(context.l10n.fixedTags_addNegativeFromLibrary),
+          ),
+        ],
+      ),
+      IconButton(
+        key: const ValueKey('fixed-tags-collapse-sidebar'),
+        tooltip: context.l10n.nav_collapseSidebar,
+        style: style,
+        icon: const Icon(Icons.chevron_left_rounded, size: 20),
+        onPressed: () {
+          ref
+              .read(layoutStateNotifierProvider.notifier)
+              .setFixedTagsSidebarExpanded(false);
+        },
+      ),
+    ];
   }
 
   Widget _buildSearchBar(ThemeData theme) {
@@ -873,9 +923,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         categoryColor: categoryColor,
         isListMode: true,
         linkAnchor: SizedBox.square(
-          dimension: context.interactionPolicy.precisePointerAvailable
-              ? 24
-              : 44,
+          dimension: SidebarEntryTile.linkAnchorExtentOf(context),
         ),
         onToggle: _noop,
         onEdit: _noop,
@@ -888,9 +936,7 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
 
   Widget _buildLinkAnchor(FixedTagEntry entry) {
     final theme = Theme.of(context);
-    final anchorExtent = context.interactionPolicy.precisePointerAvailable
-        ? 24.0
-        : 44.0;
+    final anchorExtent = SidebarEntryTile.linkAnchorExtentOf(context);
     final state = ref.watch(fixedTagsNotifierProvider);
     final linkedPositiveIds = entry.promptType == FixedTagPromptType.negative
         ? state.linkedPositivesOf(entry.id).map((linked) => linked.id).toList()
@@ -1599,7 +1645,11 @@ class _GroupedFixedTagCollectionState
       builder: (context, constraints) {
         const spacing = 7.0;
         final largeText = MediaQuery.textScalerOf(context).scale(14) >= 20;
-        final minimumCardWidth = largeText ? 220.0 : 140.0;
+        // 触屏下底行操作变宽，列宽按底行需求兜底，只有单列仍放不下时才收进更多菜单。
+        final minimumCardWidth = math.max(
+          largeText ? 220.0 : 140.0,
+          SidebarEntryTile.minimumCardWidthOf(context),
+        );
         final columnCount =
             ((constraints.crossAxisExtent + spacing) /
                     (minimumCardWidth + spacing))

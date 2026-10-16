@@ -17,6 +17,27 @@ import '../../../widgets/tag_library/tag_library_entry_hover_preview.dart';
 
 typedef SidebarDragHandleBuilder = Widget Function(Widget child);
 
+enum _SidebarEntryAction {
+  copy(Icons.copy_rounded),
+  edit(Icons.edit_rounded),
+  delete(Icons.delete_outline_rounded);
+
+  const _SidebarEntryAction(this.icon);
+
+  final IconData icon;
+
+  String label(BuildContext context) => switch (this) {
+    _SidebarEntryAction.copy => context.l10n.common_copy,
+    _SidebarEntryAction.edit => context.l10n.common_edit,
+    _SidebarEntryAction.delete => context.l10n.common_delete,
+  };
+
+  Color emphasisColor(ColorScheme colorScheme) =>
+      this == _SidebarEntryAction.delete
+      ? colorScheme.error
+      : colorScheme.primary;
+}
+
 /// A fixed-tag row or preview card.
 ///
 /// List and grid presentations share the same action, status, and text
@@ -44,6 +65,28 @@ class SidebarEntryTile extends StatefulWidget {
   final Widget? linkAnchor;
   final TagLibraryEntry? libraryEntry;
   final SidebarDragHandleBuilder? dragHandleBuilder;
+
+  static const _listPadding = EdgeInsets.symmetric(horizontal: 8, vertical: 5);
+  static const _cardPadding = EdgeInsets.fromLTRB(9, 8, 7, 7);
+  static const _statusIconSize = 18.0;
+  static const _statusGap = 7.0;
+  static const _linkAnchorGap = 4.0;
+  static const _inlineActionsGap = 6.0;
+  static const _minimumInlineLabelGlyphs = 4;
+  static const _maximumWeightWidthFraction = 0.4;
+
+  /// Side length callers must give [linkAnchor]; row layouts reserve it.
+  static double linkAnchorExtentOf(BuildContext context) =>
+      context.interactionPolicy.precisePointerAvailable ? 24 : 44;
+
+  /// Narrowest card whose footer fits the link anchor beside every action.
+  static double minimumCardWidthOf(BuildContext context) =>
+      _cardPadding.horizontal +
+      linkAnchorExtentOf(context) +
+      _inlineActionsExtentOf(context);
+
+  static double _inlineActionsExtentOf(BuildContext context) =>
+      _SidebarEntryAction.values.length * TileActionButton.extentOf(context);
 
   @override
   State<SidebarEntryTile> createState() => _SidebarEntryTileState();
@@ -121,47 +164,74 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   Widget _buildListContent(ThemeData theme) {
     final leading = [
       _buildStatusIcon(theme),
-      const SizedBox(width: 7),
+      const SizedBox(width: SidebarEntryTile._statusGap),
       if (widget.linkAnchor != null) ...[
         widget.linkAnchor!,
-        const SizedBox(width: 4),
+        const SizedBox(width: SidebarEntryTile._linkAnchorGap),
       ],
     ];
     final label = _buildDragRegion(
       _buildText(theme, maxLines: 1, includeWeight: true),
     );
-    // 大字号下行内操作会把名称和权重挤没，整体换到第二行而不是收进菜单。
-    final stacksActions = MediaQuery.textScalerOf(context).scale(14) >= 20;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      child: stacksActions
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    ...leading,
-                    Expanded(child: label),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _buildActions(theme),
-                ),
-              ],
-            )
-          : Row(
+      padding: SidebarEntryTile._listPadding,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (!_stacksListActions(theme, constraints.maxWidth)) {
+            return Row(
               children: [
                 ...leading,
                 Expanded(child: label),
-                const SizedBox(width: 6),
+                const SizedBox(width: SidebarEntryTile._inlineActionsGap),
                 _buildActions(theme),
               ],
-            ),
+            );
+          }
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  ...leading,
+                  Expanded(child: label),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _buildActions(
+                  theme,
+                  availableWidth: constraints.maxWidth,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
+  }
+
+  // 列表原型项按同一判断定行高，所以这里只能看宽度、字号和交互策略，不能看条目内容。
+  bool _stacksListActions(ThemeData theme, double rowWidth) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    if (textScaler.scale(14) >= 20) return true;
+    final anchorExtent = widget.linkAnchor == null
+        ? 0.0
+        : SidebarEntryTile.linkAnchorExtentOf(context) +
+              SidebarEntryTile._linkAnchorGap;
+    final labelWidth =
+        rowWidth -
+        SidebarEntryTile._statusIconSize -
+        SidebarEntryTile._statusGap -
+        anchorExtent -
+        SidebarEntryTile._inlineActionsGap -
+        SidebarEntryTile._inlineActionsExtentOf(context);
+    final glyphWidth = textScaler.scale(
+      theme.textTheme.labelLarge?.fontSize ?? 14,
+    );
+    return labelWidth < glyphWidth * SidebarEntryTile._minimumInlineLabelGlyphs;
   }
 
   Widget _buildCardContent(ThemeData theme) {
@@ -173,7 +243,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
         Expanded(
           flex: _hasThumbnail ? 5 : 1,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(9, 8, 7, 7),
+            padding: SidebarEntryTile._cardPadding,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -187,12 +257,22 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
                   ),
                 ),
                 const SizedBox(height: 5),
-                Row(
-                  children: [
-                    if (widget.linkAnchor != null) widget.linkAnchor!,
-                    const Spacer(),
-                    _buildActions(theme),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final anchorExtent = widget.linkAnchor == null
+                        ? 0.0
+                        : SidebarEntryTile.linkAnchorExtentOf(context);
+                    return Row(
+                      children: [
+                        if (widget.linkAnchor != null) widget.linkAnchor!,
+                        const Spacer(),
+                        _buildActions(
+                          theme,
+                          availableWidth: constraints.maxWidth - anchorExtent,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -233,31 +313,40 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            if (!widget.isListMode) ...[
-              _buildStatusIcon(theme),
-              const SizedBox(width: 7),
-            ],
-            Expanded(
-              child: Text(
-                widget.entry.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: foreground,
-                  fontWeight: widget.entry.enabled
-                      ? FontWeight.w700
-                      : FontWeight.w500,
+        LayoutBuilder(
+          builder: (context, constraints) => Row(
+            children: [
+              if (!widget.isListMode) ...[
+                _buildStatusIcon(theme),
+                const SizedBox(width: SidebarEntryTile._statusGap),
+              ],
+              Expanded(
+                child: Text(
+                  widget.entry.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: foreground,
+                    fontWeight: widget.entry.enabled
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-            // 权重宽度随字号增长，留成 Flexible 兜底，任何窄行都不会溢出。
-            if (includeWeight) ...[
-              const SizedBox(width: 6),
-              Flexible(child: _buildWeight(theme)),
+              // 权重只设宽度上限而不与名称等分弹性，名称才能拿到其余全部宽度。
+              if (includeWeight) ...[
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth:
+                        constraints.maxWidth *
+                        SidebarEntryTile._maximumWeightWidthFraction,
+                  ),
+                  child: _buildWeight(theme),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         if (widget.isListMode) const SizedBox(height: 1),
         Text(
@@ -275,7 +364,7 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   Widget _buildStatusIcon(ThemeData theme) {
     return Icon(
       widget.entry.enabled ? Icons.check_circle : Icons.radio_button_unchecked,
-      size: 18,
+      size: SidebarEntryTile._statusIconSize,
       color: widget.entry.enabled
           ? widget.categoryColor
           : theme.colorScheme.onSurfaceVariant,
@@ -298,41 +387,78 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
     );
   }
 
-  Widget _buildActions(ThemeData theme) {
-    final resting = theme.colorScheme.onSurfaceVariant;
+  // 行内放不下全部操作时收进更多菜单，单个触发器沿用同一命中区尺寸。
+  Widget _buildActions(
+    ThemeData theme, {
+    double availableWidth = double.infinity,
+  }) {
+    final collapsed =
+        availableWidth < SidebarEntryTile._inlineActionsExtentOf(context);
     return AnimatedOpacity(
       key: const ValueKey('sidebar-entry-actions'),
       opacity: _actionsHighlighted ? 1 : 0.4,
       duration: MediaQuery.disableAnimationsOf(context)
           ? Duration.zero
           : const Duration(milliseconds: 120),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TileActionButton(
-            icon: Icons.copy_rounded,
-            tooltip: context.l10n.common_copy,
-            color: resting,
-            hoverColor: theme.colorScheme.primary,
-            onPressed: () => unawaited(_copyContent()),
+      child: collapsed
+          ? _buildActionMenu(theme)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final action in _SidebarEntryAction.values)
+                  TileActionButton(
+                    icon: action.icon,
+                    tooltip: action.label(context),
+                    color: theme.colorScheme.onSurfaceVariant,
+                    hoverColor: action.emphasisColor(theme.colorScheme),
+                    onPressed: () => _perform(action),
+                  ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildActionMenu(ThemeData theme) {
+    return PopupMenuButton<_SidebarEntryAction>(
+      key: const ValueKey('sidebar-entry-more-actions'),
+      tooltip: context.l10n.common_moreActions,
+      onSelected: _perform,
+      itemBuilder: (context) => [
+        for (final action in _SidebarEntryAction.values)
+          PopupMenuItem(
+            value: action,
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                action.icon,
+                color: action == _SidebarEntryAction.delete
+                    ? theme.colorScheme.error
+                    : null,
+              ),
+              title: Text(action.label(context)),
+            ),
           ),
-          TileActionButton(
-            icon: Icons.edit_rounded,
-            tooltip: context.l10n.common_edit,
-            color: resting,
-            hoverColor: theme.colorScheme.primary,
-            onPressed: widget.onEdit,
-          ),
-          TileActionButton(
-            icon: Icons.delete_outline_rounded,
-            tooltip: context.l10n.common_delete,
-            color: resting,
-            hoverColor: theme.colorScheme.error,
-            onPressed: widget.onDelete,
-          ),
-        ],
+      ],
+      child: SizedBox.square(
+        dimension: TileActionButton.extentOf(context),
+        child: Icon(
+          Icons.more_horiz_rounded,
+          size: 15,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
+  }
+
+  void _perform(_SidebarEntryAction action) {
+    switch (action) {
+      case _SidebarEntryAction.copy:
+        unawaited(_copyContent());
+      case _SidebarEntryAction.edit:
+        widget.onEdit();
+      case _SidebarEntryAction.delete:
+        widget.onDelete();
+    }
   }
 
   Future<void> _copyContent() async {

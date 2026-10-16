@@ -19,6 +19,7 @@ import 'package:nai_launcher/presentation/screens/generation/generation_screen.d
 import 'package:nai_launcher/presentation/screens/generation/mobile_layout.dart';
 import 'package:nai_launcher/presentation/screens/generation/web_style_layout.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/resize_handle.dart';
 
 import '../../../helpers/flutter_error_collector.dart';
 
@@ -124,6 +125,62 @@ void main() {
         expect(find.text('Canvas'), findsOneWidget);
         expect(find.byIcon(Icons.brush_outlined), findsOneWidget);
         flutterErrors.expectNoErrors(reason: 'width=$width');
+      }
+
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
+
+  // 触屏呈现下拖拽手柄放宽到命中区尺寸，预留宽度必须随之变化，否则固定词槽位溢出并压住左侧手柄。
+  testWidgets(
+    'expanded touch layout reserves touch-sized handles around fixed tags',
+    (tester) async {
+      final flutterErrors = FlutterErrorCollector.install(tester);
+      addTearDown(flutterErrors.restoreAndAssertNoErrors);
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.windows,
+      );
+      const touchPolicy = InteractionPolicy(
+        modality: InteractionModality.touch,
+        touchAvailable: true,
+        precisePointerAvailable: true,
+      );
+
+      for (final width in [840.0, 1180.0, 1600.0]) {
+        final container = ProviderContainer(
+          overrides: [
+            shortcutConfigNotifierProvider.overrideWith(
+              _FakeShortcutConfigNotifier.new,
+            ),
+            layoutStateNotifierProvider.overrideWith(
+              _ExpandedFixedTagsLayoutNotifier.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.binding.setSurfaceSize(Size(width, 800));
+        await _pumpGeneration(
+          tester,
+          container: container,
+          interactionPolicy: touchPolicy,
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        flutterErrors.expectNoErrors(reason: 'width=$width');
+        final sidebar = tester.getRect(find.byType(FixedTagsSidebar));
+        for (final handle in tester.widgetList(find.byType(ResizeHandle))) {
+          final rect = tester.getRect(find.byWidget(handle));
+          expect(
+            rect.right <= sidebar.left + 0.01 ||
+                rect.left >= sidebar.right - 0.01,
+            isTrue,
+            reason: 'width=$width handle $rect overlaps sidebar $sidebar',
+          );
+        }
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        // 容器在测试结束前不释放，提示词计数的 400ms 防抖必须先走完。
+        await tester.pump(const Duration(milliseconds: 500));
       }
 
       await tester.binding.setSurfaceSize(null);
