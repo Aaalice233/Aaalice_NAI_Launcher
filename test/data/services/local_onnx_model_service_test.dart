@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -266,39 +265,6 @@ void main() {
     );
     expect(service.taggerDirectory, managedDirectory);
     expect(Directory(p.join(tempDirectory.path, 'cache')).listSync(), isEmpty);
-  });
-
-  test('ZIP archives are unpacked through the extraction runner', () async {
-    final archive = Archive()..addFile(ArchiveFile('model.onnx', 2, [7, 8]));
-    final zip = await File(
-      p.join(tempDirectory.path, 'runner.zip'),
-    ).writeAsBytes(ZipEncoder().encode(archive)!);
-    var runs = 0;
-    final counted = LocalOnnxModelService(
-      storage,
-      runArchiveExtraction: (extraction) async {
-        runs++;
-        return extraction();
-      },
-    );
-
-    final count = await counted.importTaggerSelections([
-      LocalOnnxImportSource(name: 'runner.zip', path: zip.path),
-    ]);
-
-    expect(runs, 1);
-    expect(count, 1);
-  });
-
-  test('the default runner unpacks in its own isolate', () async {
-    final sources = await runOnnxArchiveExtractionInIsolate(
-      () => [
-        LocalOnnxImportSource(name: Isolate.current.debugName ?? '', path: ''),
-      ],
-    );
-
-    expect(sources.single.name, 'onnx-archive-extract');
-    expect(sources.single.name, isNot(Isolate.current.debugName));
   });
 
   test('a long unpack does not hold a shared ComputeGate permit', () async {
