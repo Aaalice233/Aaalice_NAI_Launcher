@@ -48,6 +48,46 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('新增分支后直接展开编辑；父级更新配置时保留仍在范围内的选中分支', (tester) async {
+    var config = const ConditionalBranchConfig(
+      id: 'outfit',
+      name: 'Outfit',
+      branches: [ConditionalBranch(name: 'Uniform', probability: 60)],
+    );
+    late StateSetter setParent;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                setParent = setState;
+                return ConditionalBranchPanel(
+                  config: config,
+                  onConfigChanged: (next) => config = next!,
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Add Branch'));
+    await tester.pump();
+    expect(config.branches, hasLength(2));
+    expect(find.text('Edit: Branch 2'), findsOneWidget);
+
+    setParent(() => config = config.copyWith(name: 'Renamed'));
+    await tester.pump();
+    expect(find.text('Edit: Branch 2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final fontSize in [11.0, 15.0]) {
     testWidgets('概率条分段与分支概率徽标的字号取自主题 labelSmall=$fontSize', (tester) async {
       final base = ThemeData();
