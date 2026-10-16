@@ -210,6 +210,40 @@ void main() {
     slowRead.complete(null);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('缩略图跳转等待预取时滑动换页，旧的跳转作废', (tester) async {
+    await _useDesktopSurface(tester);
+    final slowRead = Completer<NaiImageMetadata?>();
+    final images = [
+      FileImageDetailData(
+        filePath: _neverCreatedPath('first'),
+        initialMetadata: _metadata,
+      ),
+      FileImageDetailData(
+        filePath: _neverCreatedPath('second'),
+        initialMetadata: _metadata,
+      ),
+      FileImageDetailData(
+        filePath: _neverCreatedPath('third'),
+        readCachedMetadata: (_) => slowRead.future,
+      ),
+    ];
+    await tester.pumpWidget(_app(home: ImageDetailViewer(images: images)));
+    await tester.pump();
+
+    await tester.tap(_thumbnailOf(images[2]));
+    await tester.pump();
+    // 滑动在等待时限内完成；fling 按距离与速度推进假时钟
+    await tester.fling(find.byType(PageView), const Offset(-500, 0), 5000);
+    await tester.pump();
+    expect(_topBarIndex('2 / 3'), findsOneWidget);
+
+    await tester.pump(_waitLimit);
+    await tester.pump(const Duration(seconds: 1));
+    expect(_topBarIndex('2 / 3'), findsOneWidget);
+
+    slowRead.complete(null);
+    await tester.pumpWidget(const SizedBox());
+  });
 }
 
 const _pathProvider = MethodChannel('plugins.flutter.io/path_provider');
