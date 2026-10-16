@@ -163,6 +163,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('开启后正文没有托管标题栏时在调试构建中报错，而不是静默丢失标题与关闭按钮', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => AdaptivePresenter.showForm<void>(
+                context: context,
+                title: _title,
+                headerScrollsWithContent: true,
+                builder: (context, controller) => ListView(
+                  controller: controller,
+                  shrinkWrap: true,
+                  children: const [Text('Body')],
+                ),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final error = tester.takeException();
+    expect(error, isA<FlutterError>());
+    expect('$error', contains('never hosted'));
+    expect(_header, findsNothing);
+  });
+
   testWidgets('未开启时标题栏仍固定在滚动视图之外，其他调用方的排布不变', (tester) async {
     await _openForm(
       tester,
