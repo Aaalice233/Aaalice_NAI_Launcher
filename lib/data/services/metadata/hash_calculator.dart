@@ -79,15 +79,18 @@ class FileHashCalculator {
     return hash;
   }
 
-  /// 同步返回与当前文件身份一致的已知哈希，文件变化或不存在时丢弃映射
+  /// 返回与当前文件身份一致的已知哈希，文件变化或不存在时丢弃映射
+  Future<String?> verifiedHashForPath(String filePath) async {
+    final cached = _pathEntries[filePath];
+    if (cached == null) return null;
+    return _verified(filePath, cached, await LocalFileIdentity.stat(filePath));
+  }
+
+  /// 同 [verifiedHashForPath]，只给首帧就要出结果的同步读取用
   String? verifiedHashForPathSync(String filePath) {
     final cached = _pathEntries[filePath];
     if (cached == null) return null;
-    if (cached.identity == LocalFileIdentity.statSync(filePath)) {
-      return cached.hash;
-    }
-    _forget(filePath, cached);
-    return null;
+    return _verified(filePath, cached, LocalFileIdentity.statSync(filePath));
   }
 
   /// 不校验文件身份，只用于按路径定位已发起的解析任务
@@ -138,6 +141,16 @@ class FileHashCalculator {
     } finally {
       _semaphore.release();
     }
+  }
+
+  String? _verified(
+    String filePath,
+    _PathHashEntry cached,
+    LocalFileIdentity? identity,
+  ) {
+    if (cached.identity == identity) return cached.hash;
+    _forget(filePath, cached);
+    return null;
   }
 
   void _forget(String filePath, _PathHashEntry stale) {

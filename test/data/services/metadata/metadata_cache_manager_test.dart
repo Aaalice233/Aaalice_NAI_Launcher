@@ -146,6 +146,21 @@ void main() {
       expect(manager.persistentHitRate, greaterThan(0));
     });
 
+    test('lookup answers from memory before reading the disk', () async {
+      final hash = '3' * 64;
+      await manager.save(hash, const NaiImageMetadata(prompt: 'layered'));
+      manager.resetStatistics();
+
+      expect((await manager.lookup(hash))?.prompt, 'layered');
+      expect(manager.getStatistics()['persistentHits'], 0);
+
+      manager.clearMemory();
+      expect((await manager.lookup(hash))?.prompt, 'layered');
+      expect(manager.getStatistics()['persistentHits'], 1);
+      expect(manager.getFromMemory(hash)?.prompt, 'layered');
+      expect(await manager.lookup('4' * 64), isNull);
+    });
+
     test('memory pressure drops the memory layer but keeps the disk', () async {
       final hash = '2' * 64;
       await manager.save(hash, const NaiImageMetadata(prompt: 'survivor'));

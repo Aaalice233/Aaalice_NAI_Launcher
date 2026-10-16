@@ -85,9 +85,11 @@ void main() {
       hashOf([7, 8, 9]),
     );
     expect(calculator.verifiedHashForPathSync(file.path), hashOf([7, 8, 9]));
+    expect(await calculator.verifiedHashForPath(file.path), hashOf([7, 8, 9]));
 
     await writeFile(file, [9, 8, 7], modified: DateTime(2026, 9, 2));
 
+    expect(await calculator.verifiedHashForPath(file.path), isNull);
     expect(calculator.verifiedHashForPathSync(file.path), isNull);
     expect(await hashAt(file.path), hashOf([9, 8, 7]));
     expect(calculator.verifiedHashForPathSync(file.path), hashOf([9, 8, 7]));
