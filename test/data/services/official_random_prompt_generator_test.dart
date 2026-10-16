@@ -379,43 +379,8 @@ void main() {
     expect(oceans, greaterThan(5));
   });
 
-  test('legwear hides the toes unless a value names an opening', () async {
-    final library = await service.getOfficialWordlist(WordlistType.v4);
-    final legwear = _values(library, 'dk');
-    final decorations = _values(library, 'dC');
-
-    for (final value in legwear) {
-      expect(
-        OfficialRandomPromptGenerator.legwearHidesToesForTest([value]),
-        isTrue,
-        reason: value,
-      );
-    }
-    for (final decoration in decorations) {
-      expect(
-        OfficialRandomPromptGenerator.legwearHidesToesForTest([
-          'thighhighs',
-          decoration,
-        ]),
-        isTrue,
-        reason: decoration,
-      );
-    }
-    for (final opened in [
-      ['thighhighs', 'toeless legwear'],
-      ['stirrup legwear'],
-      <String>[],
-      [''],
-    ]) {
-      expect(
-        OfficialRandomPromptGenerator.legwearHidesToesForTest(opened),
-        isFalse,
-        reason: '$opened',
-      );
-    }
-  });
-
   group('toenail polish follows bare feet', () {
+    const footlessLegwear = {'leggings', 'leg warmers'};
     late OfficialWordlist library;
     late List<_Role> girls;
     late Set<String> footwear;
@@ -460,16 +425,39 @@ void main() {
       );
     });
 
-    test('footwear or toe-covering legwear hides toenail polish', () {
+    test('leggings and leg warmers leave the feet bare', () {
+      final footless = girls
+          .where(
+            (role) =>
+                role.framing == 'full body' &&
+                role.wears(footlessLegwear) &&
+                !role.wears(legwear.difference(footlessLegwear)) &&
+                !role.wears(footwear),
+          )
+          .toList();
+
+      expect(legwear, containsAll(footlessLegwear));
+      expect(footless.length, greaterThan(20));
+      expect(
+        footless.where(paintsToenails).length,
+        greaterThan(footless.length ~/ 2),
+      );
+    });
+
+    test('footwear or feet-covering legwear hides toenail polish', () {
+      final feetCovering = legwear.difference(footlessLegwear);
       final covered = girls
           .where(
             (role) =>
                 role.framing == 'full body' &&
-                (role.wears(footwear) || role.wears(legwear)),
+                (role.wears(footwear) || role.wears(feetCovering)),
           )
           .toList();
 
-      expect(covered.length, greaterThan(100));
+      expect(
+        covered.where((role) => role.wears(feetCovering)).length,
+        greaterThan(100),
+      );
       expect(covered.where(paintsToenails), isEmpty);
     });
 

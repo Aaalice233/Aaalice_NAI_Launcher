@@ -98,10 +98,6 @@ class OfficialRandomPromptGenerator {
     required Set<String> globalState,
     required String gender,
   }) => _initialCharacterState(globalState, gender);
-
-  /// Exposes whether the legwear a role drew keeps its toes covered.
-  static bool legwearHidesToesForTest(List<String> legwear) =>
-      _legwearHidesToes(legwear);
 }
 
 class _OfficialRecipeEngine {
@@ -885,13 +881,13 @@ class _OfficialRecipeEngine {
     return tags.where((tag) => tag.isNotEmpty).toList(growable: false);
   }
 
-  /// Returns whether footwear or legwear hiding the toes was drawn.
+  /// Returns whether footwear or legwear covering the feet was drawn.
   bool _dressInSeparates(List<String> tags, Set<String> state, String gender) {
-    final legwear = <String>[];
+    var legwear = '';
     if (gender.startsWith('f') && chance(0.5)) {
-      legwear.add(characterChoice('dk', state));
-      if (chance(0.2)) legwear.add(characterChoice('dC', state));
-      tags.addAll(legwear);
+      legwear = characterChoice('dk', state);
+      tags.add(legwear);
+      if (chance(0.2)) tags.add(characterChoice('dC', state));
     }
     var wearsFootwear = false;
     final useDress = gender.startsWith('f') && chance(0.2);
@@ -915,7 +911,7 @@ class _OfficialRecipeEngine {
         }
       }
     }
-    return wearsFootwear || _legwearHidesToes(legwear);
+    return wearsFootwear || _legwearCoversFeet(legwear);
   }
 
   int _characterPromptCount(int count, Set<String> state) {
@@ -1034,12 +1030,11 @@ void _markBarefoot(Set<String> state, {required bool feetCovered}) {
   if (state.contains('feet') && !feetCovered) state.add('barefoot');
 }
 
-// No legwear record declares toe coverage; only a named opening uncovers toes.
-bool _legwearHidesToes(List<String> legwear) =>
-    legwear.any((value) => value.isNotEmpty) &&
-    !legwear.any((value) => _toeOpenings.any(value.contains));
+// The asset never declares foot coverage; only these legwear leave feet bare.
+bool _legwearCoversFeet(String legwear) =>
+    legwear.isNotEmpty && !_footlessLegwear.contains(legwear);
 
-const _toeOpenings = ['toeless', 'stirrup'];
+const _footlessLegwear = {'leggings', 'leg warmers'};
 
 bool _joinsBlockedTag(OfficialWordlistEntry entry, Set<String> blockedTags) =>
     blockedTags.isNotEmpty && entry.text.split(', ').any(blockedTags.contains);
