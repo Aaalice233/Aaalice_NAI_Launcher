@@ -137,24 +137,31 @@ class LocalFileImage extends ImageProvider<LocalFileImageKey> {
     LocalFileImageKey key,
     ImageDecoderCallback decode,
   ) async {
+    final ui.ImmutableBuffer buffer;
     try {
-      final file = File(path);
-      final lengthInBytes = await file.length();
-      if (lengthInBytes == 0) {
-        throw StateError('$file is empty and cannot be loaded as an image.');
-      }
-      // Pixels stored under an unknown identity would be shown again after the
-      // file vanishes, so a file that appeared after the stat is not decoded.
-      if (key.identity == null) {
-        throw StateError('$file appeared after its identity was resolved.');
-      }
-      return await decode(await ui.ImmutableBuffer.fromFilePath(file.path));
+      buffer = await _read(key);
     } catch (_) {
-      // A failed entry left in the cache would answer later resolves with the
-      // stale error even after the file becomes readable.
+      // A read can succeed later under the same identity, e.g. once a writer
+      // releases the file, so its error must not answer later resolves.
       PaintingBinding.instance.imageCache.evict(key);
       rethrow;
     }
+    // Undecodable bytes stay cached: the key changes as soon as the file does.
+    return decode(buffer);
+  }
+
+  Future<ui.ImmutableBuffer> _read(LocalFileImageKey key) async {
+    final file = File(path);
+    final lengthInBytes = await file.length();
+    if (lengthInBytes == 0) {
+      throw StateError('$file is empty and cannot be loaded as an image.');
+    }
+    // Pixels stored under an unknown identity would be shown again after the
+    // file vanishes, so a file that appeared after the stat is not decoded.
+    if (key.identity == null) {
+      throw StateError('$file appeared after its identity was resolved.');
+    }
+    return ui.ImmutableBuffer.fromFilePath(file.path);
   }
 
   @override
