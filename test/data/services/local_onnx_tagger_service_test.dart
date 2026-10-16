@@ -4,12 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
+import 'package:nai_launcher/core/utils/exif_orientation.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/data/services/local_onnx_model_service.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_labels.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_preprocessor.dart';
 import 'package:nai_launcher/data/services/local_onnx_tagger_service.dart';
 import 'package:nai_launcher/data/services/onnx_session_input_spec.dart';
+
+import '../../helpers/grayscale_png_fixture.dart';
 
 void main() {
   group('LocalOnnxTaggerService preprocessing', () {
@@ -60,10 +63,9 @@ void main() {
         path: 'wd-v1-4-vit-tagger-v2.onnx',
         kind: LocalOnnxModelKind.wd14Tagger,
       );
-      final gray = img.Image(width: 4, height: 4, numChannels: 1);
-      for (final pixel in gray) {
-        pixel.r = 160;
-      }
+      final gray = ExifOrientation.decodeUpright(
+        grayscalePng(width: 4, height: 4),
+      )!;
 
       final input = LocalOnnxTaggerPreprocessor.preprocess(gray, descriptor);
       const center = (224 * 448 + 224) * 3;
