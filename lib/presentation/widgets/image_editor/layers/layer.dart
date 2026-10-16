@@ -620,27 +620,13 @@ class Layer {
   @visibleForTesting
   Rect? get debugFlattenedBounds => _flattened == null ? null : _flattenedBounds;
 
-  /// 按屏幕显示的样子绘制，优先使用缓存；移动预览只在这里生效。
-  /// [pixelScale] 是文档到设备像素的缩放；[liveStroke] 是正在画进本层的一笔，只对蒙版层生效
+  /// 按屏幕显示的样子绘制图片层，优先使用缓存；移动预览只在这里生效。
+  /// 蒙版层由 [renderMaskOverlay] 成组绘制
   void renderWithCache(
     Canvas canvas, {
     Rect? viewportBounds,
     FilterQuality filterQuality = FilterQuality.none,
-    double pixelScale = 1,
-    StrokeData? liveStroke,
   }) {
-    if (isMask) {
-      renderMaskOverlay(
-        canvas,
-        [this],
-        viewportBounds: viewportBounds,
-        filterQuality: filterQuality,
-        pixelScale: pixelScale,
-        liveStroke: liveStroke,
-        liveLayerId: id,
-      );
-      return;
-    }
     if (!visible) return;
 
     final preview = _preview;
