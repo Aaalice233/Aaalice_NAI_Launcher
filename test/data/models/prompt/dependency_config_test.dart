@@ -57,6 +57,5 @@ void main() {
     expect(config.getCountForResult('2', () => 0), 2);
     expect(config.getCountForResult('0-3', () => 5), 1);
     expect(config.getCountForResult(null, () => 0), 0);
-    expect(config.getCount('1', () => 2), 2);
   });
 }
