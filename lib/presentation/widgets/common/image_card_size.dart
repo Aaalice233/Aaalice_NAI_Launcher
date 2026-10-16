@@ -4,11 +4,13 @@ import 'dart:ui';
 const double _fallbackMaxWidth = 500;
 const double _fallbackMaxMediaHeight = 650;
 
-/// Largest card in [maxSize] with [aspectRatio] media atop [footerHeight].
+/// Largest card in [maxSize] with [aspectRatio] media atop [footerHeight],
+/// widened to [minWidth] when [maxSize] allows; wider media letterboxes.
 Size fitImageCardSize({
   required double aspectRatio,
   required Size maxSize,
   double footerHeight = 0,
+  double minWidth = 0,
 }) {
   final safeAspectRatio = aspectRatio.isFinite && aspectRatio > 0
       ? aspectRatio
@@ -27,6 +29,7 @@ Size fitImageCardSize({
     mediaHeight = maxMediaHeight;
     width = mediaHeight * safeAspectRatio;
   }
+  width = math.max(width, math.min(minWidth, maxWidth));
 
   final height = mediaHeight.clamp(0.0, maxMediaHeight) + footer;
   return Size(

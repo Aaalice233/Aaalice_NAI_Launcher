@@ -20,10 +20,25 @@ class ImageComparisonToolbar extends StatelessWidget {
   });
 
   static const double _controlExtent = 44;
+  static const double _horizontalPadding = 12;
   static const double _verticalPadding = 6;
+  static const double _followLabelPadding = 10;
+  static const double _followLabelGap = 4;
 
   /// Laid-out height of the toolbar without zoom controls, which never wraps.
-  static double singleRowHeight(BuildContext context) {
+  static double singleRowHeight(BuildContext context) =>
+      math.max(_controlExtent, _followLabelSize(context).height) +
+      _verticalPadding * 2;
+
+  /// Width that shows the toolbar without zoom controls untruncated.
+  static double singleRowWidth(BuildContext context) =>
+      _followLabelSize(context).width.ceilToDouble() +
+      _followLabelPadding +
+      _followLabelGap +
+      _controlExtent +
+      _horizontalPadding * 2;
+
+  static Size _followLabelSize(BuildContext context) {
     final painter = TextPainter(
       text: TextSpan(
         text: context.l10n.comparison_followMouse,
@@ -34,9 +49,9 @@ class ImageComparisonToolbar extends StatelessWidget {
       locale: Localizations.maybeLocaleOf(context),
       maxLines: 1,
     )..layout();
-    final labelHeight = painter.height;
+    final size = painter.size;
     painter.dispose();
-    return math.max(_controlExtent, labelHeight) + _verticalPadding * 2;
+    return size;
   }
 
   static TextStyle _labelStyle(ThemeData theme) => theme.textTheme.labelMedium!
@@ -71,7 +86,7 @@ class ImageComparisonToolbar extends StatelessWidget {
           borderRadius: BorderRadius.circular(7),
           onTap: () => onFollowMouseChanged(!followMouse),
           child: Padding(
-            padding: const EdgeInsets.only(left: 10),
+            padding: const EdgeInsets.only(left: _followLabelPadding),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -82,7 +97,7 @@ class ImageComparisonToolbar extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: _followLabelGap),
                 ExcludeSemantics(
                   child: IgnorePointer(
                     child: SizedBox(
@@ -171,7 +186,7 @@ class ImageComparisonToolbar extends StatelessWidget {
       color: theme.colorScheme.surfaceContainerLow,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: 12,
+          horizontal: _horizontalPadding,
           vertical: _verticalPadding,
         ),
         child: DefaultTextStyle(
