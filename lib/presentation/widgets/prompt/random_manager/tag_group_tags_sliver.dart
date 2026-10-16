@@ -1,9 +1,12 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../../../../data/models/prompt/random_tag_group.dart';
 import '../../../../data/models/prompt/tag_category.dart';
+import '../../../../data/models/prompt/tag_library.dart';
+import '../../../../data/models/prompt/weighted_tag.dart';
 import '../../../providers/tag_library_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/translated_tag_text.dart';
@@ -24,7 +27,13 @@ class TagGroupTagsSliver extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    final tags = _watchTags(ref);
+    final tags = [
+      for (final tag in tagGroupTags(
+        group,
+        () => ref.watch(tagLibraryNotifierProvider).library,
+      ))
+        tag.tag,
+    ];
 
     return SliverPadding(
       padding: const EdgeInsets.all(16),
@@ -82,17 +91,20 @@ class TagGroupTagsSliver extends ConsumerWidget {
       ),
     );
   }
+}
 
-  // 内置词库来源的标签不存放在词组里，按来源分类从词库读取
-  List<String> _watchTags(WidgetRef ref) {
-    if (group.sourceType != TagGroupSourceType.builtin) {
-      return group.tags.map((tag) => tag.tag).toList();
-    }
-    final library = ref.watch(tagLibraryNotifierProvider).library;
-    final category = TagSubCategory.values
-        .where((category) => category.name == group.sourceId)
-        .firstOrNull;
-    if (library == null || category == null) return const [];
-    return library.getCategory(category).map((tag) => tag.tag).toList();
-  }
+/// 词组的全部标签；内置词库来源的标签不存放在词组里，按来源分类从词库读取
+///
+/// 只有内置词库来源才调用 [readLibrary]，其他来源不会因此加载词库。
+List<WeightedTag> tagGroupTags(
+  RandomTagGroup group,
+  TagLibrary? Function() readLibrary,
+) {
+  if (group.sourceType != TagGroupSourceType.builtin) return group.tags;
+  final category = TagSubCategory.values.firstWhereOrNull(
+    (category) => category.name == group.sourceId,
+  );
+  final library = readLibrary();
+  if (library == null || category == null) return const [];
+  return library.getCategory(category);
 }

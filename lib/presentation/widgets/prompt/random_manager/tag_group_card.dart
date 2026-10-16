@@ -10,15 +10,13 @@ import '../../../themes/core/layered_surface_style.dart';
 import '../../../../data/models/prompt/conditional_branch_targets.dart';
 import '../../../../data/models/prompt/random_category.dart';
 import '../../../../data/models/prompt/random_tag_group.dart';
-import '../../../../data/models/prompt/tag_category.dart';
 import 'branch_output_badge.dart';
 import 'probability_text.dart';
 import 'random_config_l10n.dart';
 import 'tag_group_edit_dialog.dart';
+import 'tag_group_tags_sliver.dart';
 
-/// 词组卡片组件
-///
-/// 显示词组信息，包括名称、概率、标签数量和 DIY 能力图标
+/// 词组卡片：名称、标签数与概率、已配置的 DIY 能力、启用开关与更多操作
 class TagGroupCard extends ConsumerStatefulWidget {
   const TagGroupCard({
     super.key,
@@ -94,60 +92,9 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                     padding: const EdgeInsets.fromLTRB(12, 7, 4, 7),
                     child: Row(
                       children: [
-                        if (widget.dragHandle != null)
-                          IconTheme(
-                            data: IconThemeData(
-                              size: 18,
-                              color: colors.onSurfaceVariant,
-                            ),
-                            child: SizedBox(
-                              width: 28,
-                              height: 40,
-                              child: Center(child: widget.dragHandle),
-                            ),
-                          )
-                        else
-                          Icon(
-                            _sourceIcon(tagGroup.sourceType),
-                            size: 18,
-                            color: colors.onSurfaceVariant,
-                          ),
+                        _buildLeading(colors),
                         const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                l10n.randomTagGroupName(tagGroup),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$tagCount · ${formatProbabilityPercent(tagGroup.probability)}',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: colors.onSurfaceVariant,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
-                              ),
-                              if (widget.branchOutputBy.isNotEmpty)
-                                BranchOutputBadge(
-                                  references: widget.branchOutputBy,
-                                  onOpen: (reference) => _showEditDialog(
-                                    context,
-                                    group: reference.owner,
-                                    initialBranchIndex: reference.branchIndex,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                        Expanded(child: _buildSummary(context, tagCount)),
                         ..._buildCapabilityIndicators(tagGroup, colors),
                         Switch(
                           value: tagGroup.enabled,
@@ -160,44 +107,7 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
                                       tagGroup.id,
                                     ),
                         ),
-                        PopupMenuButton<_TagGroupAction>(
-                          tooltip: l10n.randomManager_moreActions,
-                          onSelected: (action) {
-                            if (action == _TagGroupAction.edit) {
-                              _showEditDialog(context);
-                            } else {
-                              _deleteGroup(context);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: _TagGroupAction.edit,
-                              child: ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(Icons.tune_rounded),
-                                title: Text(l10n.common_edit),
-                              ),
-                            ),
-                            if (!widget.isPresetDefault)
-                              PopupMenuItem(
-                                value: _TagGroupAction.delete,
-                                child: ListTile(
-                                  dense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: Icon(
-                                    Icons.delete_outline_rounded,
-                                    color: colors.error,
-                                  ),
-                                  title: Text(
-                                    l10n.common_delete,
-                                    style: TextStyle(color: colors.error),
-                                  ),
-                                ),
-                              ),
-                          ],
-                          icon: const Icon(Icons.more_horiz_rounded, size: 19),
-                        ),
+                        _buildMenu(context),
                       ],
                     ),
                   ),
@@ -207,6 +117,99 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLeading(ColorScheme colors) {
+    final dragHandle = widget.dragHandle;
+    if (dragHandle == null) {
+      return Icon(
+        _sourceIcon(widget.tagGroup.sourceType),
+        size: 18,
+        color: colors.onSurfaceVariant,
+      );
+    }
+    return IconTheme(
+      data: IconThemeData(size: 18, color: colors.onSurfaceVariant),
+      child: SizedBox(width: 28, height: 40, child: Center(child: dragHandle)),
+    );
+  }
+
+  Widget _buildSummary(BuildContext context, int tagCount) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final tagGroup = widget.tagGroup;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.randomTagGroupName(tagGroup),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '$tagCount · ${formatProbabilityPercent(tagGroup.probability)}',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        if (widget.branchOutputBy.isNotEmpty)
+          BranchOutputBadge(
+            references: widget.branchOutputBy,
+            onOpen: (reference) => _showEditDialog(
+              context,
+              group: reference.owner,
+              initialBranchIndex: reference.branchIndex,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMenu(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
+    return PopupMenuButton<_TagGroupAction>(
+      tooltip: l10n.randomManager_moreActions,
+      onSelected: (action) {
+        switch (action) {
+          case _TagGroupAction.edit:
+            _showEditDialog(context);
+          case _TagGroupAction.delete:
+            _deleteGroup(context);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _TagGroupAction.edit,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.tune_rounded),
+            title: Text(l10n.common_edit),
+          ),
+        ),
+        if (!widget.isPresetDefault)
+          PopupMenuItem(
+            value: _TagGroupAction.delete,
+            child: ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.delete_outline_rounded, color: colors.error),
+              title: Text(
+                l10n.common_delete,
+                style: TextStyle(color: colors.error),
+              ),
+            ),
+          ),
+      ],
+      icon: const Icon(Icons.more_horiz_rounded, size: 19),
     );
   }
 
@@ -303,32 +306,14 @@ class _TagGroupCardState extends ConsumerState<TagGroupCard> {
       ?.categories
       .firstWhereOrNull((category) => category.id == widget.categoryId);
 
-  /// 构建标签预览文本
   String _buildTagPreview(AppLocalizations l10n, RandomTagGroup tagGroup) {
-    Iterable<String> tags;
-    var count = 0;
-
-    if (tagGroup.sourceType == TagGroupSourceType.builtin) {
-      final library = ref.read(tagLibraryNotifierProvider).library;
-      final sourceId = tagGroup.sourceId;
-      final category = sourceId == null
-          ? null
-          : TagSubCategory.values.cast<TagSubCategory?>().firstWhere(
-              (item) => item?.name == sourceId,
-              orElse: () => null,
-            );
-      final entries = category == null || library == null
-          ? null
-          : library.getCategory(category);
-      count = entries?.length ?? 0;
-      tags = entries?.take(10).map((item) => item.tag) ?? const [];
-    } else {
-      count = tagGroup.tags.length;
-      tags = tagGroup.tags.take(10).map((item) => item.tag);
-    }
-
+    final tags = tagGroupTags(
+      tagGroup,
+      () => ref.read(tagLibraryNotifierProvider).library,
+    );
+    final count = tags.length;
     if (count == 0) return l10n.naiMode_noTags;
-    final preview = tags.join(', ');
+    final preview = tags.take(10).map((tag) => tag.tag).join(', ');
     if (count > 10) {
       return '$preview … (${l10n.tagGroup_tagCount(count.toString())})';
     }
