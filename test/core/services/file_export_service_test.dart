@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -219,6 +220,26 @@ void main() {
     );
     expect(await File(failedPath).exists(), isFalse);
   });
+
+  test(
+    'temporary output keeps long CJK names within one 255-byte segment',
+    () async {
+      late String temporaryPath;
+      await FileExportService.withTemporaryOutput<void>(
+        fileName: '${'猫' * 120}.png',
+        action: (path) async {
+          temporaryPath = path;
+          await File(path).writeAsBytes([1]);
+        },
+      );
+
+      final leaf = p.basename(temporaryPath);
+      expect(leaf, startsWith('猫'));
+      expect(leaf, endsWith('.png'));
+      expect(utf8.encode(leaf).length, lessThanOrEqualTo(255));
+      expect(await Directory(p.dirname(temporaryPath)).exists(), isFalse);
+    },
+  );
 }
 
 class _TestPathProviderPlatform extends PathProviderPlatform {

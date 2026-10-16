@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../platform/platform_capabilities.dart';
+import '../save_naming/save_path_sanitizer.dart';
 import '../utils/file_name_sanitizer.dart';
 
 /// Writes generated files through the native document UI on Android.
@@ -20,6 +21,9 @@ class FileExportService {
   static const MethodChannel _channel = MethodChannel(
     'com.aaalice.nai_launcher/file_export',
   );
+
+  // Per-segment file name limit of ext4 and F2FS.
+  static const int _maxSegmentUtf8Bytes = 255;
 
   static bool get _isAndroid => PlatformCapabilities.operatingSystem.isAndroid;
 
@@ -211,16 +215,12 @@ class FileExportService {
     final tempRoot = await getTemporaryDirectory();
     final exportDirectory = Directory(p.join(tempRoot.path, 'exports'));
     await exportDirectory.create(recursive: true);
-    final suffix = DateTime.now().microsecondsSinceEpoch;
-    final temporaryFile = File(
-      p.join(exportDirectory.path, '${suffix}_${_safeFileName(fileName)}'),
-    );
+    // A unique directory lets the leaf skip a prefix and use the full limit.
+    final workDirectory = await exportDirectory.createTemp();
     try {
-      return await action(temporaryFile.path);
+      return await action(p.join(workDirectory.path, _safeFileName(fileName)));
     } finally {
-      if (await temporaryFile.exists()) {
-        await temporaryFile.delete();
-      }
+      await workDirectory.delete(recursive: true);
     }
   }
 
@@ -247,10 +247,11 @@ class FileExportService {
     final baseName = extension.isEmpty
         ? leafName
         : p.basenameWithoutExtension(leafName);
-    final safeBaseName = FileNameSanitizer.sanitize(
-      baseName,
-      fallback: 'export',
-      maxLength: 120,
+    final safeBaseName = SavePathSanitizer.truncate(
+      FileNameSanitizer.sanitize(baseName, fallback: 'export'),
+      maxUtf16Units: 120,
+      maxUtf8Bytes:
+          _maxSegmentUtf8Bytes - SavePathSanitizer.utf8Length(extension),
     );
     return '$safeBaseName$extension';
   }

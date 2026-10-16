@@ -317,6 +317,14 @@ void main() {
       final oldStaging = await Directory(
         '${oldArchive.path}.contents',
       ).create();
+      final workDirectory = await exportDirectory.createTemp();
+      await File(
+        p.join(workDirectory.path, 'nai-launcher-diagnostics-old.zip'),
+      ).writeAsString('old');
+      final unrelatedWorkDirectory = await exportDirectory.createTemp();
+      await File(
+        p.join(unrelatedWorkDirectory.path, 'other-export.zip'),
+      ).writeAsString('keep');
       final unrelated = await File(
         p.join(exportDirectory.path, 'other-export.zip'),
       ).writeAsString('keep');
@@ -331,6 +339,8 @@ void main() {
 
       expect(await oldArchive.exists(), isFalse);
       expect(await oldStaging.exists(), isFalse);
+      expect(await workDirectory.exists(), isFalse);
+      expect(await unrelatedWorkDirectory.exists(), isTrue);
       expect(await unrelated.exists(), isTrue);
     },
   );
