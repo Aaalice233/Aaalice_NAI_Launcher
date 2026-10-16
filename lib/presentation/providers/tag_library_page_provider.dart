@@ -99,12 +99,6 @@ class TagLibraryPageState {
     );
   }
 
-  /// 获取收藏条目数量
-  int get favoritesCount => entries.where((e) => e.isFavorite).length;
-
-  /// 获取所有条目数量
-  int get totalCount => entries.length;
-
   // 按输入而非实例记忆：视图模式、加载标志变化不重排，同一次构建多处读取也只算一次
   static final _filteredMemo =
       LastResultMemo<_TagLibraryCriteria, List<TagLibraryEntry>>();
@@ -912,51 +906,9 @@ typedef _EntryInserts = ({
 
 // ==================== 便捷 Providers ====================
 
-/// 获取当前筛选后的条目
-@riverpod
-List<TagLibraryEntry> filteredTagLibraryPageEntries(Ref ref) {
-  final state = ref.watch(tagLibraryPageNotifierProvider);
-  return state.filteredEntries;
-}
-
-/// 获取词库条目总数
-@riverpod
-int tagLibraryPageEntryCount(Ref ref) {
-  final state = ref.watch(tagLibraryPageNotifierProvider);
-  return state.totalCount;
-}
-
-/// 获取收藏数量
-@riverpod
-int tagLibraryPageFavoritesCount(Ref ref) {
-  final state = ref.watch(tagLibraryPageNotifierProvider);
-  return state.favoritesCount;
-}
-
 /// 获取分类列表
 @riverpod
 List<TagLibraryCategory> tagLibraryPageCategories(Ref ref) {
   final state = ref.watch(tagLibraryPageNotifierProvider);
   return state.categories;
-}
-
-/// 获取根级分类
-@riverpod
-List<TagLibraryCategory> tagLibraryPageRootCategories(Ref ref) {
-  final state = ref.watch(tagLibraryPageNotifierProvider);
-  return state.categories.rootCategories.sortedByOrder();
-}
-
-/// 获取当前选中的分类ID
-@riverpod
-String? selectedTagLibraryPageCategoryId(Ref ref) {
-  final state = ref.watch(tagLibraryPageNotifierProvider);
-  return state.selectedCategoryId;
-}
-
-/// 获取当前视图模式
-@riverpod
-TagLibraryViewMode tagLibraryPageViewMode(Ref ref) {
-  final state = ref.watch(tagLibraryPageNotifierProvider);
-  return state.viewMode;
 }

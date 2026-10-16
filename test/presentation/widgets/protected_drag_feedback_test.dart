@@ -307,6 +307,24 @@ void main() {
       );
     },
   );
+  test('retained metadata exports the saved file over memory bytes', () async {
+    final tempDir = await Directory.systemTemp.createTemp(
+      'card_image_drag_saved_file_',
+    );
+    addTearDown(() => tempDir.delete(recursive: true));
+    final file = File('${tempDir.path}/sample.png');
+    await file.writeAsBytes(const [1, 2, 3, 4]);
+
+    final resource = imageCardDragResource(
+      id: 'saved',
+      fileName: 'memory.png',
+      stripMetadata: false,
+      bytes: Uint8List.fromList(const [9, 9, 9]),
+      filePath: file.path,
+    );
+
+    expect(await resource.prepare!(), orderedEquals(const [1, 2, 3, 4]));
+  });
 }
 
 Key? _feedbackKey(WidgetTester tester) {

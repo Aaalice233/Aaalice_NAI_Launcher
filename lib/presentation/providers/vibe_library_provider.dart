@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -138,15 +137,7 @@ class VibeLibraryState with _$VibeLibraryState {
 
 enum VibeLibrarySortOrder { createdAt, lastUsed, usedCount, name }
 
-enum VibeLibraryBulkOperationType {
-  none,
-  import,
-  export,
-  delete,
-  favorite,
-  moveCategory,
-  updateTags,
-}
+enum VibeLibraryBulkOperationType { none, delete, moveCategory }
 
 @Riverpod(keepAlive: true)
 class VibeLibraryNotifier extends _$VibeLibraryNotifier {
@@ -586,49 +577,9 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
     return result;
   }
 
-  Future<List<VibeLibraryEntry>> getAllFullEntries() =>
-      _storage.getAllEntries();
-  Future<VibeLibraryEntry?> findFullEntryByName(String name) =>
-      _storage.findEntryByName(name);
   VibeLibraryEntry? getEntryById(String id) => state.entries
       .cast<VibeLibraryEntry?>()
       .firstWhere((entry) => entry?.id == id, orElse: () => null);
-  VibeLibraryCategory? getCategoryById(String id) => state.categories
-      .cast<VibeLibraryCategory?>()
-      .firstWhere((category) => category?.id == id, orElse: () => null);
-  int getEntryCountByCategory(String? id) =>
-      state.entries.where((entry) => entry.categoryId == id).length;
-  List<VibeLibraryEntry> getRecentEntries({int limit = 10}) =>
-      state.entries.sortedByLastUsed().take(limit).toList();
-  List<VibeLibraryEntry> getMostUsedEntries({int limit = 10}) =>
-      state.entries.sortedByUsedCount().take(limit).toList();
-  Map<String?, List<VibeLibraryCategory>> get categoryTree =>
-      state.categories.buildTree();
-
-  Future<int> bulkToggleFavorite(Iterable<String> ids) async {
-    final entryIds = ids.toList(growable: false);
-    if (entryIds.isEmpty) return 0;
-    _startBulkOperation(VibeLibraryBulkOperationType.favorite);
-    try {
-      var updated = 0;
-      for (var index = 0; index < entryIds.length; index++) {
-        if (await toggleFavorite(entryIds[index]) != null) updated++;
-        _updateBulkProgress(index + 1, entryIds.length);
-      }
-      return updated;
-    } catch (error, stackTrace) {
-      AppLogger.e(
-        'Failed to toggle favorites',
-        error,
-        stackTrace,
-        'VibeLibrary',
-      );
-      state = state.copyWith(error: error.toString());
-      return 0;
-    } finally {
-      _endBulkOperation();
-    }
-  }
 
   Future<VibeBulkOperationResult> bulkUpdateEncodingModel(
     Iterable<String> ids,
@@ -686,90 +637,6 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       return successCount;
     } catch (error, stackTrace) {
       AppLogger.e('Failed to bulk move', error, stackTrace, 'VibeLibrary');
-      state = state.copyWith(error: error.toString());
-      return 0;
-    } finally {
-      _endBulkOperation();
-    }
-  }
-
-  Future<List<String>> bulkExportEntries(
-    List<String> ids, {
-    String? exportDirectory,
-    void Function(int completed, int total)? onProgress,
-  }) async {
-    if (ids.isEmpty) return const [];
-    _startBulkOperation(VibeLibraryBulkOperationType.export);
-    final exportedPaths = <String>[];
-    try {
-      for (var index = 0; index < ids.length; index++) {
-        final entry = getEntryById(ids[index]);
-        final filePath = entry?.filePath;
-        if (filePath != null && filePath.isNotEmpty) {
-          if (exportDirectory == null || exportDirectory.isEmpty) {
-            exportedPaths.add(filePath);
-          } else {
-            try {
-              final source = File(filePath);
-              if (await source.exists()) {
-                final fileName = filePath.split(RegExp(r'[/\\]')).last;
-                final target =
-                    '$exportDirectory${Platform.pathSeparator}$fileName';
-                await source.copy(target);
-                exportedPaths.add(target);
-              }
-            } catch (error) {
-              AppLogger.w('Failed to export entry: $filePath', 'VibeLibrary');
-            }
-          }
-        }
-        final completed = index + 1;
-        _updateBulkProgress(completed, ids.length);
-        onProgress?.call(completed, ids.length);
-        if (completed % 5 == 0) await Future<void>.delayed(Duration.zero);
-      }
-      return exportedPaths;
-    } catch (error, stackTrace) {
-      AppLogger.e('Failed to bulk export', error, stackTrace, 'VibeLibrary');
-      state = state.copyWith(error: error.toString());
-      return exportedPaths;
-    } finally {
-      _endBulkOperation();
-    }
-  }
-
-  Future<int> bulkEditTags(
-    List<String> ids, {
-    List<String> tagsToAdd = const [],
-    List<String> tagsToRemove = const [],
-    bool replaceAll = false,
-    void Function(int completed, int total)? onProgress,
-  }) async {
-    if (ids.isEmpty) return 0;
-    _startBulkOperation(VibeLibraryBulkOperationType.updateTags);
-    try {
-      var successCount = 0;
-      for (var index = 0; index < ids.length; index++) {
-        final id = ids[index];
-        final entry = getEntryById(id);
-        if (entry != null) {
-          final tags = replaceAll
-              ? List<String>.of(tagsToAdd)
-              : (Set<String>.of(entry.tags)
-                      ..addAll(tagsToAdd)
-                      ..removeAll(tagsToRemove))
-                    .toList();
-          if (await updateEntryTags(id, tags) != null) successCount++;
-        }
-        final processed = index + 1;
-        _updateBulkProgress(processed, ids.length);
-        onProgress?.call(processed, ids.length);
-        if (processed % 10 == 0) await Future<void>.delayed(Duration.zero);
-      }
-      await loadFromCache();
-      return successCount;
-    } catch (error, stackTrace) {
-      AppLogger.e('Failed to bulk edit tags', error, stackTrace, 'VibeLibrary');
       state = state.copyWith(error: error.toString());
       return 0;
     } finally {
