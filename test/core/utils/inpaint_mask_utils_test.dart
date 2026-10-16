@@ -591,13 +591,12 @@ void main() {
 
         expect(result.status, MaskFillRegionStatus.filled);
         final patch = result.addedPatch!;
+        final decoded = img.decodeImage(patch.bytes)!;
         // drawRect 画的是 1 像素轮廓，新增的只有轮廓内部
         expect(
-          (patch.left, patch.top, patch.width, patch.height),
+          (patch.left, patch.top, decoded.width, decoded.height),
           (3, 5, 9, 13),
         );
-        final decoded = img.decodeImage(patch.bytes)!;
-        expect((decoded.width, decoded.height), (patch.width, patch.height));
         for (var y = 0; y < source.height; y++) {
           for (var x = 0; x < source.width; x++) {
             final added =
@@ -606,7 +605,7 @@ void main() {
             final px = x - patch.left;
             final py = y - patch.top;
             final inPatch =
-                px >= 0 && py >= 0 && px < patch.width && py < patch.height;
+                px >= 0 && py >= 0 && px < decoded.width && py < decoded.height;
             final alpha = inPatch ? decoded.getPixel(px, py).a.toInt() : 0;
             expect(alpha, added ? 160 : 0, reason: 'pixel ($x, $y)');
           }
@@ -625,8 +624,11 @@ void main() {
         height: 6,
       )!;
 
-      expect((patch.left, patch.top, patch.width, patch.height), (2, 1, 6, 4));
       final decoded = img.decodeImage(patch.bytes)!;
+      expect(
+        (patch.left, patch.top, decoded.width, decoded.height),
+        (2, 1, 6, 4),
+      );
       expect(decoded.getPixel(5, 0).a.toInt(), 140);
       expect(decoded.getPixel(0, 3).a.toInt(), 140);
       expect(decoded.getPixel(0, 0).a.toInt(), 0);
@@ -705,13 +707,8 @@ void main() {
         final patch = result.addedPatch!;
         final expectedPatch = expected.addedPatch!;
         expect(
-          (patch.left, patch.top, patch.width, patch.height),
-          (
-            expectedPatch.left,
-            expectedPatch.top,
-            expectedPatch.width,
-            expectedPatch.height,
-          ),
+          (patch.left, patch.top),
+          (expectedPatch.left, expectedPatch.top),
         );
         expect(patch.bytes, expectedPatch.bytes);
       },

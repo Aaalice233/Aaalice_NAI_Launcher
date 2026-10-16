@@ -259,8 +259,6 @@ class InpaintMaskUtils {
       ),
       left: left,
       top: top,
-      width: patchWidth,
-      height: patchHeight,
     );
   }
 

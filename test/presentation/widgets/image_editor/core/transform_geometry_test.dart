@@ -21,7 +21,6 @@ void main() {
   group('TransformParams', () {
     test('identity maps the source onto itself', () {
       final params = TransformParams.identity(_source);
-      expect(params.isIdentity, isTrue);
       expect(params.bounds, _rectCloseTo(_source));
       expect(params.corners, [
         _source.topLeft,

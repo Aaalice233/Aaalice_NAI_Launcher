@@ -40,8 +40,12 @@ void main() {
     return (state: state, source: source, mask: mask);
   }
 
+  List<EditorToolEntry> entriesIn(EditorToolSection section) => [
+    for (final slot in section.slots) ...slot.entries,
+  ];
+
   List<String> entryIds(EditorToolSection section) =>
-      section.entries.map((entry) => entry.tool.id).toList();
+      entriesIn(section).map((entry) => entry.tool.id).toList();
 
   List<List<String>> slotIds(EditorToolSection section) => [
     for (final slot in section.slots)
@@ -69,10 +73,9 @@ void main() {
     EditorToolGroup group,
     String toolId,
   ) {
-    return editorToolSections(state)
-        .singleWhere((section) => section.group == group)
-        .entries
-        .singleWhere((entry) => entry.tool.id == toolId);
+    return entriesIn(
+      sectionOf(state, group),
+    ).singleWhere((entry) => entry.tool.id == toolId);
   }
 
   group('editorToolSections', () {
@@ -108,15 +111,13 @@ void main() {
         'ellipse_selection',
         'lasso_selection',
       ]);
-      expect(
-        sections[0].entries.map((entry) => entry.targetRole).toSet(),
-        {LayerRole.mask},
-      );
-      expect(
-        sections[1].entries.map((entry) => entry.targetRole).toSet(),
-        {LayerRole.image},
-      );
-      expect(sections[2].entries.map((entry) => entry.targetRole).toSet(), {
+      expect(entriesIn(sections[0]).map((entry) => entry.targetRole).toSet(), {
+        LayerRole.mask,
+      });
+      expect(entriesIn(sections[1]).map((entry) => entry.targetRole).toSet(), {
+        LayerRole.image,
+      });
+      expect(entriesIn(sections[2]).map((entry) => entry.targetRole).toSet(), {
         null,
       });
       expect(showsEditorToolGroupTitles(state), isTrue);
@@ -133,15 +134,11 @@ void main() {
         EditorToolGroup.common,
       ]);
       expect(
-        sections
-            .expand((section) => section.entries)
-            .map((entry) => entry.tool.id),
+        sections.expand(entriesIn).map((entry) => entry.tool.id),
         isNot(contains(ClosedRegionFillTool.toolId)),
       );
       expect(
-        sections
-            .expand((section) => section.entries)
-            .every((entry) => entry.targetRole == null),
+        sections.expand(entriesIn).every((entry) => entry.targetRole == null),
         isTrue,
       );
       expect(showsEditorToolGroupTitles(state), isFalse);
@@ -168,7 +165,7 @@ void main() {
       final sections = editorToolSections(state);
 
       expect(entryIds(sections[0]).last, FrameTool.toolId);
-      expect(sections[0].entries.last.targetRole, isNull);
+      expect(entriesIn(sections[0]).last.targetRole, isNull);
       expect(entryIds(sections[2]), isNot(contains(FrameTool.toolId)));
     });
 
