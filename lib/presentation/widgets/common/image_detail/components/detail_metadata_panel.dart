@@ -24,7 +24,6 @@ import '../../save_as_preset_dialog.dart';
 import '../../save_vibe_dialog.dart';
 import '../../themed_divider.dart';
 import '../../model_family_icon.dart';
-import '../file_image_detail_data.dart';
 import '../image_detail_data.dart';
 import 'prompt_copy_dialog.dart';
 import 'prompt_section.dart';
@@ -92,16 +91,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     }
   }
 
-  /// 启动元数据加载（双通道架构）
-  ///
-  /// **前台高优先级通道**：
-  /// - 用户主动打开详情页时触发
-  /// - 立即开始解析，不受后台预加载队列影响
-  /// - 从后台队列中移除重复任务（避免重复解析）
-  ///
-  /// **支持的数据源**：
-  /// - [FileImageDetailData]: 从 PNG 文件解析（已保存的图像）
-  /// - [GeneratedImageDetailData]: 从内存字节解析（未保存的图像）
+  /// 同步读到有内容的元数据就直接用，否则交给数据源前台高优先级解析
   void _startMetadataLoading() {
     final image = widget.currentImage;
     if (image == null) {
@@ -124,7 +114,6 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
       'DetailMetadataPanel',
     );
 
-    // 1. 先检查同步可用的元数据
     final syncMetadata = image.metadata;
     AppLogger.d(
       '[MetadataFlow] syncMetadata check: hasData=${syncMetadata?.hasData}, has prompt="${syncMetadata?.fullPrompt.isNotEmpty == true}"',
@@ -141,70 +130,38 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
       return;
     }
 
-    // 2. 异步加载元数据（支持所有数据源）
     AppLogger.i(
       '[MetadataFlow] Cache miss, starting async load...',
       'DetailMetadataPanel',
     );
-    Future<NaiImageMetadata?>? future;
-    if (image is FileImageDetailData) {
-      AppLogger.d(
-        '[MetadataFlow] Using FileImageDetailData.getMetadataAsync()',
-        'DetailMetadataPanel',
-      );
-      future = image.getMetadataAsync();
-    } else if (image is GeneratedImageDetailData) {
-      AppLogger.d(
-        '[MetadataFlow] Using GeneratedImageDetailData.getMetadataAsync()',
-        'DetailMetadataPanel',
-      );
-      future = image.getMetadataAsync();
-    } else if (image is LocalImageDetailData) {
-      AppLogger.d(
-        '[MetadataFlow] Using LocalImageDetailData.getMetadataAsync()',
-        'DetailMetadataPanel',
-      );
-      future = image.getMetadataAsync();
-    } else {
-      AppLogger.w(
-        '[MetadataFlow] Unknown image type: ${image.runtimeType}',
-        'DetailMetadataPanel',
-      );
-    }
-
-    if (future != null) {
-      // 切图后加载期间不能沿用上一张的元数据，上一张晚到的结果也不能盖掉这一张
-      _loadedMetadata = null;
-      _metadataFuture = future
-          .then((metadata) {
-            AppLogger.i(
-              '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
-              'DetailMetadataPanel',
-            );
-            if (mounted &&
-                widget.currentImage?.identifier == image.identifier) {
-              setState(() => _loadedMetadata = metadata);
-            }
-            return metadata;
-          })
-          .catchError((e, stack) {
-            AppLogger.e(
-              '[MetadataFlow] Async load failed',
-              e,
-              stack,
-              'DetailMetadataPanel',
-            );
-            throw e;
-          });
-    } else {
-      _metadataFuture = null;
-      _loadedMetadata = null;
-    }
+    // 切图后加载期间不能沿用上一张的元数据，上一张晚到的结果也不能盖掉这一张
+    _loadedMetadata = null;
+    _metadataFuture = image
+        .getMetadataAsync()
+        .then((metadata) {
+          AppLogger.i(
+            '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
+            'DetailMetadataPanel',
+          );
+          if (mounted &&
+              widget.currentImage?.identifier == image.identifier) {
+            setState(() => _loadedMetadata = metadata);
+          }
+          return metadata;
+        })
+        .catchError((e, stack) {
+          AppLogger.e(
+            '[MetadataFlow] Async load failed',
+            e,
+            stack,
+            'DetailMetadataPanel',
+          );
+          throw e;
+        });
   }
 
   Future<void> _loadFileInfo(ImageDetailData image) async {
-    if (image is! FileImageDetailData) return;
-    final FileInfo info;
+    final FileInfo? info;
     try {
       info = await image.getFileInfoAsync();
     } catch (error) {
@@ -214,17 +171,17 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
       );
       return;
     }
-    if (!mounted || widget.currentImage?.identifier != image.identifier) return;
+    if (info == null ||
+        !mounted ||
+        widget.currentImage?.identifier != image.identifier) {
+      return;
+    }
     setState(() => _fileInfo = info);
   }
 
   Future<void> _loadActualImageSize(ImageDetailData image) async {
     try {
-      final filePath = switch (image) {
-        FileImageDetailData() => image.filePath,
-        LocalImageDetailData() => image.record.path,
-        _ => null,
-      };
+      final filePath = image.fileInfo?.path;
       final headerSize = filePath == null
           ? null
           : await _tryReadImageHeaderSize(filePath);

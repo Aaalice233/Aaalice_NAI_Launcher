@@ -303,7 +303,7 @@ class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {
   Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
 }
 
-class _TestImageData implements ImageDetailData {
+class _TestImageData extends ImageDetailData {
   _TestImageData(this.identifier, this.bytes);
 
   final Uint8List bytes;
