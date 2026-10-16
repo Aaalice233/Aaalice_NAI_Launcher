@@ -41,6 +41,18 @@ abstract final class DecodedImageSize {
     return (gate ?? ComputeGate()).runIsolate(() => _decodeSize(bytes));
   }
 
+  /// 同 [read]，但无法解码时返回 null 而不是抛出。
+  static Future<(int, int)?> tryRead(
+    Uint8List bytes, {
+    ComputeGate? gate,
+  }) async {
+    try {
+      return await read(bytes, gate: gate);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static (int, int)? _decodeSize(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
     return decoded == null ? null : (decoded.width, decoded.height);

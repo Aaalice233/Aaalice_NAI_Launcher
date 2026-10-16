@@ -76,6 +76,25 @@ void main() {
       }
     });
 
+    test('regular upscale targets the EXIF-oriented size', () async {
+      // ComfyUI 的 LoadImage 会先按 EXIF 方向转正再交给放大模型
+      final rotated = img.Image(width: 320, height: 200)
+        ..exif.imageIfd.orientation = 6;
+      final harness = _Harness(
+        source: Uint8List.fromList(img.encodeJpg(rotated)),
+        module: ComfyUpscaleModule.regular,
+        scale: 1.0,
+        results: [unreadable],
+      );
+      addTearDown(harness.dispose);
+
+      await harness.run();
+
+      expect(harness.paramValues?['target_width'], 200);
+      expect(harness.paramValues?['target_height'], 320);
+      expect((harness.registeredWidth, harness.registeredHeight), (200, 320));
+    });
+
     test(
       'seedvr2 target resolution follows the source shortest side',
       () async {

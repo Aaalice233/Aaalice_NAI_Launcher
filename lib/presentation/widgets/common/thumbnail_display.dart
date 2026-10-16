@@ -2,9 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import 'package:image/image.dart' as img;
-
 import '../../../core/cache/local_file_image.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import 'image_viewport_surface.dart';
 
 /// 缩略图显示组件
@@ -73,10 +72,9 @@ class _ThumbnailDisplayState extends State<ThumbnailDisplay> {
 
     try {
       final bytes = await file.readAsBytes();
-      final decoder = img.findDecoderForData(bytes);
-      final info = decoder?.startDecode(bytes);
-      if (info == null) return null;
-      return Size(info.width.toDouble(), info.height.toDouble());
+      final size = NaiResolutionAdapter.readImageSize(bytes);
+      if (size == null) return null;
+      return Size(size.$1.toDouble(), size.$2.toDouble());
     } catch (_) {
       return null;
     }

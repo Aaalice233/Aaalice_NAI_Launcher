@@ -11,7 +11,7 @@ import '../../../core/agent/harness/harness_result.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../core/utils/decoded_image_size.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
@@ -607,7 +607,8 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
       return agentToolError('invalid_draft', 'Ready draft has no mask.');
     }
     final source = await _repository.readSource(id);
-    final size = NaiResolutionAdapter.readImageSize(source);
+    // 蒙版按解码后的源图像素生成，面板尺寸必须与之一致
+    final size = await DecodedImageSize.tryRead(source);
     if (size == null) {
       return agentToolError(
         'invalid_draft',
