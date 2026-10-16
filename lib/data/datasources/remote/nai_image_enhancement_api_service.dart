@@ -62,7 +62,7 @@ class NAIImageEnhancementApiService {
     int scale = 2,
     void Function(int, int)? onProgress,
   }) async {
-    final upload = await _orientedUpload(image);
+    final upload = await ExifOrientation.bakeToPngAsync(image);
     final activity = _networkActivity.acquire(
       CriticalNetworkActivityType.cloudUpscale,
     );
@@ -136,10 +136,6 @@ class NAIImageEnhancementApiService {
     }
   }
 
-  // 官网经 canvas 上传已转正的 PNG，带 EXIF 方向的 JPEG 与 WebP 不能原样发出
-  static Future<Uint8List> _orientedUpload(Uint8List image) =>
-      ExifOrientation.bakeToPngAsync(image);
-
   static Future<(int, int)> _readImageSize(Uint8List image) async {
     final size = await DecodedImageSize.read(image);
     if (size == null) {
@@ -183,7 +179,7 @@ class NAIImageEnhancementApiService {
     required String model,
     double informationExtracted = 1.0,
   }) async {
-    final upload = await _orientedUpload(image);
+    final upload = await ExifOrientation.bakeToPngAsync(image);
     final activity = _networkActivity.acquire(
       CriticalNetworkActivityType.vibeEncoding,
     );
@@ -219,7 +215,7 @@ class NAIImageEnhancementApiService {
     String? prompt,
     int defry = 0,
   }) async {
-    final upload = await _orientedUpload(image);
+    final upload = await ExifOrientation.bakeToPngAsync(image);
     final activity = _networkActivity.acquire(
       CriticalNetworkActivityType.directorTool,
     );
