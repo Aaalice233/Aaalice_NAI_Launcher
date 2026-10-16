@@ -7,7 +7,6 @@ import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/tag_library.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/adaptive/adaptive_pinned_header_sliver.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_group_sync_provider.dart';
@@ -15,13 +14,13 @@ import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
 import 'package:nai_launcher/presentation/screens/prompt_config/prompt_config_screen.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/category_card.dart';
 
+import '../../../helpers/adaptive_panel_expectations.dart';
 import '../../../helpers/reachability_expectations.dart';
+import '../../../helpers/viewport_scenarios.dart';
 
-const _widths = [320.0, 600.0, 840.0, 1180.0, 1600.0];
 const _landscape = Size(740, 360);
 const _portrait = Size(412, 900);
 const _keyboardInset = 160.0;
-const _landscapePadding = FakeViewPadding(left: 32, right: 48);
 
 final _preset = RandomPreset(
   id: 'custom',
@@ -70,11 +69,7 @@ Future<void> _pumpScreen(
   double keyboard = 0,
   TagLibraryNotifier Function() library = _Library.new,
 }) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.padding = padding;
-  tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
-  addTearDown(tester.view.reset);
+  applyViewport(tester, (size: size, keyboard: keyboard, padding: padding));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -82,19 +77,10 @@ Future<void> _pumpScreen(
         tagLibraryNotifierProvider.overrideWith(library),
         tagGroupSyncNotifierProvider.overrideWith(_IdleSync.new),
       ],
-      child: MaterialApp(
+      child: localizedTestApp(
         locale: Locale(locale),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => InteractionPolicyScope(
-          initialPolicy: InteractionPolicy.touchFirst,
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
-          ),
-        ),
+        textScale: textScale,
+        interactionPolicy: InteractionPolicy.touchFirst,
         home: const PromptConfigScreen(),
       ),
     ),
@@ -183,14 +169,6 @@ Future<void> _expectRecipeUsable(WidgetTester tester, String reason) async {
   }
 }
 
-Finder _buttonWithText(String text) => find.ancestor(
-  of: find.text(text, skipOffstage: false),
-  matching: find.byWidgetPredicate(
-    (widget) => widget is ButtonStyleButton,
-    skipOffstage: false,
-  ),
-);
-
 Future<void> _expectPreviewUsable(WidgetTester tester, String reason) async {
   final generate = _key('random-manager-generate-sample');
   await revealOnScreen(tester, generate);
@@ -198,7 +176,7 @@ Future<void> _expectPreviewUsable(WidgetTester tester, String reason) async {
 }
 
 Future<void> _expectAlgorithmUsable(WidgetTester tester, String reason) async {
-  final globalSettings = _buttonWithText(
+  final globalSettings = buttonLabeled(
     _l10n(tester).randomManager_globalPeopleSettings,
   );
   await revealOnScreen(tester, globalSettings);
@@ -220,10 +198,7 @@ Future<void> _selectSection(WidgetTester tester, String label) async {
       .first;
   await revealOnScreen(tester, segment);
   expectReachable(tester, segment, reason: '分区 $label');
-  await tester.tapAt(
-    tester.getRect(segment).intersect(visibleViewRect(tester)).center,
-  );
-  await tester.pumpAndSettle();
+  await tapVisiblePart(tester, segment);
 }
 
 Future<void> _expectWorkspaceUsable(
@@ -247,17 +222,6 @@ Future<void> _expectWorkspaceUsable(
     await _selectSection(tester, l10n.randomManager_recipeTitle);
   }
   expect(tester.takeException(), isNull, reason: reason);
-}
-
-RenderAdaptivePinnedHeaderSliver _pinnedSliverOf(
-  WidgetTester tester,
-  Finder child,
-) {
-  RenderObject? node = tester.renderObject(child);
-  while (node is! RenderAdaptivePinnedHeaderSliver) {
-    node = node!.parent;
-  }
-  return node;
 }
 
 FocusNode _searchFocus(WidgetTester tester) => tester
@@ -335,7 +299,7 @@ void main() {
       testWidgets('随机词库在 320–1600 宽度、$locale、${textScale}x 文字下无溢出且各分区操作可达', (
         tester,
       ) async {
-        for (final width in _widths) {
+        for (final width in responsiveWidths) {
           await _pumpScreen(
             tester,
             size: Size(width, 900),
@@ -353,7 +317,7 @@ void main() {
         tester,
       ) async {
         for (final keyboard in [0.0, _keyboardInset]) {
-          for (final padding in [FakeViewPadding.zero, _landscapePadding]) {
+          for (final padding in [FakeViewPadding.zero, landscapePadding]) {
             await _pumpScreen(
               tester,
               size: _landscape,
@@ -376,7 +340,7 @@ void main() {
 
   testWidgets('竖屏高度充足时总览与标题栏固定在列表上方，横屏时随列表一起滚动', (tester) async {
     await _pumpScreen(tester, size: _portrait);
-    expect(_pinnedSliverOf(tester, _searchField()).isPinned, isTrue);
+    expect(pinnedHeaderSliverOf(tester, _searchField()).isPinned, isTrue);
     final searchTop = tester.getTopLeft(_searchField()).dy;
     final moreTop = tester.getTopLeft(_key('random-manager-more-actions')).dy;
     await tester.drag(
@@ -390,7 +354,7 @@ void main() {
     expectReachable(tester, _searchField(), reason: '固定的搜索框');
 
     await _resize(tester, size: _landscape);
-    expect(_pinnedSliverOf(tester, _searchField()).isPinned, isFalse);
+    expect(pinnedHeaderSliverOf(tester, _searchField()).isPinned, isFalse);
     _categoryPosition(tester).jumpTo(0);
     await tester.pumpAndSettle();
     final landscapeSearchTop = tester.getTopLeft(_searchField()).dy;
@@ -453,10 +417,10 @@ void main() {
         )
         .focusNode;
     expect(focus.hasFocus, isTrue);
-    expect(_pinnedSliverOf(tester, _searchField()).isPinned, isTrue);
+    expect(pinnedHeaderSliverOf(tester, _searchField()).isPinned, isTrue);
 
     await _resize(tester, keyboard: 500);
-    expect(_pinnedSliverOf(tester, _searchField()).isPinned, isFalse);
+    expect(pinnedHeaderSliverOf(tester, _searchField()).isPinned, isFalse);
     expect(focus.hasFocus, isTrue);
     expect(
       tester.widget<TextField>(_searchField()).controller!.text,
@@ -466,7 +430,7 @@ void main() {
     expectReachable(tester, _searchField(), reason: '键盘弹出后仍可见的搜索框');
 
     await _resize(tester, keyboard: 0);
-    expect(_pinnedSliverOf(tester, _searchField()).isPinned, isTrue);
+    expect(pinnedHeaderSliverOf(tester, _searchField()).isPinned, isTrue);
     expect(focus.hasFocus, isTrue);
     expect(_isExpanded(tester, target), isTrue);
     expect(tester.takeException(), isNull);
@@ -529,7 +493,7 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     await _expectChromeUsable(tester, '加载失败');
-    final retry = _buttonWithText(_l10n(tester).common_retry);
+    final retry = buttonLabeled(_l10n(tester).common_retry);
     await revealOnScreen(tester, retry);
     expectReachable(tester, retry, reason: '重试');
   });

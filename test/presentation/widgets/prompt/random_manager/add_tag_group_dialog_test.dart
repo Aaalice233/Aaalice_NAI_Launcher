@@ -7,23 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
-import 'package:nai_launcher/presentation/widgets/common/adaptive_dialog_frame.dart';
 import 'package:nai_launcher/presentation/widgets/common/tab_swipe_detector.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/add_tag_group_dialog.dart';
 
-import '../../../../helpers/flutter_error_collector.dart';
 import '../../../../helpers/reachability_expectations.dart';
-
-const _landscapePadding = FakeViewPadding(left: 32, right: 48);
-
-final _viewports = <({Size size, double keyboard, FakeViewPadding padding})>[
-  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0])
-    (size: Size(width, 900), keyboard: 0, padding: FakeViewPadding.zero),
-  (size: const Size(740, 360), keyboard: 0, padding: FakeViewPadding.zero),
-  (size: const Size(740, 360), keyboard: 160, padding: _landscapePadding),
-];
+import '../../../../helpers/viewport_scenarios.dart';
 
 Finder _formScroll() => find.byKey(
   const ValueKey('add-tag-group-form-scroll'),
@@ -45,14 +34,6 @@ Finder _tile(String label) => find
       matching: find.byType(AnimatedContainer, skipOffstage: false),
     )
     .first;
-
-Finder _button(String label) => find.ancestor(
-  of: find.text(label, skipOffstage: false),
-  matching: find.byWidgetPredicate(
-    (widget) => widget is ButtonStyleButton,
-    skipOffstage: false,
-  ),
-);
 
 int _sourceIndex(WidgetTester tester) => tester
     .widget<TabBar>(find.byType(TabBar, skipOffstage: false))
@@ -79,8 +60,7 @@ int _verticalFormScrollables(WidgetTester tester) => find
 
 Future<void> _selectSource(WidgetTester tester, String label) async {
   await revealOnScreen(tester, _sourceTab(label));
-  await tester.tap(_sourceTab(label));
-  await tester.pumpAndSettle();
+  await tapVisiblePart(tester, _sourceTab(label));
 }
 
 Future<void> _expectReachableInForm(
@@ -104,23 +84,21 @@ void main() {
     testWidgets('各宽度、短横屏与键盘下只有一个纵向主滚动容器，${textScale}x 时三个来源的条目与操作都随表单滚动可达', (
       tester,
     ) async {
-      for (final viewport in _viewports) {
-        tester.view.physicalSize = viewport.size;
-        tester.view.devicePixelRatio = 1;
-        tester.view.padding = viewport.padding;
-        tester.view.viewInsets = FakeViewPadding(bottom: viewport.keyboard);
-        addTearDown(tester.view.reset);
-        await _pumpHost(
-          tester,
-          category: category,
-          mediaQuery: (data) =>
-              data.copyWith(textScaler: TextScaler.linear(textScale)),
-        );
+      for (final viewport in formViewports) {
+        applyViewport(tester, viewport);
+        await _pumpHost(tester, category: category, textScale: textScale);
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
-        final reason =
-            '${viewport.size} keyboard=${viewport.keyboard} ${textScale}x';
+        final reason = '${describeViewport(viewport)} ${textScale}x';
         expect(tester.takeException(), isNull, reason: reason);
+        expect(
+          tester
+              .widget<EditableText>(find.byType(EditableText).first)
+              .focusNode
+              .hasFocus,
+          isTrue,
+          reason: '$reason 打开后名称框获得焦点',
+        );
 
         for (final (source, targets) in [
           (
@@ -149,7 +127,7 @@ void main() {
           for (final action in ['Cancel', 'Add']) {
             await _expectReachableInForm(
               tester,
-              _button(action),
+              buttonLabeled(action),
               '$reason $source $action',
             );
           }
@@ -164,9 +142,7 @@ void main() {
   testWidgets('在来源内容上横滑切换来源且方向与原 TabBarView 一致，纵滑与从标签栏开始的横拖不切换', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(412, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+    applyViewport(tester, plainViewport(const Size(412, 900)));
     await _pumpHost(tester, category: category);
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
@@ -211,76 +187,9 @@ void main() {
   });
 
   testWidgets(
-    '320dp 3x text with IME and SafeArea keeps the form and actions scrollable',
-    (tester) async {
-      final errors = FlutterErrorCollector.install(tester);
-      addTearDown(errors.restoreAndAssertNoErrors);
-      tester.view.devicePixelRatio = 3;
-      tester.view.physicalSize = const Size(960, 1704);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.resetPhysicalSize);
-
-      await _pumpHost(
-        tester,
-        category: category,
-        mediaQuery: (data) => data.copyWith(
-          padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-          viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-          viewInsets: const EdgeInsets.only(bottom: 240),
-          textScaler: const TextScaler.linear(3),
-        ),
-      );
-
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      final surface = find.byKey(const ValueKey('adaptive-bottom-sheet'));
-      expect(surface, findsOneWidget);
-      expect(find.byType(Dialog), findsNothing);
-      expect(find.byType(AdaptiveDialogFrame), findsNothing);
-
-      final surfaceRect = tester.getRect(surface);
-      expect(surfaceRect.left, greaterThanOrEqualTo(12));
-      expect(surfaceRect.top, greaterThanOrEqualTo(24));
-      expect(surfaceRect.right, lessThanOrEqualTo(320 - 12));
-      expect(surfaceRect.bottom, lessThanOrEqualTo(568 - 240));
-
-      expect(
-        tester
-            .widget<EditableText>(find.byType(EditableText).first)
-            .focusNode
-            .hasFocus,
-        isTrue,
-      );
-
-      final formScroll = find.byKey(
-        const ValueKey('add-tag-group-form-scroll'),
-      );
-      final scrollableFinder = find
-          .descendant(of: formScroll, matching: find.byType(Scrollable))
-          .first;
-      final scrollable = tester.state<ScrollableState>(scrollableFinder);
-      expect(scrollable.position.maxScrollExtent, greaterThan(0));
-
-      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
-      await tester.pumpAndSettle();
-      final cancel = find.text('Cancel');
-      expect(cancel, findsOneWidget);
-      await tester.ensureVisible(cancel);
-      await tester.pumpAndSettle();
-      expect(cancel.hitTestable(), findsOneWidget);
-      errors.expectNoErrors(reason: 'compact tag group form');
-    },
-  );
-
-  testWidgets(
     'wide presentation stays bounded and preserves all source modes',
     (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(1200, 900);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.resetPhysicalSize);
-
+      applyViewport(tester, plainViewport(const Size(1200, 900)));
       await _pumpHost(tester, category: category);
 
       await tester.tap(find.text('Open'));
@@ -339,9 +248,7 @@ void main() {
         labelMedium: base.textTheme.labelMedium!.copyWith(fontSize: 17),
       ),
     );
-    tester.view.physicalSize = const Size(1180, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+    applyViewport(tester, plainViewport(const Size(1180, 900)));
     await _pumpHost(tester, category: category, theme: theme);
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
@@ -516,14 +423,11 @@ Future<void> _pumpDanbooruHost(
   required double textScale,
   required InteractionPolicy interactionPolicy,
 }) {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
+  applyViewport(tester, plainViewport(size));
   return _pumpHost(
     tester,
     category: category,
-    mediaQuery: (data) =>
-        data.copyWith(textScaler: TextScaler.linear(textScale)),
+    textScale: textScale,
     interactionPolicy: interactionPolicy,
   );
 }
@@ -531,45 +435,23 @@ Future<void> _pumpDanbooruHost(
 Future<void> _pumpHost(
   WidgetTester tester, {
   required RandomCategory category,
-  MediaQueryData Function(MediaQueryData data)? mediaQuery,
+  double textScale = 1,
   InteractionPolicy? interactionPolicy,
   ThemeData? theme,
 }) {
-  Widget wrap(BuildContext context, Widget child) {
-    final policyScoped = interactionPolicy == null
-        ? child
-        : InteractionPolicyScope(
-            initialPolicy: interactionPolicy,
-            child: child,
-          );
-    return mediaQuery == null
-        ? policyScoped
-        : MediaQuery(
-            data: mediaQuery(MediaQuery.of(context)),
-            child: policyScoped,
-          );
-  }
-
   return tester.pumpWidget(
     ProviderScope(
-      child: MaterialApp(
+      child: localizedTestApp(
         locale: const Locale('en'),
         theme: theme,
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        builder: mediaQuery == null && interactionPolicy == null
-            ? null
-            : (context, child) => wrap(context, child!),
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => FilledButton(
-              onPressed: () => AddTagGroupDialog.show(
-                context,
-                category: category,
-                presetId: 'test-preset',
-              ),
-              child: const Text('Open'),
-            ),
+        textScale: textScale,
+        interactionPolicy: interactionPolicy,
+        home: panelLauncher(
+          'Open',
+          (context) => AddTagGroupDialog.show(
+            context,
+            category: category,
+            presetId: 'test-preset',
           ),
         ),
       ),

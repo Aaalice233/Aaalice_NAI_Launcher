@@ -3,6 +3,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_pinned_header_sliver.dart';
 
+import '../../helpers/adaptive_panel_expectations.dart';
+
 const _minContent = AdaptivePinnedHeaderSliver.minContentExtent;
 final _scrollKey = GlobalKey();
 
@@ -52,15 +54,11 @@ Future<void> _pump(
   );
 }
 
-RenderAdaptivePinnedHeaderSliver _sliver(WidgetTester tester, String label) {
-  RenderObject? node = tester.renderObject(
-    find.byKey(ValueKey('header-$label'), skipOffstage: false),
-  );
-  while (node is! RenderAdaptivePinnedHeaderSliver) {
-    node = node!.parent;
-  }
-  return node;
-}
+RenderAdaptivePinnedHeaderSliver _sliver(WidgetTester tester, String label) =>
+    pinnedHeaderSliverOf(
+      tester,
+      find.byKey(ValueKey('header-$label'), skipOffstage: false),
+    );
 
 ScrollPosition _position(WidgetTester tester) => tester
     .state<ScrollableState>(
