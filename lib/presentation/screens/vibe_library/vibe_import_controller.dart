@@ -169,76 +169,66 @@ class VibeImportController {
             ).then((resources) => (paths: <String>[], resources: resources)),
       ]);
       if (!mounted()) return;
-      unawaited(
-        Future<void>(() async {
-          if (!mounted()) return;
-          await _runImport((epoch) async {
-            final paths = [for (final input in inputs) ...input.paths];
-            final classified = await classifyVibeDropPaths(paths);
-            for (final folder in classified.folders) {
-              final nested = await _scanFolder(folder);
-              classified.images.addAll(nested.images);
-              classified.vibes.addAll(nested.vibes);
-            }
-            final images = await VibeDropImportPreprocessor.collectImageItems(
-              classified.images,
-            );
-            final files = <PlatformFile>[
-              for (final path in classified.vibes)
-                PlatformFile(name: p.basename(path), path: path, size: 0),
-            ];
-            final imageItems = [...images.items];
-            for (final input in inputs) {
-              for (final resource in input.resources) {
-                final vibe = resource.vibe;
-                if (vibe != null) {
-                  final bytes = await VibeExportUtils.portableEntryBytes(vibe);
-                  final extension = vibe.isBundle
-                      ? 'naiv4vibebundle'
-                      : 'naiv4vibe';
-                  files.add(
-                    PlatformFile(
-                      name: '${vibe.name}.$extension',
-                      size: bytes.length,
-                      bytes: bytes,
-                    ),
-                  );
-                } else {
-                  final file = resource.image;
-                  if (const [
-                    '.naiv4vibe',
-                    '.naiv4vibebundle',
-                  ].contains(p.extension(file.fileName).toLowerCase())) {
-                    files.add(
-                      PlatformFile(
-                        name: file.fileName,
-                        size: file.bytes.length,
-                        bytes: file.bytes,
-                      ),
-                    );
-                  } else {
-                    imageItems.add(
-                      VibeImageImportItem(
-                        source: file.fileName,
-                        bytes: file.bytes,
-                      ),
-                    );
-                  }
-                }
+      await _runImport((epoch) async {
+        final paths = [for (final input in inputs) ...input.paths];
+        final classified = await classifyVibeDropPaths(paths);
+        for (final folder in classified.folders) {
+          final nested = await _scanFolder(folder);
+          classified.images.addAll(nested.images);
+          classified.vibes.addAll(nested.vibes);
+        }
+        final images = await VibeDropImportPreprocessor.collectImageItems(
+          classified.images,
+        );
+        final files = <PlatformFile>[
+          for (final path in classified.vibes)
+            PlatformFile(name: p.basename(path), path: path, size: 0),
+        ];
+        final imageItems = [...images.items];
+        for (final input in inputs) {
+          for (final resource in input.resources) {
+            final vibe = resource.vibe;
+            if (vibe != null) {
+              final bytes = await VibeExportUtils.portableEntryBytes(vibe);
+              final extension = vibe.isBundle ? 'naiv4vibebundle' : 'naiv4vibe';
+              files.add(
+                PlatformFile(
+                  name: '${vibe.name}.$extension',
+                  size: bytes.length,
+                  bytes: bytes,
+                ),
+              );
+            } else {
+              final file = resource.image;
+              if (const [
+                '.naiv4vibe',
+                '.naiv4vibebundle',
+              ].contains(p.extension(file.fileName).toLowerCase())) {
+                files.add(
+                  PlatformFile(
+                    name: file.fileName,
+                    size: file.bytes.length,
+                    bytes: file.bytes,
+                  ),
+                );
+              } else {
+                imageItems.add(
+                  VibeImageImportItem(source: file.fileName, bytes: file.bytes),
+                );
               }
             }
-            final result = await _processSources(imageItems, files, epoch);
-            return (
-              success: result.success,
-              fail:
-                  result.fail +
-                  images.failedCount +
-                  images.skippedOversizedCount +
-                  images.skippedTotalLimitCount,
-            );
-          }, preparing: true);
-        }),
-      );
+          }
+        }
+        final result = await _processSources(imageItems, files, epoch);
+        return (
+          success: result.success,
+          fail:
+              result.fail +
+              images.failedCount +
+              images.skippedOversizedCount +
+              images.skippedTotalLimitCount,
+        );
+      }, preparing: true);
     } catch (error, stack) {
       AppLogger.e('Vibe drop read failed', error, stack, 'VibeLibrary');
       if (mounted()) {
