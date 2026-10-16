@@ -72,17 +72,14 @@ class _InspectorPanel extends StatelessWidget {
               ],
             );
           }
-          return Padding(
-            padding: EdgeInsets.zero,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ...setup,
-                Expanded(
-                  child: PreviewGeneratorPanel(controller: previewController),
-                ),
-              ],
-            ),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ...setup,
+              Expanded(
+                child: PreviewGeneratorPanel(controller: previewController),
+              ),
+            ],
           );
         },
       ),
