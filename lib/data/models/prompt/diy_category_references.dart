@@ -52,17 +52,17 @@ class DiyCategoryReferenceResolver {
   }
 }
 
-typedef CategoryReferenceMapper = String Function(String reference);
+typedef ReferenceMapper = String Function(String reference);
 
 extension DependencyConfigCategoryReferences on DependencyConfig {
-  DependencyConfig mapCategoryReferences(CategoryReferenceMapper map) {
+  DependencyConfig mapCategoryReferences(ReferenceMapper map) {
     if (sourceCategoryId == characterCountReference) return this;
     return copyWith(sourceCategoryId: map(sourceCategoryId));
   }
 }
 
 extension VisibilityRuleCategoryReferences on VisibilityRule {
-  VisibilityRule mapCategoryReferences(CategoryReferenceMapper map) {
+  VisibilityRule mapCategoryReferences(ReferenceMapper map) {
     return copyWith(
       sourceCategoryId: map(sourceCategoryId),
       targetCategoryId: map(targetCategoryId),
@@ -71,7 +71,7 @@ extension VisibilityRuleCategoryReferences on VisibilityRule {
 }
 
 extension PostProcessRuleCategoryReferences on PostProcessRule {
-  PostProcessRule mapCategoryReferences(CategoryReferenceMapper map) {
+  PostProcessRule mapCategoryReferences(ReferenceMapper map) {
     return copyWith(
       triggerCategoryIds: triggerCategoryIds.map(map).toList(),
       targetCategoryIds: targetCategoryIds.map(map).toList(),
@@ -79,8 +79,8 @@ extension PostProcessRuleCategoryReferences on PostProcessRule {
   }
 }
 
-extension RandomTagGroupCategoryReferences on RandomTagGroup {
-  RandomTagGroup mapCategoryReferences(CategoryReferenceMapper map) {
+extension RandomTagGroupReferences on RandomTagGroup {
+  RandomTagGroup mapCategoryReferences(ReferenceMapper map) {
     return copyWith(
       dependencyConfig: dependencyConfig?.mapCategoryReferences(map),
       visibilityRules: visibilityRules
@@ -94,18 +94,46 @@ extension RandomTagGroupCategoryReferences on RandomTagGroup {
           .toList(),
     );
   }
+
+  /// 改写本词组与子词组的分支输出与分支条件变量
+  RandomTagGroup mapBranchReferences(ReferenceMapper map) {
+    final config = conditionalBranchConfig;
+    return copyWith(
+      conditionalBranchConfig: config?.copyWith(
+        branches: [
+          for (final branch in config.branches)
+            branch.copyWith(
+              tagGroupIds: branch.tagGroupIds.map(map).toList(),
+              conditions: {
+                for (final condition in branch.conditions.entries)
+                  map(condition.key): condition.value,
+              },
+            ),
+        ],
+      ),
+      children: children
+          .map((child) => child.mapBranchReferences(map))
+          .toList(),
+    );
+  }
 }
 
-extension RandomCategoryCategoryReferences on RandomCategory {
-  RandomCategory mapCategoryReferences(CategoryReferenceMapper map) {
+extension RandomCategoryReferences on RandomCategory {
+  RandomCategory mapCategoryReferences(ReferenceMapper map) {
     return copyWith(
       groups: groups.map((group) => group.mapCategoryReferences(map)).toList(),
+    );
+  }
+
+  RandomCategory mapBranchReferences(ReferenceMapper map) {
+    return copyWith(
+      groups: groups.map((group) => group.mapBranchReferences(map)).toList(),
     );
   }
 }
 
 extension AlgorithmConfigCategoryReferences on AlgorithmConfig {
-  AlgorithmConfig mapCategoryReferences(CategoryReferenceMapper map) {
+  AlgorithmConfig mapCategoryReferences(ReferenceMapper map) {
     final visibility = globalVisibilityRules;
     final postProcess = globalPostProcessRules;
     return copyWith(
