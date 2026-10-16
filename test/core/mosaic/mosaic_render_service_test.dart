@@ -14,6 +14,7 @@ import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_stor
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/exif_orientation_fixture.dart';
 import '../../helpers/stealth_png_fixture.dart';
 
 void main() {
@@ -297,6 +298,25 @@ void main() {
       ),
       isNull,
     );
+  });
+
+  test('copied camera exif matches the upright redacted pixels', () async {
+    final source = orientedCameraJpeg(width: 60, height: 40, orientation: 6);
+
+    final result = await MosaicRenderService.render(
+      MosaicRenderRequest(
+        sourceBytes: source,
+        settings: solid,
+        regions: const [full],
+        preserveMetadata: true,
+      ),
+    );
+
+    final output = img.decodePng(result.bytes)!;
+    expect((output.width, output.height), (40, 60));
+    final ifd = readImageIfd(pngExifPayload(result.bytes)!);
+    expect(ifd.orientation, 1);
+    expect(ifd.make, 'Aaalice Camera');
   });
 }
 

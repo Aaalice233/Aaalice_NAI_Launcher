@@ -10,6 +10,7 @@ import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/portable_logger.dart';
 import 'dlss_options.dart';
 import 'dlss_float_frame.dart';
+import '../metadata/exif_orientation_metadata.dart';
 import '../metadata/image_metadata_container_codec.dart';
 
 class DlssWorker {
@@ -307,6 +308,7 @@ Uint8List preserveDlssImage(
   final withMetadata = ImageMetadataContainerCodec.copySupportedMetadata(
     source: sourceBytes,
     targetPng: encoded,
+    decodedBy: SourcePixelDecoder.imagePackage,
   );
   final result = ImageMetadataContainerCodec.embedTextChunkOnly(
     withMetadata,

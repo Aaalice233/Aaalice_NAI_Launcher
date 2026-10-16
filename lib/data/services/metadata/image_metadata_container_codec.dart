@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../../../core/utils/portable_logger.dart';
+import 'exif_orientation_metadata.dart';
 
 /// Encodes and decodes metadata carried by image containers.
 class ImageMetadataContainerCodec {
@@ -92,15 +93,19 @@ class ImageMetadataContainerCodec {
   /// 像素经过编辑后不能继续沿用原容器的颜色配置或尺寸声明；这里只迁移
   /// 文本与标准 EXIF chunk，并在目标中去重。NovelAI stealth 元数据属于
   /// 像素载荷，调用方需要根据隐私策略显式重建，不能在这里复制。
+  /// [decodedBy] 是从 [source] 解码出目标像素的解码器；源图方向已转进像素时，
+  /// 复制的 EXIF 方向改为 1。目标像素不是由 [source] 解码而来时传 null。
   static Uint8List copySupportedMetadata({
     required Uint8List source,
     required Uint8List targetPng,
+    SourcePixelDecoder? decodedBy,
   }) {
     if (!isPngHeader(targetPng)) {
       throw const FormatException('Metadata target must be PNG');
     }
     final sourceChunks = _supportedMetadataChunks(source);
     if (sourceChunks.isEmpty) return targetPng;
+    final orientationBaked = _orientationBaked(source, decodedBy);
     const supportedTypes = {'tEXt', 'iTXt', 'zTXt', 'eXIf'};
     final targetChunks = _parsePngChunks(targetPng);
     final output = BytesBuilder()..add(targetPng.sublist(0, 8));
@@ -109,7 +114,15 @@ class ImageMetadataContainerCodec {
       if (supportedTypes.contains(chunk.type)) continue;
       if (!inserted && chunk.type == 'IDAT') {
         for (final metadataChunk in sourceChunks) {
-          _writeChunk(output, metadataChunk.type, metadataChunk.data);
+          _writeChunk(
+            output,
+            metadataChunk.type,
+            orientationBaked && metadataChunk.type == 'eXIf'
+                ? ExifOrientationMetadata.withUprightOrientation(
+                    metadataChunk.data,
+                  )
+                : metadataChunk.data,
+          );
         }
         inserted = true;
       }
@@ -136,6 +149,15 @@ class ImageMetadataContainerCodec {
     if (_isWebP(source)) return _extractWebPExif(source);
     return const [];
   }
+
+  static bool _orientationBaked(
+    Uint8List source,
+    SourcePixelDecoder? decodedBy,
+  ) => switch (decodedBy) {
+    null => false,
+    SourcePixelDecoder.imagePackage => _isJpeg(source),
+    SourcePixelDecoder.flutterEngine => _isJpeg(source) || _isWebP(source),
+  };
 
   static bool _isJpeg(Uint8List bytes) =>
       bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;

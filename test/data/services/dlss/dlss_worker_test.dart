@@ -7,6 +7,8 @@ import 'package:nai_launcher/data/services/dlss/dlss_options.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_worker.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 
+import '../../../helpers/exif_orientation_fixture.dart';
+
 void main() {
   test('native processing requires start and single NR completion', () {
     final protocol = DlssWorkerProtocol();
@@ -247,4 +249,22 @@ void main() {
       );
     },
   );
+
+  test('baked jpeg orientation is not carried into the copied exif', () {
+    final source = orientedCameraJpeg(orientation: 6);
+    final decoded = img.decodeImage(source)!;
+
+    final result = preserveDlssImage(
+      source,
+      decoded,
+      const DlssOptions(scale: 1),
+      'v1.3',
+    );
+
+    final output = img.decodePng(result)!;
+    expect((output.width, output.height), (4, 6));
+    final ifd = readImageIfd(pngExifPayload(result)!);
+    expect(ifd.orientation, 1);
+    expect(ifd.make, 'Aaalice Camera');
+  });
 }
