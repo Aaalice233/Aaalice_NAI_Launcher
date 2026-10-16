@@ -174,8 +174,8 @@ void main() {
 final _l10n = lookupAppLocalizations(const Locale('en'));
 
 const _categoryOptions = [
-  DiyCategoryOption(id: 'cat-hair', label: 'Hair', key: 'hairColor'),
-  DiyCategoryOption(id: 'cat-outfit', label: 'Outfit', key: 'clothing'),
+  DiyCategoryOption(id: 'cat-hair', label: 'Hair'),
+  DiyCategoryOption(id: 'cat-outfit', label: 'Outfit'),
 ];
 
 Widget _app(Widget panel) {

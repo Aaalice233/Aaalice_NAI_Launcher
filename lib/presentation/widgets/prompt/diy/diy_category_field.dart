@@ -4,23 +4,17 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 /// DIY 规则可引用的类别：规则里保存 [id]，界面显示 [label]
 @immutable
 class DiyCategoryOption {
-  const DiyCategoryOption({required this.id, required this.label, this.key});
+  const DiyCategoryOption({required this.id, required this.label});
 
   final String id;
   final String label;
 
-  /// 类别键名，供按键名定义目标的预设规则定位到本预设中的类别
-  final String? key;
-
   @override
   bool operator ==(Object other) =>
-      other is DiyCategoryOption &&
-      other.id == id &&
-      other.label == label &&
-      other.key == key;
+      other is DiyCategoryOption && other.id == id && other.label == label;
 
   @override
-  int get hashCode => Object.hash(id, label, key);
+  int get hashCode => Object.hash(id, label);
 }
 
 /// 单选类别引用；存量值不在候选中时显示为已失效且不可再选

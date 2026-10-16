@@ -886,6 +886,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
 
   /// 显示后处理规则编辑面板
   void _showPostProcessRuleDialog() {
+    final options = _diyOptions;
     _showDiyConfigForm(
       title: AppLocalizations.of(context)!.randomManager_postProcessRules,
       child: PostProcessRulePanel(
@@ -897,7 +898,8 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
             );
           });
         },
-        categoryOptions: _diyOptions.categoryOptions,
+        categoryOptions: options.categoryOptions,
+        categoryResolver: options.categoryResolver,
       ),
     );
   }

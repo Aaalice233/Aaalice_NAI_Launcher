@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
+import '../../../../../data/models/prompt/diy_category_references.dart';
 import '../../../../../data/models/prompt/post_process_rule.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
 import '../diy_badges.dart';
@@ -22,6 +23,9 @@ class PostProcessRulePanel extends StatefulWidget {
   /// 移除类别操作可选的目标类别
   final List<DiyCategoryOption> categoryOptions;
 
+  /// 把预设规则按键名声明的目标定位到本预设的类别；为空时目标留给用户选择
+  final DiyCategoryReferenceResolver? categoryResolver;
+
   final bool readOnly;
 
   const PostProcessRulePanel({
@@ -29,6 +33,7 @@ class PostProcessRulePanel extends StatefulWidget {
     required this.rules,
     required this.onRulesChanged,
     this.categoryOptions = const [],
+    this.categoryResolver,
     this.readOnly = false,
   });
 
@@ -65,15 +70,12 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel>
   }
 
   List<String> _categoryIdsForKeys(List<String> keys) {
-    final ids = <String>[];
-    for (final key in keys) {
-      final matches = widget.categoryOptions
-          .where((option) => option.key == key)
-          .toList();
-      // 键名重复时无法确定指向哪个类别，留给用户选择
-      if (matches.length == 1) ids.add(matches.single.id);
-    }
-    return ids;
+    final resolver = widget.categoryResolver;
+    if (resolver == null) return const [];
+    return [
+      for (final key in keys)
+        if (resolver.resolve(key)?.id case final id?) id,
+    ];
   }
 
   @override
