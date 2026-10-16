@@ -101,11 +101,15 @@ void main() {
     test('runCompute applies its time limit to the compute', () async {
       final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
 
-      // 零时限在 isolate 启动前就到期
-      await expectLater(
-        gate.runCompute(_echo, 7, timeLimit: Duration.zero),
-        throwsA(isA<TimeoutException>()),
-      );
+      Object? error;
+      fakeAsync((async) {
+        gate
+            .runCompute(_echo, 7, timeLimit: const Duration(seconds: 1))
+            .then<void>((_) {}, onError: (Object e) => error = e);
+        // isolate 回包是真实事件，假时钟推进期间到不了，时限必然先到期
+        async.elapse(const Duration(seconds: 1));
+      });
+      expect(error, isA<TimeoutException>());
       expect(await gate.runCompute(_echo, 8), 8);
     });
 
