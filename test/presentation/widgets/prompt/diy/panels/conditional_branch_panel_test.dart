@@ -13,24 +13,17 @@ void main() {
   testWidgets('删除编辑中分支之前的分支后，编辑区仍指向原分支且不越界', (tester) async {
     ConditionalBranchConfig? changed;
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: ConditionalBranchPanel(
-              config: const ConditionalBranchConfig(
-                id: 'outfit',
-                name: 'Outfit',
-                branches: [
-                  ConditionalBranch(name: 'Uniform', probability: 60),
-                  ConditionalBranch(name: 'Casual', probability: 40),
-                ],
-              ),
-              onConfigChanged: (config) => changed = config,
-            ),
+      _app(
+        ConditionalBranchPanel(
+          config: const ConditionalBranchConfig(
+            id: 'outfit',
+            name: 'Outfit',
+            branches: [
+              ConditionalBranch(name: 'Uniform', probability: 60),
+              ConditionalBranch(name: 'Casual', probability: 40),
+            ],
           ),
+          onConfigChanged: (config) => changed = config,
         ),
       ),
     );
@@ -56,22 +49,15 @@ void main() {
     );
     late StateSetter setParent;
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                setParent = setState;
-                return ConditionalBranchPanel(
-                  config: config,
-                  onConfigChanged: (next) => config = next!,
-                );
-              },
-            ),
-          ),
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            setParent = setState;
+            return ConditionalBranchPanel(
+              config: config,
+              onConfigChanged: (next) => config = next!,
+            );
+          },
         ),
       ),
     );
@@ -88,94 +74,80 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final fontSize in [11.0, 15.0]) {
-    testWidgets('概率条分段与分支概率徽标的字号取自主题 labelSmall=$fontSize', (tester) async {
-      final base = ThemeData();
-      final theme = base.copyWith(
-        textTheme: base.textTheme.copyWith(
-          labelSmall: base.textTheme.labelSmall!.copyWith(fontSize: fontSize),
-        ),
-      );
-      tester.view.physicalSize = const Size(1180, 1600);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: theme,
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: ConditionalBranchPanel(
-                config: const ConditionalBranchConfig(
-                  id: 'outfit',
-                  name: 'Outfit',
-                  branches: [
-                    ConditionalBranch(name: 'Uniform', probability: 60),
-                    ConditionalBranch(name: 'Casual', probability: 40),
-                  ],
-                ),
-                onConfigChanged: (_) {},
-              ),
-            ),
+  testWidgets('概率条分段与分支概率徽标的字号取自主题 labelSmall', (tester) async {
+    const fontSize = 17.0;
+    final base = ThemeData();
+    final theme = base.copyWith(
+      textTheme: base.textTheme.copyWith(
+        labelSmall: base.textTheme.labelSmall!.copyWith(fontSize: fontSize),
+      ),
+    );
+    tester.view.physicalSize = const Size(1180, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(
+        ConditionalBranchPanel(
+          config: const ConditionalBranchConfig(
+            id: 'outfit',
+            name: 'Outfit',
+            branches: [
+              ConditionalBranch(name: 'Uniform', probability: 60),
+              ConditionalBranch(name: 'Casual', probability: 40),
+            ],
           ),
+          onConfigChanged: (_) {},
         ),
-      );
-      await tester.pump();
+        theme: theme,
+      ),
+    );
+    await tester.pump();
 
-      final segments = find.byType(SurfaceInkWell);
-      final segmentTexts = [
-        for (final (index, name) in ['Uniform', 'Casual'].indexed) ...[
-          find.descendant(of: segments.at(index), matching: find.text(name)),
-          find.descendant(
-            of: segments.at(index),
-            matching: find.text(index == 0 ? '60%' : '40%'),
-          ),
-        ],
-      ];
-      final badges = find.byWidgetPredicate(
-        (widget) =>
-            widget is Text &&
-            RegExp(r'^\d+%$').hasMatch(widget.data ?? '') &&
-            segmentTexts.every(
-              (segmentText) => !segmentText.evaluate().any(
-                (element) => element.widget == widget,
-              ),
+    final segments = find.byType(SurfaceInkWell);
+    final segmentTexts = [
+      for (final (index, name) in ['Uniform', 'Casual'].indexed) ...[
+        find.descendant(of: segments.at(index), matching: find.text(name)),
+        find.descendant(
+          of: segments.at(index),
+          matching: find.text(index == 0 ? '60%' : '40%'),
+        ),
+      ],
+    ];
+    final badges = find.byWidgetPredicate(
+      (widget) =>
+          widget is Text &&
+          RegExp(r'^\d+%$').hasMatch(widget.data ?? '') &&
+          segmentTexts.every(
+            (segmentText) => !segmentText.evaluate().any(
+              (element) => element.widget == widget,
             ),
+          ),
+    );
+    expect(badges, findsNWidgets(2), reason: '分支列表里每个分支一个概率徽标');
+    for (final text in [...segmentTexts, badges.at(0), badges.at(1)]) {
+      expect(text, findsOne);
+      expect(
+        tester.renderObject<RenderParagraph>(text).text.style?.fontSize,
+        fontSize,
+        reason: text.describeMatch(Plurality.one),
       );
-      expect(badges, findsNWidgets(2), reason: '分支列表里每个分支一个概率徽标');
-      for (final text in [...segmentTexts, badges.at(0), badges.at(1)]) {
-        expect(text, findsOne);
-        expect(
-          tester.renderObject<RenderParagraph>(text).text.style?.fontSize,
-          fontSize,
-          reason: text.describeMatch(Plurality.one),
-        );
-      }
-      expect(tester.takeException(), isNull);
-    });
-  }
+    }
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('概率条分段的悬停与按压反馈画在分段渐变之上，选中后依旧可见', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: ConditionalBranchPanel(
-              config: const ConditionalBranchConfig(
-                id: 'outfit',
-                name: 'Outfit',
-                branches: [
-                  ConditionalBranch(name: 'Uniform', probability: 60),
-                  ConditionalBranch(name: 'Casual', probability: 40),
-                ],
-              ),
-              onConfigChanged: (_) {},
-            ),
+      _app(
+        ConditionalBranchPanel(
+          config: const ConditionalBranchConfig(
+            id: 'outfit',
+            name: 'Outfit',
+            branches: [
+              ConditionalBranch(name: 'Uniform', probability: 60),
+              ConditionalBranch(name: 'Casual', probability: 40),
+            ],
           ),
+          onConfigChanged: (_) {},
         ),
       ),
     );
@@ -218,41 +190,34 @@ void main() {
     addTearDown(tester.view.reset);
     ConditionalBranchConfig? changed;
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: ConditionalBranchPanel(
-              config: const ConditionalBranchConfig(
-                id: 'outfit',
-                name: 'Outfit',
-                branches: [
-                  ConditionalBranch(name: 'Uniform', probability: 60),
-                  ConditionalBranch(
-                    name: 'Casual',
-                    probability: 40,
-                    conditions: {'cat-mood': 'smile', 'gender': 'girl'},
-                  ),
-                ],
+      _app(
+        ConditionalBranchPanel(
+          config: const ConditionalBranchConfig(
+            id: 'outfit',
+            name: 'Outfit',
+            branches: [
+              ConditionalBranch(name: 'Uniform', probability: 60),
+              ConditionalBranch(
+                name: 'Casual',
+                probability: 40,
+                conditions: {'cat-mood': 'smile', 'gender': 'girl'},
               ),
-              conditionSources: const [
-                BranchConditionSource(
-                  id: 'cat-mood',
-                  label: 'Mood',
-                  kind: BranchConditionSourceKind.category,
-                ),
-                BranchConditionSource(
-                  id: 'gender',
-                  label: 'Gender',
-                  kind: BranchConditionSourceKind.characterGender,
-                ),
-              ],
-              initialSelectedIndex: 1,
-              onConfigChanged: (config) => changed = config,
-            ),
+            ],
           ),
+          conditionSources: const [
+            BranchConditionSource(
+              id: 'cat-mood',
+              label: 'Mood',
+              kind: BranchConditionSourceKind.category,
+            ),
+            BranchConditionSource(
+              id: 'gender',
+              label: 'Gender',
+              kind: BranchConditionSourceKind.characterGender,
+            ),
+          ],
+          initialSelectedIndex: 1,
+          onConfigChanged: (config) => changed = config,
         ),
       ),
     );
@@ -284,4 +249,14 @@ void main() {
     expect(find.byType(ChoiceChip), findsNothing);
     expect(tester.takeException(), isNull);
   });
+}
+
+Widget _app(Widget panel, {ThemeData? theme}) {
+  return MaterialApp(
+    theme: theme,
+    locale: const Locale('en'),
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: SingleChildScrollView(child: panel)),
+  );
 }
