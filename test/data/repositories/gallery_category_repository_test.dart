@@ -62,4 +62,16 @@ void main() {
     expect(syncedCategories, isEmpty);
     expect(await folder.exists(), isTrue);
   });
+
+  test('new category folder matches the name Windows keeps on disk', () async {
+    final category = await repository.createCategory(name: 'summer\ntrip. ');
+
+    expect(category?.folderPath, 'summer trip');
+    expect(
+      await Directory(
+        '${galleryRoot.path}${Platform.pathSeparator}summer trip',
+      ).exists(),
+      isTrue,
+    );
+  });
 }
