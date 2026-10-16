@@ -13,6 +13,7 @@ import '../diy_editor_card.dart';
 import '../diy_empty_state.dart';
 import '../diy_panel_header.dart';
 import '../diy_rule_list_card.dart';
+import '../diy_rule_list_editing.dart';
 import '../diy_switch_card.dart';
 import 'branch_conditions_editor.dart';
 
@@ -50,12 +51,20 @@ class ConditionalBranchPanel extends StatefulWidget {
   State<ConditionalBranchPanel> createState() => _ConditionalBranchPanelState();
 }
 
-class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
+class _ConditionalBranchPanelState extends State<ConditionalBranchPanel>
+    with DiyRuleListEditing<ConditionalBranchPanel, ConditionalBranch> {
   late ConditionalBranchConfig _config;
-  int? _selectedIndex;
   bool _usesDefaultConfig = false;
 
-  List<ConditionalBranch> get _branches => _config.branches;
+  @override
+  List<ConditionalBranch> rulesOf(ConditionalBranchPanel widget) =>
+      widget.config?.branches ?? const [];
+
+  @override
+  void onRulesEdited(List<ConditionalBranch> branches) {
+    _config = _config.copyWith(branches: branches);
+    widget.onConfigChanged(_config);
+  }
 
   @override
   void initState() {
@@ -63,8 +72,8 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
     _usesDefaultConfig = widget.config == null;
     _config = widget.config ?? const ConditionalBranchConfig(id: '', name: '');
     final initial = widget.initialSelectedIndex;
-    if (initial != null && initial >= 0 && initial < _config.branches.length) {
-      _selectedIndex = initial;
+    if (initial != null && initial >= 0 && initial < rules.length) {
+      selectedIndex = initial;
     }
   }
 
@@ -87,41 +96,16 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
             id: '',
             name: context.l10n.diy_conditionalDefaultName,
           );
-      _selectedIndex = null;
     }
   }
 
-  void _updateConfig(ConditionalBranchConfig newConfig) {
-    setState(() {
-      _config = newConfig;
-    });
-    widget.onConfigChanged(newConfig);
-  }
-
   void _addBranch() {
-    final newBranch = ConditionalBranch(
-      name: context.l10n.diy_branchDefaultName(_branches.length + 1),
-      probability: 10,
+    addRule(
+      ConditionalBranch(
+        name: context.l10n.diy_branchDefaultName(rules.length + 1),
+        probability: 10,
+      ),
     );
-    _updateConfig(_config.copyWith(branches: [..._branches, newBranch]));
-  }
-
-  void _removeBranch(int index) {
-    final newBranches = List<ConditionalBranch>.from(_branches)
-      ..removeAt(index);
-    final selected = _selectedIndex;
-    _selectedIndex = selected == null || selected == index
-        ? null
-        : selected > index
-        ? selected - 1
-        : selected;
-    _updateConfig(_config.copyWith(branches: newBranches));
-  }
-
-  void _updateBranch(int index, ConditionalBranch branch) {
-    final newBranches = List<ConditionalBranch>.from(_branches);
-    newBranches[index] = branch;
-    _updateConfig(_config.copyWith(branches: newBranches));
   }
 
   @override
@@ -129,22 +113,17 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
     final l10n = context.l10n;
     final colorScheme = Theme.of(context).colorScheme;
     final accents = _branchAccents(colorScheme);
-    final index = _selectedIndex;
-    final editor = index == null || index >= _branches.length
-        ? null
-        // 输入框只在创建时读取初始值，切换分支需要重建编辑区
-        : KeyedSubtree(
-            key: ValueKey(index),
-            child: _BranchEditor(
-              branch: _branches[index],
-              targetOptions: widget.targetOptions,
-              cyclicTargetIds: widget.cyclicTargetIds,
-              conditionSources: widget.conditionSources,
-              readOnly: widget.readOnly,
-              onChanged: (branch) => _updateBranch(index, branch),
-              onClose: () => setState(() => _selectedIndex = null),
-            ),
-          );
+    final editor = buildSelectedEditor(
+      (index, branch) => _BranchEditor(
+        branch: branch,
+        targetOptions: widget.targetOptions,
+        cyclicTargetIds: widget.cyclicTargetIds,
+        conditionSources: widget.conditionSources,
+        readOnly: widget.readOnly,
+        onChanged: (branch) => replaceRule(index, branch),
+        onClose: () => selectRule(null),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -153,32 +132,32 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
           accent: colorScheme.secondary,
           title: l10n.diy_conditionalTitle,
           subtitle: l10n.diy_conditionalSubtitle,
-          trailing: _branches.isEmpty
+          trailing: rules.isEmpty
               ? null
               : DiyCountBadge(
-                  label: l10n.diy_branchCount(_branches.length),
+                  label: l10n.diy_branchCount(rules.length),
                   accent: colorScheme.secondary,
                   container: colorScheme.secondaryContainer,
                 ),
         ),
         const SizedBox(height: 12),
-        if (_branches.any((branch) => branch.probability > 0)) ...[
+        if (rules.any((branch) => branch.probability > 0)) ...[
           _ProbabilityBar(
-            branches: _branches,
+            branches: rules,
             accents: accents,
-            selectedIndex: _selectedIndex,
-            onSelected: (index) => setState(() => _selectedIndex = index),
+            selectedIndex: selectedIndex,
+            onSelected: selectRule,
           ),
           const SizedBox(height: 12),
         ],
         DiyRuleListCard(
           items: [
-            for (final (index, branch) in _branches.indexed)
+            for (final (index, branch) in rules.indexed)
               _listItem(branch, accents[index % accents.length]),
           ],
-          selectedIndex: _selectedIndex,
-          onSelected: (index) => setState(() => _selectedIndex = index),
-          onDeleted: widget.readOnly ? null : _removeBranch,
+          selectedIndex: selectedIndex,
+          onSelected: selectRule,
+          onDeleted: widget.readOnly ? null : removeRule,
           deleteTooltip: l10n.diy_deleteBranch,
           emptyState: DiyEmptyState(
             icon: Icons.call_split_rounded,

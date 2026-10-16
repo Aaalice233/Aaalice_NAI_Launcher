@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
@@ -10,6 +9,7 @@ import '../diy_editor_card.dart';
 import '../diy_empty_state.dart';
 import '../diy_panel_header.dart';
 import '../diy_rule_list_card.dart';
+import '../diy_rule_list_editing.dart';
 import '../diy_switch_card.dart';
 
 /// 可见性规则面板：按源类别的取值决定目标类别或本词组是否出现
@@ -36,61 +36,25 @@ class VisibilityRulePanel extends StatefulWidget {
   State<VisibilityRulePanel> createState() => _VisibilityRulePanelState();
 }
 
-class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
-  // 弹出的表单路由不随父级重建，面板自己持有正在编辑的规则
-  late List<VisibilityRule> _rules;
-  int? _selectedIndex;
+class _VisibilityRulePanelState extends State<VisibilityRulePanel>
+    with DiyRuleListEditing<VisibilityRulePanel, VisibilityRule> {
+  @override
+  List<VisibilityRule> rulesOf(VisibilityRulePanel widget) => widget.rules;
 
   @override
-  void initState() {
-    super.initState();
-    _rules = widget.rules;
-  }
-
-  @override
-  void didUpdateWidget(VisibilityRulePanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!listEquals(widget.rules, _rules)) {
-      _rules = widget.rules;
-      if ((_selectedIndex ?? 0) >= _rules.length) _selectedIndex = null;
-    }
-  }
-
-  void _setRules(List<VisibilityRule> rules, {int? selectedIndex}) {
-    setState(() {
-      _rules = rules;
-      _selectedIndex = selectedIndex;
-    });
-    widget.onRulesChanged(rules);
-  }
-
-  void _removeRule(int index) {
-    final selected = _selectedIndex;
-    _setRules(
-      List<VisibilityRule>.from(_rules)..removeAt(index),
-      selectedIndex: selected == null || selected == index
-          ? null
-          : selected > index
-          ? selected - 1
-          : selected,
-    );
-  }
-
-  void _updateRule(int index, VisibilityRule rule) {
-    final newRules = List<VisibilityRule>.from(_rules);
-    newRules[index] = rule;
-    _setRules(newRules, selectedIndex: _selectedIndex);
-  }
+  void onRulesEdited(List<VisibilityRule> rules) =>
+      widget.onRulesChanged(rules);
 
   void _addRule() {
-    final newRule = VisibilityRule(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: context.l10n.diy_ruleDefaultName(_rules.length + 1),
-      targetCategoryId: '',
-      sourceCategoryId: '',
-      conditionValue: '',
+    addRule(
+      VisibilityRule(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: context.l10n.diy_ruleDefaultName(rules.length + 1),
+        targetCategoryId: '',
+        sourceCategoryId: '',
+        conditionValue: '',
+      ),
     );
-    _setRules([..._rules, newRule], selectedIndex: _rules.length);
   }
 
   // 目标为类别时作用于该类别全部词组，目标为本词组时只控制规则所属的词组
@@ -110,21 +74,16 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final colorScheme = Theme.of(context).colorScheme;
-    final index = _selectedIndex;
-    final editor = index == null || index >= _rules.length
-        ? null
-        // 输入框只在创建时读取初始值，切换规则需要重建编辑区
-        : KeyedSubtree(
-            key: ValueKey(index),
-            child: _VisibilityRuleEditor(
-              rule: _rules[index],
-              sourceOptions: widget.categoryOptions,
-              targetOptions: _targetOptions,
-              readOnly: widget.readOnly,
-              onChanged: (rule) => _updateRule(index, rule),
-              onClose: () => setState(() => _selectedIndex = null),
-            ),
-          );
+    final editor = buildSelectedEditor(
+      (index, rule) => _VisibilityRuleEditor(
+        rule: rule,
+        sourceOptions: widget.categoryOptions,
+        targetOptions: _targetOptions,
+        readOnly: widget.readOnly,
+        onChanged: (rule) => replaceRule(index, rule),
+        onClose: () => selectRule(null),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -133,20 +92,20 @@ class _VisibilityRulePanelState extends State<VisibilityRulePanel> {
           accent: colorScheme.secondary,
           title: l10n.diy_visibilityTitle,
           subtitle: l10n.diy_visibilitySubtitle,
-          trailing: _rules.isEmpty
+          trailing: rules.isEmpty
               ? null
               : DiyCountBadge(
-                  label: l10n.diy_ruleCount(_rules.length),
+                  label: l10n.diy_ruleCount(rules.length),
                   accent: colorScheme.secondary,
                   container: colorScheme.secondaryContainer,
                 ),
         ),
         const SizedBox(height: 12),
         DiyRuleListCard(
-          items: [for (final rule in _rules) _listItem(rule)],
-          selectedIndex: _selectedIndex,
-          onSelected: (index) => setState(() => _selectedIndex = index),
-          onDeleted: widget.readOnly ? null : _removeRule,
+          items: [for (final rule in rules) _listItem(rule)],
+          selectedIndex: selectedIndex,
+          onSelected: selectRule,
+          onDeleted: widget.readOnly ? null : removeRule,
           deleteTooltip: l10n.diy_deleteRule,
           emptyState: DiyEmptyState(
             icon: Icons.visibility_off_rounded,

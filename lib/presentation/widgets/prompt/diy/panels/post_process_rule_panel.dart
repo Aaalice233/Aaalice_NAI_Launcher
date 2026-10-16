@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
@@ -11,6 +10,7 @@ import '../diy_editor_card.dart';
 import '../diy_empty_state.dart';
 import '../diy_panel_header.dart';
 import '../diy_rule_list_card.dart';
+import '../diy_rule_list_editing.dart';
 import '../diy_section_card.dart';
 import '../diy_switch_card.dart';
 
@@ -36,69 +36,32 @@ class PostProcessRulePanel extends StatefulWidget {
   State<PostProcessRulePanel> createState() => _PostProcessRulePanelState();
 }
 
-class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
-  // 弹出的表单路由不随父级重建，面板自己持有正在编辑的规则
-  late List<PostProcessRule> _rules;
-  int? _selectedIndex;
+class _PostProcessRulePanelState extends State<PostProcessRulePanel>
+    with DiyRuleListEditing<PostProcessRulePanel, PostProcessRule> {
+  @override
+  List<PostProcessRule> rulesOf(PostProcessRulePanel widget) => widget.rules;
 
   @override
-  void initState() {
-    super.initState();
-    _rules = widget.rules;
-  }
-
-  @override
-  void didUpdateWidget(PostProcessRulePanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!listEquals(widget.rules, _rules)) {
-      _rules = widget.rules;
-      if ((_selectedIndex ?? 0) >= _rules.length) _selectedIndex = null;
-    }
-  }
-
-  void _setRules(List<PostProcessRule> rules, {int? selectedIndex}) {
-    setState(() {
-      _rules = rules;
-      _selectedIndex = selectedIndex;
-    });
-    widget.onRulesChanged(rules);
-  }
-
-  void _removeRule(int index) {
-    final selected = _selectedIndex;
-    _setRules(
-      List<PostProcessRule>.from(_rules)..removeAt(index),
-      selectedIndex: selected == null || selected == index
-          ? null
-          : selected > index
-          ? selected - 1
-          : selected,
-    );
-  }
-
-  void _updateRule(int index, PostProcessRule rule) {
-    final newRules = List<PostProcessRule>.from(_rules);
-    newRules[index] = rule;
-    _setRules(newRules, selectedIndex: _selectedIndex);
-  }
+  void onRulesEdited(List<PostProcessRule> rules) =>
+      widget.onRulesChanged(rules);
 
   void _addRule() {
-    final newRule = PostProcessRule(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: context.l10n.diy_ruleDefaultName(_rules.length + 1),
+    addRule(
+      PostProcessRule(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: context.l10n.diy_ruleDefaultName(rules.length + 1),
+      ),
     );
-    _setRules([..._rules, newRule], selectedIndex: _rules.length);
   }
 
   void _addPresetRule(_PresetRule preset) {
     final targets = _categoryIdsForKeys(preset.targetCategoryKeys);
     // 目标没能全部定位到本预设的类别时直接展开编辑，让用户补选要移除的类别
-    final needsTargets =
-        targets.isEmpty || targets.length < preset.targetCategoryKeys.length;
-    _setRules([
-      ..._rules,
+    addRule(
       preset.create(targets),
-    ], selectedIndex: needsTargets ? _rules.length : _selectedIndex);
+      select:
+          targets.isEmpty || targets.length < preset.targetCategoryKeys.length,
+    );
   }
 
   List<String> _categoryIdsForKeys(List<String> keys) {
@@ -117,20 +80,15 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final colorScheme = Theme.of(context).colorScheme;
-    final index = _selectedIndex;
-    final editor = index == null || index >= _rules.length
-        ? null
-        // 输入框只在创建时读取初始值，切换规则需要重建编辑区
-        : KeyedSubtree(
-            key: ValueKey(index),
-            child: _PostProcessRuleEditor(
-              rule: _rules[index],
-              categoryOptions: widget.categoryOptions,
-              readOnly: widget.readOnly,
-              onChanged: (rule) => _updateRule(index, rule),
-              onClose: () => setState(() => _selectedIndex = null),
-            ),
-          );
+    final editor = buildSelectedEditor(
+      (index, rule) => _PostProcessRuleEditor(
+        rule: rule,
+        categoryOptions: widget.categoryOptions,
+        readOnly: widget.readOnly,
+        onChanged: (rule) => replaceRule(index, rule),
+        onClose: () => selectRule(null),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -139,10 +97,10 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
           accent: colorScheme.tertiary,
           title: l10n.diy_postProcessTitle,
           subtitle: l10n.diy_postProcessSubtitle,
-          trailing: _rules.isEmpty
+          trailing: rules.isEmpty
               ? null
               : DiyCountBadge(
-                  label: l10n.diy_ruleCount(_rules.length),
+                  label: l10n.diy_ruleCount(rules.length),
                   accent: colorScheme.tertiary,
                   container: colorScheme.tertiaryContainer,
                 ),
@@ -162,10 +120,10 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel> {
           const SizedBox(height: 12),
         ],
         DiyRuleListCard(
-          items: [for (final rule in _rules) _listItem(rule)],
-          selectedIndex: _selectedIndex,
-          onSelected: (index) => setState(() => _selectedIndex = index),
-          onDeleted: widget.readOnly ? null : _removeRule,
+          items: [for (final rule in rules) _listItem(rule)],
+          selectedIndex: selectedIndex,
+          onSelected: selectRule,
+          onDeleted: widget.readOnly ? null : removeRule,
           deleteTooltip: l10n.diy_deleteRule,
           emptyState: DiyEmptyState(
             icon: Icons.auto_fix_high_rounded,
