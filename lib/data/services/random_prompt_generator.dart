@@ -305,7 +305,6 @@ class RandomPromptGenerator {
           rules,
           random,
           targetScope: TagScope.character,
-          characterGender: slotTag.characterTag,
           context: context.forCharacter(slotTag.characterTag),
         );
         charTags.addAll(characterFeatures);
@@ -435,13 +434,12 @@ class RandomPromptGenerator {
 
   /// 从预设类别列表生成标签
   ///
-  /// [targetScope] 目标作用域，用于过滤类别和词组
-  /// [characterGender] 角色性别（槽位名称），用于过滤性别限定的类别和词组（仅角色提示词时传入）
+  /// [targetScope] 目标作用域，用于过滤类别和词组；
+  /// 性别限定按 [context] 的角色性别过滤，主提示词的上下文没有角色性别
   Future<List<String>> _generateFromPresetCategories(
     RandomPresetRules rules,
     Random random, {
     TagScope targetScope = TagScope.all,
-    String? characterGender,
     RandomPresetGenerationContext? context,
   }) async {
     final preset = rules.preset;
@@ -464,6 +462,7 @@ class RandomPromptGenerator {
       if (!category.isApplicableToScope(targetScope)) continue;
 
       // 性别过滤（仅在指定性别时应用）
+      final characterGender = generationContext.characterGender;
       if (characterGender != null &&
           !category.isApplicableToGender(characterGender)) {
         continue;
@@ -477,7 +476,6 @@ class RandomPromptGenerator {
         category,
         random,
         targetScope: targetScope,
-        characterGender: characterGender,
         rules: rules,
         context: generationContext,
       );
@@ -513,12 +511,10 @@ class RandomPromptGenerator {
   /// 从单个类别生成标签
   ///
   /// [targetScope] 目标作用域，用于过滤词组
-  /// [characterGender] 角色性别（槽位名称），用于过滤性别限定的词组
   Future<List<String>> _generateFromCategory(
     RandomCategory category,
     Random random, {
     TagScope targetScope = TagScope.all,
-    String? characterGender,
     required RandomPresetRules rules,
     required RandomPresetGenerationContext context,
   }) async {
@@ -527,13 +523,7 @@ class RandomPromptGenerator {
         .where(
           (g) =>
               !rules.isBranchOwned(category, g) &&
-              _isGroupEligible(
-                g,
-                rules,
-                context,
-                targetScope: targetScope,
-                characterGender: characterGender,
-              ),
+              _isGroupEligible(g, rules, context, targetScope: targetScope),
         )
         .toList();
     if (enabledGroups.isEmpty) return [];
@@ -579,10 +569,10 @@ class RandomPromptGenerator {
     RandomPresetRules rules,
     RandomPresetGenerationContext context, {
     TagScope targetScope = TagScope.all,
-    String? characterGender,
   }) {
     if (!group.enabled) return false;
     if (!group.isApplicableToScope(targetScope)) return false;
+    final characterGender = context.characterGender;
     if (characterGender != null &&
         !group.isApplicableToGender(characterGender)) {
       return false;
@@ -846,14 +836,7 @@ class RandomPromptGenerator {
     Set<String> branchPath = const {},
   }) async {
     final enabledChildren = group.children
-        .where(
-          (child) => _isGroupEligible(
-            child,
-            rules,
-            context,
-            characterGender: context.characterGender,
-          ),
-        )
+        .where((child) => _isGroupEligible(child, rules, context))
         .toList();
     if (enabledChildren.isEmpty) return [];
 
