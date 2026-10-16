@@ -1,10 +1,11 @@
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/krita/krita_outbound_image.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
+
+import '../../helpers/shared_compute_gate.dart';
 
 void main() {
   group('KritaOutboundImage', () {
@@ -47,20 +48,19 @@ void main() {
   group('KritaOutboundImage.prepareInBackground', () {
     test('passes png through without waiting for the compute gate', () async {
       final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
-      final release = Completer<void>();
-      final occupied = gate.run(() => release.future);
       final png = _png();
 
-      final prepared = await KritaOutboundImage.prepareInBackground(
-        png,
-        name: 'sample.jpeg',
-        gate: gate,
+      final prepared = await expectRunsWithoutComputeGate(
+        gate,
+        () => KritaOutboundImage.prepareInBackground(
+          png,
+          name: 'sample.jpeg',
+          gate: gate,
+        ),
       );
 
       expect(prepared.bytes, same(png));
       expect(prepared.name, 'sample.png');
-      release.complete();
-      await occupied;
     });
 
     test('converts non-png bytes exactly like prepare', () async {

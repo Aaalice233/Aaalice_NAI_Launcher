@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:isolate';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 
@@ -52,39 +52,61 @@ void main() {
       expect(name, 'compute-gate-probe');
     });
 
-    test('time limits ignore the time spent waiting for a permit', () async {
-      final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
-      final occupied = gate.run(
-        () => Future<void>.delayed(const Duration(milliseconds: 1500)),
-      );
+    test('a time limit starts once the permit is granted', () {
+      fakeAsync((async) {
+        final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
+        final holder = Completer<void>();
+        gate.run(() => holder.future);
+        final task = Completer<int>();
+        Object? outcome;
+        gate
+            .run(() => task.future, timeLimit: const Duration(seconds: 1))
+            .then<void>(
+              (value) => outcome = value,
+              onError: (Object e) => outcome = e,
+            );
 
-      final value = await gate.runCompute(
-        _echo,
-        7,
-        timeLimit: const Duration(milliseconds: 1000),
-      );
+        async.elapse(const Duration(seconds: 5));
+        expect(outcome, isNull);
+        expect(gate.debugQueuedTasks, 1);
+        holder.complete();
+        async.elapse(const Duration(milliseconds: 999));
+        expect(outcome, isNull);
 
-      expect(value, 7);
-      await occupied;
+        task.complete(7);
+        async.flushMicrotasks();
+        expect(outcome, 7);
+      });
     });
 
-    test('a timed out compute returns its permit right away', () async {
-      final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
-      final clock = Stopwatch()..start();
+    test('a timed out task returns its permit while it keeps running', () {
+      fakeAsync((async) {
+        final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
+        final stuck = Completer<void>();
+        Object? error;
+        gate
+            .run(() => stuck.future, timeLimit: const Duration(seconds: 1))
+            .catchError((Object e) => error = e);
+        var next = false;
+        gate.run(() => next = true);
 
+        async.elapse(const Duration(seconds: 1));
+
+        expect(error, isA<TimeoutException>());
+        expect(next, isTrue);
+        stuck.complete();
+      });
+    });
+
+    test('runCompute applies its time limit to the compute', () async {
+      final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
+
+      // 零时限在 isolate 启动前就到期
       await expectLater(
-        gate.runCompute(
-          _sleepThenEcho,
-          800,
-          timeLimit: const Duration(milliseconds: 100),
-        ),
+        gate.runCompute(_echo, 7, timeLimit: Duration.zero),
         throwsA(isA<TimeoutException>()),
       );
-      await gate.run(() {});
-
-      expect(clock.elapsed, lessThan(const Duration(milliseconds: 700)));
-      // compute 无法中止，等后台 isolate 自行结束再离开用例
-      await Future<void>.delayed(const Duration(milliseconds: 800));
+      expect(await gate.runCompute(_echo, 8), 8);
     });
 
     test('keeps default concurrency within processor-safe bounds', () {
@@ -96,8 +118,3 @@ void main() {
 }
 
 int _echo(int value) => value;
-
-int _sleepThenEcho(int milliseconds) {
-  sleep(Duration(milliseconds: milliseconds));
-  return milliseconds;
-}

@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 
-/// 占满共享 [ComputeGate] 的全部许可，调用返回的函数后归还。
-Future<void> Function() holdSharedComputeGate() {
-  final gate = ComputeGate();
+/// 占满 [gate] 的全部许可，调用返回的函数后归还。
+Future<void> Function() holdComputeGate(ComputeGate gate) {
   final release = Completer<void>();
   final holders = [
     for (var i = 0; i < gate.maxConcurrentTasks; i++)
@@ -17,26 +16,72 @@ Future<void> Function() holdSharedComputeGate() {
   };
 }
 
-/// 占满共享 [ComputeGate] 后启动 [work]，许可归还前它不得完成。
-Future<T> expectQueuedBehindSharedComputeGate<T>(
+Future<void> Function() holdSharedComputeGate() =>
+    holdComputeGate(ComputeGate());
+
+/// 占满 [gate] 后启动 [work]：断言它排进了闸门队列且许可归还前没有完成，归还后返回结果。
+Future<T> expectQueuedBehindComputeGate<T>(
+  ComputeGate gate,
   Future<T> Function() work,
 ) async {
-  final release = holdSharedComputeGate();
-  var settled = false;
+  final release = holdComputeGate(gate);
+  final queuedBefore = gate.debugQueuedTasks;
   late final Future<T> pending;
   try {
     pending = work();
-    unawaited(
-      pending.then<void>(
-        (_) => settled = true,
-        onError: (Object _) => settled = true,
-      ),
+    final settled = _settledFlag(pending);
+    await _turnEventLoopUntil(
+      () => settled() || gate.debugQueuedTasks > queuedBefore,
     );
-    // 不经闸门的小任务在这段时间内早已跑完
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    expect(settled, isFalse, reason: 'work did not wait for ComputeGate');
+    expect(settled(), isFalse, reason: 'work finished without the gate');
+    expect(
+      gate.debugQueuedTasks,
+      greaterThan(queuedBefore),
+      reason: 'work never queued for ComputeGate',
+    );
   } finally {
     await release();
   }
   return pending;
+}
+
+Future<T> expectQueuedBehindSharedComputeGate<T>(Future<T> Function() work) =>
+    expectQueuedBehindComputeGate(ComputeGate(), work);
+
+/// 占满 [gate] 后启动 [work]：断言它不经闸门就已完成。
+Future<T> expectRunsWithoutComputeGate<T>(
+  ComputeGate gate,
+  Future<T> Function() work,
+) async {
+  final release = holdComputeGate(gate);
+  final queuedBefore = gate.debugQueuedTasks;
+  late final Future<T> pending;
+  try {
+    pending = work();
+    final settled = _settledFlag(pending);
+    await _turnEventLoopUntil(settled);
+    expect(gate.debugQueuedTasks, queuedBefore, reason: 'work queued');
+    expect(settled(), isTrue, reason: 'work waited for ComputeGate');
+  } finally {
+    await release();
+  }
+  return pending;
+}
+
+bool Function() _settledFlag(Future<Object?> future) {
+  var settled = false;
+  unawaited(
+    future.then<void>(
+      (_) => settled = true,
+      onError: (Object _) => settled = true,
+    ),
+  );
+  return () => settled;
+}
+
+// 只让事件循环转圈，不按真实时间等待；上限只防被测代码出错时死循环
+Future<void> _turnEventLoopUntil(bool Function() condition) async {
+  for (var turn = 0; turn < 100000 && !condition(); turn++) {
+    await Future<void>.delayed(Duration.zero);
+  }
 }
