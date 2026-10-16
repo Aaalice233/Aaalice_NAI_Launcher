@@ -3,14 +3,10 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
-import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_stream_scanner.dart'
     show
@@ -23,51 +19,26 @@ import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../../helpers/gallery_database_sandbox.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
 void main() {
   group('GalleryStreamScanner retryMissingMetadata', () {
+    final sandbox = useGalleryDatabaseSandbox('gallery_stream_scanner_retry_');
     late GalleryDataSource dataSource;
     late Directory tempDir;
-    late String testDbPath;
-
-    setUpAll(() async {
-      sqfliteFfiInit();
-      databaseFactory = databaseFactoryFfi;
-      await AppLogger.initialize(isTestEnvironment: true);
-    });
 
     setUp(() async {
-      tempDir = await Directory.systemTemp.createTemp(
-        'gallery_stream_scanner_retry_',
-      );
-      testDbPath = p.join(tempDir.path, 'gallery_retry.db');
-      final hivePath = p.join(tempDir.path, 'hive');
-      await Directory(hivePath).create(recursive: true);
-      Hive.init(hivePath);
-
-      await ConnectionPoolHolder.initialize(
-        dbPath: testDbPath,
-        maxConnections: 2,
-      );
-
-      dataSource = GalleryDataSource();
-      await dataSource.initialize();
+      dataSource = sandbox.dataSource;
+      tempDir = sandbox.root;
       await ImageMetadataService().initialize();
       IsolateMetadataService.instance.dispose();
       GalleryStreamScanner.resetInstance();
     });
 
-    tearDown(() async {
+    tearDown(() {
       GalleryStreamScanner.resetInstance();
       IsolateMetadataService.instance.dispose();
-      await Hive.close();
-      await dataSource.dispose();
-      await ConnectionPoolHolder.dispose();
-
-      if (await tempDir.exists()) {
-        await _deleteDirectoryWithRetry(tempDir);
-      }
     });
 
     test(
@@ -379,7 +350,7 @@ void main() {
       final externalDir = await Directory.systemTemp.createTemp(
         'gallery_priority_external_',
       );
-      addTearDown(() => _deleteDirectoryWithRetry(externalDir));
+      addTearDown(() => externalDir.delete(recursive: true));
       final external = await _createWrappedNovelAiPng(
         externalDir,
         'external_retry.png',
@@ -528,21 +499,4 @@ Uint8List _buildBasePngBytes() {
   final image = img.Image(width: 4, height: 4);
   img.fill(image, color: img.ColorRgba8(255, 255, 255, 255));
   return Uint8List.fromList(img.encodePng(image));
-}
-
-Future<void> _deleteDirectoryWithRetry(
-  Directory dir, {
-  int maxAttempts = 5,
-}) async {
-  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      await dir.delete(recursive: true);
-      return;
-    } on PathAccessException {
-      if (attempt == maxAttempts) {
-        return;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
-  }
 }

@@ -2,11 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
-import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/services/bulk_gallery_store.dart';
 import 'package:nai_launcher/data/services/bulk_image_state_service.dart';
 import 'package:nai_launcher/data/services/bulk_operation_types.dart';
+
+import '../../helpers/gallery_statistics_probe.dart';
 
 void main() {
   setUp(() => AppLogger.debugSetMinimumLevelForTesting(Level.off));
@@ -141,6 +142,7 @@ void main() {
   });
 
   group('未索引图片', () {
+    final statistics = useGalleryStatisticsProbe();
     late Directory tempDir;
 
     setUp(() {
@@ -190,14 +192,6 @@ void main() {
     });
 
     test('一批新建记录只让缓存统计失效一次，未建记录时不失效', () async {
-      var invalidations = 0;
-      void countInvalidation() => invalidations++;
-      GalleryCacheManager().registerOnStatisticsInvalidated(countInvalidation);
-      addTearDown(
-        () => GalleryCacheManager().unregisterOnStatisticsInvalidated(
-          countInvalidation,
-        ),
-      );
       final first = File('${tempDir.path}${Platform.pathSeparator}first.png')
         ..writeAsBytesSync([1]);
       final second = File('${tempDir.path}${Platform.pathSeparator}second.png')
@@ -210,7 +204,7 @@ void main() {
         tagsToAdd: const ['added'],
         tagsToRemove: const [],
       );
-      expect(invalidations, 0);
+      expect(statistics.invalidations, 0);
 
       await service.editTags(
         [first.path, second.path],
@@ -219,7 +213,7 @@ void main() {
       );
 
       expect(store.upserts, hasLength(2));
-      expect(invalidations, 1);
+      expect(statistics.invalidations, 1);
     });
 
     test('重新建立记录的图片仍读回真实收藏状态', () async {
