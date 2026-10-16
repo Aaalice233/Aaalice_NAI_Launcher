@@ -7,11 +7,11 @@ import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/decoded_image_size.dart';
 import '../../../core/utils/inpaint_mask/inpaint_mask_geometry.dart';
 import '../../../core/utils/inpaint_mask/inpaint_mask_operations.dart';
 import '../../../core/utils/inpaint_mask/inpaint_mask_preview.dart';
 import '../../../core/utils/inpaint_outpaint_utils.dart';
-import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
 import '../../../data/models/inpaint/inpaint_draft_status.dart';
@@ -99,7 +99,8 @@ class InpaintDraftAuthoringService {
     if (resolutionError != null) return resolutionError;
     final resource = resolution.resource!;
 
-    final size = NaiResolutionAdapter.readImageSize(resource.bytes);
+    // 草稿仓库按解码后的像素校验蒙版与源图尺寸一致
+    final size = await DecodedImageSize.tryRead(resource.bytes);
     if (size == null) {
       return agentToolError(
         'invalid_source',

@@ -6,10 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
 
 import 'image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../providers/image_comparison_preferences_provider.dart';
 import 'image_comparison_toolbar.dart';
@@ -79,14 +79,12 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
   }
 
   void _readGeneratedSize() {
-    final info = widget.showPixelScaleControls
-        ? img
-              .findDecoderForData(widget.generatedImageBytes)
-              ?.startDecode(widget.generatedImageBytes)
+    final size = widget.showPixelScaleControls
+        ? NaiResolutionAdapter.readImageSize(widget.generatedImageBytes)
         : null;
-    _generatedSize = info == null
+    _generatedSize = size == null
         ? null
-        : Size(info.width.toDouble(), info.height.toDouble());
+        : Size(size.$1.toDouble(), size.$2.toDouble());
   }
 
   @override

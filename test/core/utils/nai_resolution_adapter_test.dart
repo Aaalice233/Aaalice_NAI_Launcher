@@ -474,10 +474,200 @@ void main() {
       expect((info.originalWidth, info.originalHeight), equals((2048, 2048)));
     });
   });
+
+  group('NaiResolutionAdapter EXIF-oriented jpeg sources', () {
+    const orientations = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    test('reads the decoded size for every orientation', () {
+      for (final orientation in orientations) {
+        final jpeg = _orientedJpeg(6, 4, orientation);
+
+        expect(
+          NaiResolutionAdapter.readImageSize(jpeg),
+          _decodedSize(jpeg),
+          reason: 'orientation $orientation',
+        );
+      }
+    });
+
+    test('keeps header sizes for other formats and plain jpeg', () {
+      final cases = <String, (Uint8List, (int, int))>{
+        'png': (_png(width: 6, height: 4), (6, 4)),
+        'jpeg without exif': (
+          Uint8List.fromList(img.encodeJpg(img.Image(width: 6, height: 4))),
+          (6, 4),
+        ),
+        'gif': (
+          Uint8List.fromList(img.encodeGif(img.Image(width: 6, height: 4))),
+          (6, 4),
+        ),
+        'bmp': (
+          Uint8List.fromList(img.encodeBmp(img.Image(width: 5, height: 3))),
+          (5, 3),
+        ),
+      };
+
+      for (final MapEntry(key: name, value: (bytes, size)) in cases.entries) {
+        expect(NaiResolutionAdapter.readImageSize(bytes), size, reason: name);
+      }
+    });
+
+    test('describes imports from the decoded size, sync and async', () async {
+      for (final orientation in orientations) {
+        final jpeg = _orientedJpeg(128, 64, orientation);
+        final decoded = _decodedSize(jpeg);
+        final infos = [
+          NaiResolutionAdapter.describeImageForImport(jpeg)!,
+          (await NaiResolutionAdapter.describeImageForImportAsync(jpeg))!,
+        ];
+
+        for (final info in infos) {
+          expect(
+            (info.originalWidth, info.originalHeight),
+            decoded,
+            reason: 'orientation $orientation',
+          );
+          expect(
+            (info.width, info.height),
+            decoded,
+            reason: 'orientation $orientation',
+          );
+        }
+      }
+    });
+
+    test('adapts imports without swapping the target size', () {
+      for (final orientation in orientations) {
+        final jpeg = _orientedJpeg(130, 64, orientation);
+        final (decodedWidth, decodedHeight) = _decodedSize(jpeg)!;
+        final adapted = NaiResolutionAdapter.adaptImageForImport(jpeg)!;
+
+        expect(
+          (adapted.originalWidth, adapted.originalHeight),
+          (decodedWidth, decodedHeight),
+          reason: 'orientation $orientation',
+        );
+        expect(
+          (adapted.width, adapted.height),
+          decodedWidth > decodedHeight ? (128, 64) : (64, 128),
+          reason: 'orientation $orientation',
+        );
+        final adaptedSize = (adapted.width, adapted.height);
+        expect(
+          _decodedSize(adapted.bytes),
+          adaptedSize,
+          reason: 'orientation $orientation',
+        );
+      }
+    });
+
+    test('scales large editor images on the decoded axes', () async {
+      for (final orientation in orientations) {
+        final jpeg = _orientedJpeg(2600, 40, orientation);
+        final (decodedWidth, decodedHeight) = _decodedSize(jpeg)!;
+        final expected = decodedWidth > decodedHeight ? (2560, 39) : (39, 2560);
+        final results = [
+          NaiResolutionAdapter.prepareImageForEditor(
+            jpeg,
+            alignForInpaint: false,
+          )!,
+          (await NaiResolutionAdapter.prepareImageForEditorAsync(
+            jpeg,
+            alignForInpaint: false,
+          ))!,
+        ];
+
+        for (final working in results) {
+          final reason = 'orientation $orientation';
+          expect(
+            (working.originalWidth, working.originalHeight),
+            (decodedWidth, decodedHeight),
+            reason: reason,
+          );
+          expect((working.width, working.height), expected, reason: reason);
+          expect(
+            working.resizeMode,
+            NaiEditorResizeMode.picaLanczos3,
+            reason: reason,
+          );
+          expect(_decodedSize(working.bytes), expected, reason: reason);
+        }
+      }
+    });
+
+    test('keeps small editor images on the decoded axes', () {
+      for (final orientation in orientations) {
+        final jpeg = _orientedJpeg(96, 40, orientation);
+        final decoded = _decodedSize(jpeg)!;
+        final reason = 'orientation $orientation';
+        final edit = NaiResolutionAdapter.prepareImageForEditor(
+          jpeg,
+          alignForInpaint: false,
+        )!;
+        final inpaint = NaiResolutionAdapter.prepareImageForEditor(
+          jpeg,
+          alignForInpaint: true,
+        )!;
+
+        expect((edit.width, edit.height), decoded, reason: reason);
+        expect(
+          edit.resizeMode,
+          NaiEditorResizeMode.passthrough,
+          reason: reason,
+        );
+        expect(
+          (inpaint.width, inpaint.height),
+          decoded.$1 > decoded.$2 ? (128, 64) : (64, 128),
+          reason: reason,
+        );
+        expect(inpaint.resizeMode, NaiEditorResizeMode.medium, reason: reason);
+      }
+    });
+
+    test('passes request bytes through only at their decoded size', () async {
+      final jpeg = _orientedJpeg(128, 64, 6);
+      expect(_decodedSize(jpeg), (64, 128));
+
+      final matching = NaiResolutionAdapter.normalizeImageForRequest(
+        jpeg,
+        targetWidth: 64,
+        targetHeight: 128,
+      );
+      final swapped = NaiResolutionAdapter.normalizeImageForRequest(
+        jpeg,
+        targetWidth: 128,
+        targetHeight: 64,
+      );
+      final swappedAsync =
+          await NaiResolutionAdapter.normalizeImageForRequestAsync(
+            jpeg,
+            targetWidth: 128,
+            targetHeight: 64,
+          );
+
+      expect(identical(matching, jpeg), isTrue);
+      expect(identical(swapped, jpeg), isFalse);
+      expect(_decodedSize(swapped!), (128, 64));
+      expect(identical(swappedAsync, jpeg), isFalse);
+      expect(_decodedSize(swappedAsync!), (128, 64));
+    });
+  });
 }
 
 Uint8List _png({required int width, required int height}) {
   return Uint8List.fromList(
     img.encodePng(img.Image(width: width, height: height)),
   );
+}
+
+Uint8List _orientedJpeg(int width, int height, int orientation) {
+  final image = img.Image(width: width, height: height)
+    ..exif.imageIfd.orientation = orientation;
+  img.fill(image, color: img.ColorRgb8(200, 40, 90));
+  return Uint8List.fromList(img.encodeJpg(image));
+}
+
+(int, int)? _decodedSize(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  return decoded == null ? null : (decoded.width, decoded.height);
 }

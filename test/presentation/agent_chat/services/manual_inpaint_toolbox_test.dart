@@ -549,6 +549,53 @@ void main() {
       expect(handoff!.rect, isNotNull);
     });
 
+    test('drafts and loads an EXIF-rotated jpeg at its decoded size', () async {
+      final rotated = img.Image(width: 96, height: 64)
+        ..exif.imageIfd.orientation = 6;
+      img.fill(rotated, color: img.ColorRgb8(40, 40, 40));
+      final jpegFile = File('${workspace.path}/rotated.jpg');
+      await jpegFile.writeAsBytes(img.encodeJpg(rotated));
+      (int, int)? handoffSize;
+      final toolbox = await buildToolbox();
+      toolbox.configurePanelHandoff(({
+        required source,
+        required sourceWidth,
+        required sourceHeight,
+        required mask,
+        required focusedInpaintEnabled,
+        required focusedSelectionRect,
+        required minimumContextMegaPixels,
+        required sourceIsOutpaint,
+      }) async {
+        handoffSize = (sourceWidth, sourceHeight);
+      });
+      final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+      markObservedPath(jpegFile.path);
+
+      final created = await tools['create_inpaint_mask']!.execute('r1', {
+        'source_image': 'rotated.jpg',
+        'prompt': 'fix the hand',
+        'focused': false,
+        'preview': false,
+        'regions': const [
+          {'shape': 'rect', 'x': 0.4, 'y': 0.4, 'width': 0.2, 'height': 0.2},
+        ],
+      });
+
+      expect(created.details['ok'], isTrue, reason: '${created.details}');
+      final draftId = created.details['draft']['draftId'] as String;
+      final mask = img.decodeImage((await repository.readMask(draftId))!)!;
+      expect((mask.width, mask.height), (64, 96));
+
+      final loaded = await tools['load_inpaint_draft_into_panel']!.execute(
+        'r2',
+        {'draft_id': draftId},
+      );
+
+      expect(loaded.details['ok'], isTrue);
+      expect(handoffSize, (64, 96));
+    });
+
     test('fails cleanly for malformed and missing draft ids', () async {
       final toolbox = await buildToolbox();
       toolbox.configurePanelHandoff(

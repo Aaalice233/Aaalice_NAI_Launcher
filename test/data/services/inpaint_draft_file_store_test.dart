@@ -95,10 +95,10 @@ void main() {
       expect(decoder.calls.single, same(bytes));
     });
 
-    test('accepts an EXIF-rotated JPEG whose header size differs', () async {
+    test('verifies an EXIF-rotated JPEG from its oriented header', () async {
       final bytes = _rotatedJpeg(width: 12, height: 8);
       final decoded = img.decodeImage(bytes)!;
-      expect(NaiResolutionAdapter.readImageSize(bytes), (12, 8));
+      expect(NaiResolutionAdapter.readImageSize(bytes), (8, 12));
       expect((decoded.width, decoded.height), (8, 12));
       final decoder = _RecordingDecoder();
       final store = InpaintDraftFileStore(decodeImageSize: decoder.call);
@@ -107,7 +107,7 @@ void main() {
       await store.verifyBytes(bytes, asset, 'source');
 
       expect((asset.width, asset.height), (8, 12));
-      expect(decoder.calls, hasLength(2));
+      expect(decoder.calls, hasLength(1));
     });
 
     test('default decoder verifies an EXIF-rotated JPEG', () async {

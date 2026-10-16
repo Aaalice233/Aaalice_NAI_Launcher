@@ -119,6 +119,27 @@ void main() {
       );
     });
   });
+
+  group('DecodedImageSize.tryRead', () {
+    test('reports decode failures as null', () async {
+      expect(await DecodedImageSize.tryRead(Uint8List(0)), isNull);
+      expect(
+        await DecodedImageSize.tryRead(
+          Uint8List.fromList(utf8.encode('not an image at all')),
+        ),
+        isNull,
+      );
+    });
+
+    test('returns the same size as read', () async {
+      final source = _image(6, 4)..exif.imageIfd.orientation = 6;
+      final jpeg = Uint8List.fromList(img.encodeJpg(source));
+      final bmp = Uint8List.fromList(img.encodeBmp(_image(5, 3)));
+
+      expect(await DecodedImageSize.tryRead(jpeg), (4, 6));
+      expect(await DecodedImageSize.tryRead(bmp), (5, 3));
+    });
+  });
 }
 
 img.Image _image(int width, int height) {

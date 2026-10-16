@@ -50,7 +50,8 @@ class DlssWorker {
     if (!Platform.isWindows) throw UnsupportedError('DLSS requires Windows');
     final size = img.findDecoderForData(source)?.startDecode(source);
     if (size == null) throw const FormatException('Invalid DLSS source image');
-    final target = options.targetSize(size.width, size.height);
+    // Symmetric limit: EXIF rotation cannot change whether this passes.
+    options.targetSize(size.width, size.height);
     final job = await runtime.absolute.createTemp('.job-');
     final input = File(p.join(job.path, 'input.aaf'));
     final baseline = File(p.join(job.path, 'baseline.aaf'));
@@ -70,6 +71,11 @@ class DlssWorker {
       final prepared = await _encodeInIsolate(source);
       recordTiming('decode', prepared.decodeTime);
       recordTiming('marshal', prepared.marshalTime);
+      // decodeImage bakes JPEG EXIF orientation into the worker's input frame.
+      final target = options.targetSize(
+        prepared.source.width,
+        prepared.source.height,
+      );
       final timer = Stopwatch()..start();
       // A closed temporary file is immediately visible to the worker; fsync is
       // only needed for durable storage, not this per-process transport.

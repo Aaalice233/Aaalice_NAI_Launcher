@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../constants/api_constants.dart';
+import 'decoded_image_size.dart';
 import 'isolate_pool.dart';
 import 'pica_lanczos_resizer.dart';
 
@@ -578,15 +579,17 @@ class NaiResolutionAdapter {
     return size != null && size.$1 == width && size.$2 == height;
   }
 
-  /// 只解析编码头获取画布尺寸，不解码任何像素帧。
+  /// 只解析编码头得到解码后的像素宽高：JPEG 计入 EXIF 方向，
+  /// PNG/JPEG/WebP 以外的格式取编码头声明的画布尺寸。
   static (int, int)? readImageSize(Uint8List bytes) {
-    final pngSize = _tryReadPngSize(bytes);
-    if (pngSize != null) {
-      return pngSize;
-    }
+    return _tryReadPngSize(bytes) ??
+        DecodedImageSize.readHeader(bytes) ??
+        _readCanvasSize(bytes);
+  }
+
+  static (int, int)? _readCanvasSize(Uint8List bytes) {
     try {
-      final decoder = img.findDecoderForData(bytes);
-      final info = decoder?.startDecode(bytes);
+      final info = img.findDecoderForData(bytes)?.startDecode(bytes);
       if (info == null || info.width <= 0 || info.height <= 0) {
         return null;
       }
@@ -597,7 +600,7 @@ class NaiResolutionAdapter {
   }
 
   /// 从 PNG IHDR 直接读取宽高（签名 8 字节 + 长度 4 字节 + 'IHDR' + w/h）。
-  /// 非 PNG 或头部异常时返回 null，由调用方回退到完整解码。
+  /// 非 PNG 或头部异常时返回 null。
   static (int, int)? _tryReadPngSize(Uint8List bytes) {
     if (bytes.length < 24 || !_isPng(bytes)) {
       return null;
