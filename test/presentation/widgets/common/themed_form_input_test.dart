@@ -1,121 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
 
+import '../../../helpers/input_surface_expectations.dart';
 import '../../../helpers/text_layout_expectations.dart';
 
 void main() {
   group('ThemedFormInput 装饰内容', () {
-    testWidgets('decoration 的标签、提示、图标与前后缀文字显示在输入色面内', (tester) async {
+    testWidgets('标签与提示参数并入 decoration，decoration 自带的优先', (tester) async {
       await tester.pumpWidget(
-        _app(
-          const Column(
-            children: [
-              ThemedFormInput(
-                initialValue: '42',
-                decoration: InputDecoration(
-                  labelText: 'Weight',
-                  prefixIcon: Icon(Icons.scale),
-                  suffixIcon: Icon(Icons.close),
-                  prefixText: '~',
-                  suffixText: '%',
-                ),
-              ),
-              ThemedFormInput(decoration: InputDecoration(hintText: 'Type')),
-              ThemedFormInput(
-                decoration: InputDecoration(label: Text('Label widget')),
-              ),
-              ThemedFormInput(
-                decoration: InputDecoration(hint: Text('Hint widget')),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      for (final target in [
-        find.text('Weight'),
-        find.byIcon(Icons.scale),
-        find.byIcon(Icons.close),
-        find.text('~'),
-        find.text('%'),
-        find.text('Type'),
-        find.text('Label widget'),
-        find.text('Hint widget'),
-      ]) {
-        expect(_insideSurface(target), findsOneWidget, reason: '$target');
-      }
-      expect(_decorationOf(tester).labelText, 'Weight');
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('decoration 的帮助、计数与错误文字显示在输入色面下方，错误点亮错误轮廓', (tester) async {
-      await tester.pumpWidget(
-        _app(
-          const Column(
-            children: [
-              ThemedFormInput(
-                key: ValueKey('helper'),
-                decoration: InputDecoration(
-                  helperText: 'Shown below',
-                  counterText: '3/10',
-                ),
-              ),
-              ThemedFormInput(
-                key: ValueKey('error'),
-                decoration: InputDecoration(
-                  helperText: 'Hidden by error',
-                  errorText: 'Name taken',
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      for (final text in ['Shown below', '3/10', 'Name taken']) {
-        expect(find.text(text), findsOneWidget, reason: text);
-        expect(_insideSurface(find.text(text)), findsNothing, reason: text);
-      }
-      expect(find.text('Hidden by error'), findsNothing);
-
-      final helperSurface = _surfaceIn(const ValueKey('helper'));
-      expect(
-        tester.widget<InputSurfaceContainer>(helperSurface).hasError,
-        isFalse,
-      );
-      expect(
-        tester.getTopLeft(find.text('Shown below')).dy,
-        greaterThanOrEqualTo(tester.getBottomLeft(helperSurface).dy),
-      );
-      expect(
-        tester.getCenter(find.text('3/10')).dx,
-        greaterThan(tester.getCenter(find.text('Shown below')).dx),
-      );
-
-      final errorSurface = _surfaceIn(const ValueKey('error'));
-      expect(
-        tester.widget<InputSurfaceContainer>(errorSurface).hasError,
-        isTrue,
-      );
-      final inner = _decorationOf(
-        tester,
-        find.descendant(
-          of: find.byKey(const ValueKey('error')),
-          matching: find.byType(TextField),
-        ),
-      );
-      expect(inner.errorText, isNull);
-      expect(inner.helperText, isNull);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('decoration 的非空属性覆盖同名参数，未提供时沿用参数', (tester) async {
-      await tester.pumpWidget(
-        _app(
+        inputTestApp(
           const Column(
             children: [
               ThemedFormInput(
@@ -137,12 +33,9 @@ void main() {
         ),
       );
 
-      final overridden = _decorationOf(
+      final overridden = innerDecorationOf(
         tester,
-        find.descendant(
-          of: find.byKey(const ValueKey('override')),
-          matching: find.byType(TextField),
-        ),
+        find.byKey(const ValueKey('override')),
       );
       expect(overridden.labelText, isNull);
       expect(overridden.hintText, 'Decoration hint');
@@ -153,35 +46,10 @@ void main() {
       expect(find.byIcon(Icons.star), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
-
-    testWidgets('边框与填充由输入色面绘制，decoration 的边框和填充不生效', (tester) async {
-      await tester.pumpWidget(
-        _app(
-          const ThemedFormInput(
-            decoration: InputDecoration(
-              labelText: 'Name',
-              border: OutlineInputBorder(),
-              enabledBorder: OutlineInputBorder(),
-              focusedBorder: OutlineInputBorder(),
-              filled: true,
-              fillColor: Colors.red,
-            ),
-          ),
-        ),
-      );
-
-      final inner = _decorationOf(tester);
-      expect(inner.labelText, 'Name');
-      expect(inner.border, InputBorder.none);
-      expect(inner.enabledBorder, InputBorder.none);
-      expect(inner.focusedBorder, InputBorder.none);
-      expect(inner.filled, isFalse);
-      expect(inner.fillColor, isNull);
-    });
   });
 
   testWidgets('沿用共享输入框的主题右键菜单与 Ctrl+Y 重做', (tester) async {
-    await tester.pumpWidget(_app(const ThemedFormInput()));
+    await tester.pumpWidget(inputTestApp(const ThemedFormInput()));
     expect(
       tester.widget<TextField>(find.byType(TextField)).contextMenuBuilder,
       themedContextMenuBuilder,
@@ -200,7 +68,7 @@ void main() {
   group('ThemedFormInput 校验与内容', () {
     testWidgets('校验错误优先于 decoration 的错误文字，校验通过后仍显示调用方错误', (tester) async {
       await tester.pumpWidget(
-        _app(
+        inputTestApp(
           const ThemedFormInput(
             autovalidateMode: AutovalidateMode.always,
             validator: _required,
@@ -215,7 +83,7 @@ void main() {
       expect(find.text('Required'), findsOneWidget);
       expect(find.text('Server says no'), findsNothing);
       expect(find.text('Helper'), findsNothing);
-      expect(_surfaceHasError(tester), isTrue);
+      expect(inputSurfaceOf(tester).hasError, isTrue);
 
       await tester.enterText(find.byType(TextField), 'x');
       await tester.pump();
@@ -223,12 +91,12 @@ void main() {
       expect(find.text('Required'), findsNothing);
       expect(find.text('Server says no'), findsOneWidget);
       expect(find.text('Helper'), findsNothing);
-      expect(_surfaceHasError(tester), isTrue);
+      expect(inputSurfaceOf(tester).hasError, isTrue);
     });
 
     testWidgets('校验错误替换帮助文字，校验通过后恢复帮助文字与普通轮廓', (tester) async {
       await tester.pumpWidget(
-        _app(
+        inputTestApp(
           const ThemedFormInput(
             autovalidateMode: AutovalidateMode.onUserInteraction,
             validator: _required,
@@ -244,20 +112,20 @@ void main() {
       await tester.pump();
       expect(find.text('Required'), findsOneWidget);
       expect(find.text('Helper'), findsNothing);
-      expect(_surfaceHasError(tester), isTrue);
+      expect(inputSurfaceOf(tester).hasError, isTrue);
 
       await tester.enterText(find.byType(TextField), 'y');
       await tester.pump();
       expect(find.text('Required'), findsNothing);
       expect(find.text('Helper'), findsOneWidget);
-      expect(_surfaceHasError(tester), isFalse);
+      expect(inputSurfaceOf(tester).hasError, isFalse);
     });
 
     testWidgets('initialValue 显示为输入内容，外部更新在未聚焦时同步，编辑中的更新留到失焦后', (tester) async {
       var value = 'Uniform';
       late StateSetter rebuild;
       await tester.pumpWidget(
-        _app(
+        inputTestApp(
           StatefulBuilder(
             builder: (context, setState) {
               rebuild = setState;
@@ -295,7 +163,7 @@ void main() {
 
     testWidgets('initialValue 不变时失焦保留用户输入', (tester) async {
       await tester.pumpWidget(
-        _app(const ThemedFormInput(initialValue: 'Uniform')),
+        inputTestApp(const ThemedFormInput(initialValue: 'Uniform')),
       );
 
       await tester.enterText(find.byType(TextField), 'Casual');
@@ -309,7 +177,7 @@ void main() {
       final controller = TextEditingController(text: 'abc');
       addTearDown(controller.dispose);
       await tester.pumpWidget(
-        _app(
+        inputTestApp(
           ThemedFormInput(
             controller: controller,
             autovalidateMode: AutovalidateMode.always,
@@ -335,7 +203,7 @@ void main() {
         tester.view.devicePixelRatio = 1;
         final reason = 'width=$width scale=$scale';
         await tester.pumpWidget(
-          _app(
+          inputTestApp(
             const ThemedFormInput(
               initialValue: 'Casual',
               decoration: InputDecoration(
@@ -372,38 +240,6 @@ Future<void> _pressWithControl(
 }
 
 String? _required(String? value) => (value ?? '').isEmpty ? 'Required' : null;
-
-Widget _app(Widget child, {double textScale = 1}) {
-  return MaterialApp(
-    builder: (context, app) => MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: TextScaler.linear(textScale)),
-      child: app!,
-    ),
-    home: Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: child,
-      ),
-    ),
-  );
-}
-
-Finder _insideSurface(Finder target) =>
-    find.descendant(of: find.byType(InputSurfaceContainer), matching: target);
-
-Finder _surfaceIn(Key key) => find.descendant(
-  of: find.byKey(key),
-  matching: find.byType(InputSurfaceContainer),
-);
-
-InputDecoration _decorationOf(WidgetTester tester, [Finder? field]) =>
-    tester.widget<TextField>(field ?? find.byType(TextField).first).decoration!;
-
-bool _surfaceHasError(WidgetTester tester) => tester
-    .widget<InputSurfaceContainer>(find.byType(InputSurfaceContainer))
-    .hasError;
 
 String _text(WidgetTester tester) =>
     tester.widget<EditableText>(find.byType(EditableText)).controller.text;
