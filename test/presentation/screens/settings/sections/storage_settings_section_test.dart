@@ -23,6 +23,7 @@ import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import '../../../../helpers/adaptive_panel_expectations.dart';
+import '../../../../helpers/fake_save_file_picker.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -92,19 +93,8 @@ void main() {
   testWidgets(
     'Android ONNX import does not hide extensions behind MIME filters',
     (tester) async {
-      FilePicker? originalFilePicker;
-      try {
-        originalFilePicker = FilePicker.platform;
-      } catch (_) {
-        originalFilePicker = null;
-      }
       final filePicker = _RecordingFilePicker();
-      FilePicker.platform = filePicker;
-      addTearDown(() {
-        if (originalFilePicker != null) {
-          FilePicker.platform = originalFilePicker;
-        }
-      });
+      useFakeFilePicker(filePicker);
       PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
         TargetPlatform.android,
       );
@@ -124,26 +114,17 @@ void main() {
   );
 
   testWidgets('ONNX 导入进行中按钮显示忙碌且不能重复导入', (tester) async {
-    FilePicker? originalFilePicker;
-    try {
-      originalFilePicker = FilePicker.platform;
-    } catch (_) {
-      originalFilePicker = null;
-    }
-    FilePicker.platform = _RecordingFilePicker(
-      result: FilePickerResult([
-        PlatformFile(
-          name: 'tagger.zip',
-          size: 1,
-          path: r'C:\picked\tagger.zip',
-        ),
-      ]),
+    useFakeFilePicker(
+      _RecordingFilePicker(
+        result: FilePickerResult([
+          PlatformFile(
+            name: 'tagger.zip',
+            size: 1,
+            path: r'C:\picked\tagger.zip',
+          ),
+        ]),
+      ),
     );
-    addTearDown(() {
-      if (originalFilePicker != null) {
-        FilePicker.platform = originalFilePicker;
-      }
-    });
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
     );
