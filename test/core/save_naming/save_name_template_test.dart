@@ -139,7 +139,6 @@ void main() {
         SaveNameCharacter(prompt: 'kagamine rin, short hair'),
         SaveNameCharacter(prompt: 'boy'),
         SaveNameCharacter(prompt: 'megurine luka'),
-        SaveNameCharacter(prompt: 'ignored', name: 'Named'),
       ];
       expect(
         render('{characters}', const {}, characters: characters),
@@ -147,7 +146,7 @@ void main() {
       );
       expect(
         render('{characters|max:5|join:_}', const {}, characters: characters),
-        'hatsune miku_kagamine rin_boy_megurine luka_Named',
+        'hatsune miku_kagamine rin_boy_megurine luka',
       );
       expect(
         render('{characters|at:2|each:4}', const {}, characters: characters),

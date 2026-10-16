@@ -136,10 +136,9 @@ final class SaveNameTokenPart extends SaveNameTemplatePart {
 }
 
 final class SaveNameCharacter {
-  const SaveNameCharacter({required this.prompt, this.name});
+  const SaveNameCharacter({required this.prompt});
 
   final String prompt;
-  final String? name;
 }
 
 /// 渲染所需的字段值；空串表示该字段没有值。
@@ -418,7 +417,7 @@ String _renderCharacters(
       .map((character) {
         final label = full
             ? character.prompt.trim()
-            : character.name ?? _leadingSubjectTag(character.prompt);
+            : _leadingSubjectTag(character.prompt);
         return each == null ? label : _firstCodePoints(label, each);
       })
       .where((label) => label.isNotEmpty)

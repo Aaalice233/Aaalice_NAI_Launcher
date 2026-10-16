@@ -148,14 +148,6 @@ final class ImageSaveNaming {
     }
   }
 
-  ImageSaveNaming copyWith({
-    String? folderTemplate,
-    String? fileNameTemplate,
-  }) => ImageSaveNaming(
-    folderTemplate: folderTemplate ?? this.folderTemplate,
-    fileNameTemplate: fileNameTemplate ?? this.fileNameTemplate,
-  );
-
   @override
   bool operator ==(Object other) =>
       other is ImageSaveNaming &&
