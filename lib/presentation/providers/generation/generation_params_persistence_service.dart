@@ -170,14 +170,14 @@ final class GenerationParamsPersistenceService {
   Future<GenerationStateRestoreResult> _restore() async {
     final span = VibePerformanceDiagnostics.start('generation.restoreState');
     _isRestoring = true;
-    var jsonBytes = 0;
+    var jsonChars = 0;
     try {
       final stateJson = await _referenceStorage.loadGenerationStateJson();
       if (stateJson == null || stateJson.isEmpty) {
         _hasRestored = true;
         return const GenerationStateRestoreResult.empty();
       }
-      jsonBytes = stateJson.length;
+      jsonChars = stateJson.length;
       final decoded = stateJson.length < _isolateDecodeThreshold
           ? _decodeStateJson(stateJson)
           : await Isolate.run(() => _decodeStateJson(stateJson));
@@ -189,7 +189,7 @@ final class GenerationParamsPersistenceService {
       return const GenerationStateRestoreResult.failed();
     } finally {
       _isRestoring = false;
-      span.finish(details: {'jsonBytes': jsonBytes});
+      span.finish(details: {'jsonChars': jsonChars});
     }
   }
 
