@@ -19,9 +19,7 @@ class RandomPresetRules {
         resolver.canonicalId,
       ),
       categories: preset.categories
-          .map(
-            (category) => category.mapCategoryReferences(resolver.canonicalId),
-          )
+          .map((category) => category.canonicalizeReferences(resolver))
           .toList(),
     );
     return RandomPresetRules._(
