@@ -7,6 +7,7 @@ import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/character_center_resolver.dart';
 import '../../utils/inpaint_mask_utils.dart';
+import '../../utils/jpeg_exif_orientation.dart';
 import '../../utils/nai_resolution_adapter.dart';
 import '../../utils/nai_api_utils.dart';
 import '../../utils/novelai_auto_text.dart';
@@ -355,8 +356,13 @@ class NAIImageRequestBuilder {
         return vibeEncodingMap;
       }
 
-      requestParameters['reference_image_multiple'] = rawImageVibes
-          .map((vibe) => base64Encode(vibe.rawImageData!))
+      final uploads = await Future.wait(
+        rawImageVibes.map(
+          (vibe) => JpegExifOrientation.bakeToPngAsync(vibe.rawImageData!),
+        ),
+      );
+      requestParameters['reference_image_multiple'] = uploads
+          .map(base64Encode)
           .toList(growable: false);
       requestParameters['reference_strength_multiple'] = rawImageVibes
           .map((vibe) => vibe.strength)

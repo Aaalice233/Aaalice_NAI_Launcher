@@ -13,6 +13,7 @@ import '../../../core/network/js_compatible_json.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/decoded_image_size.dart';
+import '../../../core/utils/jpeg_exif_orientation.dart';
 import '../../../core/utils/zip_utils.dart';
 
 part 'nai_image_enhancement_api_service.g.dart';
@@ -61,11 +62,12 @@ class NAIImageEnhancementApiService {
     int scale = 2,
     void Function(int, int)? onProgress,
   }) async {
+    final upload = await _orientedUpload(image);
     final activity = _networkActivity.acquire(
       CriticalNetworkActivityType.cloudUpscale,
     );
     try {
-      final body = _buildImageToolMultipart(image, <String, dynamic>{
+      final body = _buildImageToolMultipart(upload, <String, dynamic>{
         'image': 'image',
         'model': _upscaleModel,
         'declared_blur_sigma': _upscaleDeclaredBlurSigma,
@@ -95,7 +97,7 @@ class NAIImageEnhancementApiService {
       );
       // 不 await 时 finally 会在回退请求完成前释放租约
       return await _upscaleImageLegacy(
-        image,
+        upload,
         scale: scale,
         onProgress: onProgress,
       );
@@ -133,6 +135,10 @@ class NAIImageEnhancementApiService {
       throw Exception('图像放大失败: ${_mapDioError(e)}');
     }
   }
+
+  // 官网经 canvas 上传已转正的 PNG，带 EXIF 方向的 JPEG 不能原样发出
+  static Future<Uint8List> _orientedUpload(Uint8List image) =>
+      JpegExifOrientation.bakeToPngAsync(image);
 
   static Future<(int, int)> _readImageSize(Uint8List image) async {
     final size = await DecodedImageSize.read(image);
@@ -177,11 +183,12 @@ class NAIImageEnhancementApiService {
     required String model,
     double informationExtracted = 1.0,
   }) async {
+    final upload = await _orientedUpload(image);
     final activity = _networkActivity.acquire(
       CriticalNetworkActivityType.vibeEncoding,
     );
     try {
-      final body = _buildImageToolMultipart(image, <String, dynamic>{
+      final body = _buildImageToolMultipart(upload, <String, dynamic>{
         'image': 'image',
         'information_extracted': informationExtracted,
         'model': model,
@@ -212,16 +219,17 @@ class NAIImageEnhancementApiService {
     String? prompt,
     int defry = 0,
   }) async {
+    final upload = await _orientedUpload(image);
     final activity = _networkActivity.acquire(
       CriticalNetworkActivityType.directorTool,
     );
     try {
-      final (width, height) = await _readImageSize(image);
+      final (width, height) = await _readImageSize(upload);
 
       // 官网只有上色与表情工具带提示词和 defry，上色的空提示词也照发。
       final hasPromptControls =
           reqType == _reqTypeColorize || reqType == _reqTypeEmotion;
-      final body = _buildImageToolMultipart(image, <String, dynamic>{
+      final body = _buildImageToolMultipart(upload, <String, dynamic>{
         'req_type': reqType,
         'use_new_shared_trial': true,
         if (hasPromptControls) 'prompt': prompt ?? '',

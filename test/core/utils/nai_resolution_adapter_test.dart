@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -624,35 +625,72 @@ void main() {
       }
     });
 
-    test('passes request bytes through only at their decoded size', () async {
-      final jpeg = _orientedJpeg(128, 64, 6);
-      expect(_decodedSize(jpeg), (64, 128));
+    test('sends oriented request sources as png at the target size', () async {
+      for (final orientation in orientations.skip(1)) {
+        final jpeg = _orientedJpeg(128, 64, orientation);
+        final decoded = _decodedSize(jpeg)!;
+        final targets = [decoded, (decoded.$2, decoded.$1)];
 
-      final matching = NaiResolutionAdapter.normalizeImageForRequest(
-        jpeg,
-        targetWidth: 64,
-        targetHeight: 128,
-      );
-      final swapped = NaiResolutionAdapter.normalizeImageForRequest(
-        jpeg,
-        targetWidth: 128,
-        targetHeight: 64,
-      );
-      final swappedAsync =
-          await NaiResolutionAdapter.normalizeImageForRequestAsync(
-            jpeg,
-            targetWidth: 128,
-            targetHeight: 64,
-          );
+        for (final (width, height) in targets) {
+          final reason = 'orientation $orientation, ${width}x$height';
+          final results = [
+            NaiResolutionAdapter.normalizeImageForRequest(
+              jpeg,
+              targetWidth: width,
+              targetHeight: height,
+            ),
+            await NaiResolutionAdapter.normalizeImageForRequestAsync(
+              jpeg,
+              targetWidth: width,
+              targetHeight: height,
+            ),
+          ];
 
-      expect(identical(matching, jpeg), isTrue);
-      expect(identical(swapped, jpeg), isFalse);
-      expect(_decodedSize(swapped!), (128, 64));
-      expect(identical(swappedAsync, jpeg), isFalse);
-      expect(_decodedSize(swappedAsync!), (128, 64));
+          for (final normalized in results) {
+            expect(img.decodePng(normalized!), isNotNull, reason: reason);
+            expect(_decodedSize(normalized), (width, height), reason: reason);
+          }
+        }
+      }
+    });
+
+    test('passes unrotated request sources through byte for byte', () async {
+      final cases = <String, Uint8List>{
+        'jpeg orientation 1': _orientedJpeg(128, 64, 1),
+        'jpeg without exif': Uint8List.fromList(
+          img.encodeJpg(img.Image(width: 128, height: 64)),
+        ),
+        'png': _png(width: 128, height: 64),
+        'webp': _webpLossless,
+      };
+
+      for (final MapEntry(key: name, value: bytes) in cases.entries) {
+        final (width, height) = _decodedSize(bytes)!;
+        final normalized = NaiResolutionAdapter.normalizeImageForRequest(
+          bytes,
+          targetWidth: width,
+          targetHeight: height,
+        );
+        final normalizedAsync =
+            await NaiResolutionAdapter.normalizeImageForRequestAsync(
+              bytes,
+              targetWidth: width,
+              targetHeight: height,
+            );
+
+        expect(identical(normalized, bytes), isTrue, reason: name);
+        expect(identical(normalizedAsync, bytes), isTrue, reason: name);
+      }
     });
   });
 }
+
+final _webpLossless = base64Decode(
+  'UklGRqAAAABXRUJQVlA4TJQAAAAvE0ADALkyRPQ/FgrSNmC6419vpZhp28b8Ebfdjuh//CUC'
+  'gEEjSYrqSQH617p0EhS3bePGmFx79WMUSZLi+Ebk8Yvxdx6YJFxMAOGaVt4jYOUS3RKsMPhm'
+  'JIIJEyqwAwNK8ECyAPfQYkXeIGEBAIVto8UCABfAbebs4ATAXzkF+FEcULLiAwANBxB2ALwg'
+  '1Xr3AwAS',
+);
 
 Uint8List _png({required int width, required int height}) {
   return Uint8List.fromList(
