@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import '../../../core/utils/app_logger.dart';
-import '../../models/gallery/nai_image_metadata.dart';
 import 'isolate_metadata_protocol.dart';
 import 'metadata_isolate_worker.dart';
 
@@ -216,7 +215,7 @@ class MetadataWorkerPool {
   /// 解析元数据（Isolate 中执行）
   ///
   /// [filePath] 图像文件路径
-  /// [config] 解析配置（超时、渐进式读取等）
+  /// [config] 解析配置（超时）
   /// 返回解析结果，失败返回带错误信息的结果
   Future<IsolateParseResult> parseMetadata(
     String filePath, {
@@ -271,53 +270,6 @@ class MetadataWorkerPool {
 
     // 执行任务
     return _executeTask(worker, task, stopwatch);
-  }
-
-  /// 完整解析（用于编辑等场景）
-  ///
-  /// 使用完整文件读取和较长超时，确保获取完整元数据
-  Future<NaiImageMetadata?> parseForEdit(String filePath) async {
-    final stopwatch = Stopwatch()..start();
-
-    AppLogger.i(
-      '[IsolateMetadata] Edit parse START: $filePath',
-      'IsolateMetadataService',
-    );
-
-    try {
-      final result = await parseMetadata(
-        filePath,
-        config: const IsolateParseConfig(
-          timeout: Duration(seconds: 10),
-          useGradualRead: false, // 编辑场景使用完整文件
-        ),
-      );
-
-      stopwatch.stop();
-
-      if (result.success) {
-        AppLogger.i(
-          '[IsolateMetadata] Edit parse COMPLETED (${stopwatch.elapsedMilliseconds}ms)',
-          'IsolateMetadataService',
-        );
-        return result.metadata;
-      } else {
-        AppLogger.w(
-          '[IsolateMetadata] Edit parse FAILED: ${result.error}',
-          'IsolateMetadataService',
-        );
-        return null;
-      }
-    } catch (e) {
-      stopwatch.stop();
-      AppLogger.e(
-        '[IsolateMetadata] Edit parse ERROR',
-        e,
-        null,
-        'IsolateMetadataService',
-      );
-      return null;
-    }
   }
 
   /// 取消所有进行中的任务

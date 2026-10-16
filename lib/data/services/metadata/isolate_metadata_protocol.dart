@@ -23,12 +23,8 @@ enum IsolateParseFailureKind { definitive, infrastructure, cancelled }
 /// Isolate 解析配置
 class IsolateParseConfig {
   final Duration timeout;
-  final bool useGradualRead;
 
-  const IsolateParseConfig({
-    this.timeout = const Duration(seconds: 5),
-    this.useGradualRead = true,
-  });
+  const IsolateParseConfig({this.timeout = const Duration(seconds: 5)});
 }
 
 /// Isolate 解析结果
@@ -128,13 +124,8 @@ class MetadataWorkerInitMessage {
 class MetadataParseRequest {
   final int requestId;
   final String filePath;
-  final IsolateParseConfig config;
 
-  MetadataParseRequest({
-    required this.requestId,
-    required this.filePath,
-    required this.config,
-  });
+  MetadataParseRequest({required this.requestId, required this.filePath});
 }
 
 /// 解析响应
