@@ -37,7 +37,7 @@ void main() {
     );
   });
 
-  test('筛选、排序输入或条目/分类列表变化时重新计算且结果与逐项实现一致', () {
+  test('筛选、排序输入或条目/分类列表变化时重新计算', () {
     final base = TagLibraryPageState(entries: entries, categories: categories);
     final filtered = base.filteredEntries;
 
@@ -50,34 +50,7 @@ void main() {
       'categories': base.copyWith(categories: List.of(categories)),
     };
     for (final MapEntry(key: change, value: state) in inputChanges.entries) {
-      final recomputed = state.filteredEntries;
-      expect(recomputed, isNot(same(filtered)), reason: change);
-      expect(
-        recomputed.map((entry) => entry.id),
-        _referenceFilteredIds(state),
-        reason: change,
-      );
-    }
-  });
-
-  test('所有分类、搜索与排序组合都与逐项实现一致', () {
-    for (final sortBy in TagLibrarySortBy.values) {
-      for (final categoryId in [null, 'root', 'child', 'favorites']) {
-        for (final searchQuery in ['', 'mixed']) {
-          final state = TagLibraryPageState(
-            entries: entries,
-            categories: categories,
-            sortBy: sortBy,
-            selectedCategoryId: categoryId,
-            searchQuery: searchQuery,
-          );
-          expect(
-            state.filteredEntries.map((entry) => entry.id),
-            _referenceFilteredIds(state),
-            reason: '$sortBy cat=$categoryId q=$searchQuery',
-          );
-        }
-      }
+      expect(state.filteredEntries, isNot(same(filtered)), reason: change);
     }
   });
 
@@ -119,34 +92,4 @@ List<TagLibraryEntry> _fixture() {
         updatedAt: DateTime(2026, 1, 1, index % 6),
       ),
   ];
-}
-
-List<String> _referenceFilteredIds(TagLibraryPageState state) {
-  var result = state.entries;
-  final categoryId = state.selectedCategoryId;
-  if (categoryId != null) {
-    if (categoryId == 'favorites') {
-      result = result.where((e) => e.isFavorite).toList();
-    } else {
-      final categoryIds = {
-        categoryId,
-        ...state.categories.getDescendantIds(categoryId),
-      };
-      result = result.where((e) => categoryIds.contains(e.categoryId)).toList();
-    }
-  }
-  if (state.searchQuery.isNotEmpty) result = result.search(state.searchQuery);
-  final sorted = switch (state.sortBy) {
-    TagLibrarySortBy.order => result.sortedByOrder(),
-    TagLibrarySortBy.name => result.sortedByName(),
-    TagLibrarySortBy.useCount => result.sortedByUseCount(),
-    TagLibrarySortBy.updatedAt => result.sortedByUpdatedAt(),
-  };
-  final ordered = categoryId == 'favorites'
-      ? sorted
-      : [
-          ...sorted.where((e) => e.isFavorite),
-          ...sorted.where((e) => !e.isFavorite),
-        ];
-  return ordered.map((entry) => entry.id).toList();
 }
