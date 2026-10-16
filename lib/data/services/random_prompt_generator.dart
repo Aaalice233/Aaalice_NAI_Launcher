@@ -453,18 +453,11 @@ class RandomPromptGenerator {
     }
 
     for (final category in preset.categories) {
-      // 跳过禁用的类别
-      if (!category.enabled) continue;
-
-      if (!rules.isCategoryVisible(category, generationContext)) continue;
-
-      // 作用域过滤
-      if (!category.isApplicableToScope(targetScope)) continue;
-
-      // 性别过滤（仅在指定性别时应用）
-      final characterGender = generationContext.characterGender;
-      if (characterGender != null &&
-          !category.isApplicableToGender(characterGender)) {
+      if (!rules.isCategoryEligible(
+        category,
+        generationContext,
+        scope: targetScope,
+      )) {
         continue;
       }
 
@@ -523,7 +516,7 @@ class RandomPromptGenerator {
         .where(
           (g) =>
               !rules.isBranchOwned(category, g) &&
-              _isGroupEligible(g, rules, context, targetScope: targetScope),
+              rules.isGroupEligible(g, context, scope: targetScope),
         )
         .toList();
     if (enabledGroups.isEmpty) return [];
@@ -561,25 +554,6 @@ class RandomPromptGenerator {
     }
 
     return results;
-  }
-
-  /// 顶层词组与子词组共用的参与条件：启用、作用域、性别、时间、可见性与依赖
-  bool _isGroupEligible(
-    RandomTagGroup group,
-    RandomPresetRules rules,
-    RandomPresetGenerationContext context, {
-    TagScope targetScope = TagScope.all,
-  }) {
-    if (!group.enabled) return false;
-    if (!group.isApplicableToScope(targetScope)) return false;
-    final characterGender = context.characterGender;
-    if (characterGender != null &&
-        !group.isApplicableToGender(characterGender)) {
-      return false;
-    }
-    if (!group.isTimeConditionActive(context.generationTime)) return false;
-    if (!group.checkVisibility(context.tagContext)) return false;
-    return rules.isDependencySatisfied(group, context);
   }
 
   /// 数量与值依赖得出的抽取数量，在任何选择模式下都覆盖模式自身的数量
@@ -836,7 +810,7 @@ class RandomPromptGenerator {
     Set<String> branchPath = const {},
   }) async {
     final enabledChildren = group.children
-        .where((child) => _isGroupEligible(child, rules, context))
+        .where((child) => rules.isGroupEligible(child, context))
         .toList();
     if (enabledChildren.isEmpty) return [];
 

@@ -4,6 +4,7 @@ import '../models/prompt/post_process_rule.dart';
 import '../models/prompt/random_category.dart';
 import '../models/prompt/random_preset.dart';
 import '../models/prompt/random_tag_group.dart';
+import '../models/prompt/tag_scope.dart';
 import '../models/prompt/visibility_rule.dart';
 import 'random_preset_generation_context.dart';
 
@@ -57,7 +58,37 @@ class RandomPresetRules {
   bool isBranchOwned(RandomCategory category, RandomTagGroup group) =>
       _branchOwnedGroupIds[category.id]?.contains(group.id) ?? false;
 
-  bool isCategoryVisible(
+  /// 类别能否参与本轮生成：启用、作用域、角色性别与可见性
+  bool isCategoryEligible(
+    RandomCategory category,
+    RandomPresetGenerationContext context, {
+    TagScope scope = TagScope.all,
+  }) {
+    if (!category.enabled || !category.isApplicableToScope(scope)) {
+      return false;
+    }
+    final gender = context.characterGender;
+    if (gender != null && !category.isApplicableToGender(gender)) return false;
+    return _isCategoryVisible(category, context);
+  }
+
+  /// 词组能否参与抽取：启用、作用域、角色性别、时间、可见性与依赖
+  ///
+  /// 常规抽取、子词组与分支输出都经由这里求值；[scope] 为本轮的目标作用域
+  bool isGroupEligible(
+    RandomTagGroup group,
+    RandomPresetGenerationContext context, {
+    TagScope scope = TagScope.all,
+  }) {
+    if (!group.enabled || !group.isApplicableToScope(scope)) return false;
+    final gender = context.characterGender;
+    if (gender != null && !group.isApplicableToGender(gender)) return false;
+    return group.isTimeConditionActive(context.generationTime) &&
+        group.checkVisibility(context.tagContext) &&
+        _isDependencySatisfied(group, context);
+  }
+
+  bool _isCategoryVisible(
     RandomCategory category,
     RandomPresetGenerationContext context,
   ) {
@@ -69,7 +100,7 @@ class RandomPresetRules {
         (groupRules == null || groupRules.isCategoryVisible(category.id, tags));
   }
 
-  bool isDependencySatisfied(
+  bool _isDependencySatisfied(
     RandomTagGroup group,
     RandomPresetGenerationContext context,
   ) {
