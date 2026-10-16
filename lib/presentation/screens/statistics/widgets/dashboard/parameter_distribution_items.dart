@@ -14,17 +14,18 @@ List<ParameterBarItem> parameterDistributionItems(
   GalleryParameter parameter, {
   required String otherLabel,
   Color? otherColor,
-  int visibleValues = parameterDistributionVisibleValues,
 }) {
   final entries = [
     for (final entry in distribution)
       if (entry.parameterName == parameter.key) entry,
   ];
   // 只多出一个取值时照常列出：并成"其他"占同样一行，却丢了取值
-  final folds = entries.length > visibleValues + 1;
-  final shown = folds ? entries.take(visibleValues) : entries;
+  final folds = entries.length > parameterDistributionVisibleValues + 1;
+  final shown = folds
+      ? entries.take(parameterDistributionVisibleValues)
+      : entries;
   final folded = folds
-      ? entries.skip(visibleValues)
+      ? entries.skip(parameterDistributionVisibleValues)
       : const <ParameterStatistics>[];
 
   return [
