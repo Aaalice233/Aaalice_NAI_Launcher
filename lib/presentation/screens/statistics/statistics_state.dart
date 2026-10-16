@@ -65,8 +65,8 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   // stale.
   int _galleryRevision = 0;
   int _loadedRevision = 0;
-  // Listeners mean statistics are on screen; only then do writes reload.
-  bool _watched = false;
+  // Only a visible page reloads on writes; a hidden one catches up when shown.
+  bool _visible = false;
   Timer? _galleryChangeTimer;
 
   bool get _missesGalleryChanges => _loadedRevision != _galleryRevision;
@@ -75,10 +75,8 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   StatisticsData build() {
     final cacheManager = GalleryCacheManager();
     cacheManager.registerOnStatisticsInvalidated(_onGalleryIndexChanged);
-    ref.onAddListener(() => _watched = true);
-    ref.onCancel(_stopWatching);
     ref.onDispose(() {
-      _stopWatching();
+      _cancelPendingReload();
       cacheManager.unregisterOnStatisticsInvalidated(_onGalleryIndexChanged);
     });
     return const StatisticsData();
@@ -93,10 +91,18 @@ class StatisticsNotifier extends _$StatisticsNotifier {
     return _loadStatistics(usePersistentCache: false);
   }
 
+  /// Set by the statistics page: shell branches stay mounted and keep
+  /// watching while hidden, so listeners cannot tell whether it is on screen.
+  Future<void> setVisible(bool visible) {
+    _visible = visible;
+    if (visible) return whenLoaded();
+    _cancelPendingReload();
+    return Future<void>.value();
+  }
+
   void _onGalleryIndexChanged() {
     _galleryRevision++;
-    // A hidden page reloads on its next open through whenLoaded.
-    if (!_watched) return;
+    if (!_visible) return;
     _galleryChangeTimer?.cancel();
     _galleryChangeTimer = Timer(galleryChangeDebounce, () {
       _galleryChangeTimer = null;
@@ -107,12 +113,11 @@ class StatisticsNotifier extends _$StatisticsNotifier {
   Future<void> _reloadAfterGalleryChange() async {
     final inFlight = _loadFuture;
     if (inFlight != null) await inFlight;
-    if (!_watched || !_missesGalleryChanges) return;
+    if (!_visible || !_missesGalleryChanges) return;
     await _loadStatistics(usePersistentCache: false);
   }
 
-  void _stopWatching() {
-    _watched = false;
+  void _cancelPendingReload() {
     _galleryChangeTimer?.cancel();
     _galleryChangeTimer = null;
   }
