@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 扣除安全区与软键盘后仍可见的屏幕范围
@@ -25,6 +25,15 @@ bool _isBuilt(Finder target) {
     return false;
   }
 }
+
+/// 文字为 [label] 的 Material 按钮，离屏的也算
+Finder buttonLabeled(String label) => find.ancestor(
+  of: find.text(label, skipOffstage: false),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is ButtonStyleButton,
+    skipOffstage: false,
+  ),
+);
 
 /// 按需构建的列表项先按视口半高逐步跳转，直到目标进入构建范围；
 /// [scrollView] 可以是 Scrollable 本身或包含它的滚动视图
@@ -67,9 +76,49 @@ Future<void> revealOnScreen(WidgetTester tester, Finder target) async {
   await tester.pumpAndSettle();
 }
 
+/// 屏幕可见范围再按目标所在的各层滚动视口裁剪，并扣除固定在视口顶端、
+/// 排在目标之前的头部
+Rect _visibleBounds(WidgetTester tester, RenderObject targetBox) {
+  var visible = visibleViewRect(tester);
+  RenderObject child = targetBox;
+  for (
+    RenderObject? node = targetBox.parent;
+    node != null;
+    child = node, node = node.parent
+  ) {
+    if (node is! RenderAbstractViewport) continue;
+    final box = node as RenderBox;
+    final viewport = MatrixUtils.transformRect(
+      box.getTransformTo(null),
+      Offset.zero & box.size,
+    );
+    final obstruction =
+        node is RenderViewportBase && node.axisDirection == AxisDirection.down
+        ? _leadingObstruction(node, child as RenderSliver)
+        : 0.0;
+    visible = visible.intersect(
+      Rect.fromLTRB(
+        viewport.left,
+        viewport.top + obstruction,
+        viewport.right,
+        viewport.bottom,
+      ),
+    );
+  }
+  return visible;
+}
+
+/// 点在目标实际露出部分的中心，比所在视口还宽或还高的目标也能点中
+Future<void> tapVisiblePart(WidgetTester tester, Finder target) async {
+  final shown = tester
+      .getRect(target)
+      .intersect(_visibleBounds(tester, tester.renderObject(target)));
+  await tester.tapAt(shown.center);
+  await tester.pumpAndSettle();
+}
+
 /// 断言目标完整进入可见范围（比可见范围还大时至少露出 [minExtent]）、
-/// 尺寸不小于 [minExtent]，且可见部分的中心能点中目标。可见范围再按目标
-/// 所在的各层滚动视口裁剪，并扣除固定在视口顶端、排在目标之前的头部
+/// 尺寸不小于 [minExtent]，且可见部分的中心能点中目标
 void expectReachable(
   WidgetTester tester,
   Finder target, {
@@ -78,31 +127,7 @@ void expectReachable(
 }) {
   final targetBox = tester.renderObject(target);
   final rect = tester.getRect(target);
-  var visible = visibleViewRect(tester);
-  RenderObject child = targetBox;
-  for (
-    RenderObject? node = targetBox.parent;
-    node != null;
-    child = node, node = node.parent
-  ) {
-    if (node is RenderViewportBase) {
-      final viewport = MatrixUtils.transformRect(
-        node.getTransformTo(null),
-        Offset.zero & node.size,
-      );
-      final obstruction = node.axisDirection == AxisDirection.down
-          ? _leadingObstruction(node, child as RenderSliver)
-          : 0.0;
-      visible = visible.intersect(
-        Rect.fromLTRB(
-          viewport.left,
-          viewport.top + obstruction,
-          viewport.right,
-          viewport.bottom,
-        ),
-      );
-    }
-  }
+  final visible = _visibleBounds(tester, targetBox);
   final shown = rect.intersect(visible);
   bool fits(double extent, double shownExtent, double visibleExtent) =>
       extent <= visibleExtent + 0.5

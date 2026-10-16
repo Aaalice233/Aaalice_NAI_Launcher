@@ -6,25 +6,7 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/new_preset_dialog.dart';
 
 import '../../../helpers/reachability_expectations.dart';
-
-const _landscapePadding = FakeViewPadding(left: 32, right: 48);
-const _safeAreaPadding = FakeViewPadding(
-  left: 12,
-  top: 32,
-  right: 20,
-  bottom: 28,
-);
-
-final _viewports = <({Size size, double keyboard, FakeViewPadding padding})>[
-  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0])
-    (size: Size(width, 900), keyboard: 0, padding: FakeViewPadding.zero),
-  (size: const Size(740, 360), keyboard: 0, padding: FakeViewPadding.zero),
-  (size: const Size(740, 360), keyboard: 80, padding: FakeViewPadding.zero),
-  (size: const Size(740, 360), keyboard: 160, padding: _landscapePadding),
-  (size: const Size(568, 320), keyboard: 120, padding: FakeViewPadding.zero),
-  (size: const Size(360, 740), keyboard: 300, padding: FakeViewPadding.zero),
-  (size: const Size(320, 800), keyboard: 280, padding: _safeAreaPadding),
-];
+import '../../../helpers/viewport_scenarios.dart';
 
 Finder _ancestorOfText(String text, bool Function(Widget) matches) =>
     find.ancestor(
@@ -38,13 +20,8 @@ void main() {
       testWidgets(
         '新建预设在各宽度、短横屏、安全区与键盘下不溢出，$locale ${textScale}x 时标题、字段、选项与操作都可达',
         (tester) async {
-          for (final viewport in _viewports) {
-            await _setView(
-              tester,
-              size: viewport.size,
-              padding: viewport.padding,
-              viewInsets: FakeViewPadding(bottom: viewport.keyboard),
-            );
+          for (final viewport in formViewports) {
+            applyViewport(tester, viewport);
             await _pumpLauncher(
               tester,
               textScale: textScale,
@@ -53,13 +30,11 @@ void main() {
             await tester.tap(find.text('打开'));
             await tester.pumpAndSettle();
             final reason =
-                '${viewport.size} keyboard=${viewport.keyboard} '
-                'padding=${viewport.padding.left} $locale ${textScale}x';
+                '${describeViewport(viewport)} $locale ${textScale}x';
             expect(tester.takeException(), isNull, reason: reason);
             final l10n = AppLocalizations.of(
               tester.element(find.byType(NewPresetDialog)),
             )!;
-            bool isButton(Widget widget) => widget is ButtonStyleButton;
             bool isInk(Widget widget) => widget is InkWell;
             for (final (label, target) in [
               (
@@ -78,8 +53,8 @@ void main() {
                 '完全空白',
                 _ancestorOfText(l10n.newPresetDialog_blank, isInk).first,
               ),
-              ('取消', _ancestorOfText(l10n.common_cancel, isButton)),
-              ('创建', _ancestorOfText(l10n.common_create, isButton)),
+              ('取消', buttonLabeled(l10n.common_cancel)),
+              ('创建', buttonLabeled(l10n.common_create)),
             ]) {
               await scrollUntilBuilt(
                 tester,
@@ -102,7 +77,7 @@ void main() {
   }
 
   testWidgets('320 宽紧凑窗格以全屏长表单呈现', (tester) async {
-    await _setView(tester, size: const Size(320, 640));
+    applyViewport(tester, plainViewport(const Size(320, 640)));
 
     await _pumpLauncher(tester);
     await tester.tap(find.text('打开'));
@@ -122,7 +97,7 @@ void main() {
   });
 
   testWidgets('Medium 与 Expanded 窗格紧凑有界且操作区贴底', (tester) async {
-    await _setView(tester, size: const Size(700, 900));
+    applyViewport(tester, plainViewport(const Size(700, 900)));
     await _pumpLauncher(tester);
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
@@ -164,7 +139,7 @@ void main() {
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
-    await _setView(tester, size: const Size(1200, 900));
+    applyViewport(tester, plainViewport(const Size(1200, 900)));
     await tester.pump();
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
@@ -178,7 +153,7 @@ void main() {
   });
 
   testWidgets('选择创建方式后返回完整结果，系统返回则取消', (tester) async {
-    await _setView(tester, size: const Size(360, 700));
+    applyViewport(tester, plainViewport(const Size(360, 700)));
 
     NewPresetResult? result;
     var completed = false;
@@ -243,24 +218,6 @@ void _expectBoundedDialog(WidgetTester tester, {required String surfaceKey}) {
   expect(createRect.bottom, greaterThan(frameRect.bottom - 64));
 }
 
-Future<void> _setView(
-  WidgetTester tester, {
-  required Size size,
-  FakeViewPadding padding = FakeViewPadding.zero,
-  FakeViewPadding viewInsets = FakeViewPadding.zero,
-}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.padding = padding;
-  tester.view.viewInsets = viewInsets;
-  addTearDown(() {
-    tester.view.resetPhysicalSize();
-    tester.view.resetDevicePixelRatio();
-    tester.view.resetPadding();
-    tester.view.resetViewInsets();
-  });
-}
-
 Future<void> _pumpLauncher(
   WidgetTester tester, {
   double textScale = 1,
@@ -268,29 +225,13 @@ Future<void> _pumpLauncher(
   ValueChanged<NewPresetResult?>? onResult,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
+    localizedTestApp(
       locale: locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(textScale)),
-        child: child!,
-      ),
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => Center(
-            child: FilledButton(
-              onPressed: () async {
-                final result = await NewPresetDialog.show(context);
-                onResult?.call(result);
-              },
-              child: const Text('打开'),
-            ),
-          ),
-        ),
-      ),
+      textScale: textScale,
+      home: panelLauncher('打开', (context) async {
+        final result = await NewPresetDialog.show(context);
+        onResult?.call(result);
+      }),
     ),
   );
 }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/presentation/adaptive/adaptive_pinned_header_sliver.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/adaptive/content_sized_adaptive_form.dart';
 
+import '../../helpers/adaptive_panel_expectations.dart';
 import '../../helpers/reachability_expectations.dart';
+import '../../helpers/viewport_scenarios.dart';
 
 const _title = 'A localized form title that wraps onto two lines';
 final _header = find.byKey(
@@ -15,11 +16,6 @@ final _header = find.byKey(
 Finder _closeButton() => find.ancestor(
   of: find.byIcon(Icons.close, skipOffstage: false),
   matching: find.byType(IconButton, skipOffstage: false),
-);
-
-Finder _doneButton() => find.ancestor(
-  of: find.text('Done', skipOffstage: false),
-  matching: find.byType(FilledButton, skipOffstage: false),
 );
 
 Finder _field(int index) =>
@@ -33,44 +29,32 @@ Future<void> _openForm(
   bool headerScrollsWithContent = true,
   int fieldCount = 40,
 }) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.viewInsets = FakeViewPadding(bottom: keyboard);
-  addTearDown(tester.view.reset);
+  applyViewport(tester, plainViewport(size, keyboard: keyboard));
   await tester.pumpWidget(
-    MaterialApp(
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: TextScaler.linear(textScale)),
-        child: child!,
-      ),
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => AdaptivePresenter.showForm<void>(
-              context: context,
-              title: _title,
-              headerScrollsWithContent: headerScrollsWithContent,
-              builder: (context, controller) => ContentSizedAdaptiveForm(
-                scrollController: controller,
-                content: [
-                  for (var i = 0; i < fieldCount; i++)
-                    TextField(
-                      key: ValueKey('field-$i'),
-                      decoration: InputDecoration(labelText: 'Field $i'),
-                    ),
-                ],
-                footer: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Done'),
-                  ),
+    localizedTestApp(
+      textScale: textScale,
+      home: panelLauncher(
+        'Open',
+        (context) => AdaptivePresenter.showForm<void>(
+          context: context,
+          title: _title,
+          headerScrollsWithContent: headerScrollsWithContent,
+          builder: (context, controller) => ContentSizedAdaptiveForm(
+            scrollController: controller,
+            content: [
+              for (var i = 0; i < fieldCount; i++)
+                TextField(
+                  key: ValueKey('field-$i'),
+                  decoration: InputDecoration(labelText: 'Field $i'),
                 ),
+            ],
+            footer: Padding(
+              padding: const EdgeInsets.all(8),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Done'),
               ),
             ),
-            child: const Text('Open'),
           ),
         ),
       ),
@@ -80,21 +64,13 @@ Future<void> _openForm(
   await tester.pumpAndSettle();
 }
 
-RenderAdaptivePinnedHeaderSliver _headerSliver(WidgetTester tester) {
-  RenderObject? node = tester.renderObject(_header);
-  while (node is! RenderAdaptivePinnedHeaderSliver) {
-    node = node!.parent;
-  }
-  return node;
-}
-
 ScrollPosition _formPosition(WidgetTester tester) =>
     tester.state<ScrollableState>(find.byType(Scrollable).first).position;
 
 void main() {
   testWidgets('高度充足时标题栏固定在表单顶端，正文从下方滚过且底部操作固定', (tester) async {
     await _openForm(tester, size: const Size(840, 900));
-    expect(_headerSliver(tester).isPinned, isTrue);
+    expect(pinnedHeaderSliverOf(tester, _header).isPinned, isTrue);
     final surface = tester.getRect(
       find.byKey(const ValueKey('adaptive-centered-form')),
     );
@@ -104,7 +80,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(_header).dy, surface.top);
     expectReachable(tester, _closeButton(), reason: '固定的关闭按钮');
-    expectReachable(tester, _doneButton(), reason: '固定的底部操作');
+    expectReachable(tester, buttonLabeled('Done'), reason: '固定的底部操作');
     expect(tester.takeException(), isNull);
   });
 
@@ -117,13 +93,13 @@ void main() {
         keyboard: 160,
       );
       expect(tester.takeException(), isNull);
-      expect(_headerSliver(tester).isPinned, isFalse);
+      expect(pinnedHeaderSliverOf(tester, _header).isPinned, isFalse);
 
       for (final (label, target) in [
         ('首个字段', _field(0)),
         ('关闭按钮', _closeButton()),
         ('末个字段', _field(39)),
-        ('完成', _doneButton()),
+        ('完成', buttonLabeled('Done')),
       ]) {
         await scrollUntilBuilt(tester, target, find.byType(Scrollable).first);
         await revealOnScreen(tester, target);
@@ -142,12 +118,12 @@ void main() {
         )
         .focusNode;
     expect(focus.hasFocus, isTrue);
-    expect(_headerSliver(tester).isPinned, isTrue);
+    expect(pinnedHeaderSliverOf(tester, _header).isPinned, isTrue);
 
     tester.view.physicalSize = const Size(740, 360);
     tester.view.viewInsets = const FakeViewPadding(bottom: 160);
     await tester.pumpAndSettle();
-    expect(_headerSliver(tester).isPinned, isFalse);
+    expect(pinnedHeaderSliverOf(tester, _header).isPinned, isFalse);
     expect(focus.hasFocus, isTrue);
     expect(find.text('keep'), findsOneWidget);
     await revealOnScreen(tester, _field(1));
@@ -156,30 +132,26 @@ void main() {
     tester.view.physicalSize = const Size(840, 900);
     tester.view.viewInsets = const FakeViewPadding();
     await tester.pumpAndSettle();
-    expect(_headerSliver(tester).isPinned, isTrue);
+    expect(pinnedHeaderSliverOf(tester, _header).isPinned, isTrue);
     expect(focus.hasFocus, isTrue);
     expect(find.text('keep'), findsOneWidget);
-    expectReachable(tester, _doneButton(), reason: '恢复固定的底部操作');
+    expectReachable(tester, buttonLabeled('Done'), reason: '恢复固定的底部操作');
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('开启后正文没有托管标题栏时在调试构建中报错，而不是静默丢失标题与关闭按钮', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => AdaptivePresenter.showForm<void>(
-                context: context,
-                title: _title,
-                headerScrollsWithContent: true,
-                builder: (context, controller) => ListView(
-                  controller: controller,
-                  shrinkWrap: true,
-                  children: const [Text('Body')],
-                ),
-              ),
-              child: const Text('Open'),
+      localizedTestApp(
+        home: panelLauncher(
+          'Open',
+          (context) => AdaptivePresenter.showForm<void>(
+            context: context,
+            title: _title,
+            headerScrollsWithContent: true,
+            builder: (context, controller) => ListView(
+              controller: controller,
+              shrinkWrap: true,
+              children: const [Text('Body')],
             ),
           ),
         ),
