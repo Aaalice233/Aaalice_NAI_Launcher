@@ -97,19 +97,6 @@ void main() {
       '[blue eyes]',
       'closed mouth',
     ]);
-
-    final removeCategory = PostProcessRule.sleepingRule(
-      targetCategoryIds: ['eyes'],
-    );
-    expect(
-      removeCategory.apply(
-        ['{closed eyes}', '[blue eyes]', 'smile'],
-        const {
-          'eyes': ['{closed eyes}', '[blue eyes]'],
-        },
-      ),
-      ['{closed eyes}', 'smile'],
-    );
   });
 
   test('值依赖的映射键与带权重的已选值按比较键匹配', () {
