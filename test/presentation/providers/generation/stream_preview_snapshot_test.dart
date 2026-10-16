@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
-import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
@@ -16,48 +13,10 @@ import 'package:nai_launcher/presentation/providers/generation/stream_preview_sn
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 
-class MockNAIImageGenerationApiService extends Mock
-    implements NAIImageGenerationApiService {}
-
-class _AuthenticatedAuthNotifier extends AuthNotifier {
-  @override
-  AuthState build() => const AuthState(status: AuthStatus.authenticated);
-}
-
-Future<void> _pumpUntil(bool Function() condition, {String? reason}) async {
-  for (var i = 0; i < 400; i++) {
-    if (condition()) return;
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-  fail(reason ?? 'Condition not met within timeout');
-}
+import '../../../helpers/image_generation_test_environment.dart';
 
 void main() {
-  late Directory hiveTempDir;
-
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  setUpAll(() async {
-    registerFallbackValue(const ImageParams());
-    hiveTempDir = await Directory.systemTemp.createTemp('nai_launcher_hive_');
-    Hive.init(hiveTempDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
-    await Hive.openBox(StorageKeys.statisticsCacheBox);
-  });
-
-  setUp(() async {
-    await Hive.box(
-      StorageKeys.settingsBox,
-    ).put(StorageKeys.imagesPerRequest, 1);
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    if (await hiveTempDir.exists()) {
-      await hiveTempDir.delete(recursive: true);
-    }
-  });
+  setUpImageGenerationTestEnvironment();
 
   group('StreamPreviewSnapshotStore', () {
     test('同一请求的多帧共用一次复制出的源图与蒙版', () {
@@ -317,7 +276,7 @@ void main() {
 
     final container = ProviderContainer(
       overrides: [
-        authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+        authNotifierProvider.overrideWith(AuthenticatedAuthNotifier.new),
         naiImageGenerationApiServiceProvider.overrideWithValue(mockApiService),
       ],
     );
@@ -343,7 +302,7 @@ void main() {
         );
 
     final generation = notifier.generate(params);
-    await _pumpUntil(
+    await pollUntil(
       () => streamCall == 1,
       reason: 'stream request was not started',
     );
@@ -356,7 +315,7 @@ void main() {
         focusedPreviewPlacement: placement,
       ),
     );
-    await _pumpUntil(
+    await pollUntil(
       () => container.read(imageGenerationNotifierProvider).hasStreamPreview,
       reason: 'stream preview was not published before cancellation',
     );

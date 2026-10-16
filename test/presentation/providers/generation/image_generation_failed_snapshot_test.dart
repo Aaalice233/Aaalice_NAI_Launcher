@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +8,6 @@ import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
-import 'package:nai_launcher/data/datasources/remote/nai_generation_transport.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
@@ -19,13 +17,7 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 
-class MockNAIImageGenerationApiService extends Mock
-    implements NAIImageGenerationApiService {}
-
-class _AuthenticatedAuthNotifier extends AuthNotifier {
-  @override
-  AuthState build() => const AuthState(status: AuthStatus.authenticated);
-}
+import '../../../helpers/image_generation_test_environment.dart';
 
 /// Holds every composition until the test releases it, so a snapshot can be
 /// observed after capture but before it lands in history.
@@ -79,7 +71,7 @@ class _Harness {
         model: ImageModels.animeDiffusionV45Full,
       );
 
-  Future<void> waitForPreviews(int count) => _pumpUntil(
+  Future<void> waitForPreviews(int count) => pollUntil(
     () =>
         state.streamPreviewSlots
             .where((slot) => slot.previewBytes?.isNotEmpty == true)
@@ -116,7 +108,7 @@ Future<_Harness> _createHarness(
 
   final container = ProviderContainer(
     overrides: [
-      authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+      authNotifierProvider.overrideWith(AuthenticatedAuthNotifier.new),
       naiImageGenerationApiServiceProvider.overrideWithValue(api),
       streamSnapshotComposerProvider.overrideWithValue(composer.call),
     ],
@@ -144,42 +136,9 @@ Future<_Harness> _createHarness(
   return harness;
 }
 
-Future<void> _pumpUntil(bool Function() condition, {String? reason}) async {
-  for (var i = 0; i < 400; i++) {
-    if (condition()) return;
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-  fail(reason ?? 'Condition not met within timeout');
-}
-
 void main() {
-  late Directory hiveTempDir;
-
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  setUpAll(() async {
-    registerFallbackValue(const ImageParams());
-    registerFallbackValue(NaiGenerationCancellationLease());
-    hiveTempDir = await Directory.systemTemp.createTemp('nai_launcher_hive_');
-    Hive.init(hiveTempDir.path);
-    await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
-    await Hive.openBox(StorageKeys.statisticsCacheBox);
-  });
-
-  setUp(() async {
-    await Hive.box(StorageKeys.historyBox).clear();
-    await Hive.box(
-      StorageKeys.settingsBox,
-    ).put(StorageKeys.imagesPerRequest, 1);
-  });
-
-  tearDownAll(() async {
-    await Hive.close();
-    if (await hiveTempDir.exists()) {
-      await hiveTempDir.delete(recursive: true);
-    }
-  });
+  setUpImageGenerationTestEnvironment();
+  setUp(() => Hive.box(StorageKeys.historyBox).clear());
 
   test(
     'cancel reaches the coordinator before the snapshot is composed',
