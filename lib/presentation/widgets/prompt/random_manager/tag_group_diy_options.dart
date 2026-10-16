@@ -1,7 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
-import '../../../../data/models/prompt/conditional_branch.dart';
 import '../../../../data/models/prompt/conditional_branch_targets.dart';
 import '../../../../data/models/prompt/diy_category_references.dart';
 import '../../../../data/models/prompt/random_category.dart';
@@ -76,12 +75,11 @@ class TagGroupDiyOptions {
     };
   }
 
-  /// 分支条件可引用的变量；按类别键名、类别名称或词组名称保存的存量条件对应到同一来源
+  /// 分支条件可引用的变量；存量条件的键已在编辑器打开时统一为 ID，解析不了的保留为已失效
   List<BranchConditionSource> get branchConditionSources {
-    final options = categoryOptions;
     final branchGroups = _otherBranchGroups;
-    final sources = [
-      for (final option in options)
+    return [
+      for (final option in categoryOptions)
         BranchConditionSource(
           id: option.id,
           label: option.label,
@@ -104,24 +102,6 @@ class TagGroupDiyOptions {
           kind: BranchConditionSourceKind.branch,
         ),
     ];
-    final knownIds = {for (final source in sources) source.id};
-    final usedKeys = {
-      for (final branch
-          in editingGroup.conditionalBranchConfig?.branches ??
-              const <ConditionalBranch>[])
-        ...branch.conditions.keys,
-    }.where((key) => !knownIds.contains(key));
-    final categoryLabels = {
-      for (final option in options) option.id: option.label,
-    };
-    final groupsByName = groupBy(branchGroups, (group) => group.name);
-    for (final key in usedKeys) {
-      final source =
-          _legacyCategorySource(key, categoryLabels) ??
-          _legacyBranchSource(key, groupsByName);
-      if (source != null) sources.add(source);
-    }
-    return sources;
   }
 
   List<RandomTagGroup> get _otherBranchGroups => [
@@ -134,31 +114,4 @@ class TagGroupDiyOptions {
 
   String _branchLabel(RandomTagGroup group) =>
       l10n.diy_conditionSourceBranch(l10n.randomTagGroupName(group));
-
-  BranchConditionSource? _legacyCategorySource(
-    String key,
-    Map<String, String> categoryLabels,
-  ) {
-    final label = categoryLabels[categoryResolver.resolve(key)?.id];
-    if (label == null) return null;
-    return BranchConditionSource(
-      id: key,
-      label: label,
-      kind: BranchConditionSourceKind.category,
-    );
-  }
-
-  // 重名的词组无法确定条件指向哪个分支，与类别引用一样不解析
-  BranchConditionSource? _legacyBranchSource(
-    String key,
-    Map<String, List<RandomTagGroup>> groupsByName,
-  ) {
-    final group = groupsByName[key]?.singleOrNull;
-    if (group == null) return null;
-    return BranchConditionSource(
-      id: key,
-      label: _branchLabel(group),
-      kind: BranchConditionSourceKind.branch,
-    );
-  }
 }

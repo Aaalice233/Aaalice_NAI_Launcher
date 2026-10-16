@@ -121,8 +121,8 @@ void main() {
     );
   });
 
-  test('按键名、类别名称或词组名称保存的存量条件对应到同一来源，重名的不解析', () {
-    const editing = RandomTagGroup(
+  test('存量条件的键在编辑器打开时统一为 ID 并对应到来源，重名与已删除的保留为失效', () {
+    const legacy = RandomTagGroup(
       id: 'editing',
       name: 'Editing',
       conditionalBranchConfig: ConditionalBranchConfig(
@@ -143,45 +143,58 @@ void main() {
         ],
       ),
     );
-    final options = _options(
-      categories: [
-        RandomCategory(
-          id: 'cat-outfit',
-          name: 'Outfit',
-          key: 'clothing',
-          groups: [
-            editing,
-            _branching('mood', 'Mood', const []),
-            _branching('twin-a', 'Twin', const []),
-            _branching('twin-b', 'Twin', const []),
-          ],
-        ),
-        const RandomCategory(id: 'cat-hair', name: 'Hair', key: 'hairColor'),
-        const RandomCategory(id: 'cat-a', name: 'A', key: 'shared'),
-        const RandomCategory(id: 'cat-b', name: 'B', key: 'shared'),
-      ],
-      editing: editing,
+    final categories = [
+      RandomCategory(
+        id: 'cat-outfit',
+        name: 'Outfit',
+        key: 'clothing',
+        groups: [
+          legacy,
+          _branching('mood', 'Mood', const []),
+          _branching('twin-a', 'Twin', const []),
+          _branching('twin-b', 'Twin', const []),
+        ],
+      ),
+      const RandomCategory(id: 'cat-hair', name: 'Hair', key: 'hairColor'),
+      const RandomCategory(id: 'cat-a', name: 'A', key: 'shared'),
+      const RandomCategory(id: 'cat-b', name: 'B', key: 'shared'),
+    ];
+    final editing = legacy.canonicalizeReferences(
+      DiyCategoryReferenceResolver(categories),
     );
+    final options = _options(categories: categories, editing: editing);
 
-    final storedKeys = editing
+    final conditionKeys = editing
         .conditionalBranchConfig!
         .branches
         .single
         .conditions
         .keys
         .toSet();
-    final legacy = {
+    final sources = {
       for (final source in options.branchConditionSources)
-        if (storedKeys.contains(source.id))
-          source.id: (source.label, source.kind),
+        source.id: (source.label, source.kind),
     };
-    expect(legacy, {
-      'clothing': ('Outfit', BranchConditionSourceKind.category),
-      'Hair': ('Hair', BranchConditionSourceKind.category),
-      'Mood': (
-        _l10n.diy_conditionSourceBranch('Mood'),
-        BranchConditionSourceKind.branch,
-      ),
+    expect(conditionKeys, {
+      'cat-outfit',
+      'cat-hair',
+      'shared',
+      'mood',
+      'Twin',
+      'gone',
     });
+    expect(sources['cat-outfit'], (
+      'Outfit',
+      BranchConditionSourceKind.category,
+    ));
+    expect(sources['cat-hair'], ('Hair', BranchConditionSourceKind.category));
+    expect(sources['mood'], (
+      _l10n.diy_conditionSourceBranch('Mood'),
+      BranchConditionSourceKind.branch,
+    ));
+    expect(
+      conditionKeys.where((key) => !sources.containsKey(key)),
+      unorderedEquals(['shared', 'Twin', 'gone']),
+    );
   });
 }
