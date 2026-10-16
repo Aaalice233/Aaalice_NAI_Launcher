@@ -124,6 +124,56 @@ void main() {
     expect(await _firstPixel(provider), (255, 0, 0));
   });
 
+  test('身份已知但读取失败时逐出错误条目', () async {
+    final path = pathOf('vanished.png');
+    await File(path).writeAsBytes(_solidPng(img.ColorRgb8(0, 255, 0)));
+    final provider = LocalFileImage(path);
+    final key = await provider.obtainKey(ImageConfiguration.empty);
+    expect(key.identity, isNotNull);
+    await File(path).delete();
+
+    final completer = PaintingBinding.instance.imageCache.putIfAbsent(
+      key,
+      () => provider.loadImage(
+        key,
+        PaintingBinding.instance.instantiateImageCodecWithSize,
+      ),
+    )!;
+
+    await expectLater(
+      _firstImage(completer),
+      throwsA(isA<PathNotFoundException>()),
+    );
+    expect(
+      PaintingBinding.instance.imageCache.statusForKey(key).untracked,
+      isTrue,
+    );
+  });
+
+  test('内容无法解码时错误按文件身份保留，文件改写后才重新解码', () async {
+    final path = pathOf('corrupt.png');
+    await File(path).writeAsBytes(List<int>.filled(64, 7));
+    File(path).setLastModifiedSync(DateTime(2026, 1, 1, 12));
+    final provider = LocalFileImage(path);
+    final corruptKey = await provider.obtainKey(ImageConfiguration.empty);
+
+    final failed = provider.resolve(ImageConfiguration.empty).completer!;
+    await expectLater(_firstImage(failed), throwsException);
+    expect(
+      PaintingBinding.instance.imageCache.statusForKey(corruptKey).pending,
+      isTrue,
+    );
+    expect(
+      provider.resolve(ImageConfiguration.empty).completer,
+      same(failed),
+      reason: '同一身份的坏图不应重读重解码',
+    );
+
+    await File(path).writeAsBytes(_solidPng(img.ColorRgb8(0, 0, 255)));
+    File(path).setLastModifiedSync(DateTime(2026, 1, 1, 12, 0, 1));
+    expect(await _firstPixel(provider), (0, 0, 255));
+  });
+
   test('cacheWidth 与 cacheHeight 按 Image.file 的方式包装 ResizeImage', () async {
     final path = pathOf('resized.png');
     await File(
