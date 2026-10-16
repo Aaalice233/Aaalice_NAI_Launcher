@@ -69,7 +69,7 @@ Future<void> revealOnScreen(WidgetTester tester, Finder target) async {
 
 /// 断言目标完整进入可见范围（比可见范围还大时至少露出 [minExtent]）、
 /// 尺寸不小于 [minExtent]，且可见部分的中心能点中目标。可见范围再按目标
-/// 所在的各层滚动视口裁剪
+/// 所在的各层滚动视口裁剪，并扣除固定在视口顶端、排在目标之前的头部
 void expectReachable(
   WidgetTester tester,
   Finder target, {
@@ -79,16 +79,26 @@ void expectReachable(
   final targetBox = tester.renderObject(target);
   final rect = tester.getRect(target);
   var visible = visibleViewRect(tester);
+  RenderObject child = targetBox;
   for (
     RenderObject? node = targetBox.parent;
     node != null;
-    node = node.parent
+    child = node, node = node.parent
   ) {
     if (node is RenderViewportBase) {
+      final viewport = MatrixUtils.transformRect(
+        node.getTransformTo(null),
+        Offset.zero & node.size,
+      );
+      final obstruction = node.axisDirection == AxisDirection.down
+          ? _leadingObstruction(node, child as RenderSliver)
+          : 0.0;
       visible = visible.intersect(
-        MatrixUtils.transformRect(
-          node.getTransformTo(null),
-          Offset.zero & node.size,
+        Rect.fromLTRB(
+          viewport.left,
+          viewport.top + obstruction,
+          viewport.right,
+          viewport.bottom,
         ),
       );
     }
@@ -115,4 +125,16 @@ void expectReachable(
     isTrue,
     reason: '$reason: 可见部分中心被遮挡或不可点中',
   );
+}
+
+double _leadingObstruction(RenderViewportBase viewport, RenderSliver path) {
+  var extent = 0.0;
+  for (
+    RenderSliver? sliver = viewport.firstChild;
+    sliver != null && sliver != path;
+    sliver = viewport.childAfter(sliver)
+  ) {
+    extent += sliver.geometry?.maxScrollObstructionExtent ?? 0;
+  }
+  return extent;
 }
