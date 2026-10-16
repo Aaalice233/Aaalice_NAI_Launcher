@@ -49,7 +49,6 @@ final class DroppedDataRequest {
         reader,
         image.format,
         extension: image.extension,
-        isSynthesized: isSynthesized ?? false,
         timeout: timeout,
         logTag: logTag,
       );
@@ -156,9 +155,7 @@ final class DroppedDataRequest {
 /// callback stays pending until the caller either reads or discards it.
 final class DeferredDroppedFile {
   DeferredDroppedFile._({
-    required this.format,
     required this.extension,
-    required this.isSynthesized,
     required Duration timeout,
     required String logTag,
   }) : _timeout = timeout,
@@ -168,14 +165,11 @@ final class DeferredDroppedFile {
     DataReader reader,
     FileFormat format, {
     required String extension,
-    required bool isSynthesized,
     required Duration timeout,
     required String logTag,
   }) {
     final file = DeferredDroppedFile._(
-      format: format,
       extension: extension,
-      isSynthesized: isSynthesized,
       timeout: timeout,
       logTag: logTag,
     );
@@ -193,9 +187,7 @@ final class DeferredDroppedFile {
     }
   }
 
-  final FileFormat format;
   final String extension;
-  final bool isSynthesized;
   final Duration _timeout;
   final String _logTag;
   final _decision = Completer<bool>();
