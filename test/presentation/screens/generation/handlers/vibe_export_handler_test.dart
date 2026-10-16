@@ -10,13 +10,20 @@ import 'package:nai_launcher/presentation/screens/generation/handlers/vibe_expor
 Future<void> _openSelectionForm(
   WidgetTester tester,
   List<VibeReference> vibes,
-  void Function(List<VibeReference>) onResult,
-) async {
+  void Function(List<VibeReference>) onResult, {
+  TextScaler? textScaler,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('zh'),
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
+      builder: textScaler == null
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+              child: child!,
+            ),
       home: Scaffold(
         body: Builder(
           builder: (context) => FilledButton(
@@ -115,37 +122,12 @@ void main() {
     );
     List<VibeReference>? result;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('zh'),
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: const TextScaler.linear(2)),
-          child: child!,
-        ),
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => FilledButton(
-              onPressed: () {
-                unawaited(
-                  showVibeEmbedSelectionForm(
-                    context: context,
-                    vibes: vibes,
-                  ).then((value) => result = value),
-                );
-              },
-              child: const Text('打开'),
-            ),
-          ),
-        ),
-      ),
+    await _openSelectionForm(
+      tester,
+      vibes,
+      (value) => result = value,
+      textScaler: const TextScaler.linear(2),
     );
-
-    await tester.tap(find.text('打开'));
-    await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -168,10 +150,7 @@ void main() {
       await tester.pump();
     }
 
-    await tester.tap(
-      find.byKey(const ValueKey('vibe-embed-selection-confirm')),
-    );
-    await tester.pumpAndSettle();
+    await _confirm(tester);
 
     expect(result, orderedEquals(vibes));
     expect(tester.takeException(), isNull);
