@@ -48,6 +48,18 @@ abstract class ImageDetailData {
 
   /// 保存时是否必须保持当前图像字节不变。
   bool get preserveOriginalBytesOnSave;
+
+  /// 完整元数据，同步读不到时再解析图像；默认就是 [metadata]
+  Future<NaiImageMetadata?> getMetadataAsync() async => metadata;
+
+  /// 切到这张图之前把需要读盘的元数据取进来，首帧的 [metadata] 就能同步读到；默认无需预取
+  Future<void> prefetchMetadata() => Future.value();
+
+  /// 预取仍在读取；等待方先行显示后据此决定读完是否刷新
+  bool get isPrefetchingMetadata => false;
+
+  /// 需要读盘才能补全的文件信息；[fileInfo] 已经完整时返回 null
+  Future<FileInfo?> getFileInfoAsync() async => null;
 }
 
 /// 文件信息
@@ -70,7 +82,7 @@ class FileInfo {
 /// 本地图库图像数据适配器
 ///
 /// 包含大图内存优化：超过阈值的图像会使用 ResizeImage 限制内存占用
-class LocalImageDetailData implements ImageDetailData {
+class LocalImageDetailData extends ImageDetailData {
   final LocalImageRecord record;
   final bool Function(String path)? getFavoriteStatus;
 
@@ -126,9 +138,8 @@ class LocalImageDetailData implements ImageDetailData {
   NaiImageMetadata? get metadata =>
       record.metadata?.upgradeFromRawJsonIfNeeded();
 
-  /// 异步获取元数据（图库记录没有时从文件解析）
-  ///
-  /// **前台高优先级调用** - 用户主动打开详情页时使用
+  /// 图库记录没有元数据时从文件解析
+  @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
     final recordMetadata = metadata;
     if (recordMetadata != null) return recordMetadata;
@@ -172,7 +183,7 @@ class LocalImageDetailData implements ImageDetailData {
 ///
 /// 用于未保存到磁盘的图像（内存中的图像数据）
 /// 支持从内存字节异步解析元数据
-class GeneratedImageDetailData implements ImageDetailData {
+class GeneratedImageDetailData extends ImageDetailData {
   final Uint8List imageBytes;
   final NaiImageMetadata? _metadata;
   final String _id;
@@ -212,14 +223,10 @@ class GeneratedImageDetailData implements ImageDetailData {
   @override
   NaiImageMetadata? get metadata => _metadata;
 
-  /// 异步获取元数据（从内存字节解析）
-  ///
-  /// **前台高优先级调用** - 用户主动打开详情页时使用
+  /// 没有传入元数据时从内存字节解析
+  @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
-    // 1. 先检查已缓存的元数据
     if (_metadata != null) return _metadata;
-
-    // 2. 从内存字节解析
     return ImageMetadataService().getMetadataFromBytes(imageBytes);
   }
 

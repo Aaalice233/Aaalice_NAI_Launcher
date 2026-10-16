@@ -14,7 +14,7 @@ import 'image_detail_data.dart';
 ///
 /// 从文件路径加载图像，并使用 ImageMetadataService 解析元数据
 /// 用于主页生成的已保存图像和历史队列中的图像
-class FileImageDetailData implements ImageDetailData {
+class FileImageDetailData extends ImageDetailData {
   final String filePath;
   final Uint8List? _cachedBytes;
   final String? _id;
@@ -84,6 +84,7 @@ class FileImageDetailData implements ImageDetailData {
   /// 首帧前把 L2 命中取进来：L2 只能异步读，同步的 [metadata] 否则先空后填
   ///
   /// 读取在途时重复调用共享同一次读取，等待方超时放弃后读取照常完成。
+  @override
   Future<void> prefetchMetadata() {
     if (_resolvedMetadata != null) return Future.value();
     return _pendingPrefetch ??= _readPrefetch().whenComplete(
@@ -91,7 +92,7 @@ class FileImageDetailData implements ImageDetailData {
     );
   }
 
-  /// 预取仍在读盘；等待方先行显示后据此决定读完是否刷新
+  @override
   bool get isPrefetchingMetadata => _pendingPrefetch != null;
 
   Future<void> _readPrefetch() async {
@@ -123,9 +124,8 @@ class FileImageDetailData implements ImageDetailData {
     return result;
   }
 
-  /// 异步获取元数据（从文件解析）
-  ///
-  /// **前台高优先级调用** - 用户主动打开详情页时使用
+  /// 用户打开详情页时前台高优先级解析
+  @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
     AppLogger.i(
       '[MetadataFlow] getMetadataAsync START: path=$filePath',
@@ -174,7 +174,8 @@ class FileImageDetailData implements ImageDetailData {
   @override
   String get identifier => _id ?? filePath;
 
-  /// 异步获取文件信息（含大小与修改时间）
+  /// 读盘补上大小与修改时间
+  @override
   Future<FileInfo> getFileInfoAsync() async {
     final stat = await File(filePath).stat();
     return FileInfo(

@@ -78,7 +78,7 @@ void main() {
   });
 }
 
-class _TestImageDetailData implements ImageDetailData {
+class _TestImageDetailData extends ImageDetailData {
   _TestImageDetailData(this.provider, {this.identifier = 'test'});
 
   final ImageProvider<Object> provider;

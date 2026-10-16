@@ -29,7 +29,6 @@ import 'components/detail_metadata_panel.dart';
 import 'components/prompt_copy_dialog.dart';
 import 'components/detail_thumbnail_bar.dart';
 import 'components/detail_top_bar.dart';
-import 'file_image_detail_data.dart';
 import 'image_detail_data.dart';
 
 /// 图像详情查看器回调函数
@@ -238,7 +237,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   void _prefetchNeighbors(int index) {
     for (final neighbor in [index - 1, index + 1]) {
       if (neighbor < 0 || neighbor >= widget.images.length) continue;
-      unawaited(_prefetchMetadata(widget.images[neighbor]));
+      unawaited(widget.images[neighbor].prefetchMetadata());
     }
   }
 
@@ -246,7 +245,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   void _refreshWhenPrefetched(int index) {
     if (index < 0 || index >= widget.images.length) return;
     final image = widget.images[index];
-    if (image is! FileImageDetailData || !image.isPrefetchingMetadata) return;
+    if (!image.isPrefetchingMetadata) return;
     unawaited(
       image.prefetchMetadata().then((_) {
         if (mounted && _currentIndex == index) setState(() {});
@@ -284,7 +283,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     _navigationRequest++;
 
     // 动画过半才切页，预取多半已完成；没读完的切页后由 _onPageChanged 回填
-    unawaited(_prefetchMetadata(widget.images[index]));
+    unawaited(widget.images[index].prefetchMetadata());
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -901,11 +900,6 @@ class _NavigationButton extends StatelessWidget {
   }
 }
 
-// L2 缓存只能异步读；切到某张图之前取进来，元数据面板首帧就能同步拿到
-Future<void> _prefetchMetadata(ImageDetailData image) async {
-  if (image is FileImageDetailData) await image.prefetchMetadata();
-}
-
 // 磁盘阻塞时打开与跳页不能一直等；超时只是不再等，读取照常继续
 Future<void> _prefetchWithinLimit(ImageDetailData image, Duration limit) =>
-    _prefetchMetadata(image).timeout(limit, onTimeout: () {});
+    image.prefetchMetadata().timeout(limit, onTimeout: () {});
