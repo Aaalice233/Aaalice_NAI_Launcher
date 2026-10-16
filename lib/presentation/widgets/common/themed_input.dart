@@ -184,51 +184,6 @@ class ThemedInput extends StatefulWidget {
     this.semanticLabel,
   });
 
-  /// 创建多行输入框
-  const ThemedInput.multiline({
-    super.key,
-    this.controller,
-    this.undoController,
-    this.focusNode,
-    this.hintText,
-    this.helperText,
-    this.maxLines,
-    this.minLines = 3,
-    this.expands = false,
-    this.scrollPhysics,
-    this.textInputAction,
-    this.keyboardType = TextInputType.multiline,
-    this.onChanged,
-    this.onSubmitted,
-    this.readOnly = false,
-    this.enabled = true,
-    this.borderRadius = 8.0,
-    this.contentPadding = const EdgeInsets.all(12),
-    this.inputFormatters,
-    this.prefixIcon,
-    this.suffixIcon,
-    this.obscureText = false,
-    this.maxLength,
-    this.style,
-    this.hintStyle,
-    this.surfaceColor,
-    this.hasError = false,
-    this.autofocus = false,
-    this.onTap,
-    this.onEditingComplete,
-    this.textAlign = TextAlign.start,
-    this.textAlignVertical,
-    this.cursorColor,
-    this.onTapOutside,
-    this.decoration,
-    this.showClearButton = false,
-    this.onClearPressed,
-    this.clearNeedsConfirm = false,
-    this.contextMenuBuilder,
-    this.enableNativeRedoShortcut = true,
-    this.semanticLabel,
-  });
-
   @override
   State<ThemedInput> createState() => _ThemedInputState();
 }

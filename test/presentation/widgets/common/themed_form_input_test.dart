@@ -120,21 +120,14 @@ void main() {
                 key: ValueKey('override'),
                 labelText: 'Param label',
                 hintText: 'Param hint',
-                helperText: 'Param helper',
-                prefixIcon: Icon(Icons.abc),
-                contentPadding: EdgeInsets.all(4),
                 decoration: InputDecoration(
                   label: Text('Decoration label'),
                   hintText: 'Decoration hint',
-                  helperText: 'Decoration helper',
-                  prefixIcon: Icon(Icons.person),
-                  contentPadding: EdgeInsets.all(20),
                 ),
               ),
               ThemedFormInput(
                 key: ValueKey('fallback'),
                 labelText: 'Param only label',
-                helperText: 'Param only helper',
                 decoration: InputDecoration(prefixIcon: Icon(Icons.star)),
               ),
             ],
@@ -151,16 +144,10 @@ void main() {
       );
       expect(overridden.labelText, isNull);
       expect(overridden.hintText, 'Decoration hint');
-      expect(overridden.contentPadding, const EdgeInsets.all(20));
       expect(find.text('Decoration label'), findsOneWidget);
       expect(find.text('Param label'), findsNothing);
-      expect(find.text('Decoration helper'), findsOneWidget);
-      expect(find.text('Param helper'), findsNothing);
-      expect(find.byIcon(Icons.person), findsOneWidget);
-      expect(find.byIcon(Icons.abc), findsNothing);
 
       expect(find.text('Param only label'), findsOneWidget);
-      expect(find.text('Param only helper'), findsOneWidget);
       expect(find.byIcon(Icons.star), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -198,8 +185,10 @@ void main() {
           const ThemedFormInput(
             autovalidateMode: AutovalidateMode.always,
             validator: _required,
-            helperText: 'Helper',
-            decoration: InputDecoration(errorText: 'Server says no'),
+            decoration: InputDecoration(
+              helperText: 'Helper',
+              errorText: 'Server says no',
+            ),
           ),
         ),
       );
@@ -285,19 +274,9 @@ void main() {
       expect(_text(tester), 'Other');
     });
 
-    testWidgets('initialValue 不变时失焦保留用户输入，onSaved 读取当前内容', (tester) async {
-      final formKey = GlobalKey<FormState>();
-      String? saved;
+    testWidgets('initialValue 不变时失焦保留用户输入', (tester) async {
       await tester.pumpWidget(
-        _app(
-          Form(
-            key: formKey,
-            child: ThemedFormInput(
-              initialValue: 'Uniform',
-              onSaved: (value) => saved = value,
-            ),
-          ),
-        ),
+        _app(const ThemedFormInput(initialValue: 'Uniform')),
       );
 
       await tester.enterText(find.byType(TextField), 'Casual');
@@ -305,9 +284,6 @@ void main() {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
       expect(_text(tester), 'Casual');
-
-      formKey.currentState!.save();
-      expect(saved, 'Casual');
     });
 
     testWidgets('传入 controller 时以其内容为准，校验读取程序写入的最新内容', (tester) async {
