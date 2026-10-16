@@ -199,17 +199,6 @@ void main() {
     );
     expect(moveProgress, [1, 2]);
 
-    final tagProgress = <int>[];
-    expect(
-      await notifier.bulkEditTags(
-        ['ok', 'failed'],
-        tagsToAdd: ['tag'],
-        onProgress: (completed, _) => tagProgress.add(completed),
-      ),
-      1,
-    );
-    expect(tagProgress, [1, 2]);
-
     final deleteProgress = <int>[];
     expect(
       await notifier.bulkDeleteEntries([
@@ -640,12 +629,6 @@ class _PartialBulkStorageService extends VibeLibraryStorageService {
     String id,
     String? categoryId,
   ) async => id == 'ok' ? entries.first.copyWith(categoryId: categoryId) : null;
-
-  @override
-  Future<VibeLibraryEntry?> updateEntryTags(
-    String id,
-    List<String> tags,
-  ) async => id == 'ok' ? entries.first.copyWith(tags: tags) : null;
 
   @override
   Future<bool> deleteEntry(String id) async => id == 'ok';

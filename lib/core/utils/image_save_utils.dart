@@ -340,13 +340,6 @@ class ImageSaveUtils {
     return file;
   }
 
-  static bool hasEmbeddedNovelAiMetadata(Uint8List imageBytes) {
-    return _hasReadableNovelAiMetadata(
-      imageBytes,
-      _extractEmbeddedPngMetadata(imageBytes),
-    );
-  }
-
   /// 从元数据重新构建 ImageParams
   ///
   /// 用于导入图像时恢复生成参数
@@ -473,14 +466,6 @@ class ImageSaveUtils {
     } catch (_) {
       return null;
     }
-  }
-
-  static bool _hasReadableNovelAiMetadata(
-    Uint8List imageBytes,
-    _EmbeddedPngMetadata? embeddedMetadata,
-  ) {
-    return embeddedMetadata != null ||
-        _isNovelAiResult(UnifiedMetadataParser.parseFromPng(imageBytes));
   }
 
   // 文本块在当前 isolate 就能判断，只有 stealth 整图解码交给后台。

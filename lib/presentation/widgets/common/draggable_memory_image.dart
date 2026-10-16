@@ -1,10 +1,8 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 
 import '../../../core/utils/drag_drop_utils.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
@@ -223,33 +221,4 @@ class _DraggableMemoryImageState extends ConsumerState<DraggableMemoryImage> {
       display: {'name': widget.fileName},
     );
   }
-}
-
-Future<SanitizedShareImage> prepareDragImageForTransfer({
-  required Uint8List imageBytes,
-  required String fileName,
-  required bool stripMetadata,
-  String? sourceFilePath,
-}) async {
-  if (stripMetadata) {
-    return ImageShareSanitizer.sanitizeForShare(imageBytes, fileName: fileName);
-  }
-
-  final normalizedSourceFilePath = sourceFilePath?.trim();
-  if (normalizedSourceFilePath != null && normalizedSourceFilePath.isNotEmpty) {
-    final sourceFile = File(normalizedSourceFilePath);
-    if (await sourceFile.exists()) {
-      return SanitizedShareImage(
-        bytes: await sourceFile.readAsBytes(),
-        fileName: p.basename(normalizedSourceFilePath),
-        mimeType: 'image/png',
-      );
-    }
-  }
-
-  return SanitizedShareImage(
-    bytes: imageBytes,
-    fileName: fileName,
-    mimeType: 'image/png',
-  );
 }

@@ -435,7 +435,15 @@ void main() {
         expect(textData['Description'], startsWith(positivePrompt));
         expect(textData['Description'], contains('<丰满>'));
         expect(jsonDecode(textData['Comment']!)['prompt'], positivePrompt);
-        expect(ImageSaveUtils.hasEmbeddedNovelAiMetadata(rebuilt), isTrue);
+        final prepared = await ImageSaveUtils.prepareResultBytes(
+          imageBytes: rebuilt,
+          preserveOriginalBytes: false,
+          metadata: const NaiImageMetadata(
+            prompt: 'must not replace',
+            seed: 1,
+          ),
+        );
+        expect(prepared.bytes, orderedEquals(rebuilt));
 
         final parsed = UnifiedMetadataParser.parseFromPng(rebuilt);
         expect(parsed.success, isTrue);

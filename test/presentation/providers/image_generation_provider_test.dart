@@ -836,11 +836,9 @@ void main() {
         expect(savedImage.preserveOriginalBytesOnSave, isTrue);
         expect(savedImage.bytes, orderedEquals(originalBytes));
         expect(savedBytes, orderedEquals(originalBytes));
-        expect(
-          UnifiedMetadataParser.extractPngTextData(savedBytes)['prompt'],
-          comfyPrompt,
-        );
-        expect(ImageSaveUtils.hasEmbeddedNovelAiMetadata(savedBytes), isFalse);
+        final textData = UnifiedMetadataParser.extractPngTextData(savedBytes);
+        expect(textData['prompt'], comfyPrompt);
+        expect(textData, isNot(contains('Comment')));
       },
     );
 
