@@ -19,6 +19,15 @@ class ResizeHandle extends StatefulWidget {
   final VoidCallback? onDragEnd;
   final double width;
 
+  /// 手柄实际占用的宽度；外层预留空间必须用它，触屏呈现下会放宽到命中区尺寸。
+  static double extentOf(BuildContext context, {double width = defaultWidth}) {
+    final interactionPolicy = context.interactionPolicy;
+    return interactionPolicy.prefersTouchPresentation &&
+            width < interactionPolicy.minimumControlExtent
+        ? interactionPolicy.minimumControlExtent
+        : width;
+  }
+
   @override
   State<ResizeHandle> createState() => _ResizeHandleState();
 }
@@ -29,12 +38,7 @@ class _ResizeHandleState extends State<ResizeHandle> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final interactionPolicy = context.interactionPolicy;
-    final hitWidth =
-        interactionPolicy.prefersTouchPresentation &&
-            widget.width < interactionPolicy.minimumControlExtent
-        ? interactionPolicy.minimumControlExtent
-        : widget.width;
+    final hitWidth = ResizeHandle.extentOf(context, width: widget.width);
 
     return MouseRegion(
       cursor: SystemMouseCursors.resizeColumn,
