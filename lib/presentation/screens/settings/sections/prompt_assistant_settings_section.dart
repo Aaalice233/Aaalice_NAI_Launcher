@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../widgets/common/provider_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/list_sort_extensions.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
@@ -198,9 +199,7 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
               ),
             )
             .toList()
-          ..sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-          );
+          ..sortByKey((option) => option.title.toLowerCase());
     final hasRealModel = models.any(
       (m) => m.name.trim().isNotEmpty && m.name.trim() != 'default-model',
     );
