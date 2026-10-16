@@ -107,6 +107,10 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     this.heroTagPrefix,
   });
 
+  /// 打开或跳页前等待元数据预取的上限；超时照常显示加载态，读完再回填
+  @visibleForTesting
+  static const Duration metadataPrefetchWaitLimit = Duration(milliseconds: 250);
+
   /// 打开图像详情查看器
   static Future<void> show(
     BuildContext context, {
@@ -118,7 +122,9 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     String? heroTagPrefix,
   }) async {
     if (images.isNotEmpty) {
-      await _prefetchMetadata(images[initialIndex.clamp(0, images.length - 1)]);
+      await _prefetchWithinLimit(
+        images[initialIndex.clamp(0, images.length - 1)],
+      );
       if (!context.mounted) return;
     }
     final isWindows = PlatformCapabilities.current.isWindows;
@@ -199,6 +205,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   final Map<String, TransformationController> _transformationControllers = {};
   bool _isClosing = false;
   DateTime? _lastCloseRequestedAt;
+  int _navigationRequest = 0;
   late final ResizablePaneController _metadataPanelWidthController;
 
   @override
@@ -211,6 +218,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       initialWidth: _initialMetadataPanelWidth,
     );
 
+    _refreshWhenPrefetched(_currentIndex);
     _prefetchNeighbors(_currentIndex);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -225,6 +233,18 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       if (neighbor < 0 || neighbor >= widget.images.length) continue;
       unawaited(_prefetchMetadata(widget.images[neighbor]));
     }
+  }
+
+  // 预取超时时页面已先行显示；读完后重建一次，顶栏等同步读取方才能拿到元数据
+  void _refreshWhenPrefetched(int index) {
+    if (index < 0 || index >= widget.images.length) return;
+    final image = widget.images[index];
+    if (image is! FileImageDetailData || !image.isPrefetchingMetadata) return;
+    unawaited(
+      image.prefetchMetadata().then((_) {
+        if (mounted && _currentIndex == index) setState(() {});
+      }),
+    );
   }
 
   void _scrollToThumbnail(int index, {bool animate = true}) {
@@ -254,8 +274,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   void _goToPage(int index) {
     if (index < 0 || index >= widget.images.length) return;
+    _navigationRequest++;
 
-    // 动画过半才切页，预取早已完成
+    // 动画过半才切页，预取多半已完成；没读完的切页后由 _onPageChanged 回填
     unawaited(_prefetchMetadata(widget.images[index]));
     _pageController.animateToPage(
       index,
@@ -266,19 +287,24 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   void _jumpToPage(int index) {
     if (index < 0 || index >= widget.images.length) return;
-    unawaited(_jumpAfterPrefetch(index));
+    unawaited(_jumpAfterPrefetch(index, ++_navigationRequest));
   }
 
-  // 缩略图可跳到任意页，立即切页前先等预取
-  Future<void> _jumpAfterPrefetch(int index) async {
-    await _prefetchMetadata(widget.images[index]);
-    if (!mounted || !_pageController.hasClients) return;
+  // 缩略图可跳到任意页，立即切页前先等预取；等待期间又切了页则放弃这次跳转
+  Future<void> _jumpAfterPrefetch(int index, int request) async {
+    await _prefetchWithinLimit(widget.images[index]);
+    if (!mounted ||
+        request != _navigationRequest ||
+        !_pageController.hasClients) {
+      return;
+    }
     _pageController.jumpToPage(index);
   }
 
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
     _scrollToThumbnail(index);
+    _refreshWhenPrefetched(index);
     _prefetchNeighbors(index);
   }
 
@@ -870,3 +896,10 @@ class _NavigationButton extends StatelessWidget {
 Future<void> _prefetchMetadata(ImageDetailData image) async {
   if (image is FileImageDetailData) await image.prefetchMetadata();
 }
+
+// 磁盘阻塞时打开与跳页不能一直等；超时只是不再等，读取照常继续
+Future<void> _prefetchWithinLimit(ImageDetailData image) =>
+    _prefetchMetadata(image).timeout(
+      ImageDetailViewer.metadataPrefetchWaitLimit,
+      onTimeout: () {},
+    );
