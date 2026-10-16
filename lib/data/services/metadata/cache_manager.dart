@@ -143,25 +143,6 @@ class MetadataCacheManager {
     }
   }
 
-  /// 清除 L2 持久化缓存
-  Future<void> clearPersistent() async {
-    try {
-      final box = _getBox();
-      final version = box.get('_cacheVersion');
-      await box.clear();
-      if (version != null) {
-        await box.put('_cacheVersion', version);
-      }
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to clear persistent cache',
-        e,
-        stack,
-        'MetadataCacheManager',
-      );
-    }
-  }
-
   // ==================== 统计信息 ====================
 
   /// 内存缓存命中率 (0.0 - 1.0)

@@ -255,9 +255,6 @@ class GalleryDataSource extends EnhancedBaseDataSource {
   Future<GalleryDashboardSnapshot> getDashboardStatistics() =>
       _query.getDashboardStatistics();
 
-  Future<void> deleteAllImages() => _images.deleteAllImages();
-  Future<void> deleteAllMetadata() => _metadata.deleteAllMetadata();
-
   @override
   Future<void> doInitialize() => _schema.initialize();
 

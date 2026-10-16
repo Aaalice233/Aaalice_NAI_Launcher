@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../core/cache/gallery_cache_manager.dart';
 import '../../core/exceptions/gallery_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_index_admission.dart';
@@ -160,31 +159,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   @override
   LocalGalleryState build() {
     if (_cachedState != null) return _cachedState!;
-
-    // 监听缓存清理事件
-    GalleryCacheManager().registerOnCacheCleared(_resetState);
-    ref.onDispose(() {
-      GalleryCacheManager().unregisterOnCacheCleared(_resetState);
-    });
-
     return const LocalGalleryState();
   }
 
   void _setState(LocalGalleryState newState) {
     _cachedState = newState;
     state = newState;
-  }
-
-  void _resetState() {
-    _cachedState = null;
-    _service = null;
-    _initialization = null;
-    _favoriteCountLoad = null;
-    _lastSynchronizedAt = null;
-    _filterRequestSerial++;
-    _deferredAdmissions.clear();
-    _deferredRemovals.clear();
-    _setState(const LocalGalleryState());
   }
 
   /// 获取共享服务实例，所有调用方等待同一个初始化 Future。

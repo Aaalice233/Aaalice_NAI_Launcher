@@ -553,11 +553,6 @@ class ImageMetadataService {
     _hashCalculator.clearCache();
   }
 
-  /// 清除持久化缓存
-  Future<void> clearPersistentCache() async {
-    await _cacheManager.clearPersistent();
-  }
-
   // ==================== 统计信息 ====================
 
   /// L1 内存缓存大小

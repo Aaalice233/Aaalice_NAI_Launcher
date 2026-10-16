@@ -54,7 +54,6 @@ abstract interface class GalleryImageRepository {
   Future<void> batchMarkAsDeleted(List<String> filePaths);
   Future<int> countImages({bool includeDeleted = false});
   Future<Map<String, int>> countImagesByMetadataStatus();
-  Future<void> deleteAllImages();
 }
 
 class SqliteGalleryImageRepository implements GalleryImageRepository {
@@ -776,39 +775,6 @@ class SqliteGalleryImageRepository implements GalleryImageRepository {
 
   int _formatDateYmd(DateTime date) {
     return date.year * 10000 + date.month * 100 + date.day;
-  }
-
-  /// 删除所有图片记录（保留文件）
-  ///
-  /// 用于深度清除画廊数据，强制下次重新扫描
-  @override
-  Future<void> deleteAllImages() async {
-    try {
-      await gateway.execute(
-        'deleteAllImages',
-        (db) async {
-          // 先删除关联的全文索引与元数据（外键约束）
-          await db.delete(GalleryTables.ftsIndex);
-          await db.delete(GalleryTables.metadata);
-          // 删除收藏记录
-          await db.delete(GalleryTables.favorites);
-          // 删除图片标签关联
-          await db.delete(GalleryTables.imageTags);
-          // 最后删除图片记录
-          final count = await db.delete(GalleryTables.images);
-          AppLogger.i('Deleted $count image records', 'GalleryDS');
-        },
-        timeout: const Duration(seconds: 30),
-        maxRetries: 2,
-      );
-
-      // 清除内存缓存，并让上层结果缓存感知这次批量写入。
-      context.clearCache();
-      context.markDataChanged();
-    } catch (e, stack) {
-      AppLogger.e('Failed to delete all images', e, stack, 'GalleryDS');
-      rethrow;
-    }
   }
 
   List<List<T>> _chunk<T>(List<T> values, int size) {

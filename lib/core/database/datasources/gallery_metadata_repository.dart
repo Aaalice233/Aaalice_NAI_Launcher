@@ -19,7 +19,6 @@ abstract interface class GalleryMetadataRepository {
   Future<Map<int, GalleryMetadataRecord?>> getMetadataByImageIds(
     List<int> imageIds,
   );
-  Future<void> deleteAllMetadata();
 }
 
 class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
@@ -336,27 +335,6 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
 
       return results;
     }, details: '${imageIds.length} IDs');
-  }
-
-  /// 删除所有元数据记录
-  @override
-  Future<void> deleteAllMetadata() async {
-    try {
-      await gateway.execute(
-        'deleteAllMetadata',
-        (db) async {
-          final count = await db.delete(GalleryTables.metadata);
-          await db.delete(GalleryTables.ftsIndex);
-          AppLogger.i('Deleted $count metadata records', 'GalleryDS');
-        },
-        timeout: const Duration(seconds: 30),
-        maxRetries: 2,
-      );
-      context.markDataChanged();
-    } catch (e, stack) {
-      AppLogger.e('Failed to delete all metadata', e, stack, 'GalleryDS');
-      rethrow;
-    }
   }
 
   List<List<T>> _chunk<T>(List<T> values, int size) {
