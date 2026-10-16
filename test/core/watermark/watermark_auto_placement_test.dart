@@ -5,13 +5,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:nai_launcher/core/watermark/watermark_analysis_raster.dart';
 import 'package:nai_launcher/core/watermark/watermark_auto_placement.dart';
 import 'package:nai_launcher/core/watermark/watermark_render_service.dart';
 import 'package:nai_launcher/core/watermark/watermark_scene.dart';
-import 'package:nai_launcher/core/watermark/watermark_source_analysis.dart';
 import 'package:nai_launcher/core/watermark/watermark_tone.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
+
+import '../../helpers/watermark_analysis_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -115,7 +115,7 @@ void main() {
 
   group('placement cost', () {
     test('a flat region costs less than a detailed one', () {
-      final analysis = _analysis(
+      final analysis = watermarkAnalysisOf(
         80,
         40,
         (x, y) => x < 40
@@ -137,12 +137,12 @@ void main() {
     });
 
     test('stronger detail never costs less', () {
-      final soft = _analysis(
+      final soft = watermarkAnalysisOf(
         40,
         40,
         (x, y) => (x ~/ 2).isEven ? (110, 110, 110, 255) : (140, 140, 140, 255),
       );
-      final hard = _analysis(
+      final hard = watermarkAnalysisOf(
         40,
         40,
         (x, y) => (x ~/ 2).isEven ? (0, 0, 0, 255) : (255, 255, 255, 255),
@@ -160,7 +160,7 @@ void main() {
 
   group('scene decision', () {
     const canvasSize = Size(400, 300);
-    final busyBottom = _analysis(
+    final busyBottom = watermarkAnalysisOf(
       200,
       150,
       (x, y) => y < 75
@@ -268,8 +268,8 @@ void main() {
     });
 
     test('text tone follows the background under the text', () {
-      final dark = _analysis(20, 15, (x, y) => (20, 24, 30, 255));
-      final light = _analysis(20, 15, (x, y) => (235, 232, 228, 255));
+      final dark = watermarkAnalysisOf(20, 15, (x, y) => (20, 24, 30, 255));
+      final light = watermarkAnalysisOf(20, 15, (x, y) => (235, 232, 228, 255));
       const settings = WatermarkSettings(
         textStyle: WatermarkTextStyle(autoTone: true),
       );
@@ -290,7 +290,7 @@ void main() {
     });
 
     test('transparent backgrounds keep the configured colors', () {
-      final transparent = _analysis(20, 15, (x, y) => (0, 0, 0, 0));
+      final transparent = watermarkAnalysisOf(20, 15, (x, y) => (0, 0, 0, 0));
 
       final decision = WatermarkScene.decide(
         canvasSize: canvasSize,
@@ -306,7 +306,11 @@ void main() {
     test('logo tone needs its own switch and measured shading', () async {
       final logo = await _logoImage();
       addTearDown(logo.dispose);
-      final background = _analysis(20, 15, (x, y) => (30, 30, 30, 255));
+      final background = watermarkAnalysisOf(
+        20,
+        15,
+        (x, y) => (30, 30, 30, 255),
+      );
       const luminance = WatermarkLogoLuminance(
         mean: 0.6,
         darkest: 0.3,
@@ -426,26 +430,4 @@ Future<(int, int)> _paintedColumns(ui.Image image) async {
     }
   }
   return (left, right);
-}
-
-WatermarkSourceAnalysis _analysis(
-  int width,
-  int height,
-  (int, int, int, int) Function(int x, int y) pixel,
-) {
-  final rgba = Uint8List(width * height * 4);
-  for (var y = 0; y < height; y++) {
-    for (var x = 0; x < width; x++) {
-      final (r, g, b, a) = pixel(x, y);
-      rgba.setAll((y * width + x) * 4, [r, g, b, a]);
-    }
-  }
-  return WatermarkSourceAnalysis.fromRaster(
-    WatermarkAnalysisRaster(
-      width: width,
-      height: height,
-      rgba: rgba,
-      sourceSize: Size(width.toDouble(), height.toDouble()),
-    ),
-  );
 }
