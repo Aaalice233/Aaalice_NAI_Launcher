@@ -12,12 +12,13 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
-import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_result_lifecycle_service.dart';
 import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
 import 'package:path/path.dart' as p;
+
+import '../../../helpers/content_hash.dart';
 
 void main() {
   test('自动保存会将最终图片逐张发布到系统相册', () async {
@@ -183,7 +184,7 @@ void main() {
       expect(metadata.fixedTagUsageData, isNull);
       expect(
         FixedTagUsageRecordStore()
-            .lookup(FileHashCalculator().calculateFromBytes(bytes))
+            .lookup(contentHashOf(bytes))
             ?.entries
             .single
             .fixedTagId,
@@ -209,7 +210,7 @@ void main() {
 
       expect(result.savedPaths, hasLength(1));
       final recorded = FixedTagUsageRecordStore().lookup(
-        FileHashCalculator().calculateFromBytes(bytes),
+        contentHashOf(bytes),
       );
       expect(recorded, isNotNull);
       expect(recorded!.entries, isEmpty);

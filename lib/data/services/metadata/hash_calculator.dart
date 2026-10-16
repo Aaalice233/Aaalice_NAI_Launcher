@@ -93,9 +93,6 @@ class FileHashCalculator {
     return _verified(filePath, cached, LocalFileIdentity.statSync(filePath));
   }
 
-  /// 不校验文件身份，只用于按路径定位已发起的解析任务
-  String? getHashForPath(String path) => _pathEntries[path]?.hash;
-
   /// 清除所有缓存
   void clearCache() {
     _pathEntries.clear();

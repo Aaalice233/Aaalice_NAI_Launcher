@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 
+import '../../../helpers/content_hash.dart';
 import '../../../helpers/shared_compute_gate.dart';
 
 void main() {
@@ -36,8 +37,7 @@ void main() {
     await file.setLastModified(modified);
   }
 
-  String hashOf(List<int> bytes) =>
-      calculator.calculateFromBytes(Uint8List.fromList(bytes));
+  String hashOf(List<int> bytes) => contentHashOf(bytes);
 
   Future<String> hashAt(String path) async =>
       (await calculator.snapshot(path)).hash;
@@ -101,8 +101,7 @@ void main() {
 
     await calculator.registerWrittenBytes(missing.path, Uint8List.fromList([1]));
 
-    expect(calculator.getHashForPath(missing.path), isNull);
-    expect(calculator.verifiedHashForPathSync(missing.path), isNull);
+    expect(calculator.getStatistics()['pathMappings'], 0);
   });
 
   test('a file replaced before registering keeps no mapping', () async {
@@ -115,7 +114,7 @@ void main() {
     );
 
     expect(hash, hashOf([7, 8, 9]));
-    expect(calculator.getHashForPath(file.path), isNull);
+    expect(calculator.getStatistics()['pathMappings'], 0);
   });
 
   test('a snapshot tells whether later reads still see the hashed file', () async {
@@ -168,7 +167,7 @@ void main() {
         () => calculator.calculateFromBytesInBackground(large),
       );
 
-      expect(hash, calculator.calculateFromBytes(large));
+      expect(hash, contentHashOf(large));
     });
 
     test('large files match the sync hash behind the gate', () async {
@@ -179,7 +178,7 @@ void main() {
         () => hashAt(file.path),
       );
 
-      expect(hash, calculator.calculateFromBytes(large));
+      expect(hash, contentHashOf(large));
       expect(calculator.verifiedHashForPathSync(file.path), hash);
     });
   });

@@ -4,10 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/cache_manager.dart';
-import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_parse_executor.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/content_hash.dart';
 import '../../helpers/fixed_tag_usage_fixture.dart';
 import '../../helpers/image_metadata_service_sandbox.dart';
 
@@ -76,7 +76,7 @@ void main() {
       final file = File('${directory().path}/raced.png');
       await file.writeAsBytes(original, flush: true);
       await file.setLastModified(DateTime(2026, 9, 1));
-      final originalHash = FileHashCalculator().calculateFromBytes(original);
+      final originalHash = contentHashOf(original);
       var replaced = false;
       ImageMetadataService().debugSetParseExecutorForTesting(
         _ReplaceBeforeParse((path) async {

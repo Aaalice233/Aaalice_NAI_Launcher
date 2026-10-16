@@ -7,6 +7,7 @@ import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_image_display_cache.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../helpers/content_hash.dart';
 import '../../../helpers/shared_compute_gate.dart';
 
 void main() {
@@ -98,7 +99,7 @@ void main() {
       fileName: 'large.png',
       mimeType: 'image/png',
     );
-    final digest = FileHashCalculator().calculateFromBytes(large.bytes);
+    final digest = contentHashOf(large.bytes);
 
     final file = await expectQueuedBehindSharedComputeGate(
       () => cache.prepare(large),
