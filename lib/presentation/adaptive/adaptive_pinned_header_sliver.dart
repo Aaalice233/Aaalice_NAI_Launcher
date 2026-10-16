@@ -16,6 +16,7 @@ class AdaptivePinnedHeaderSliver extends StatelessWidget {
     super.key,
     required this.child,
     this.trailingExtent = 0,
+    this.backgroundColor,
   });
 
   /// Viewport extent the content keeps whenever the surrounding chrome stays
@@ -32,11 +33,22 @@ class AdaptivePinnedHeaderSliver extends StatelessWidget {
   /// scrolls with it, which has to fit before this header may pin.
   final double trailingExtent;
 
+  /// Opaque fill behind [child], so content scrolling under the pinned header
+  /// does not show through its gaps and rounded corners.
+  final Color? backgroundColor;
+
   @override
-  Widget build(BuildContext context) => _AdaptivePinnedHeader(
-    trailingExtent: trailingExtent,
-    child: Semantics(container: true, explicitChildNodes: true, child: child),
-  );
+  Widget build(BuildContext context) {
+    final color = backgroundColor;
+    return _AdaptivePinnedHeader(
+      trailingExtent: trailingExtent,
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        child: color == null ? child : ColoredBox(color: color, child: child),
+      ),
+    );
+  }
 }
 
 class _AdaptivePinnedHeader extends SingleChildRenderObjectWidget {

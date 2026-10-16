@@ -103,6 +103,30 @@ void main() {
     );
   });
 
+  testWidgets('backgroundColor 铺满头部，固定时遮住从下方滚过的内容', (tester) async {
+    await _pump(
+      tester,
+      viewportHeight: 600,
+      headers: [
+        AdaptivePinnedHeaderSliver(
+          backgroundColor: Colors.red,
+          child: _header('a', 100),
+        ),
+      ],
+    );
+    final fill = find.ancestor(
+      of: find.byKey(const ValueKey('header-a')),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is ColoredBox && widget.color == Colors.red,
+      ),
+    );
+    expect(fill, findsOneWidget);
+    expect(
+      tester.getRect(fill),
+      tester.getRect(find.byKey(const ValueKey('header-a'))),
+    );
+  });
+
   testWidgets('放不下时随内容滚出视口', (tester) async {
     await _pump(
       tester,

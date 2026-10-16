@@ -11,11 +11,8 @@ class PromptConfigChromeSliver extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AdaptivePinnedHeaderSliver(
-      // 固定时内容从下方滚过，用画布色遮住间距处的内容
-      child: ColoredBox(
-        color: Theme.of(context).colorScheme.surface,
-        child: child,
-      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      child: child,
     );
   }
 }
