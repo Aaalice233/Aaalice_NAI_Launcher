@@ -2,14 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
 
 void main() {
-  test('移除类别时保留触发规则的标签', () {
+  test('移除类别时保留触发规则的标签，标签带权重写法时同样识别', () {
     final rule = PostProcessRule.sleepingRule(targetCategoryIds: ['eyes']);
     const context = {
-      'eyes': ['blue eyes', 'closed eyes'],
+      'eyes': ['[blue eyes]', '{closed eyes}'],
     };
 
-    expect(rule.apply(['closed eyes', 'blue eyes', 'smile'], context), [
-      'closed eyes',
+    expect(rule.apply(['{closed eyes}', '[blue eyes]', 'smile'], context), [
+      '{closed eyes}',
       'smile',
     ]);
   });
