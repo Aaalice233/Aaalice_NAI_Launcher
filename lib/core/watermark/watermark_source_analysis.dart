@@ -13,15 +13,11 @@ class WatermarkSourceAnalysis {
     required int height,
     required Float64List coverage,
     required Float64List lightness,
-    required Float64List lightnessSquared,
-    required Float64List detail,
     required Float64List detailSquared,
   }) : _width = width,
        _height = height,
        _coverage = coverage,
        _lightness = lightness,
-       _lightnessSquared = lightnessSquared,
-       _detail = detail,
        _detailSquared = detailSquared;
 
   // 透明处按中灰合成后再求细节：主体抠图的轮廓算作内容，透明区本身是平的
@@ -34,8 +30,6 @@ class WatermarkSourceAnalysis {
   // 各量的积分图，尺寸 (宽+1)×(高+1)，任意矩形求和 O(1)
   final Float64List _coverage;
   final Float64List _lightness;
-  final Float64List _lightnessSquared;
-  final Float64List _detail;
   final Float64List _detailSquared;
 
   static Future<WatermarkSourceAnalysis> fromEncoded(Uint8List bytes) async =>
@@ -68,8 +62,6 @@ class WatermarkSourceAnalysis {
     final size = stride * (height + 1);
     final coverageSum = Float64List(size);
     final lightnessSum = Float64List(size);
-    final lightnessSquaredSum = Float64List(size);
-    final detailSum = Float64List(size);
     final detailSquaredSum = Float64List(size);
     double at(int x, int y) => composite[y * width + x];
     for (var y = 0; y < height; y++) {
@@ -80,7 +72,6 @@ class WatermarkSourceAnalysis {
         final gx =
             (at(math.min(width - 1, x + 1), y) - at(math.max(0, x - 1), y)) / 2;
         final gy = (at(x, down) - at(x, up)) / 2;
-        final detail = math.sqrt(gx * gx + gy * gy);
         final a = alpha[index];
         final l = lightness[index];
         final cell = (y + 1) * stride + x + 1;
@@ -93,9 +84,7 @@ class WatermarkSourceAnalysis {
 
         accumulate(coverageSum, a);
         accumulate(lightnessSum, a * l);
-        accumulate(lightnessSquaredSum, a * l * l);
-        accumulate(detailSum, detail);
-        accumulate(detailSquaredSum, detail * detail);
+        accumulate(detailSquaredSum, gx * gx + gy * gy);
       }
     }
     return WatermarkSourceAnalysis._(
@@ -104,8 +93,6 @@ class WatermarkSourceAnalysis {
       height: height,
       coverage: coverageSum,
       lightness: lightnessSum,
-      lightnessSquared: lightnessSquaredSum,
-      detail: detailSum,
       detailSquared: detailSquaredSum,
     );
   }
@@ -125,23 +112,11 @@ class WatermarkSourceAnalysis {
         _sample(table, left, top);
 
     final coverage = sum(_coverage);
-    final detail = sum(_detail);
-    final detailSquared = sum(_detailSquared);
-    double? meanLightness;
-    var lightnessDeviation = 0.0;
-    if (coverage > 1e-9) {
-      final mean = sum(_lightness) / coverage;
-      meanLightness = mean.clamp(0.0, 100.0);
-      lightnessDeviation = math.sqrt(
-        math.max(0, sum(_lightnessSquared) / coverage - mean * mean),
-      );
-    }
     return WatermarkRegionStats(
-      coverage: (coverage / area).clamp(0.0, 1.0),
-      meanLightness: meanLightness,
-      lightnessDeviation: lightnessDeviation,
-      meanDetail: math.max(0, detail / area),
-      rmsDetail: math.sqrt(math.max(0, detailSquared / area)),
+      meanLightness: coverage > 1e-9
+          ? (sum(_lightness) / coverage).clamp(0.0, 100.0)
+          : null,
+      rmsDetail: math.sqrt(math.max(0, sum(_detailSquared) / area)),
     );
   }
 
@@ -165,32 +140,14 @@ class WatermarkSourceAnalysis {
 
 class WatermarkRegionStats {
   const WatermarkRegionStats({
-    required this.coverage,
     required this.meanLightness,
-    required this.lightnessDeviation,
-    required this.meanDetail,
     required this.rmsDetail,
   });
 
-  static const empty = WatermarkRegionStats(
-    coverage: 0,
-    meanLightness: null,
-    lightnessDeviation: 0,
-    meanDetail: 0,
-    rmsDetail: 0,
-  );
-
-  /// 不透明像素占区域的比例
-  final double coverage;
+  static const empty = WatermarkRegionStats(meanLightness: null, rmsDetail: 0);
 
   /// 不透明部分按 alpha 加权的平均 L*；区域完全透明时为 null
   final double? meanLightness;
-
-  /// 不透明部分 L* 的标准差：大表示明暗交错，单一灰度难以与整块背景都拉开
-  final double lightnessDeviation;
-
-  /// 每个分析像素上 L* 梯度的平均值
-  final double meanDetail;
 
   /// 梯度的均方根：少量强边缘（眼睛、线稿）比平均值更能拉高它
   final double rmsDetail;
