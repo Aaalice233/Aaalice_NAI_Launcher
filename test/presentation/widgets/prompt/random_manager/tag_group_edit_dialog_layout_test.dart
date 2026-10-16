@@ -390,23 +390,33 @@ void main() {
     }
   });
 
-  testWidgets('标签栏留不出最小正文高度时随正文滚走，操作栏仍可固定', (tester) async {
+  testWidgets('标签栏与操作栏按同一条规则一起固定或一起随正文滚动', (tester) async {
     await _openEditor(tester, size: const Size(412, 700), textScale: 1);
     await _selectTab(tester, Icons.sell_outlined);
 
-    Future<double> tabBarOffsetAfterScroll(double keyboardInset) async {
+    Future<bool> tabBarPinnedAfterScroll(double keyboardInset) async {
       await _setKeyboard(tester, keyboardInset);
       _editorPosition(tester).jumpTo(200);
       await tester.pumpAndSettle();
-      return tester.getRect(find.byType(TabBar, skipOffstage: false)).top -
+      final offset =
+          tester.getRect(find.byType(TabBar, skipOffstage: false)).top -
           tester.getRect(_editorScrollable()).top;
+      return offset > -0.5;
     }
 
-    // 键盘占去一部分高度后正文视口约 230，放不下标签栏加最小正文高度
-    expect(await tabBarOffsetAfterScroll(264), lessThan(0));
-    expect(_actionsScrollWithContent(), isFalse);
-    expect(await tabBarOffsetAfterScroll(0), moreOrLessEquals(0));
-    expect(_actionsScrollWithContent(), isFalse);
+    var sawPinned = false;
+    var sawScrolling = false;
+    for (var inset = 0.0; inset <= 360; inset += 8) {
+      final pinned = await tabBarPinnedAfterScroll(inset);
+      expect(
+        _actionsScrollWithContent(),
+        !pinned,
+        reason: '键盘占 $inset 时标签栏${pinned ? '固定' : '滚走'}，操作栏应一致',
+      );
+      if (pinned) sawPinned = true;
+      if (!pinned) sawScrolling = true;
+    }
+    expect(sawPinned && sawScrolling, isTrue);
     expect(tester.takeException(), isNull);
   });
 

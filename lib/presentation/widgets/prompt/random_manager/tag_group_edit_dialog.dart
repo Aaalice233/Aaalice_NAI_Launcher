@@ -4,10 +4,10 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_chrome_placement.dart';
 import '../../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
-import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/ink_host.dart';
@@ -185,12 +185,8 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
   void _setGroup(RandomTagGroup group) =>
       setState(() => _editingTagGroup = group);
 
-  // 固定操作栏后正文要留出与固定标题相同的最小高度，否则操作栏随正文滚动
-  bool _actionsScroll(double maxHeight) =>
-      maxHeight -
-          _actionsPadding.vertical -
-          context.interactionPolicy.minimumControlExtent <
-      AdaptivePinnedHeaderSliver.defaultMinContentExtent;
+  static const _fixedActionsPadding = EdgeInsets.fromLTRB(16, 12, 16, 16);
+  static const _scrollingActionsPadding = EdgeInsets.fromLTRB(16, 8, 16, 8);
 
   @override
   Widget build(BuildContext context) {
@@ -198,9 +194,10 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
     final tagCount = ref.watch(groupTagCountProvider(_editingTagGroup));
     final tabBar = _buildTabBar(context, tagCount: tagCount);
     final actions = _buildActions(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final actionsScroll = _actionsScroll(constraints.maxHeight);
+    return AdaptiveChromePlacementBuilder(
+      reservedExtent: _fixedActionsPadding.vertical,
+      builder: (context, placement, probes) {
+        final footer = probes.footer(actions);
         return Column(
           children: [
             Expanded(
@@ -209,9 +206,9 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
                 excludedRegions: [_tabBarKey, _actionsKey],
                 onSwitched: _scrollToContentStart,
                 child: Padding(
-                  padding: actionsScroll
-                      ? const EdgeInsets.fromLTRB(16, 8, 16, 8)
-                      : const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  padding: placement.footerFixed
+                      ? _fixedActionsPadding
+                      : _scrollingActionsPadding,
                   child: Container(
                     key: const ValueKey('tag-group-editor-surface'),
                     decoration: BoxDecoration(
@@ -226,18 +223,27 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
                           key: const ValueKey('tag-group-editor-scroll'),
                           controller: widget.scrollController,
                           slivers: [
-                            AdaptivePinnedHeaderSliver(child: tabBar),
+                            AdaptivePinnedHeaderSliver(
+                              // 滚动时外边距收窄，标签栏仍按固定操作栏时的边距判断，与操作栏同进退
+                              trailingExtent: placement.footerFixed
+                                  ? 0
+                                  : placement.footerExtent +
+                                        _fixedActionsPadding.vertical -
+                                        _scrollingActionsPadding.vertical,
+                              backgroundColor: sectionSurfaceColor(colorScheme),
+                              child: probes.header(tabBar),
+                            ),
                             KeyedSubtree(
                               key: ValueKey(
                                 'tag-group-editor-tab-${_tabController.index}',
                               ),
                               child: _buildTabContent(
                                 tagCount: tagCount,
-                                fillViewport: !actionsScroll,
+                                fillViewport: placement.footerFixed,
                               ),
                             ),
-                            if (actionsScroll)
-                              SliverToBoxAdapter(child: actions),
+                            if (!placement.footerFixed)
+                              SliverToBoxAdapter(child: footer),
                           ],
                         ),
                       ),
@@ -246,7 +252,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
                 ),
               ),
             ),
-            if (!actionsScroll) actions,
+            if (placement.footerFixed) footer,
           ],
         );
       },
@@ -280,28 +286,21 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
 
     return KeyedSubtree(
       key: _tabBarKey,
-      // 固定时正文从标签栏下方滚过，需要不透明底色遮住
-      child: ColoredBox(
-        color: sectionSurfaceColor(Theme.of(context).colorScheme),
-        child: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          dividerColor: Colors.transparent,
-          indicatorSize: TabBarIndicatorSize.tab,
-          onTap: (_) => _scrollToContentStart(),
-          tabs: [
-            editorTab(Icons.tune_rounded, l10n.randomManager_basicTab),
-            editorTab(
-              Icons.sell_outlined,
-              l10n.randomManager_tagsTab(tagCount),
-            ),
-            editorTab(
-              Icons.account_tree_outlined,
-              l10n.randomManager_diyAbilitiesTab,
-            ),
-          ],
-        ),
+      child: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        onTap: (_) => _scrollToContentStart(),
+        tabs: [
+          editorTab(Icons.tune_rounded, l10n.randomManager_basicTab),
+          editorTab(Icons.sell_outlined, l10n.randomManager_tagsTab(tagCount)),
+          editorTab(
+            Icons.account_tree_outlined,
+            l10n.randomManager_diyAbilitiesTab,
+          ),
+        ],
       ),
     );
   }
