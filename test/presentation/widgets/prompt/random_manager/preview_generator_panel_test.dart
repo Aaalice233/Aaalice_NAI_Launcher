@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
 import 'package:nai_launcher/data/services/random_prompt_generator.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -14,15 +13,8 @@ import 'package:nai_launcher/presentation/providers/prompt_config_provider.dart'
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/preview_generator_panel.dart';
 
+import '../../../../helpers/random_preset_test_harness.dart';
 import '../../../../helpers/text_layout_expectations.dart';
-
-const _preset = RandomPreset(id: 'preset', name: 'Preset');
-
-class _FixedRandomPresetNotifier extends RandomPresetNotifier {
-  @override
-  RandomPresetState build() =>
-      const RandomPresetState(presets: [_preset], selectedPresetId: 'preset');
-}
 
 class _MockRandomPromptGenerator extends Mock
     implements RandomPromptGenerator {}
@@ -72,7 +64,7 @@ void main() {
       ProviderScope(
         overrides: [
           randomPresetNotifierProvider.overrideWith(
-            _FixedRandomPresetNotifier.new,
+            TestRandomPresetNotifier.new,
           ),
           generationParamsNotifierProvider.overrideWith(
             _FixedGenerationParamsNotifier.new,
@@ -143,7 +135,7 @@ void main() {
           ProviderScope(
             overrides: [
               randomPresetNotifierProvider.overrideWith(
-                _FixedRandomPresetNotifier.new,
+                TestRandomPresetNotifier.new,
               ),
               generationParamsNotifierProvider.overrideWith(
                 _FixedGenerationParamsNotifier.new,

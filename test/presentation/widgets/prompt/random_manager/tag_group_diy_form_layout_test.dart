@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/time_condition.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
-import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/tag_group_card.dart';
 
 import '../../../../helpers/adaptive_panel_expectations.dart';
+import '../../../../helpers/random_preset_test_harness.dart';
 import '../../../../helpers/reachability_expectations.dart';
 
 // flutter_test 字体每个字形 1em，英文宽度约为真实两倍，作为最窄的压力场景
@@ -101,16 +98,6 @@ const _categories = [
   ),
   RandomCategory(id: 'cat-outfit', name: 'Outfit', key: 'custom2'),
 ];
-
-class _FixedPresetNotifier extends RandomPresetNotifier {
-  @override
-  RandomPresetState build() => const RandomPresetState(
-    presets: [
-      RandomPreset(id: 'preset', name: 'Preset', categories: _categories),
-    ],
-    selectedPresetId: 'preset',
-  );
-}
 
 final _l10n = lookupAppLocalizations(_locale);
 
@@ -257,41 +244,18 @@ Future<void> _openForm(
   FakeViewPadding padding = FakeViewPadding.zero,
   double keyboardInset = 0,
 }) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.padding = padding;
-  tester.view.viewPadding = padding;
-  tester.view.viewInsets = FakeViewPadding.zero;
-  addTearDown(tester.view.reset);
-
-  // 同一用例内逐个表单打开，前一个表单的弹窗路由必须随整棵树一起卸载
-  await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        randomPresetNotifierProvider.overrideWith(_FixedPresetNotifier.new),
-      ],
-      child: MaterialApp(
-        locale: _locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => InteractionPolicyScope(
-          initialPolicy: InteractionPolicy.touchFirst,
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
-          ),
-        ),
-        home: const Scaffold(
-          body: TagGroupCard(
-            tagGroup: _group,
-            categoryId: 'cat-hair',
-            categoryKey: 'hairColor',
-            presetId: 'preset',
-          ),
-        ),
+  await pumpRandomManager(
+    tester,
+    size: size,
+    textScale: textScale,
+    padding: padding,
+    presets: () => TestRandomPresetNotifier.categories(_categories),
+    home: const Scaffold(
+      body: TagGroupCard(
+        tagGroup: _group,
+        categoryId: 'cat-hair',
+        categoryKey: 'hairColor',
+        presetId: 'preset',
       ),
     ),
   );
@@ -351,38 +315,18 @@ Future<void> _expectFormUsable(
     for (var i = 0; i < entry.value; i++) {
       final control = controls.at(i);
       await revealOnScreen(tester, control);
-      final formRect = tester.getRect(form);
-      final rect = tester.getRect(control);
-      final label = '${tester.widget(control).runtimeType} #$i $reason';
-      expect(
-        rect.left,
-        greaterThanOrEqualTo(formRect.left - 0.5),
-        reason: label,
-      );
-      expect(
-        rect.right,
-        lessThanOrEqualTo(formRect.right + 0.5),
-        reason: label,
-      );
-      final scrolled = find
-          .ancestor(of: control, matching: body)
-          .evaluate()
-          .isNotEmpty;
-      _expectHitWithinViewport(
+      final widget = tester.widget(control);
+      final touchControl =
+          widget is! SurfaceInkWell &&
+          widget is! Slider &&
+          widget is! EditableText;
+      expectReachable(
         tester,
         control,
-        tester.getRect(scrolled ? body : form),
-        label,
+        reason: '${widget.runtimeType} #$i $reason',
+        within: form,
+        minExtent: touchControl ? _minTouchExtent : 0,
       );
-      if (tester.widget(control) is! SurfaceInkWell &&
-          tester.widget(control) is! Slider &&
-          tester.widget(control) is! EditableText) {
-        expect(
-          rect.shortestSide,
-          greaterThanOrEqualTo(_minTouchExtent),
-          reason: '命中区 $label',
-        );
-      }
     }
   }
 
@@ -397,22 +341,4 @@ Future<void> _expectFormUsable(
     reason: 'confirm $reason',
   );
   expect(tester.takeException(), isNull, reason: reason);
-}
-
-// 比正文视口还高的控件（放大文字后的模板按钮）只要露出的部分能点中即可
-void _expectHitWithinViewport(
-  WidgetTester tester,
-  Finder control,
-  Rect viewport,
-  String reason,
-) {
-  final visible = tester.getRect(control).intersect(viewport);
-  expect(visible.width > 0 && visible.height > 0, isTrue, reason: reason);
-  final target = tester.renderObject(control);
-  final path = tester.hitTestOnBinding(visible.center).path;
-  expect(
-    path.any((entry) => entry.target == target),
-    isTrue,
-    reason: '可点中 $reason',
-  );
 }

@@ -1,22 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch_targets.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/time_condition.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/tag_group_card.dart';
 
 import '../../../../helpers/ink_expectations.dart';
+import '../../../../helpers/random_preset_test_harness.dart';
 
 const _group = RandomTagGroup(
   id: 'group',
@@ -54,54 +52,16 @@ const _category = RandomCategory(
   groups: [_group],
 );
 
-class _FixedRandomPresetNotifier extends RandomPresetNotifier {
-  @override
-  RandomPresetState build() => const RandomPresetState(
-    presets: [
-      RandomPreset(id: 'preset', name: 'Preset', categories: [_category]),
-    ],
-    selectedPresetId: 'preset',
-  );
-}
-
 void main() {
   testWidgets('全部 DIY 配置在最窄屏、放大文字和键盘组合下均走自适应表单', (tester) async {
-    tester.view.physicalSize = const Size(320, 568);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          randomPresetNotifierProvider.overrideWith(
-            _FixedRandomPresetNotifier.new,
-          ),
-        ],
-        child: MaterialApp(
-          locale: const Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-              viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-              viewInsets: const EdgeInsets.only(bottom: 160),
-              textScaler: const TextScaler.linear(3),
-            ),
-            child: child!,
-          ),
-          home: const Scaffold(
-            body: TagGroupCard(
-              tagGroup: _group,
-              categoryId: 'category',
-              categoryKey: 'category',
-              presetId: 'preset',
-            ),
-          ),
-        ),
-      ),
+    await _pumpCard(
+      tester,
+      size: const Size(320, 568),
+      textScale: 3,
+      padding: const FakeViewPadding(left: 12, top: 24, right: 12, bottom: 16),
     );
+    tester.view.viewInsets = const FakeViewPadding(bottom: 160);
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
     await tester.pumpAndSettle();
@@ -139,71 +99,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('依赖配置表单在最窄屏、3x 文字、安全区和键盘组合下字段与动作均可达，失效引用不崩溃', (tester) async {
-    tester.view.physicalSize = const Size(320, 640);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await _pumpCard(
-      tester,
-      mediaQuery: (data) => data.copyWith(
-        padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-        viewPadding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-        viewInsets: const EdgeInsets.only(bottom: 180),
-        textScaler: const TextScaler.linear(3),
-      ),
-    );
+  testWidgets('依赖源指向预设中不存在的类别时显示为已失效，表单照常打开', (tester) async {
+    await _pumpCard(tester);
     await _openDiyForm(tester, '依赖配置');
 
-    final sheets = find.byKey(const ValueKey('adaptive-bottom-sheet'));
-    expect(sheets, findsNWidgets(2));
-    final form = sheets.last;
-    final formRect = tester.getRect(form);
-    expect(formRect.left, greaterThanOrEqualTo(0));
-    expect(formRect.right, lessThanOrEqualTo(320));
     // 夹具的源类别 'source' 不是当前预设里的类别
     expect(
-      find.descendant(of: form, matching: find.text('已失效：source')),
+      find.descendant(
+        of: _formSurfaces().last,
+        matching: find.text('已失效：source'),
+      ),
       findsOneWidget,
     );
-
-    for (final target in [
-      find.byType(DropdownButtonFormField<String>),
-      find.byType(EditableText),
-      find.byIcon(Icons.block_rounded),
-      find.byIcon(Icons.add_rounded),
-      find.byType(Switch),
-    ]) {
-      final inForm = find.descendant(of: form, matching: target).first;
-      await tester.ensureVisible(inForm);
-      await tester.pump();
-      expect(tester.getRect(inForm).overlaps(formRect), isTrue);
-      expect(inForm.hitTestable(), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    }
-
-    final confirm = find.descendant(of: form, matching: find.text('确定'));
-    await tester.scrollUntilVisible(
-      confirm,
-      200,
-      scrollable: find
-          .descendant(of: form, matching: find.byType(Scrollable))
-          .first,
-    );
-    await tester.pump();
-    expect(confirm.hitTestable(), findsOneWidget);
-    await tester.tap(confirm);
-    await tester.pumpAndSettle();
-
-    expect(sheets, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('依赖配置只在表单标题显示一次名称；依赖源下拉以类别 ID 选中并显示名称，改选后保存的是 ID', (
     tester,
   ) async {
-    final notifier = _EditablePresetNotifier(_referenceCategories);
+    final notifier = TestRandomPresetNotifier.categories(_referenceCategories);
     await _pumpReferenceCard(
       tester,
       notifier: notifier,
@@ -235,14 +149,17 @@ void main() {
 
     await _confirmAndSave(tester);
     expect(
-      notifier.savedGroup.dependencyConfig?.sourceCategoryId,
+      notifier
+          .savedGroup(_referenceGroup.id)
+          .dependencyConfig
+          ?.sourceCategoryId,
       'cat-outfit',
     );
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('按类别名称保存的存量引用在打开编辑器时换成 ID，保存后生效', (tester) async {
-    final notifier = _EditablePresetNotifier(_referenceCategories);
+    final notifier = TestRandomPresetNotifier.categories(_referenceCategories);
     await _pumpReferenceCard(
       tester,
       notifier: notifier,
@@ -279,7 +196,7 @@ void main() {
     );
 
     await _confirmAndSave(tester);
-    final saved = notifier.savedGroup;
+    final saved = notifier.savedGroup(_referenceGroup.id);
     expect(saved.dependencyConfig?.sourceCategoryId, 'cat-hair');
     expect(saved.visibilityRules.single.sourceCategoryId, 'cat-hair');
     expect(saved.visibilityRules.single.targetCategoryId, 'cat-outfit');
@@ -292,7 +209,7 @@ void main() {
   });
 
   testWidgets('可见性规则新增后立即可编辑，所选类别按 ID 保存', (tester) async {
-    final notifier = _EditablePresetNotifier(_referenceCategories);
+    final notifier = TestRandomPresetNotifier.categories(_referenceCategories);
     await _pumpReferenceCard(
       tester,
       notifier: notifier,
@@ -319,14 +236,14 @@ void main() {
     await tester.pumpAndSettle();
 
     await _confirmAndSave(tester);
-    final rule = notifier.savedGroup.visibilityRules.single;
+    final rule = notifier.savedGroup(_referenceGroup.id).visibilityRules.single;
     expect(rule.sourceCategoryId, 'cat-hair');
     expect(rule.targetCategoryId, isEmpty);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('以本词组 ID 为目标的存量可见性规则显示为本词组，也可重新选作目标', (tester) async {
-    final notifier = _EditablePresetNotifier(_referenceCategories);
+    final notifier = TestRandomPresetNotifier.categories(_referenceCategories);
     await _pumpReferenceCard(
       tester,
       notifier: notifier,
@@ -372,14 +289,18 @@ void main() {
 
     await _confirmAndSave(tester);
     expect(
-      notifier.savedGroup.visibilityRules.single.targetCategoryId,
+      notifier
+          .savedGroup(_referenceGroup.id)
+          .visibilityRules
+          .single
+          .targetCategoryId,
       'reference',
     );
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('后处理移除类别按 ID 多选，已失效的目标可以移除', (tester) async {
-    final notifier = _EditablePresetNotifier(_referenceCategories);
+    final notifier = TestRandomPresetNotifier.categories(_referenceCategories);
     await _pumpReferenceCard(
       tester,
       notifier: notifier,
@@ -411,19 +332,19 @@ void main() {
     expect(stale, findsNothing);
 
     await _confirmAndSave(tester);
-    expect(notifier.savedGroup.postProcessRules.single.targetCategoryIds, [
-      'cat-outfit',
-    ]);
+    expect(
+      notifier
+          .savedGroup(_referenceGroup.id)
+          .postProcessRules
+          .single
+          .targetCategoryIds,
+      ['cat-outfit'],
+    );
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('宽屏 DIY 配置表单使用受限宽度的居中弹窗并保留确认动作', (tester) async {
-    tester.view.physicalSize = const Size(1600, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await _pumpCard(tester);
+    await _pumpCard(tester, size: const Size(1600, 900));
     await _openDiyForm(tester, '条件分支');
 
     final forms = find.byKey(const ValueKey('adaptive-centered-form'));
@@ -447,28 +368,7 @@ void main() {
       probability: 0.35,
       emphasisProbability: 0.06999999999999999,
     );
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          randomPresetNotifierProvider.overrideWith(
-            _FixedRandomPresetNotifier.new,
-          ),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: TagGroupCard(
-              tagGroup: group,
-              categoryId: 'category',
-              categoryKey: 'category',
-              presetId: 'preset',
-            ),
-          ),
-        ),
-      ),
-    );
+    await _pumpCard(tester, group: group);
 
     await tester.tap(find.text('取整词组'));
     await tester.pumpAndSettle();
@@ -488,32 +388,7 @@ void main() {
   });
 
   testWidgets('选择模式下拉框的悬停反馈画在分组底色之上', (tester) async {
-    tester.view.physicalSize = const Size(1180, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          randomPresetNotifierProvider.overrideWith(
-            _FixedRandomPresetNotifier.new,
-          ),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: TagGroupCard(
-              tagGroup: _group,
-              categoryId: 'category',
-              categoryKey: 'category',
-              presetId: 'preset',
-            ),
-          ),
-        ),
-      ),
-    );
+    await _pumpCard(tester);
     await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
     await tester.pumpAndSettle();
 
@@ -535,16 +410,11 @@ void main() {
     // flutter_test 字体下英文约为真实宽度两倍，确认正文最长，作为压力场景
     final l10n = lookupAppLocalizations(const Locale('en'));
     for (final size in const [Size(740, 360), Size(320, 568)]) {
-      tester.view.physicalSize = size;
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(const SizedBox.shrink());
       await _pumpCard(
         tester,
+        size: size,
+        textScale: 3,
         locale: const Locale('en'),
-        mediaQuery: (data) =>
-            data.copyWith(textScaler: const TextScaler.linear(3)),
       );
 
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));
@@ -615,7 +485,7 @@ void main() {
     ];
 
     testWidgets('分支可选同类别词组与条件，循环目标不可选，已删除的目标显示为已失效', (tester) async {
-      final notifier = _EditablePresetNotifier(categories);
+      final notifier = TestRandomPresetNotifier.categories(categories);
       await _pumpReferenceCard(tester, notifier: notifier, group: owner);
       await _openDiyForm(tester, '条件分支', groupName: owner.name);
 
@@ -656,15 +526,18 @@ void main() {
       await tester.pumpAndSettle();
 
       await _confirmAndSave(tester);
-      final branch =
-          notifier.savedGroup.conditionalBranchConfig!.branches.single;
+      final branch = notifier
+          .savedGroup(_referenceGroup.id)
+          .conditionalBranchConfig!
+          .branches
+          .single;
       expect(branch.tagGroupIds, ['sailor']);
       expect(branch.conditions, {'cat-hair': 'blonde'});
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('被分支输出的词组显示徽标，点按打开引用它的分支', (tester) async {
-      final notifier = _EditablePresetNotifier(categories);
+      final notifier = TestRandomPresetNotifier.categories(categories);
       final references = categories.first.branchReferences(activeOnly: true);
       await _pumpReferenceCard(
         tester,
@@ -690,7 +563,7 @@ void main() {
     });
 
     testWidgets('删除被分支引用的词组前提示引用它的分支会显示为已失效', (tester) async {
-      final notifier = _EditablePresetNotifier(categories);
+      final notifier = TestRandomPresetNotifier.categories(categories);
       await _pumpReferenceCard(tester, notifier: notifier, group: sailor);
 
       await tester.tap(find.byIcon(Icons.more_horiz_rounded));
@@ -706,10 +579,6 @@ void main() {
   });
 
   testWidgets('编辑弹窗标签栏的悬停反馈画在分组底色之上', (tester) async {
-    tester.view.physicalSize = const Size(1180, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
     await _pumpCard(tester);
     await tester.tap(find.text('包含全部复杂配置的超长词组名称'));
     await tester.pumpAndSettle();
@@ -736,36 +605,26 @@ void main() {
 Future<void> _pumpCard(
   WidgetTester tester, {
   RandomTagGroup group = _group,
+  Size size = const Size(1180, 900),
+  double textScale = 1,
+  FakeViewPadding padding = FakeViewPadding.zero,
   Locale locale = const Locale('zh'),
-  MediaQueryData Function(MediaQueryData data)? mediaQuery,
-}) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        randomPresetNotifierProvider.overrideWith(
-          _FixedRandomPresetNotifier.new,
-        ),
-      ],
-      child: MaterialApp(
-        locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => MediaQuery(
-          data: (mediaQuery ?? (data) => data)(MediaQuery.of(context)),
-          child: child!,
-        ),
-        home: Scaffold(
-          body: TagGroupCard(
-            tagGroup: group,
-            categoryId: 'category',
-            categoryKey: 'category',
-            presetId: 'preset',
-          ),
-        ),
-      ),
+}) => pumpRandomManager(
+  tester,
+  size: size,
+  textScale: textScale,
+  padding: padding,
+  locale: locale,
+  presets: () => TestRandomPresetNotifier.categories(const [_category]),
+  home: Scaffold(
+    body: TagGroupCard(
+      tagGroup: group,
+      categoryId: 'category',
+      categoryKey: 'category',
+      presetId: 'preset',
     ),
-  );
-}
+  ),
+);
 
 const _referenceGroup = RandomTagGroup(id: 'reference', name: '引用词组');
 
@@ -779,61 +638,25 @@ const _referenceCategories = [
   RandomCategory(id: 'cat-outfit', name: '服装', key: 'custom2'),
 ];
 
-/// 保存只更新内存状态，不触碰持久化存储
-class _EditablePresetNotifier extends RandomPresetNotifier {
-  _EditablePresetNotifier(this._categories);
-
-  final List<RandomCategory> _categories;
-
-  RandomTagGroup get savedGroup => state.selectedPreset!.categories.first.groups
-      .firstWhere((group) => group.id == _referenceGroup.id);
-
-  @override
-  RandomPresetState build() => RandomPresetState(
-    presets: [
-      RandomPreset(id: 'preset', name: 'Preset', categories: _categories),
-    ],
-    selectedPresetId: 'preset',
-  );
-
-  @override
-  Future<void> updateCategory(RandomCategory category) async {
-    state = state.copyWith(
-      presets: [state.selectedPreset!.updateCategory(category)],
-    );
-  }
-}
-
 Future<void> _pumpReferenceCard(
   WidgetTester tester, {
-  required _EditablePresetNotifier notifier,
+  required TestRandomPresetNotifier notifier,
   required RandomTagGroup group,
   List<BranchReference> branchOutputBy = const [],
-}) async {
-  tester.view.physicalSize = const Size(1180, 900);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [randomPresetNotifierProvider.overrideWith(() => notifier)],
-      child: MaterialApp(
-        locale: const Locale('zh'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: TagGroupCard(
-            tagGroup: group,
-            categoryId: 'cat-hair',
-            categoryKey: 'hairColor',
-            presetId: 'preset',
-            branchOutputBy: branchOutputBy,
-          ),
-        ),
-      ),
+}) => pumpRandomManager(
+  tester,
+  locale: const Locale('zh'),
+  presets: () => notifier,
+  home: Scaffold(
+    body: TagGroupCard(
+      tagGroup: group,
+      categoryId: 'cat-hair',
+      categoryKey: 'hairColor',
+      presetId: 'preset',
+      branchOutputBy: branchOutputBy,
     ),
-  );
-}
+  ),
+);
 
 Finder _formSurfaces() => find.byWidgetPredicate(
   (widget) =>

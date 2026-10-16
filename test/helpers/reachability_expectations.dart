@@ -118,12 +118,14 @@ Future<void> tapVisiblePart(WidgetTester tester, Finder target) async {
 }
 
 /// 断言目标完整进入可见范围（比可见范围还大时至少露出 [minExtent]）、
-/// 尺寸不小于 [minExtent]，且可见部分的中心能点中目标
+/// 尺寸不小于 [minExtent]，且可见部分的中心能点中目标；给出 [within] 时
+/// 可见部分还不能越出它的左右边界
 void expectReachable(
   WidgetTester tester,
   Finder target, {
   required String reason,
   double minExtent = 48,
+  Finder? within,
 }) {
   final targetBox = tester.renderObject(target);
   final rect = tester.getRect(target);
@@ -150,6 +152,14 @@ void expectReachable(
     isTrue,
     reason: '$reason: 可见部分中心被遮挡或不可点中',
   );
+  if (within != null) {
+    final bounds = tester.getRect(within);
+    expect(
+      shown.left >= bounds.left - 0.5 && shown.right <= bounds.right + 0.5,
+      isTrue,
+      reason: '$reason: 可见部分 $shown 越出容器 $bounds',
+    );
+  }
 }
 
 double _leadingObstruction(RenderViewportBase viewport, RenderSliver path) {

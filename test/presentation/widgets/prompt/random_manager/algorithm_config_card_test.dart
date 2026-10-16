@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
@@ -12,6 +11,7 @@ import 'package:nai_launcher/presentation/widgets/prompt/random_manager/algorith
 
 import '../../../../helpers/ink_expectations.dart';
 import '../../../../helpers/labeled_rows_expectations.dart';
+import '../../../../helpers/random_preset_test_harness.dart';
 import '../../../../helpers/text_layout_expectations.dart';
 
 const _minTouchExtent = 44.0;
@@ -21,14 +21,6 @@ const _keyboardInset = 160.0;
 
 // flutter_test 字体每个字形 1em，英文宽度约为真实两倍，作为最窄的压力场景
 final _l10n = lookupAppLocalizations(const Locale('en'));
-
-class _FixedRandomPresetNotifier extends RandomPresetNotifier {
-  @override
-  RandomPresetState build() => const RandomPresetState(
-    presets: [RandomPreset(id: 'preset', name: 'Preset')],
-    selectedPresetId: 'preset',
-  );
-}
 
 void main() {
   testWidgets('标题与季节词库开关的按压反馈画在卡片底色之上', (tester) async {
@@ -40,7 +32,7 @@ void main() {
       ProviderScope(
         overrides: [
           randomPresetNotifierProvider.overrideWith(
-            _FixedRandomPresetNotifier.new,
+            TestRandomPresetNotifier.new,
           ),
         ],
         child: const MaterialApp(
@@ -84,7 +76,7 @@ void main() {
             ProviderScope(
               overrides: [
                 randomPresetNotifierProvider.overrideWith(
-                  _FixedRandomPresetNotifier.new,
+                  TestRandomPresetNotifier.new,
                 ),
               ],
               child: MaterialApp(
@@ -210,9 +202,7 @@ Future<void> _pumpLayoutCard(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        randomPresetNotifierProvider.overrideWith(
-          _FixedRandomPresetNotifier.new,
-        ),
+        randomPresetNotifierProvider.overrideWith(TestRandomPresetNotifier.new),
       ],
       child: MaterialApp(
         locale: const Locale('en'),
