@@ -127,16 +127,18 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
 
   /// 缩放图片到最大 512×512
   static Future<Uint8List> _resizeImage(Uint8List bytes) async {
+    ui.Codec? codec;
+    ui.Image? image;
+    ui.Picture? picture;
+    ui.Image? resized;
     try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
+      codec = await ui.instantiateImageCodec(bytes);
+      image = (await codec.getNextFrame()).image;
 
       final srcW = image.width;
       final srcH = image.height;
 
       if (srcW <= 512 && srcH <= 512) {
-        image.dispose();
         return bytes;
       }
 
@@ -156,18 +158,19 @@ class _VibePreviewDropZoneState extends State<VibePreviewDropZone> {
         Paint()..filterQuality = FilterQuality.medium,
       );
 
-      final picture = recorder.endRecording();
-      final resized = await picture.toImage(dstW, dstH);
+      picture = recorder.endRecording();
+      resized = await picture.toImage(dstW, dstH);
       final byteData = await resized.toByteData(format: ui.ImageByteFormat.png);
-
-      image.dispose();
-      resized.dispose();
-      picture.dispose();
 
       return byteData?.buffer.asUint8List() ?? bytes;
     } catch (e) {
       AppLogger.w('Failed to resize image: $e', 'VibePreviewDropZone');
       return bytes;
+    } finally {
+      resized?.dispose();
+      picture?.dispose();
+      image?.dispose();
+      codec?.dispose();
     }
   }
 

@@ -8,6 +8,7 @@ import '../common/model_family_icon.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/utils/byte_format.dart';
+import '../../../core/utils/encoded_image_dimensions.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../utils/local_gallery_metadata_resolver.dart';
@@ -219,15 +220,9 @@ class _LocalImageHoverPreviewCardState
   Future<(int, int)> _loadImageDimensions() async {
     // Generation metadata remains the original recipe after resizing or
     // enhancement. Only the encoded image describes the current pixel size.
-    final buffer = await ui.ImmutableBuffer.fromFilePath(widget.record.path);
-    ui.ImageDescriptor? descriptor;
-    try {
-      descriptor = await ui.ImageDescriptor.encoded(buffer);
-      return (descriptor.width, descriptor.height);
-    } finally {
-      descriptor?.dispose();
-      buffer.dispose();
-    }
+    return readEncodedImageDimensions(
+      await ui.ImmutableBuffer.fromFilePath(widget.record.path),
+    );
   }
 
   @override

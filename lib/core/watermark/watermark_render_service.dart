@@ -157,8 +157,11 @@ class WatermarkRenderService {
         logo: logoImage,
       );
       final picture = recorder.endRecording();
-      outputImage = await picture.toImage(width, height);
-      picture.dispose();
+      try {
+        outputImage = await picture.toImage(width, height);
+      } finally {
+        picture.dispose();
+      }
       sourceImage.dispose();
       sourceImage = null;
       logoImage?.dispose();

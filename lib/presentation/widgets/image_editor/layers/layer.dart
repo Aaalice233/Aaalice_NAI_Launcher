@@ -247,6 +247,9 @@ class Layer {
   bool get needsThumbnailUpdate => _needsThumbnailUpdate;
   Rect? _thumbnailRegion;
 
+  // 异步渲染回来时图层可能已释放，结果无人持有，须当场丢弃
+  bool _disposed = false;
+
   /// 延迟光栅化计时器（空闲时执行）
   DateTime? _lastStrokeTime;
   static const Duration _rasterizeDelay = Duration(milliseconds: 500);
@@ -783,6 +786,23 @@ class Layer {
     return recorder.endRecording();
   }
 
+  /// 把 [picture]（所有权移交）栅格化成缓存图像；渲染期间图层已释放时丢弃结果并返回 null
+  Future<ui.Image?> _renderPicture(
+    ui.Picture picture,
+    int width,
+    int height,
+  ) async {
+    final ui.Image image;
+    try {
+      image = await picture.toImage(width, height);
+    } finally {
+      picture.dispose();
+    }
+    if (!_disposed) return image;
+    image.dispose();
+    return null;
+  }
+
   /// 计算图层边界
   Rect _calculateBounds() {
     final base = _base;
@@ -967,15 +987,15 @@ class Layer {
         }
       }
 
-      final picture = recorder.endRecording();
-      final oldImage = _rasterizedImage;
-      _rasterizedImage = await picture.toImage(
+      final rendered = await _renderPicture(
+        recorder.endRecording(),
         rasterBounds.width.toInt(),
         rasterBounds.height.toInt(),
       );
+      if (rendered == null) return;
+      _rasterizedImage?.dispose();
+      _rasterizedImage = rendered;
       _rasterBounds = rasterBounds;
-      picture.dispose();
-      oldImage?.dispose();
 
       // 检查版本号：如果笔画在光栅化期间被修改，不更新计数
       // 这避免了 removeLastStroke/clearStrokes 与 rasterize 的竞态条件
@@ -1044,15 +1064,15 @@ class Layer {
         }
       }
 
-      final picture = recorder.endRecording();
-      final oldCache = _compositedCache;
-      _compositedCache = await picture.toImage(
+      final rendered = await _renderPicture(
+        recorder.endRecording(),
         compositeBounds.width.toInt(),
         compositeBounds.height.toInt(),
       );
+      if (rendered == null) return;
+      _compositedCache?.dispose();
+      _compositedCache = rendered;
       _compositeBounds = compositeBounds;
-      picture.dispose();
-      oldCache?.dispose();
 
       if (_strokeGeneration == startGeneration) {
         _needsComposite = false;
@@ -1110,10 +1130,15 @@ class Layer {
     canvas.translate(-region.left, -region.top);
     render(canvas);
 
-    final picture = recorder.endRecording();
+    // 新图渲染完成前旧缩略图仍在图层面板上显示，换上新图后才能释放
+    final rendered = await _renderPicture(
+      recorder.endRecording(),
+      thumbWidth,
+      thumbHeight,
+    );
+    if (rendered == null) return;
     _thumbnail?.dispose();
-    _thumbnail = await picture.toImage(thumbWidth, thumbHeight);
-    picture.dispose();
+    _thumbnail = rendered;
 
     _needsThumbnailUpdate = false;
     _thumbnailRegion = region;
@@ -1226,6 +1251,7 @@ class Layer {
 
   /// 释放资源
   void dispose() {
+    _disposed = true;
     _movePreview = null;
 
     // 释放通知器

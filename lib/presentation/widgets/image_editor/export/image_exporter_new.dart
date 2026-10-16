@@ -24,10 +24,14 @@ class ImageExporterNew {
       region,
       transparentBackground: transparentBackground,
     );
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     final width = image.width;
     final height = image.height;
-    image.dispose();
+    final ByteData? byteData;
+    try {
+      byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    } finally {
+      image.dispose();
+    }
 
     if (byteData == null) {
       throw Exception('Failed to convert image to RGBA bytes');
@@ -49,8 +53,12 @@ class ImageExporterNew {
     Rect region,
   ) async {
     final image = await layerManager.exportMergedImage(region);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    image.dispose();
+    final ByteData? byteData;
+    try {
+      byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    } finally {
+      image.dispose();
+    }
 
     if (byteData == null) {
       throw Exception('Failed to convert image to bytes');
@@ -122,12 +130,11 @@ class ImageExporterNew {
 
     canvas.restore();
 
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(width, height);
-    picture.dispose();
-
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    image.dispose();
+    final byteData = await _encodePicture(
+      recorder.endRecording(),
+      width,
+      height,
+    );
 
     if (byteData == null) {
       throw Exception('Failed to convert mask to bytes');
@@ -206,11 +213,11 @@ class ImageExporterNew {
     canvas.translate(-region.left, -region.top);
     _drawMaskLayer(canvas, layer, forceHardEdges: true);
     canvas.restore();
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(width, height);
-    picture.dispose();
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    image.dispose();
+    final byteData = await _encodePicture(
+      recorder.endRecording(),
+      width,
+      height,
+    );
     if (byteData == null) {
       throw Exception('Failed to convert mask to bytes');
     }
@@ -272,6 +279,22 @@ class ImageExporterNew {
       for (final layer in layers)
         if (layer.hasBaseImage) layer.resolveBaseImageBytes(),
     ]);
+  }
+
+  /// 把 [picture]（所有权移交）栅格化并编码为 PNG
+  static Future<ByteData?> _encodePicture(
+    ui.Picture picture,
+    int width,
+    int height,
+  ) async {
+    ui.Image? image;
+    try {
+      image = await picture.toImage(width, height);
+      return await image.toByteData(format: ui.ImageByteFormat.png);
+    } finally {
+      image?.dispose();
+      picture.dispose();
+    }
   }
 
   static bool _hasEraser(Layer layer) =>
