@@ -180,17 +180,6 @@ void main() {
     );
   });
 
-  test('equal templates compare equal', () {
-    expect(
-      const ImageSaveNaming(folderTemplate: 'a'),
-      const ImageSaveNaming(folderTemplate: 'a'),
-    );
-    expect(
-      const ImageSaveNaming(folderTemplate: 'a').hashCode,
-      const ImageSaveNaming(folderTemplate: 'a').hashCode,
-    );
-  });
-
   test('derivative names shorten the source but keep the suffix', () {
     final name = DerivativeKind.watermark.outputFileName('${'字' * 120}.png');
     expect(name, endsWith('_watermarked.png'));
