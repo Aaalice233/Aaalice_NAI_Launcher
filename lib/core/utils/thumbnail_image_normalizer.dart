@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'isolate_pool.dart';
+
 /// 词库预览图导入支持的扩展名；文件选择器必须复用此列表，避免格式漂移。
 const supportedThumbnailImageExtensions = <String>[
   'png',
@@ -32,4 +34,13 @@ Uint8List normalizeThumbnailImageToPng(Uint8List bytes) {
 
   final oriented = img.bakeOrientation(decoded);
   return Uint8List.fromList(img.encodePng(oriented));
+}
+
+/// 与 [normalizeThumbnailImageToPng] 结果一致，经 [ComputeGate] 在后台 isolate 执行。
+Future<Uint8List> normalizeThumbnailImageToPngInBackground(Uint8List bytes) {
+  return ComputeGate().runCompute(
+    normalizeThumbnailImageToPng,
+    bytes,
+    debugLabel: 'thumbnail-normalize',
+  );
 }

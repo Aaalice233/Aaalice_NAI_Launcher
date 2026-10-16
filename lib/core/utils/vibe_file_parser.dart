@@ -152,14 +152,15 @@ class VibeFileParser {
 
     try {
       // 使用 compute 将耗时操作移到 Isolate
-      final result = await compute(
+      final result = await ComputeGate().runCompute(
         _parsePngIsolate,
         _PngParseParams(
           fileName: fileName,
           bytes: bytes,
           defaultStrength: defaultStrength,
         ),
-      ).timeout(_parseTimeout);
+        timeLimit: _parseTimeout,
+      );
       return result;
     } on TimeoutException {
       AppLogger.w(
@@ -204,14 +205,15 @@ class VibeFileParser {
     double defaultStrength = 0.6,
   }) async {
     try {
-      final result = await compute(
+      final result = await ComputeGate().runCompute(
         _extractBundleFromPngIsolate,
         _PngParseParams(
           fileName: 'bundle.png',
           bytes: bytes,
           defaultStrength: defaultStrength,
         ),
-      ).timeout(_parseTimeout);
+        timeLimit: _parseTimeout,
+      );
       return result;
     } catch (e, stack) {
       AppLogger.e('Failed to extract bundle from PNG', e, stack, 'VibeParser');

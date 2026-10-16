@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/utils/dropped_file_reader.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../helpers/shared_compute_gate.dart';
 import '../../helpers/webp_metadata_fixture.dart';
 
 void main() {
@@ -202,6 +203,27 @@ void main() {
 
       expect(result?.fileName, 'clipboard.WEBP');
       expect(result?.bytes, bytes);
+    });
+
+    test('reads a dropped local file behind the shared compute gate', () async {
+      final directory = await Directory.systemTemp.createTemp('drop-local-');
+      addTearDown(() => directory.delete(recursive: true));
+      final bytes = buildNovelAiWebpFixture(
+        comment: const {'prompt': 'local fixture'},
+      );
+      final file = File('${directory.path}${Platform.pathSeparator}drop.webp');
+      await file.writeAsBytes(bytes);
+
+      final result = await expectQueuedBehindSharedComputeGate(
+        () => DroppedFileReader.read(
+          _FileUriDataReader(file.uri),
+          allowRemoteImages: false,
+        ),
+      );
+
+      expect(result?.fileName, 'drop.webp');
+      expect(result?.bytes, bytes);
+      expect(result?.sourcePath, file.path);
     });
   });
 }
@@ -412,6 +434,57 @@ class _FailingSuggestedNameWebpDataReader extends _WebpDataReader {
   @override
   Future<String?> getSuggestedName() =>
       Future<String?>.error(const FileSystemException('name lookup failed'));
+}
+
+class _FileUriDataReader extends DataReader {
+  _FileUriDataReader(this.uri);
+
+  final Uri uri;
+
+  @override
+  bool canProvide(DataFormat format) => identical(format, Formats.fileUri);
+
+  @override
+  List<DataFormat> getFormats(List<DataFormat> allFormats) {
+    return allFormats.where(canProvide).toList(growable: false);
+  }
+
+  @override
+  ReadProgress? getValue<T extends Object>(
+    ValueFormat<T> format,
+    AsyncValueChanged<T?> onValue, {
+    ValueChanged<Object>? onError,
+  }) {
+    if (!identical(format, Formats.fileUri)) return null;
+    Future<void>.microtask(() => onValue(uri as T));
+    return _CompletedReadProgress();
+  }
+
+  @override
+  ReadProgress? getFile(
+    FileFormat? format,
+    AsyncValueChanged<DataReaderFile> onFile, {
+    ValueChanged<Object>? onError,
+    bool allowVirtualFiles = true,
+    bool synthesizeFilesFromURIs = true,
+  }) => null;
+
+  @override
+  bool isSynthesized(DataFormat format) => false;
+
+  @override
+  bool isVirtual(DataFormat format) => false;
+
+  @override
+  Future<String?> getSuggestedName() async => null;
+
+  @override
+  Future<VirtualFileReceiver?> getVirtualFileReceiver({
+    FileFormat? format,
+  }) async => null;
+
+  @override
+  List<PlatformFormat> get platformFormats => const [];
 }
 
 class _MemoryDataReaderFile extends DataReaderFile {

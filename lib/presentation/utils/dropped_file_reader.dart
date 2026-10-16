@@ -7,6 +7,7 @@ import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
+import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/vibe_file_parser.dart';
 
 class DroppedFileData {
@@ -273,7 +274,7 @@ class DroppedFileReader {
         return null;
       }
 
-      final result = await compute(
+      final result = await ComputeGate().runCompute(
         _readLocalFileInIsolate,
         _LocalFileReadRequest(filePath: filePath, fileName: fileName),
       );

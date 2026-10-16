@@ -51,14 +51,23 @@ class ComputeGate {
   }
 
   /// 在全局计算闸门内运行 Flutter compute。
+  ///
+  /// [timeLimit] 从取得许可后才开始计时，排队等待不计入。
+  /// 超时即归还许可：compute 无法中止，占着许可等它跑完会让一个慢任务拖住整个闸门。
   Future<R> runCompute<M, R>(
     foundation.ComputeCallback<M, R> callback,
     M message, {
     String? debugLabel,
+    Duration? timeLimit,
   }) {
-    return run(
-      () => foundation.compute(callback, message, debugLabel: debugLabel),
-    );
+    return run(() {
+      final result = foundation.compute(
+        callback,
+        message,
+        debugLabel: debugLabel,
+      );
+      return timeLimit == null ? result : result.timeout(timeLimit);
+    });
   }
 
   /// 在全局计算闸门内运行一次 Isolate.run。

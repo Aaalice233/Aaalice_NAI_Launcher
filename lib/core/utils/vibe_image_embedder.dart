@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
-import 'package:flutter/foundation.dart';
 
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
+import 'isolate_pool.dart';
 import 'novelai_vibe_codec.dart';
 
 /// Vibe 图片嵌入器 - 在 PNG 中嵌入和提取 Vibe 元数据
@@ -82,7 +82,11 @@ class VibeImageEmbedder {
         defaultModel: defaultModel,
       );
 
-      return await compute(_embedVibesIsolate, params).timeout(_embedTimeout);
+      return await ComputeGate().runCompute(
+        _embedVibesIsolate,
+        params,
+        timeLimit: _embedTimeout,
+      );
     } on TimeoutException {
       AppLogger.w(
         '[VibeImageEmbedder] Vibe embedding timeout',
@@ -324,10 +328,11 @@ class VibeImageEmbedder {
     _validateFileSize(imageBytes.length, _maxPngFileSize, 'PNG file');
 
     try {
-      final result = await compute(
+      final result = await ComputeGate().runCompute(
         _extractVibesFromImageIsolate,
         imageBytes,
-      ).timeout(_extractTimeout);
+        timeLimit: _extractTimeout,
+      );
 
       final vibes = result.vibesData.map(_vibeDataToReference).toList();
       return (vibes: vibes, isBundle: result.isBundle);
