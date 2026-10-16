@@ -13,13 +13,16 @@ import 'package:nai_launcher/data/services/precise_ref_library_archive_service.d
 import 'package:nai_launcher/data/services/precise_ref_library_storage_service.dart';
 import 'package:path/path.dart' as p;
 
+import '../../helpers/shared_compute_gate.dart';
+
 class _FailingCommitStorage extends PreciseRefLibraryStorageService {
   var imports = 0;
   final deletedIds = <String>[];
 
   @override
-  Future<PreciseRefLibraryEntry> importPortableEntry(
-    Uint8List bytes, {
+  Future<PreciseRefLibraryEntry> importPortableEntryStream(
+    Stream<List<int>> bytes, {
+    required int expectedLength,
     required String id,
     required String name,
     required PreciseRefType type,
@@ -57,6 +60,7 @@ void main() {
   late Directory tempDir;
   late PreciseRefLibraryStorageService storage;
   late PreciseRefLibraryArchiveService archives;
+  late Directory stagingRoot;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('precise_ref_archive_');
@@ -64,8 +68,16 @@ void main() {
     storage = PreciseRefLibraryStorageService(
       overrideDirectory: p.join(tempDir.path, 'images'),
     );
-    archives = PreciseRefLibraryArchiveService(storage);
+    stagingRoot = Directory(p.join(tempDir.path, 'staging'));
+    archives = PreciseRefLibraryArchiveService(
+      storage,
+      stagingRootPath: stagingRoot.path,
+    );
   });
+
+  Future<void> expectNoStagingLeft() async {
+    expect(await stagingRoot.list().toList(), isEmpty);
+  }
 
   tearDown(() async {
     await storage.close();
@@ -101,6 +113,51 @@ void main() {
     final duplicate = (await archives.importFromPath(path)).single;
     expect(duplicate.id, isNot(anyOf(source.id, imported.id)));
     expect(await storage.getAllEntries(), hasLength(3));
+    await expectNoStagingLeft();
+  });
+
+  test('解压与校验经过共享计算闸门在后台完成', () async {
+    final path = await _writeArchive(
+      tempDir,
+      resource: 'images/11111111-1111-4111-8111-111111111111.png',
+      fileName: 'gated.naipreciseref',
+    );
+
+    final imported = await expectQueuedBehindSharedComputeGate(
+      () => archives.importFromPath(path),
+    );
+
+    expect(imported.single.name, 'source');
+    expect(await File(imported.single.imagePath).readAsBytes(), _pngBytes());
+    await expectNoStagingLeft();
+  });
+
+  test('后台预检保留原有错误类型且不留暂存文件', () async {
+    final notImage = await _writeArchive(
+      tempDir,
+      resource: 'images/11111111-1111-4111-8111-111111111111.png',
+      fileName: 'not-image.naipreciseref',
+      resourceBytes: Uint8List.fromList(utf8.encode('not an image')),
+    );
+    await expectLater(
+      archives.importFromPath(notImage),
+      throwsA(isA<InvalidPreciseRefImageException>()),
+    );
+
+    final notZip = File(p.join(tempDir.path, 'not-zip.naipreciseref'));
+    await notZip.writeAsBytes(utf8.encode('plain text'));
+    await expectLater(
+      archives.importFromPath(notZip.path),
+      throwsA(isA<FormatException>()),
+    );
+
+    await expectLater(
+      archives.importFromPath(p.join(tempDir.path, 'missing.naipreciseref')),
+      throwsA(isA<FileSystemException>()),
+    );
+
+    expect(await storage.getAllEntries(), isEmpty);
+    await expectNoStagingLeft();
   });
 
   test('接受记录了目录项的配置包', () async {
@@ -153,6 +210,7 @@ void main() {
       throwsA(isA<FormatException>()),
     );
     expect(await storage.getAllEntries(), isEmpty);
+    await expectNoStagingLeft();
   });
 
   test('提交阶段失败会回滚本包已创建条目', () async {
@@ -163,12 +221,16 @@ void main() {
     final failingStorage = _FailingCommitStorage();
 
     await expectLater(
-      PreciseRefLibraryArchiveService(failingStorage).importFromPath(path),
+      PreciseRefLibraryArchiveService(
+        failingStorage,
+        stagingRootPath: stagingRoot.path,
+      ).importFromPath(path),
       throwsA(isA<FileSystemException>()),
     );
 
     expect(failingStorage.imports, 2);
     expect(failingStorage.deletedIds, hasLength(1));
+    await expectNoStagingLeft();
   });
 }
 
@@ -185,8 +247,9 @@ Future<String> _writeArchive(
   String? shaOverride,
   String fileName = 'invalid.naipreciseref',
   List<String> directories = const [],
+  Uint8List? resourceBytes,
 }) async {
-  final bytes = _pngBytes();
+  final bytes = resourceBytes ?? _pngBytes();
   final manifest = utf8.encode(
     jsonEncode({
       'format': 'nai-precise-reference-library',
