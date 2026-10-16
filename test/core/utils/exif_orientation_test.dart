@@ -22,10 +22,6 @@ void main() {
         final sources = {
           'jpeg': _orientedJpeg(orientation),
           'webp': orientedCameraWebp(orientation: orientation),
-          'webp with Exif prefix': orientedCameraWebp(
-            orientation: orientation,
-            exifPrefix: true,
-          ),
         };
 
         for (final MapEntry(key: name, value: bytes) in sources.entries) {
@@ -51,6 +47,7 @@ void main() {
         _png(6, 4),
         _pngWithExif(orientation: 6),
         _webpLossless,
+        orientedCameraWebp(orientation: 6, exifPrefix: true),
         truncatedWebp.sublist(0, truncatedWebp.length - 4),
         Uint8List.fromList(img.encodeJpg(_image(6, 4))),
         Uint8List(0),
@@ -66,13 +63,18 @@ void main() {
   group('ExifOrientation.decodeUpright', () {
     test('matches the webp pixels flutter displays', () async {
       for (final orientation in orientations) {
-        final webp = orientedCameraWebp(orientation: orientation);
+        for (final exifPrefix in [false, true]) {
+          final webp = orientedCameraWebp(
+            orientation: orientation,
+            exifPrefix: exifPrefix,
+          );
 
-        _expectSamePixels(
-          ExifOrientation.decodeUpright(webp)!,
-          await _flutterDecode(webp),
-          reason: 'orientation $orientation',
-        );
+          _expectSamePixels(
+            ExifOrientation.decodeUpright(webp)!,
+            await _flutterDecode(webp),
+            reason: 'orientation $orientation, Exif prefix $exifPrefix',
+          );
+        }
       }
     });
 

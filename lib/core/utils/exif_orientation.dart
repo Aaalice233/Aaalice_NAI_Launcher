@@ -96,11 +96,8 @@ abstract final class ExifOrientation {
       final end = start + length;
       if (end > bytes.length) return null;
       if (_fourCc(bytes, offset) == 'EXIF') {
-        final payload = Uint8List.sublistView(bytes, start, end);
-        // 部分编码器在 TIFF 头前保留 JPEG APP1 的 `Exif\0\0` 前缀。
-        return payload.length >= 6 && _fourCc(payload, 0) == 'Exif'
-            ? Uint8List.sublistView(payload, 6)
-            : payload;
+        // 带 `Exif\0\0` 前缀的非标准块 Flutter 不识别方向，这里同样不剥前缀。
+        return Uint8List.sublistView(bytes, start, end);
       }
       offset = end + (length.isOdd ? 1 : 0);
     }
