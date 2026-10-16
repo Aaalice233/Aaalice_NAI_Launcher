@@ -114,7 +114,7 @@ class LayerTransformController extends ChangeNotifier {
     );
     _mutate(() {
       _state.clearSelection(saveHistory: false);
-      _state.historyManager.execute(action, _state);
+      _state.historyManager.execute(action, _state, tentative: true);
     });
     final layer = _state.layerManager.getLayerById(action.layerId);
     _session = _TransformSession(
@@ -388,7 +388,7 @@ class LayerTransformController extends ChangeNotifier {
           selectionAfter: selection,
         );
         session.action = created;
-        _state.historyManager.execute(created, _state);
+        _state.historyManager.execute(created, _state, tentative: true);
       } else {
         written = _state.historyManager.amendLatest(
           action,
@@ -441,6 +441,8 @@ class LayerTransformController extends ChangeNotifier {
     _drag = null;
     _pinch = null;
     _session = null;
+    final action = session.action;
+    if (action != null) _state.historyManager.settle(action);
     _clearPreview(session);
     session.dispose();
     cursor.value = SystemMouseCursors.move;
