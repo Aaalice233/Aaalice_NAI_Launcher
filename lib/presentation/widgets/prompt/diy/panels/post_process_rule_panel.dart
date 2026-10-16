@@ -4,6 +4,7 @@ import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart'
 
 import '../../../../../data/models/prompt/diy_category_references.dart';
 import '../../../../../data/models/prompt/post_process_rule.dart';
+import '../../../../themes/core/layered_surface_style.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
 import '../diy_badges.dart';
 import '../diy_category_field.dart';
@@ -145,7 +146,6 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel>
       _PresetRule(
         emoji: '😴',
         label: l10n.diy_sleepingRule,
-        color: Colors.indigo,
         targetCategoryKeys: PostProcessRule.sleepingTargetCategoryKeys,
         create: (targets) =>
             PostProcessRule.sleepingRule(targetCategoryIds: targets).copyWith(
@@ -156,7 +156,6 @@ class _PostProcessRulePanelState extends State<PostProcessRulePanel>
       _PresetRule(
         emoji: '🧜',
         label: l10n.diy_mermaidRule,
-        color: Colors.teal,
         targetCategoryKeys: PostProcessRule.mermaidTargetCategoryKeys,
         create: (targets) =>
             PostProcessRule.mermaidRule(targetCategoryIds: targets).copyWith(
@@ -232,14 +231,12 @@ class _PresetRule {
   const _PresetRule({
     required this.emoji,
     required this.label,
-    required this.color,
     required this.targetCategoryKeys,
     required this.create,
   });
 
   final String emoji;
   final String label;
-  final Color color;
   final List<String> targetCategoryKeys;
   final PostProcessRule Function(List<String> targetCategoryIds) create;
 }
@@ -285,14 +282,12 @@ class _PresetRuleButtons extends StatelessWidget {
 
   Widget _button(BuildContext context, _PresetRule preset) {
     final theme = Theme.of(context);
-    final side = BorderSide(color: preset.color.withValues(alpha: 0.3));
     return SurfaceInkWell(
       borderRadius: BorderRadius.circular(10),
-      color: theme.colorScheme.surfaceContainerHighest,
-      side: side,
+      color: controlSurfaceColor(theme.colorScheme),
       onTap: () => onSelected(preset),
       child: Padding(
-        padding: EdgeInsets.all(12 + side.width),
+        padding: const EdgeInsets.all(12),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

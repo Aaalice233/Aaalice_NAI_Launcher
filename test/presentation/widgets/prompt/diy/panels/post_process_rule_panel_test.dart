@@ -4,6 +4,7 @@ import 'package:nai_launcher/data/models/prompt/diy_category_references.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/surface_ink_well.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/diy/diy_category_field.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/diy/panels/post_process_rule_panel.dart';
@@ -80,7 +81,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('预设规则按钮的悬停与按压反馈画在底色之上，前景描边不改变尺寸', (tester) async {
+  testWidgets('预设规则按钮用控件色面且不描边，悬停与按压反馈画在色面之上', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('en'),
@@ -103,14 +104,14 @@ void main() {
       matching: find.byType(SurfaceInkWell),
     );
     final row = find.descendant(of: preset, matching: find.byType(Row)).first;
-    // 12 内边距加 1 描边，上下各 13
+    expect(tester.widget<SurfaceInkWell>(preset).side, BorderSide.none);
     expect(
       tester.getSize(preset).height,
-      moreOrLessEquals(tester.getSize(row).height + 26),
+      moreOrLessEquals(tester.getSize(row).height + 24),
     );
 
     final theme = Theme.of(tester.element(preset));
-    final fill = theme.colorScheme.surfaceContainerHighest;
+    final fill = controlSurfaceColor(theme.colorScheme);
     await hoverOver(tester, preset);
     expectInkOnTop(tester, preset, ink: theme.hoverColor, below: fill);
 
