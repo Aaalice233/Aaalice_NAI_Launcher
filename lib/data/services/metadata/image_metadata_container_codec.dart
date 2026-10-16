@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../../core/utils/exif_container.dart';
 import '../../../core/utils/portable_logger.dart';
 import 'exif_orientation_metadata.dart';
 
@@ -107,7 +108,8 @@ class ImageMetadataContainerCodec {
     final sourceChunks = _supportedMetadataChunks(source);
     if (sourceChunks.isEmpty) return targetPng;
     final orientationBaked =
-        orientationApplied && (_isJpeg(source) || _isWebP(source));
+        orientationApplied &&
+        (ExifContainer.isJpeg(source) || ExifContainer.isWebp(source));
     const supportedTypes = {'tEXt', 'iTXt', 'zTXt', 'eXIf'};
     final targetChunks = _parsePngChunks(targetPng);
     final output = BytesBuilder()..add(targetPng.sublist(0, 8));
@@ -147,89 +149,26 @@ class ImageMetadataContainerCodec {
       }
       return chunks;
     }
-    if (_isJpeg(source)) return _extractJpegExif(source);
-    if (_isWebP(source)) return _extractWebPExif(source);
+    if (ExifContainer.isJpeg(source)) {
+      return _validatedExifChunks(ExifContainer.jpegExifPayloads(source));
+    }
+    if (ExifContainer.isWebp(source)) {
+      return _validatedExifChunks(
+        ExifContainer.webpExifChunks(
+          source,
+        ).map(ExifContainer.withoutExifHeader),
+      );
+    }
     return const [];
   }
 
-  static bool _isJpeg(Uint8List bytes) =>
-      bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
-
-  static bool _isWebP(Uint8List bytes) =>
-      bytes.length >= 12 &&
-      ascii.decode(bytes.sublist(0, 4), allowInvalid: true) == 'RIFF' &&
-      ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WEBP';
-
-  static List<_PngChunk> _extractJpegExif(Uint8List bytes) {
-    final result = <_PngChunk>[];
-    var offset = 2;
-    while (offset + 4 <= bytes.length) {
-      if (bytes[offset] != 0xFF) {
-        throw const FormatException('Malformed JPEG metadata markers');
-      }
-      while (offset < bytes.length && bytes[offset] == 0xFF) {
-        offset++;
-      }
-      if (offset >= bytes.length) break;
-      final marker = bytes[offset++];
-      if (marker == 0xD9 || marker == 0xDA) break;
-      if (marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) continue;
-      if (offset + 2 > bytes.length) {
-        throw const FormatException('Truncated JPEG metadata segment');
-      }
-      final segmentLength = (bytes[offset] << 8) | bytes[offset + 1];
-      if (segmentLength < 2 || offset + segmentLength > bytes.length) {
-        throw const FormatException('Invalid JPEG metadata segment length');
-      }
-      final payloadStart = offset + 2;
-      final payloadEnd = offset + segmentLength;
-      if (marker == 0xE1 &&
-          payloadEnd - payloadStart >= 6 &&
-          ascii.decode(
-                bytes.sublist(payloadStart, payloadStart + 6),
-                allowInvalid: true,
-              ) ==
-              'Exif\u0000\u0000') {
-        final tiff = Uint8List.fromList(
-          bytes.sublist(payloadStart + 6, payloadEnd),
-        );
-        _validateTiffMetadata(tiff);
-        result.add(_PngChunk('eXIf', tiff));
-      }
-      offset += segmentLength;
+  static List<_PngChunk> _validatedExifChunks(Iterable<Uint8List> payloads) {
+    final chunks = <_PngChunk>[];
+    for (final tiff in payloads) {
+      _validateTiffMetadata(tiff);
+      chunks.add(_PngChunk('eXIf', tiff));
     }
-    return result;
-  }
-
-  static List<_PngChunk> _extractWebPExif(Uint8List bytes) {
-    final result = <_PngChunk>[];
-    var offset = 12;
-    while (offset + 8 <= bytes.length) {
-      final type = ascii.decode(
-        bytes.sublist(offset, offset + 4),
-        allowInvalid: true,
-      );
-      final length = ByteData.sublistView(
-        bytes,
-      ).getUint32(offset + 4, Endian.little);
-      final dataStart = offset + 8;
-      final dataEnd = dataStart + length;
-      if (dataEnd > bytes.length) {
-        throw const FormatException('Truncated WebP metadata chunk');
-      }
-      if (type == 'EXIF') {
-        var tiff = Uint8List.fromList(bytes.sublist(dataStart, dataEnd));
-        if (tiff.length >= 6 &&
-            ascii.decode(tiff.sublist(0, 6), allowInvalid: true) ==
-                'Exif\u0000\u0000') {
-          tiff = Uint8List.fromList(tiff.sublist(6));
-        }
-        _validateTiffMetadata(tiff);
-        result.add(_PngChunk('eXIf', tiff));
-      }
-      offset = dataEnd + (length.isOdd ? 1 : 0);
-    }
-    return result;
+    return chunks;
   }
 
   static void _validateTiffMetadata(Uint8List bytes) {

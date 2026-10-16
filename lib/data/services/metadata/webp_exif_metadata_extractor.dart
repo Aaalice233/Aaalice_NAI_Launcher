@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../../core/utils/exif_container.dart';
+
 class WebpExifMetadataExtraction {
   const WebpExifMetadataExtraction({
     this.textData = const {},
@@ -34,74 +36,26 @@ class WebpExifMetadataExtractor {
     0x00,
   ];
 
-  static bool hasWebpHeader(Uint8List bytes) {
-    return bytes.length >= 12 &&
-        _asciiAt(bytes, 0, 'RIFF') &&
-        _asciiAt(bytes, 8, 'WEBP');
-  }
-
   static WebpExifMetadataExtraction extract(Uint8List bytes) {
-    if (!hasWebpHeader(bytes)) {
+    if (!ExifContainer.isWebp(bytes)) {
       return const WebpExifMetadataExtraction(
         errorMessage: 'Not a valid WebP RIFF header',
       );
     }
-
-    final byteData = ByteData.sublistView(bytes);
-    final declaredEnd = byteData.getUint32(4, Endian.little) + 8;
-    if (declaredEnd < 12) {
-      return const WebpExifMetadataExtraction(
-        errorMessage: 'Invalid WebP RIFF size',
-      );
+    final Uint8List? exifBytes;
+    try {
+      exifBytes = ExifContainer.webpExifChunks(bytes).firstOrNull;
+    } on FormatException catch (error) {
+      return WebpExifMetadataExtraction(errorMessage: error.message);
     }
-    if (declaredEnd > bytes.length) {
-      return WebpExifMetadataExtraction(
-        errorMessage:
-            'Truncated WebP RIFF container: declared $declaredEnd bytes, '
-            'received ${bytes.length}',
-      );
-    }
-
-    var offset = 12;
-    while (offset < declaredEnd) {
-      if (offset + 8 > declaredEnd) {
-        return const WebpExifMetadataExtraction(
-          errorMessage: 'Truncated WebP chunk header',
-        );
-      }
-
-      final chunkType = latin1.decode(bytes.sublist(offset, offset + 4));
-      final chunkSize = byteData.getUint32(offset + 4, Endian.little);
-      final dataStart = offset + 8;
-      final dataEnd = dataStart + chunkSize;
-      final paddedEnd = dataEnd + (chunkSize.isOdd ? 1 : 0);
-      if (dataEnd < dataStart || paddedEnd > declaredEnd) {
-        return WebpExifMetadataExtraction(
-          errorMessage: 'Truncated WebP $chunkType chunk',
-        );
-      }
-
-      if (chunkType == 'EXIF') {
-        return _extractExif(bytes.sublist(dataStart, dataEnd));
-      }
-
-      // Unknown RIFF chunks are valid and must be skipped using their padded
-      // size rather than interpreted as image or metadata data.
-      offset = paddedEnd;
-    }
-
-    return const WebpExifMetadataExtraction();
+    return exifBytes == null
+        ? const WebpExifMetadataExtraction()
+        : _extractExif(exifBytes);
   }
 
   static WebpExifMetadataExtraction _extractExif(Uint8List exifBytes) {
     try {
-      var tiffBytes = exifBytes;
-      if (exifBytes.length >= 6 &&
-          _asciiAt(exifBytes, 0, 'Exif') &&
-          exifBytes[4] == 0 &&
-          exifBytes[5] == 0) {
-        tiffBytes = Uint8List.sublistView(exifBytes, 6);
-      }
+      final tiffBytes = ExifContainer.withoutExifHeader(exifBytes);
       final isLittleEndian = _asciiAt(tiffBytes, 0, 'II');
       final isBigEndian = _asciiAt(tiffBytes, 0, 'MM');
       if (tiffBytes.length < 8 || (!isLittleEndian && !isBigEndian)) {
