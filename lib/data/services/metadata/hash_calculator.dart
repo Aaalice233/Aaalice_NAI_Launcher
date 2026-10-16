@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
 import '../../../core/utils/isolate_pool.dart';
+import '../../../core/utils/local_file_identity.dart';
 
 /// 文件哈希计算器
 ///
@@ -32,7 +33,7 @@ class FileHashCalculator {
   Future<FileHashSnapshot> snapshot(String filePath) async {
     final cached = _pathEntries[filePath];
     if (cached != null) {
-      if (cached.identity == await _FileIdentity.stat(filePath)) {
+      if (cached.identity == await LocalFileIdentity.stat(filePath)) {
         _hashCacheHitCount++;
         return FileHashSnapshot._(filePath, cached.hash, cached.identity);
       }
@@ -70,7 +71,7 @@ class FileHashCalculator {
   /// 登记刚写入 [filePath] 的 [bytes] 并返回其哈希；文件已不存在或已被替换时不登记
   Future<String> registerWrittenBytes(String filePath, Uint8List bytes) async {
     // 先取身份再算哈希：后台哈希可能排队，期间被替换的内容不能顶着这份哈希登记
-    final identity = await _FileIdentity.stat(filePath);
+    final identity = await LocalFileIdentity.stat(filePath);
     final hash = await calculateFromBytesInBackground(bytes);
     if (identity != null && identity.size == bytes.length) {
       _pathEntries[filePath] = _PathHashEntry(hash, identity);
@@ -82,7 +83,7 @@ class FileHashCalculator {
   String? verifiedHashForPathSync(String filePath) {
     final cached = _pathEntries[filePath];
     if (cached == null) return null;
-    if (cached.identity == _FileIdentity.statSync(filePath)) {
+    if (cached.identity == LocalFileIdentity.statSync(filePath)) {
       return cached.hash;
     }
     _forget(filePath, cached);
@@ -120,14 +121,14 @@ class FileHashCalculator {
   Future<FileHashSnapshot> _calculateWithSemaphore(String filePath) async {
     await _semaphore.acquire();
     try {
-      final before = await _FileIdentity.stat(filePath);
+      final before = await LocalFileIdentity.stat(filePath);
       final hash = before != null && before.size >= backgroundHashMinBytes
           ? await ComputeGate().runCompute(_sha256OfFile, filePath)
           : _sha256OfBytes(await File(filePath).readAsBytes());
 
       // 读取期间文件被改写时不登记映射，下次重新计算
       final stable =
-          before != null && before == await _FileIdentity.stat(filePath);
+          before != null && before == await LocalFileIdentity.stat(filePath);
       if (stable) {
         _pathEntries[filePath] = _PathHashEntry(hash, before);
       }
@@ -162,57 +163,18 @@ final class FileHashSnapshot {
   final String hash;
 
   // 哈希读取期间文件就被改写时为 null，此后读到的任何内容都不能记在 [hash] 下
-  final _FileIdentity? _identity;
+  final LocalFileIdentity? _identity;
 
   /// 文件是否仍是算哈希时那一份；另行读取内容后据此决定结果能否记在 [hash] 下
   Future<bool> isUnchanged() async =>
-      _identity != null && _identity == await _FileIdentity.stat(filePath);
+      _identity != null && _identity == await LocalFileIdentity.stat(filePath);
 }
 
 final class _PathHashEntry {
   const _PathHashEntry(this.hash, this.identity);
 
   final String hash;
-  final _FileIdentity identity;
-}
-
-/// 同一路径上的文件是否仍是计算哈希时那一份
-final class _FileIdentity {
-  const _FileIdentity({
-    required this.size,
-    required this.modifiedMicros,
-    required this.changedMicros,
-  });
-
-  static Future<_FileIdentity?> stat(String path) async =>
-      _fromStat(await FileStat.stat(path));
-
-  static _FileIdentity? statSync(String path) =>
-      _fromStat(FileStat.statSync(path));
-
-  static _FileIdentity? _fromStat(FileStat stat) {
-    if (stat.type != FileSystemEntityType.file) return null;
-    return _FileIdentity(
-      size: stat.size,
-      modifiedMicros: stat.modified.microsecondsSinceEpoch,
-      changedMicros: stat.changed.microsecondsSinceEpoch,
-    );
-  }
-
-  final int size;
-  final int modifiedMicros;
-  // Windows 上是创建时间，POSIX 上是 inode 变更时间，能识别保留 mtime 的替换
-  final int changedMicros;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _FileIdentity &&
-      other.size == size &&
-      other.modifiedMicros == modifiedMicros &&
-      other.changedMicros == changedMicros;
-
-  @override
-  int get hashCode => Object.hash(size, modifiedMicros, changedMicros);
+  final LocalFileIdentity identity;
 }
 
 /// 信号量（并发控制）
