@@ -123,7 +123,6 @@ class MetadataParseWorker {
         MetadataParseRequest(
           requestId: task.requestId,
           filePath: task.filePath,
-          config: task.config,
         ),
       );
       return await _currentCompleter!.future;

@@ -90,10 +90,7 @@ void main() {
 
         final oldParse = service.parseMetadata(
           oldFile.path,
-          config: const IsolateParseConfig(
-            timeout: Duration(seconds: 10),
-            useGradualRead: false,
-          ),
+          config: const IsolateParseConfig(timeout: Duration(seconds: 10)),
         );
 
         await _waitForActiveWorkers(service, 1);
@@ -101,10 +98,7 @@ void main() {
 
         final newResult = await service.parseMetadata(
           newFile.path,
-          config: const IsolateParseConfig(
-            timeout: Duration(seconds: 10),
-            useGradualRead: false,
-          ),
+          config: const IsolateParseConfig(timeout: Duration(seconds: 10)),
         );
         final oldResult = await oldParse;
 
@@ -139,25 +133,16 @@ void main() {
 
         final first = service.parseMetadata(
           busyA.path,
-          config: const IsolateParseConfig(
-            timeout: Duration.zero,
-            useGradualRead: false,
-          ),
+          config: const IsolateParseConfig(timeout: Duration.zero),
         );
         final second = service.parseMetadata(
           busyB.path,
-          config: const IsolateParseConfig(
-            timeout: Duration.zero,
-            useGradualRead: false,
-          ),
+          config: const IsolateParseConfig(timeout: Duration.zero),
         );
 
         final queued = service.parseMetadata(
           queuedFile.path,
-          config: const IsolateParseConfig(
-            timeout: Duration(seconds: 2),
-            useGradualRead: false,
-          ),
+          config: const IsolateParseConfig(timeout: Duration(seconds: 2)),
         );
 
         final queuedResult = await queued;
@@ -208,10 +193,7 @@ void main() {
 
         final result = await service.parseMetadata(
           file.path,
-          config: const IsolateParseConfig(
-            timeout: Duration(seconds: 2),
-            useGradualRead: false,
-          ),
+          config: const IsolateParseConfig(timeout: Duration(seconds: 2)),
         );
 
         expect(result.success, isTrue, reason: entry.key);
@@ -232,10 +214,7 @@ void main() {
 
       final result = await service.parseMetadata(
         file.path,
-        config: const IsolateParseConfig(
-          timeout: Duration(seconds: 2),
-          useGradualRead: false,
-        ),
+        config: const IsolateParseConfig(timeout: Duration(seconds: 2)),
       );
 
       expect(result.success, isTrue);

@@ -594,10 +594,7 @@ class GalleryStreamScanner {
       _updateStage(stats, FileProcessingStage.extracting, fileName);
       final parseResult = await _isolateMetadataService.parseMetadata(
         file.path,
-        config: const IsolateParseConfig(
-          timeout: Duration(seconds: 10),
-          useGradualRead: false,
-        ),
+        config: const IsolateParseConfig(timeout: Duration(seconds: 10)),
       );
       final metadata = parseResult.metadata;
 

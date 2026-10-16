@@ -1,4 +1,3 @@
-import '../../models/gallery/nai_image_metadata.dart';
 import 'isolate_metadata_protocol.dart';
 import 'metadata_isolate_worker.dart';
 import 'metadata_worker_pool.dart';
@@ -42,9 +41,6 @@ class IsolateMetadataService {
     String filePath, {
     IsolateParseConfig config = const IsolateParseConfig(),
   }) => _pool.parseMetadata(filePath, config: config);
-
-  Future<NaiImageMetadata?> parseForEdit(String filePath) =>
-      _pool.parseForEdit(filePath);
 
   void cancelAll() => _pool.cancelAll();
 

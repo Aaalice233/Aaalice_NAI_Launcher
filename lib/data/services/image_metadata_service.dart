@@ -531,22 +531,6 @@ class ImageMetadataService {
     return null;
   }
 
-  /// 取消指定路径的解析任务
-  void cancelParse(String path) {
-    final hash = _hashCalculator.getHashForPath(path);
-    if (hash != null) {
-      _cancelTask(hash);
-    }
-  }
-
-  /// 取消所有进行中的解析任务
-  void cancelAllParses() {
-    final hashes = List<String>.from(_pendingTasks.keys);
-    for (final hash in hashes) {
-      _cancelTask(hash);
-    }
-  }
-
   /// 清除所有缓存
   Future<void> clearCache() async {
     await _cacheManager.clear();
@@ -629,14 +613,6 @@ class ImageMetadataService {
     _pendingTasks.remove(hash);
     _activeTimeouts[hash]?.cancel();
     _activeTimeouts.remove(hash);
-  }
-
-  void _cancelTask(String hash) {
-    final task = _pendingTasks[hash];
-    if (task != null && !task.completer.isCompleted) {
-      task.completer.complete(null);
-      _cleanupTask(hash);
-    }
   }
 
   void _checkCancelled(ParseCancelToken? token) {
