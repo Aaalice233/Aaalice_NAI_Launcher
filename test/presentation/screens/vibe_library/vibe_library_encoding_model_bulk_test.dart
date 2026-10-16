@@ -37,15 +37,11 @@ void main() {
       );
 
       operation.complete(
-        VibeBulkOperationResult.fromResult(
-          success: scenario.success,
-          failed: scenario.failed,
+        VibeBulkOperationResult(
+          successCount: scenario.success,
           errors: [
             for (var index = 0; index < scenario.failed; index++)
-              VibeBulkOperationError(
-                VibeBulkOperationErrorCode.processFileFailed,
-                itemName: 'failed-$index',
-              ),
+              VibeBulkOperationError(itemName: 'failed-$index'),
           ],
         ),
       );
