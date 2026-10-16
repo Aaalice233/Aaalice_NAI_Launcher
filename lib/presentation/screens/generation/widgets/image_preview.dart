@@ -607,6 +607,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
           aspectRatio: image.aspectRatio,
           maxSize: Size(constraints.maxWidth, availableHeight),
           footerHeight: comparisonFooterHeight,
+          minWidth: comparisonEnabled
+              ? ImageComparisonToolbar.singleRowWidth(context)
+              : 0,
         );
 
         return Column(

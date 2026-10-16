@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -394,6 +395,50 @@ void main() {
       }
     },
   );
+
+  testWidgets('short preview widens the comparison card to fit its toolbar', (
+    tester,
+  ) async {
+    const locale = Locale('zh');
+    final l10n = await AppLocalizations.delegate.load(locale);
+    for (final size in const [Size(400, 220), Size(640, 240)]) {
+      for (final textScale in const [1.0, 3.0]) {
+        final reason = '$size text ${textScale}x';
+        final result = _comparisonImage(
+          id: 'short-preview',
+          resultWidth: 137,
+          resultHeight: 200,
+          sourceWidth: 100,
+          sourceHeight: 146,
+        );
+        final container = _comparisonContainer(result);
+        container.read(generationComparisonEnabledProvider.notifier).state =
+            true;
+
+        await tester.pumpWidget(
+          _app(container, size: size, textScale: textScale, locale: locale),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: reason);
+
+        final label = tester.renderObject<RenderParagraph>(
+          find.text(l10n.comparison_followMouse),
+        );
+        final generated = tester.getRect(
+          find.byKey(const ValueKey('generation-comparison-generated')),
+        );
+        expect(label.didExceedMaxLines, isFalse, reason: reason);
+        expect(
+          generated.width / generated.height,
+          closeTo(137 / 200, 0.01),
+          reason: reason,
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      }
+    }
+  });
 
   testWidgets('turning comparison on leaves batch selection', (tester) async {
     final result = _comparisonImage(
