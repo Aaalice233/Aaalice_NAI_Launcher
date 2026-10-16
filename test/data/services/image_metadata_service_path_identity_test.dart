@@ -2,8 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/cache_manager.dart';
+import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
+import 'package:nai_launcher/data/services/metadata/metadata_parse_executor.dart';
+import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/fixed_tag_usage_fixture.dart';
 
@@ -21,7 +25,9 @@ void main() {
   });
 
   tearDown(() async {
-    ImageMetadataService().clearMemoryCache();
+    ImageMetadataService()
+      ..debugSetParseExecutorForTesting(null)
+      ..clearMemoryCache();
     await Hive.close();
     await directory.delete(recursive: true);
   });
@@ -72,4 +78,56 @@ void main() {
 
     expect(service.getCached(file.path), isNull);
   });
+
+  final entryPoints = <String, Future<NaiImageMetadata?> Function(String)>{
+    'getMetadata': (path) => ImageMetadataService().getMetadata(path),
+    'getMetadataImmediate': (path) =>
+        ImageMetadataService().getMetadataImmediate(path),
+  };
+  for (final MapEntry(key: name, value: read) in entryPoints.entries) {
+    test('$name: a file replaced between hashing and parsing is not cached '
+        'under the old hash', () async {
+      final original = await novelAiPngBytes('prompt-A');
+      final replacement = await novelAiPngBytes('prompt-B');
+      final file = File('${directory.path}/raced.png');
+      await file.writeAsBytes(original, flush: true);
+      await file.setLastModified(DateTime(2026, 9, 1));
+      final originalHash = FileHashCalculator().calculateFromBytes(original);
+      var replaced = false;
+      ImageMetadataService().debugSetParseExecutorForTesting(
+        _ReplaceBeforeParse((path) async {
+          if (replaced) return;
+          replaced = true;
+          await File(path).writeAsBytes(replacement, flush: true);
+          await File(path).setLastModified(DateTime(2026, 9, 2));
+        }),
+      );
+
+      expect(await read(file.path), isNull);
+      expect(MetadataCacheManager().getFromMemory(originalHash), isNull);
+      expect(
+        await MetadataCacheManager().getFromPersistent(originalHash),
+        isNull,
+      );
+
+      // 同内容的另一份拷贝只能解析出它自己的元数据
+      final copy = File('${directory.path}/copy.png');
+      await copy.writeAsBytes(original, flush: true);
+      expect((await read(copy.path))?.prompt, 'prompt-A');
+      expect((await read(file.path))?.prompt, 'prompt-B');
+    });
+  }
+}
+
+// 在哈希与解析两次读盘之间替换文件
+class _ReplaceBeforeParse extends MetadataParseExecutor {
+  _ReplaceBeforeParse(this._replace);
+
+  final Future<void> Function(String path) _replace;
+
+  @override
+  Future<MetadataParseResult> parseFile(String path) async {
+    await _replace(path);
+    return UnifiedMetadataParser.parseFromFile(path);
+  }
 }

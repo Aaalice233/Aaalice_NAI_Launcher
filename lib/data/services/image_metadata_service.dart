@@ -182,12 +182,12 @@ class ImageMetadataService {
       return null;
     }
 
-    final hash = await _hashCalculator.calculate(path);
+    final hashed = await _hashCalculator.snapshot(path);
     return _withRecordedFixedTags(
-      hash,
+      hashed.hash,
       await _resolveMetadataImmediate(
         path,
-        hash: hash,
+        hashed: hashed,
         cancelToken: cancelToken,
       ),
     );
@@ -195,9 +195,10 @@ class ImageMetadataService {
 
   Future<NaiImageMetadata?> _resolveMetadataImmediate(
     String path, {
-    required String hash,
+    required FileHashSnapshot hashed,
     ParseCancelToken? cancelToken,
   }) async {
+    final hash = hashed.hash;
     final stopwatch = Stopwatch()..start();
 
     // 检查 L1 内存缓存
@@ -249,7 +250,7 @@ class ImageMetadataService {
       // 执行解析
       final result = await _parseAndCache(
         path,
-        hash: hash,
+        hashed: hashed,
         cancelToken: cancelToken,
         isHighPriority: true,
       );
@@ -295,12 +296,12 @@ class ImageMetadataService {
       return null;
     }
 
-    final hash = await _hashCalculator.calculate(path);
+    final hashed = await _hashCalculator.snapshot(path);
     return _withRecordedFixedTags(
-      hash,
+      hashed.hash,
       await _resolveMetadata(
         path,
-        hash: hash,
+        hashed: hashed,
         cancelToken: cancelToken,
         timeout: timeout,
       ),
@@ -309,10 +310,11 @@ class ImageMetadataService {
 
   Future<NaiImageMetadata?> _resolveMetadata(
     String path, {
-    required String hash,
+    required FileHashSnapshot hashed,
     ParseCancelToken? cancelToken,
     Duration? timeout,
   }) async {
+    final hash = hashed.hash;
     final stopwatch = Stopwatch()..start();
 
     // 检查 L1 内存缓存
@@ -361,7 +363,7 @@ class ImageMetadataService {
     try {
       final result = await _parseAndCache(
         path,
-        hash: hash,
+        hashed: hashed,
         cancelToken: cancelToken,
       );
 
@@ -622,7 +624,7 @@ class ImageMetadataService {
 
   Future<NaiImageMetadata?> _parseAndCache(
     String path, {
-    required String hash,
+    required FileHashSnapshot hashed,
     ParseCancelToken? cancelToken,
     bool isHighPriority = false,
   }) async {
@@ -669,7 +671,19 @@ class ImageMetadataService {
 
       // 缓存结果
       if (metadata != null && metadata.hasData) {
-        await _cacheManager.save(hash, metadata);
+        // 哈希与解析各读一次盘；其间文件被改写时，读到的内容不属于这个哈希
+        if (!await hashed.isUnchanged()) {
+          _statistics.recordFailure(
+            'file_changed_during_parse',
+            totalStopwatch.elapsed,
+          );
+          AppLogger.w(
+            '[MetadataFlow] File changed during parse, result discarded: $path',
+            'ImageMetadataService',
+          );
+          return null;
+        }
+        await _cacheManager.save(hashed.hash, metadata);
         _statistics.recordSuccess(totalStopwatch.elapsed);
       } else {
         if (metadata == null) {

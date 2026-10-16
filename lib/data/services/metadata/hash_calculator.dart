@@ -22,38 +22,37 @@ class FileHashCalculator {
   static const int backgroundHashMinBytes = 64 * 1024;
 
   final _pathEntries = <String, _PathHashEntry>{};
-  final _pendingHashFutures = <String, Future<String>>{};
+  final _pendingSnapshots = <String, Future<FileHashSnapshot>>{};
   final _semaphore = _Semaphore(3);
 
   int _hashComputeCount = 0;
   int _hashCacheHitCount = 0;
 
-  /// 计算文件哈希（带缓存和并发控制）
-  Future<String> calculate(String filePath) async {
+  /// 计算文件哈希（带缓存和并发控制），并记下当时的文件身份供另行读取内容后核对
+  Future<FileHashSnapshot> snapshot(String filePath) async {
     final cached = _pathEntries[filePath];
     if (cached != null) {
       if (cached.identity == await _FileIdentity.stat(filePath)) {
         _hashCacheHitCount++;
-        return cached.hash;
+        return FileHashSnapshot._(filePath, cached.hash, cached.identity);
       }
       _forget(filePath, cached);
     }
 
     // 检查是否有正在进行的计算
-    final pendingFuture = _pendingHashFutures[filePath];
-    if (pendingFuture != null) {
-      return pendingFuture;
+    final pending = _pendingSnapshots[filePath];
+    if (pending != null) {
+      return pending;
     }
 
     // 创建新的计算任务
     final future = _calculateWithSemaphore(filePath);
-    _pendingHashFutures[filePath] = future;
+    _pendingSnapshots[filePath] = future;
 
     try {
-      final hash = await future;
-      return hash;
+      return await future;
     } finally {
-      _pendingHashFutures.remove(filePath);
+      _pendingSnapshots.remove(filePath);
     }
   }
 
@@ -68,11 +67,15 @@ class FileHashCalculator {
     return ComputeGate().runCompute(_sha256OfBytes, bytes);
   }
 
-  /// 登记刚写入文件的哈希，文件已不存在时不登记
-  Future<void> registerPathHash(String filePath, String hash) async {
+  /// 登记刚写入 [filePath] 的 [bytes] 并返回其哈希；文件已不存在或已被替换时不登记
+  Future<String> registerWrittenBytes(String filePath, Uint8List bytes) async {
+    // 先取身份再算哈希：后台哈希可能排队，期间被替换的内容不能顶着这份哈希登记
     final identity = await _FileIdentity.stat(filePath);
-    if (identity == null) return;
-    _pathEntries[filePath] = _PathHashEntry(hash, identity);
+    final hash = await calculateFromBytesInBackground(bytes);
+    if (identity != null && identity.size == bytes.length) {
+      _pathEntries[filePath] = _PathHashEntry(hash, identity);
+    }
+    return hash;
   }
 
   /// 同步返回与当前文件身份一致的已知哈希，文件变化或不存在时丢弃映射
@@ -92,7 +95,7 @@ class FileHashCalculator {
   /// 清除所有缓存
   void clearCache() {
     _pathEntries.clear();
-    _pendingHashFutures.clear();
+    _pendingSnapshots.clear();
   }
 
   // ==================== 统计信息 ====================
@@ -103,7 +106,7 @@ class FileHashCalculator {
   Map<String, dynamic> getStatistics() => {
     'hashComputeCount': _hashComputeCount,
     'hashCacheHitCount': _hashCacheHitCount,
-    'pendingCalculations': _pendingHashFutures.length,
+    'pendingCalculations': _pendingSnapshots.length,
     'pathMappings': _pathEntries.length,
   };
 
@@ -114,7 +117,7 @@ class FileHashCalculator {
 
   // ==================== 私有方法 ====================
 
-  Future<String> _calculateWithSemaphore(String filePath) async {
+  Future<FileHashSnapshot> _calculateWithSemaphore(String filePath) async {
     await _semaphore.acquire();
     try {
       final before = await _FileIdentity.stat(filePath);
@@ -123,12 +126,14 @@ class FileHashCalculator {
           : _sha256OfBytes(await File(filePath).readAsBytes());
 
       // 读取期间文件被改写时不登记映射，下次重新计算
-      if (before != null && before == await _FileIdentity.stat(filePath)) {
+      final stable =
+          before != null && before == await _FileIdentity.stat(filePath);
+      if (stable) {
         _pathEntries[filePath] = _PathHashEntry(hash, before);
       }
 
       _hashComputeCount++;
-      return hash;
+      return FileHashSnapshot._(filePath, hash, stable ? before : null);
     } finally {
       _semaphore.release();
     }
@@ -147,6 +152,21 @@ class FileHashCalculator {
   static Future<String> _sha256OfFile(String filePath) async {
     return (await sha256.bind(File(filePath).openRead()).first).toString();
   }
+}
+
+/// 某路径在算出 [hash] 那一刻的文件身份
+final class FileHashSnapshot {
+  const FileHashSnapshot._(this.filePath, this.hash, this._identity);
+
+  final String filePath;
+  final String hash;
+
+  // 哈希读取期间文件就被改写时为 null，此后读到的任何内容都不能记在 [hash] 下
+  final _FileIdentity? _identity;
+
+  /// 文件是否仍是算哈希时那一份；另行读取内容后据此决定结果能否记在 [hash] 下
+  Future<bool> isUnchanged() async =>
+      _identity != null && _identity == await _FileIdentity.stat(filePath);
 }
 
 final class _PathHashEntry {

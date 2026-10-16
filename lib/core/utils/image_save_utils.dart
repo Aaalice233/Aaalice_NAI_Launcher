@@ -693,9 +693,10 @@ class ImageSaveUtils {
       preferredFileName: preferredFileName,
       now: now,
     );
-    final contentHash = await FileHashCalculator()
-        .calculateFromBytesInBackground(bytes);
-    await FileHashCalculator().registerPathHash(path, contentHash);
+    final contentHash = await FileHashCalculator().registerWrittenBytes(
+      path,
+      bytes,
+    );
     final snapshot = fixedTagUsageSnapshot ?? metadata?.fixedTagUsageSnapshot;
     if (!preserveOriginalBytes && snapshot != null) {
       try {
