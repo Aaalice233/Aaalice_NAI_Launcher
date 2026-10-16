@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'riff_webp_builder.dart';
+
 /// Builds a 1×1 lossless WebP with NovelAI's EXIF UserComment layout.
 ///
 /// The `ASCII\0\0\0 + JSON` mapping follows NovelAI's official
@@ -15,7 +17,7 @@ Uint8List buildNovelAiWebpFixture({
   bool invalidUserCommentPrefix = false,
 }) {
   final chunks = <int>[
-    ..._riffChunk('VP8X', [
+    ...riffChunk('VP8X', [
       0x08, // EXIF metadata flag.
       0,
       0,
@@ -27,9 +29,9 @@ Uint8List buildNovelAiWebpFixture({
       0,
       0, // canvas height - 1.
     ]),
-    if (includeUnknownChunk) ..._riffChunk('JUNK', [1, 2, 3]),
+    if (includeUnknownChunk) ...riffChunk('JUNK', [1, 2, 3]),
     if (comment != null)
-      ..._riffChunk(
+      ...riffChunk(
         'EXIF',
         _buildExif(
           jsonEncode(comment),
@@ -37,7 +39,7 @@ Uint8List buildNovelAiWebpFixture({
         ),
       ),
     // VP8L payload from a lossless transparent 1×1 WebP encoded by Pillow.
-    ..._riffChunk('VP8L', [
+    ...riffChunk('VP8L', [
       0x2f,
       0x00,
       0x00,
@@ -54,12 +56,7 @@ Uint8List buildNovelAiWebpFixture({
     ]),
   ];
 
-  final output = BytesBuilder(copy: false)
-    ..add(ascii.encode('RIFF'))
-    ..add(_uint32LittleEndian(chunks.length + 4))
-    ..add(ascii.encode('WEBP'))
-    ..add(chunks);
-  return output.takeBytes();
+  return riffWebp(chunks);
 }
 
 List<int> _buildExif(String comment, {required bool invalidUserCommentPrefix}) {
@@ -79,13 +76,3 @@ List<int> _buildExif(String comment, {required bool invalidUserCommentPrefix}) {
   exif.write(output);
   return output.getBytes();
 }
-
-List<int> _riffChunk(String type, List<int> payload) => [
-  ...ascii.encode(type),
-  ..._uint32LittleEndian(payload.length),
-  ...payload,
-  if (payload.length.isOdd) 0,
-];
-
-Uint8List _uint32LittleEndian(int value) =>
-    (ByteData(4)..setUint32(0, value, Endian.little)).buffer.asUint8List();

@@ -19,7 +19,7 @@ void main() {
     test('reads every orientation from jpeg and webp headers', () {
       for (final orientation in orientations) {
         final sources = {
-          'jpeg': _orientedJpeg(orientation),
+          'jpeg': orientedCameraJpeg(orientation: orientation),
           'webp': orientedCameraWebp(orientation: orientation),
         };
 
@@ -45,11 +45,11 @@ void main() {
       for (final bytes in [
         _png(6, 4),
         _pngWithExif(orientation: 6),
-        _webpLossless,
+        plainWebp,
         orientedCameraWebp(orientation: 6, exifPrefix: true),
         truncatedWebp.sublist(0, truncatedWebp.length - 4),
         Uint8List.fromList(img.encodeJpg(_image(6, 4))),
-        _orientedJpeg(6).sublist(0, 24),
+        orientedCameraJpeg(orientation: 6).sublist(0, 24),
         Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x01, 0xFF, 0xD9]),
         Uint8List(0),
         Uint8List.fromList([0xFF, 0xD8, 0xFF]),
@@ -63,7 +63,7 @@ void main() {
 
   test('ignores jpeg exif after the scan like flutter', () async {
     final jpeg = Uint8List.fromList(img.encodeJpg(_image(6, 4)));
-    final exif = jpegExifPayload(_orientedJpeg(6));
+    final exif = jpegExifPayload(orientedCameraJpeg(orientation: 6));
     final app1 = [
       0xFF,
       0xE1,
@@ -103,7 +103,7 @@ void main() {
 
     test('matches the jpeg size flutter displays', () async {
       for (final orientation in orientations) {
-        final jpeg = _orientedJpeg(orientation);
+        final jpeg = orientedCameraJpeg(orientation: orientation);
         final upright = ExifOrientation.decodeUpright(jpeg)!;
         final shown = await _flutterDecode(jpeg);
 
@@ -128,7 +128,7 @@ void main() {
     test('uprightSize answers the decodeUpright size without rotating', () {
       for (final orientation in orientations) {
         for (final bytes in [
-          _orientedJpeg(orientation),
+          orientedCameraJpeg(orientation: orientation),
           orientedCameraWebp(orientation: orientation),
         ]) {
           final upright = ExifOrientation.decodeUpright(bytes)!;
@@ -148,7 +148,7 @@ void main() {
   group('ExifOrientation.bakeToPng', () {
     test('encodes oriented jpeg and webp as the png they decode to', () async {
       final sources = {
-        'jpeg 6': _orientedJpeg(6),
+        'jpeg 6': orientedCameraJpeg(orientation: 6),
         for (final orientation in orientations.skip(1))
           'webp $orientation': orientedCameraWebp(orientation: orientation),
       };
@@ -172,11 +172,11 @@ void main() {
 
       for (final bytes in [
         Uint8List.fromList(img.encodeJpg(_image(6, 4))),
-        _orientedJpeg(1),
+        orientedCameraJpeg(orientation: 1),
         orientedCameraWebp(orientation: 1),
         _png(6, 4),
         _pngWithExif(orientation: 6),
-        _webpLossless,
+        plainWebp,
         Uint8List.fromList(utf8.encode('not an image')),
       ]) {
         expect(identical(ExifOrientation.bakeToPng(bytes), bytes), isTrue);
@@ -190,7 +190,7 @@ void main() {
 
     test('bakes on the compute gate', () async {
       for (final bytes in [
-        _orientedJpeg(6),
+        orientedCameraJpeg(orientation: 6),
         orientedCameraWebp(orientation: 6),
       ]) {
         final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
@@ -213,11 +213,6 @@ img.Image _image(int width, int height) {
     pixel.setRgb(pixel.x * 40, pixel.y * 60, 90);
   }
   return image;
-}
-
-Uint8List _orientedJpeg(int orientation) {
-  final image = _image(6, 4)..exif.imageIfd.orientation = orientation;
-  return Uint8List.fromList(img.encodeJpg(image, quality: 100));
 }
 
 Uint8List _png(int width, int height) =>
@@ -270,9 +265,3 @@ void _expectSamePixels(
   }
 }
 
-final _webpLossless = base64Decode(
-  'UklGRqAAAABXRUJQVlA4TJQAAAAvE0ADALkyRPQ/FgrSNmC6419vpZhp28b8Ebfdjuh//CUC'
-  'gEEjSYrqSQH617p0EhS3bePGmFx79WMUSZLi+Ebk8Yvxdx6YJFxMAOGaVt4jYOUS3RKsMPhm'
-  'JIIJEyqwAwNK8ECyAPfQYkXeIGEBAIVto8UCABfAbebs4ATAXzkF+FEcULLiAwANBxB2ALwg'
-  '1Xr3AwAS',
-);

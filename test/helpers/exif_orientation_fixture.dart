@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart' show getCrc32;
 import 'package:image/image.dart' as img;
 
+import 'riff_webp_builder.dart';
+
 /// 带 EXIF 方向与相机字段的 JPEG，像素按行列渐变便于分辨是否转正。
 Uint8List orientedCameraJpeg({
   int width = 6,
@@ -25,25 +27,42 @@ Uint8List orientedCameraJpeg({
 const baseGreen = 40;
 const markerGreen = 220;
 
-/// 20×14 的无损 WebP，像素各不相同，EXIF 块带方向与相机字段；
+/// 20×14 的无损 WebP，像素各不相同，不带 EXIF。
+final plainWebp = base64Decode(
+  'UklGRqAAAABXRUJQVlA4TJQAAAAvE0ADALkyRPQ/FgrSNmC6419vpZhp28b8Ebfdjuh//CUC'
+  'gEEjSYrqSQH617p0EhS3bePGmFx79WMUSZLi+Ebk8Yvxdx6YJFxMAOGaVt4jYOUS3RKsMPhm'
+  'JIIJEyqwAwNK8ECyAPfQYkXeIGEBAIVto8UCABfAbebs4ATAXzkF+FEcULLiAwANBxB2ALwg'
+  '1Xr3AwAS',
+);
+
+/// [plainWebp] 加上带方向与相机字段的 EXIF 块；
 /// [exifPrefix] 模拟在 TIFF 头前保留 `Exif\0\0` 的编码器。
 Uint8List orientedCameraWebp({
   required int orientation,
   bool exifPrefix = false,
 }) {
-  final lossless = base64Decode(
-    'UklGRqAAAABXRUJQVlA4TJQAAAAvE0ADALkyRPQ/FgrSNmC6419vpZhp28b8Ebfdjuh//CUC'
-    'gEEjSYrqSQH617p0EhS3bePGmFx79WMUSZLi+Ebk8Yvxdx6YJFxMAOGaVt4jYOUS3RKsMPhm'
-    'JIIJEyqwAwNK8ECyAPfQYkXeIGEBAIVto8UCABfAbebs4ATAXzkF+FEcULLiAwANBxB2ALwg'
-    '1Xr3AwAS',
-  );
   return _extendedWebp(
-    lossless.sublist(12),
+    plainWebp.sublist(12),
     20,
     14,
     orientation,
     exifPrefix: exifPrefix,
   );
+}
+
+/// 任意宽高的 JPEG，左上四分之一的绿色通道为 [markerGreen]、其余为 [baseGreen]，带 EXIF 方向。
+Uint8List orientedMarkedJpeg({
+  required int width,
+  required int height,
+  required int orientation,
+}) {
+  final image = img.Image(width: width, height: height);
+  for (final pixel in image) {
+    final marked = pixel.x < width / 4 && pixel.y < height / 4;
+    pixel.setRgb(200, marked ? markerGreen : baseGreen, 90);
+  }
+  image.exif.imageIfd.orientation = orientation;
+  return Uint8List.fromList(img.encodeJpg(image, quality: 100));
 }
 
 /// 任意宽高的无损 WebP，存储像素左上四分之一的绿色通道为 [markerGreen]、
@@ -79,7 +98,7 @@ Uint8List orientedMarkedWebp({
     }
   }
   return _extendedWebp(
-    _riffChunk('VP8L', bits.takeBytes()),
+    riffChunk('VP8L', bits.takeBytes()),
     width,
     height,
     orientation,
@@ -100,7 +119,7 @@ Uint8List _extendedWebp(
   final tiff = img.OutputBuffer();
   exif.write(tiff);
   final chunks = <int>[
-    ..._riffChunk('VP8X', [
+    ...riffChunk('VP8X', [
       0x08,
       0,
       0,
@@ -109,18 +128,17 @@ Uint8List _extendedWebp(
       ..._uint24LittleEndian(height - 1),
     ]),
     ...imageChunk,
-    ..._riffChunk('EXIF', [
+    ...riffChunk('EXIF', [
       if (exifPrefix) ...ascii.encode('Exif\x00\x00'),
       ...tiff.getBytes(),
     ]),
   ];
-  return (BytesBuilder(copy: false)
-        ..add(ascii.encode('RIFF'))
-        ..add(_uint32LittleEndian(chunks.length + 4))
-        ..add(ascii.encode('WEBP'))
-        ..add(chunks))
-      .takeBytes();
+  return riffWebp(chunks);
 }
+
+/// 存储宽高为 [width]×[height]、方向为 [orientation] 的图转正后的宽高。
+(int, int) uprightSizeOf(int width, int height, int orientation) =>
+    orientation >= 5 ? (height, width) : (width, height);
 
 /// [orientedMarkedWebp] 转正并缩放后，四角附近采样点是否落在标记区，按行优先排列。
 List<bool> markerCorners(img.Image image) => [
@@ -211,21 +229,11 @@ bool differsOnlyInOrientation(Uint8List original, Uint8List upright) {
       (changed.length < 2 || changed.last - changed.first == 1);
 }
 
-List<int> _riffChunk(String type, List<int> data) => [
-  ...ascii.encode(type),
-  ..._uint32LittleEndian(data.length),
-  ...data,
-  if (data.length.isOdd) 0,
-];
-
-Uint8List _uint32LittleEndian(int value) =>
-    Uint8List(4)..buffer.asByteData().setUint32(0, value, Endian.little);
-
 Uint8List _uint32BigEndian(int value) =>
     Uint8List(4)..buffer.asByteData().setUint32(0, value);
 
 List<int> _uint24LittleEndian(int value) =>
-    _uint32LittleEndian(value).sublist(0, 3);
+    uint32LittleEndian(value).sublist(0, 3);
 
 class _LsbBitWriter {
   final _bytes = <int>[];
