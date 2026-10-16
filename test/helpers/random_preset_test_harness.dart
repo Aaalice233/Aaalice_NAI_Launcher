@@ -6,10 +6,11 @@ import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/tag_library.dart';
-import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_provider.dart';
+
+import 'viewport_scenarios.dart';
 
 /// 只有一个选中预设的随机词库状态；保存只更新内存，不触碰持久化存储
 class TestRandomPresetNotifier extends RandomPresetNotifier {
@@ -80,12 +81,8 @@ Future<void> pumpRandomManager(
   InteractionPolicy interactionPolicy = InteractionPolicy.touchFirst,
   List<Override> overrides = const [],
 }) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  tester.view.padding = padding;
+  applyViewport(tester, (size: size, keyboard: 0, padding: padding));
   tester.view.viewPadding = padding;
-  tester.view.viewInsets = FakeViewPadding.zero;
-  addTearDown(tester.view.reset);
 
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpWidget(
@@ -98,20 +95,11 @@ Future<void> pumpRandomManager(
         ),
         ...overrides,
       ],
-      child: MaterialApp(
-        locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => InteractionPolicyScope(
-          initialPolicy: interactionPolicy,
-          child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
-          ),
-        ),
+      child: localizedTestApp(
         home: home,
+        locale: locale,
+        textScale: textScale,
+        interactionPolicy: interactionPolicy,
       ),
     ),
   );

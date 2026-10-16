@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/default_categories.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
-import 'package:nai_launcher/data/models/prompt/tag_library.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/random_preset_provider.dart';
@@ -15,6 +14,7 @@ import 'package:nai_launcher/presentation/screens/prompt_config/prompt_config_sc
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/category_card.dart';
 
 import '../../../helpers/adaptive_panel_expectations.dart';
+import '../../../helpers/random_preset_test_harness.dart';
 import '../../../helpers/reachability_expectations.dart';
 import '../../../helpers/viewport_scenarios.dart';
 
@@ -27,26 +27,6 @@ final _preset = RandomPreset(
   name: '测试预设',
   categories: DefaultCategories.createDefault(),
 );
-
-class _Presets extends RandomPresetNotifier {
-  @override
-  RandomPresetState build() =>
-      RandomPresetState(presets: [_preset], selectedPresetId: _preset.id);
-}
-
-class _Library extends TagLibraryNotifier {
-  @override
-  TagLibraryState build() => TagLibraryState(
-    library: TagLibrary(
-      id: 'test-catalog',
-      name: 'Test catalog',
-      lastUpdated: DateTime.utc(2026),
-      source: TagLibrarySource.catalog,
-      dataVersion: 'test-v1',
-      categories: const {},
-    ),
-  );
-}
 
 class _FailedLibrary extends TagLibraryNotifier {
   @override
@@ -67,13 +47,15 @@ Future<void> _pumpScreen(
   String locale = 'zh',
   FakeViewPadding padding = FakeViewPadding.zero,
   double keyboard = 0,
-  TagLibraryNotifier Function() library = _Library.new,
+  TagLibraryNotifier Function() library = EmptyTagLibraryNotifier.new,
 }) async {
   applyViewport(tester, (size: size, keyboard: keyboard, padding: padding));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        randomPresetNotifierProvider.overrideWith(_Presets.new),
+        randomPresetNotifierProvider.overrideWith(
+          () => TestRandomPresetNotifier(_preset),
+        ),
         tagLibraryNotifierProvider.overrideWith(library),
         tagGroupSyncNotifierProvider.overrideWith(_IdleSync.new),
       ],
