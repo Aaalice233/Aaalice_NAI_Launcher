@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -7,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
 
 import '../../models/agent_protocol.dart';
+import '../../../../core/utils/isolate_pool.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 
 const int promptAssistantImageUploadMaxBytes = 5 * 1024 * 1024;
@@ -177,7 +177,7 @@ Future<PromptAssistantImagePart> optimizePromptAssistantImagePartForUpload(
   }
 
   try {
-    final result = await Isolate.run(
+    final result = await ComputeGate().runIsolate(
       () => _optimizePromptAssistantImageBytes(
         _PromptAssistantImageOptimizationJob(
           bytes: part.bytes,

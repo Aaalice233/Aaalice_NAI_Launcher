@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/isolate_pool.dart';
 import 'dropped_file_reader.dart';
 
 /// 剪贴板同时带纯文本与图片时由谁胜出。
@@ -87,7 +87,7 @@ Future<Uint8List> _ensurePngBytes(Uint8List bytes) async {
   if (_looksLikePng(bytes)) {
     return bytes;
   }
-  return Isolate.run(() {
+  return ComputeGate().runIsolate(() {
     final decoded = img.decodeImage(bytes);
     if (decoded == null) {
       throw const FormatException('无法解码图片用于复制到剪贴板');

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
@@ -37,6 +38,17 @@ void main() {
       await Future.wait([first, second]);
 
       expect(maxActiveTasks, 1);
+    });
+
+    test('names the isolate it runs work in', () async {
+      final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
+
+      final name = await gate.runIsolate(
+        () => Isolate.current.debugName,
+        debugName: 'compute-gate-probe',
+      );
+
+      expect(name, 'compute-gate-probe');
     });
 
     test('keeps default concurrency within processor-safe bounds', () {

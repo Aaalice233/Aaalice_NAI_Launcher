@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' show Offset, Rect;
@@ -6,6 +5,7 @@ import 'dart:ui' show Offset, Rect;
 import 'package:image/image.dart' as img;
 
 import 'inpaint_mask_utils.dart';
+import 'isolate_pool.dart';
 
 class HardEdgeMaskExportInput {
   const HardEdgeMaskExportInput({
@@ -96,13 +96,13 @@ class HardEdgeMaskExporter {
   static const int _transparentAlphaThreshold = 8;
 
   static Future<Uint8List> exportAsync(HardEdgeMaskExportInput input) {
-    return Isolate.run(() => export(input));
+    return ComputeGate().runIsolate(() => export(input));
   }
 
   static Future<HardEdgeMaskRaster> exportRasterAsync(
     HardEdgeMaskExportInput input,
   ) {
-    return Isolate.run(() => exportRaster(input));
+    return ComputeGate().runIsolate(() => exportRaster(input));
   }
 
   static Uint8List export(HardEdgeMaskExportInput input) {

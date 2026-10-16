@@ -7,6 +7,8 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/utils/vibe_file_parser.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
+import '../../helpers/shared_compute_gate.dart';
+
 void main() {
   test('.naiv4vibe 的 type=image 文件会按原图 Vibe 解析', () async {
     final rawImage = Uint8List.fromList([1, 2, 3, 4, 5]);
@@ -219,5 +221,32 @@ void main() {
 
     expect(timerRan, isTrue);
     expect(references.single.vibeEncoding, 'background-encoding');
+  });
+
+  test('大型 .naiv4vibebundle 的后台解析经过共享计算闸门排队', () async {
+    final bundleBytes = Uint8List.fromList(
+      utf8.encode(
+        jsonEncode({
+          'padding': ''.padRight(2 * 1024 * 1024, 'x'),
+          'vibes': [
+            {
+              'name': 'Gated bundle',
+              'encodings': {
+                'v4full': {
+                  'variant': {'encoding': 'gated-encoding'},
+                },
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    final references = await expectQueuedBehindSharedComputeGate(
+      () => VibeFileParser.fromBundle('gated.naiv4vibebundle', bundleBytes),
+    );
+
+    expect(references.single.displayName, 'Gated bundle');
+    expect(references.single.vibeEncoding, 'gated-encoding');
   });
 }

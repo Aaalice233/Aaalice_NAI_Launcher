@@ -1,8 +1,9 @@
-import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
+
+import 'isolate_pool.dart';
 
 /// 展示用缩略图压缩工具
 ///
@@ -63,6 +64,6 @@ class DisplayThumbnailUtils {
       return resizeSync(sourceBytes);
     }
 
-    return Isolate.run(() => resizeSync(sourceBytes));
+    return ComputeGate().runIsolate(() => resizeSync(sourceBytes));
   }
 }

@@ -9,6 +9,8 @@ import 'package:nai_launcher/presentation/widgets/image_editor/export/image_expo
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_manager.dart';
 
+import '../../helpers/shared_compute_gate.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -29,6 +31,28 @@ void main() {
     expect(mask.getPixel(0, 0).r, equals(255));
     expect(mask.getPixel(2, 1).r, equals(255));
     expect(mask.getPixel(3, 1).r, equals(0));
+  });
+
+  test('background exports wait for the shared compute gate', () async {
+    const input = HardEdgeMaskExportInput(
+      width: 8,
+      height: 6,
+      strokes: [],
+      baseMasks: [],
+      additionalRects: [Rect.fromLTWH(1, 1, 4, 3)],
+    );
+
+    final bytes = await expectQueuedBehindSharedComputeGate(
+      () => HardEdgeMaskExporter.exportAsync(input),
+    );
+    final raster = await expectQueuedBehindSharedComputeGate(
+      () => HardEdgeMaskExporter.exportRasterAsync(input),
+    );
+
+    final expectedRaster = HardEdgeMaskExporter.exportRaster(input);
+    expect(bytes, orderedEquals(HardEdgeMaskExporter.export(input)));
+    expect((raster.width, raster.height), (8, 6));
+    expect(raster.mask, orderedEquals(expectedRaster.mask));
   });
 
   test('draws stroke polylines and erases over earlier strokes', () async {

@@ -9,6 +9,8 @@ import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
 import 'package:nai_launcher/core/utils/png_share_source.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/shared_compute_gate.dart';
+
 void main() {
   group('ImageShareSanitizer', () {
     test(
@@ -318,6 +320,29 @@ void main() {
 
         expect(result.bytes, same(png));
         expect(result.fileName, 'sample.png');
+      },
+    );
+
+    test(
+      'background sanitizing waits for the shared compute gate',
+      () async {
+        final png = _buildPngWithTextChunks({'Comment': '{"prompt":"x"}'});
+        final expected = await ImageShareSanitizer.prepareForCopyOrDrag(
+          png,
+          fileName: 'sample.png',
+          stripMetadata: true,
+        );
+
+        final result = await expectQueuedBehindSharedComputeGate(
+          () => ImageShareSanitizer.prepareForCopyOrDragInBackground(
+            png,
+            fileName: 'sample.png',
+            stripMetadata: true,
+          ),
+        );
+
+        expect(result.bytes, orderedEquals(expected.bytes));
+        expect(result.fileName, expected.fileName);
       },
     );
 

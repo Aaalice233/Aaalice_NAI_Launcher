@@ -9,6 +9,7 @@ import 'package:nai_png_codec/nai_png_codec.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'isolate_pool.dart';
 import 'png_share_source.dart';
 
 typedef ShareImagePrepareFunction =
@@ -619,7 +620,7 @@ class ImageShareSanitizer {
     }
 
     final transferableBytes = TransferableTypedData.fromList([bytes]);
-    return Isolate.run(() {
+    return ComputeGate().runIsolate(() {
       final materializedBytes = transferableBytes.materialize().asUint8List();
       return prepareForCopyOrDrag(
         materializedBytes,

@@ -10,6 +10,8 @@ import 'package:nai_launcher/data/services/dlss/dlss_runtime_archive.dart';
 import 'package:nai_launcher/data/services/dlss/dlss_runtime_manager.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../helpers/shared_compute_gate.dart';
+
 void main() {
   late Directory directory;
   late Dio dio;
@@ -140,6 +142,18 @@ void main() {
       }
     },
   );
+
+  test('component verification waits for the shared compute gate', () async {
+    await install(release(1, archive));
+    final active = (await manager.active())!;
+
+    await expectQueuedBehindSharedComputeGate(() => manager.verify(active));
+
+    await File(
+      p.join(active.directory.path, 'nvngx_dlss.dll'),
+    ).writeAsBytes([3, 4]);
+    await expectLater(manager.verify(active), throwsFormatException);
+  });
 
   test('cancellation never switches the active pointer', () async {
     await install(release(1, archive));

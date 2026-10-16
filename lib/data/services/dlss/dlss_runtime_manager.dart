@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -9,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:synchronized/synchronized.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/isolate_pool.dart';
 import 'dlss_release.dart';
 import 'dlss_runtime_archive.dart';
 
@@ -90,7 +90,7 @@ class DlssRuntimeManager {
     }
     final directory = installation.directory.path;
     final hashes = installation.hashes;
-    await Isolate.run(() async {
+    await ComputeGate().runIsolate(() async {
       for (final name in dlssRuntimeFiles) {
         final file = File(p.join(directory, name));
         if ((await sha256.bind(file.openRead()).first).toString() !=

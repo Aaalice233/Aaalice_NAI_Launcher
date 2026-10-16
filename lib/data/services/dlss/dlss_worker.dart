@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/portable_logger.dart';
 import 'dlss_options.dart';
 import 'dlss_float_frame.dart';
@@ -192,7 +192,7 @@ typedef _PreparedInput = ({
   Duration marshalTime,
 });
 
-Future<_PreparedInput> _encodeInIsolate(Uint8List source) => Isolate.run(() {
+Future<_PreparedInput> _encodeInIsolate(Uint8List source) => ComputeGate().runIsolate(() {
   final timer = Stopwatch()..start();
   final decoded = img.decodeImage(source);
   if (decoded == null) throw const FormatException('Invalid DLSS source image');
@@ -214,7 +214,7 @@ Future<({Uint8List bytes, Map<String, Duration> timings})> _composeInIsolate(
   Uint8List neural,
   DlssOptions options,
   String? version,
-) => Isolate.run(() {
+) => ComputeGate().runIsolate(() {
   final timer = Stopwatch()..start();
   final timings = <String, Duration>{};
   final output = DlssFloatFrame.decode(baseline).composite(
