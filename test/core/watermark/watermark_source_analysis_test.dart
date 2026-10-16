@@ -7,12 +7,13 @@ import 'package:nai_launcher/core/watermark/watermark_analysis_raster.dart';
 import 'package:nai_launcher/core/watermark/watermark_source_analysis.dart';
 
 import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/watermark_analysis_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('flat regions have no detail and report their lightness', () {
-    final analysis = _analysis(
+    final analysis = watermarkAnalysisOf(
       40,
       20,
       (x, y) => x < 20 ? (0, 0, 0, 255) : (255, 255, 255, 255),
@@ -30,7 +31,7 @@ void main() {
   });
 
   test('fractional rectangles integrate pixels exactly', () {
-    final analysis = _analysis(
+    final analysis = watermarkAnalysisOf(
       2,
       1,
       (x, y) => x == 0 ? (0, 0, 0, 255) : (255, 255, 255, 255),
@@ -44,7 +45,7 @@ void main() {
   });
 
   test('transparent areas carry no lightness but cutout edges are detail', () {
-    final analysis = _analysis(
+    final analysis = watermarkAnalysisOf(
       40,
       20,
       (x, y) => x < 20 ? (0, 0, 0, 0) : (255, 255, 255, 255),
@@ -63,7 +64,7 @@ void main() {
   });
 
   test('regions are clipped to the image', () {
-    final analysis = _analysis(
+    final analysis = watermarkAnalysisOf(
       10,
       10,
       (x, y) => ((x * 25) % 256, (y * 25) % 256, 80, 255),
@@ -120,31 +121,4 @@ void main() {
       first.regionStats(region).meanLightness,
     );
   });
-}
-
-WatermarkSourceAnalysis _analysis(
-  int width,
-  int height,
-  (int, int, int, int) Function(int x, int y) pixel,
-) {
-  final rgba = Uint8List(width * height * 4);
-  for (var y = 0; y < height; y++) {
-    for (var x = 0; x < width; x++) {
-      final (r, g, b, a) = pixel(x, y);
-      final offset = (y * width + x) * 4;
-      rgba
-        ..[offset] = r
-        ..[offset + 1] = g
-        ..[offset + 2] = b
-        ..[offset + 3] = a;
-    }
-  }
-  return WatermarkSourceAnalysis.fromRaster(
-    WatermarkAnalysisRaster(
-      width: width,
-      height: height,
-      rgba: rgba,
-      sourceSize: Size(width.toDouble(), height.toDouble()),
-    ),
-  );
 }
