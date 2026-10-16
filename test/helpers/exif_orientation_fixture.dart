@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart' show getCrc32;
 import 'package:image/image.dart' as img;
 
 /// 带 EXIF 方向与相机字段的 JPEG，像素按行列渐变便于分辨是否转正。
@@ -179,6 +180,23 @@ Uint8List? pngExifPayload(Uint8List png) {
   return null;
 }
 
+/// 在 [png] 的首个 IDAT 前插入载荷为 [tiff] 的 eXIf 块。
+Uint8List withPngExif(Uint8List png, Uint8List tiff) {
+  final view = ByteData.sublistView(png);
+  var offset = 8;
+  while (ascii.decode(png.sublist(offset + 4, offset + 8)) != 'IDAT') {
+    offset += 12 + view.getUint32(offset);
+  }
+  final typeAndData = [...ascii.encode('eXIf'), ...tiff];
+  return Uint8List.fromList([
+    ...png.sublist(0, offset),
+    ..._uint32BigEndian(tiff.length),
+    ...typeAndData,
+    ..._uint32BigEndian(getCrc32(typeAndData)),
+    ...png.sublist(offset),
+  ]);
+}
+
 img.IfdDirectory readImageIfd(Uint8List tiff) =>
     img.ExifData.fromInputBuffer(img.InputBuffer(tiff)).imageIfd;
 
@@ -202,6 +220,9 @@ List<int> _riffChunk(String type, List<int> data) => [
 
 Uint8List _uint32LittleEndian(int value) =>
     Uint8List(4)..buffer.asByteData().setUint32(0, value, Endian.little);
+
+Uint8List _uint32BigEndian(int value) =>
+    Uint8List(4)..buffer.asByteData().setUint32(0, value);
 
 List<int> _uint24LittleEndian(int value) =>
     _uint32LittleEndian(value).sublist(0, 3);

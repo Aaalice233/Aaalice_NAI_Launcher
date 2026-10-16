@@ -308,7 +308,6 @@ Uint8List preserveDlssImage(
   final withMetadata = ImageMetadataContainerCodec.copySupportedMetadata(
     source: sourceBytes,
     targetPng: encoded,
-    orientationApplied: true,
   );
   final result = ImageMetadataContainerCodec.embedTextChunkOnly(
     withMetadata,
