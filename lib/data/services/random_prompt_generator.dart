@@ -11,6 +11,7 @@ import '../models/character/character_prompt.dart';
 import '../models/prompt/category_filter_config.dart';
 import '../models/prompt/character_count_config.dart';
 import '../models/prompt/conditional_branch.dart';
+import '../models/prompt/diy_category_references.dart';
 import '../models/prompt/random_category.dart';
 import '../models/prompt/random_preset.dart';
 import '../models/prompt/random_prompt_result.dart';
@@ -204,7 +205,7 @@ class RandomPromptGenerator {
           ? tagOption?.characterCount ?? 4
           : category.count,
     );
-    context.addVariable('character_count_category', category.id);
+    context.addVariable(characterCountCategoryVariable, category.id);
     final rules = RandomPresetRules(preset);
 
     // 3. 根据人数分支处理
