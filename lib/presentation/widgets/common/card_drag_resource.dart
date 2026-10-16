@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
+import '../../../core/utils/async_work_pool.dart';
 import '../../../core/utils/isolate_pool.dart';
 
 /// The reference stays lightweight; exporting belongs to the resource owner.
@@ -68,22 +68,11 @@ class CardDragPreparation {
   Future<List<Uint8List?>> _prepareAll() async {
     onStarted?.call();
     try {
-      final result = List<Uint8List?>.filled(resources.length, null);
-      var next = 0;
-      Future<void> worker() async {
-        while (next < resources.length) {
-          final index = next++;
-          result[index] = await resources[index].prepare?.call();
-        }
-      }
-
-      // Isolate work is gated anyway; more workers only hold more originals.
-      final workers = math.min(
-        resources.length,
-        ComputeGate().maxConcurrentTasks,
-      );
-      await Future.wait([
-        for (var i = 0; i < workers; i++) worker(),
+      // Isolate work is gated anyway; more admissions only hold more originals.
+      final pool = AsyncWorkPool(ComputeGate().maxConcurrentTasks);
+      final result = await Future.wait([
+        for (final resource in resources)
+          pool.run<Uint8List>(() async => resource.prepare?.call()),
       ], eagerError: true);
       return List.unmodifiable(result);
     } finally {
