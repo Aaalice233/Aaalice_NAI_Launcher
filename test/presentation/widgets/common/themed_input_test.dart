@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -113,6 +114,59 @@ void main() {
   });
 
   group('ThemedInput 清空按钮', () {
+    for (final (policy, extent) in [
+      (InteractionPolicy.touchFirst, 48.0),
+      (InteractionPolicy.neutral, 32.0),
+    ]) {
+      testWidgets('单行输入框的清空按钮 $extent 见方、完整可点，文字不排到按钮下面', (tester) async {
+        final controller = TextEditingController(text: 'a long query text');
+        addTearDown(controller.dispose);
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) =>
+                InteractionPolicyScope(initialPolicy: policy, child: child!),
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 280,
+                  child: ThemedInput(
+                    controller: controller,
+                    showClearButton: true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final button = find.ancestor(
+          of: find.byIcon(Icons.close),
+          matching: find.byType(IconButton),
+        );
+        final buttonRect = tester.getRect(button);
+        expect(buttonRect.size, Size(extent, extent));
+        expect(
+          tester
+              .getRect(find.byType(TextField))
+              .inflate(0.01)
+              .contains(buttonRect.topLeft),
+          isTrue,
+        );
+        expect(
+          tester
+              .getRect(find.byType(TextField))
+              .inflate(0.01)
+              .contains(buttonRect.bottomRight),
+          isTrue,
+        );
+        expect(button.hitTestable(), findsOneWidget);
+        expect(
+          tester.getRect(find.byType(EditableText)).right,
+          lessThanOrEqualTo(buttonRect.left),
+        );
+      });
+    }
+
     testWidgets('之后才开启清空按钮也按内容显隐，卸载后不再监听外部控制器', (tester) async {
       final controller = TextEditingController();
       addTearDown(controller.dispose);

@@ -299,6 +299,17 @@ class _ThemedInputState extends State<ThemedInput> {
       suffixIcon: widget.suffixIcon,
       helperText: widget.helperText,
     );
+    final singleLineClear =
+        widget.showClearButton && widget.maxLines == 1 && !widget.expands;
+    final clearExtent = _ClearButton.extentOf(context);
+    // 单行时为清空按钮让出末端空间，长文字不会排到按钮下面
+    final fieldDecoration = singleLineClear
+        ? surface.fieldDecoration.copyWith(
+            contentPadding: surface.contentPadding.add(
+              EdgeInsetsDirectional.only(end: clearExtent),
+            ),
+          )
+        : surface.fieldDecoration;
 
     final field = Semantics(
       label: widget.semanticLabel,
@@ -331,7 +342,7 @@ class _ThemedInputState extends State<ThemedInput> {
                 ? TextAlignVertical.center
                 : null),
         cursorColor: widget.cursorColor,
-        decoration: surface.fieldDecoration,
+        decoration: fieldDecoration,
         // 不传时用带主题字体的默认实现：Flutter 自带的工具栏按钮会绕开
         // 主题字体，右键菜单会一直是系统默认字体。
         contextMenuBuilder:
@@ -355,15 +366,26 @@ class _ThemedInputState extends State<ThemedInput> {
     // 若按「空/非空」增删 Stack 层，输入框会在删空瞬间因父链结构变化
     // 而整体重建，焦点与键盘输入连接被打断（光标消失、需重新点击）
     if (widget.showClearButton) {
+      final clearButton = _ClearButton(onPressed: _handleClear);
       content = Stack(
         children: [
-          textField,
+          if (singleLineClear)
+            // 单行输入框至少与清空按钮等高，触屏命中区不会被 Stack 裁掉
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: clearExtent),
+              child: textField,
+            )
+          else
+            textField,
           if (_hasContent)
-            Positioned(
-              top: 4,
-              right: 4,
-              child: _ClearButton(onPressed: _handleClear),
-            ),
+            singleLineClear
+                ? PositionedDirectional(
+                    top: 0,
+                    bottom: 0,
+                    end: 4,
+                    child: Center(child: clearButton),
+                  )
+                : PositionedDirectional(top: 4, end: 4, child: clearButton),
         ],
       );
     }
@@ -398,17 +420,22 @@ class _ClearButton extends StatelessWidget {
 
   const _ClearButton({required this.onPressed});
 
-  @override
-  Widget build(BuildContext context) {
+  static double extentOf(BuildContext context) {
     final interactionPolicy = context.interactionPolicy;
-    final extent = interactionPolicy.touchAvailable
+    return interactionPolicy.touchAvailable
         ? interactionPolicy.minimumControlExtent
         : 32.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final extent = extentOf(context);
+    // 命中区就是 extent：不叠加紧凑密度（会再缩小 8），也不按平台补到 48
     return IconButton(
       onPressed: onPressed,
       icon: const Icon(Icons.close, size: 16),
       tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
-      visualDensity: VisualDensity.compact,
+      style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap),
       constraints: BoxConstraints.tightFor(width: extent, height: extent),
       padding: EdgeInsets.zero,
     );
