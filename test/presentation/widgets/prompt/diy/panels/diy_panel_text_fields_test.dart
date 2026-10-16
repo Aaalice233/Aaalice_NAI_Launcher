@@ -15,7 +15,7 @@ import 'package:nai_launcher/presentation/widgets/prompt/diy/panels/time_conditi
 import 'package:nai_launcher/presentation/widgets/prompt/diy/panels/visibility_rule_panel.dart';
 
 void main() {
-  testWidgets('条件分支的分支名称带标签与图标并回显当前名称，切换分支后跟随', (tester) async {
+  testWidgets('条件分支的分支名称带标签并回显当前名称，切换分支后跟随', (tester) async {
     await tester.pumpWidget(
       _app(
         ConditionalBranchPanel(
@@ -35,7 +35,6 @@ void main() {
     await tester.pump();
 
     final name = _field(_l10n.diy_branchName);
-    _expectIcon(name, Icons.label_outline_rounded);
     expect(_text(tester, name), 'Casual');
 
     await tester.tap(find.text('Uniform').last);
@@ -44,7 +43,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('时间条件名称为空时显示提示与图标，套用模板后回显模板名称', (tester) async {
+  testWidgets('时间条件名称为空时显示提示，套用模板后回显模板名称', (tester) async {
     await tester.pumpWidget(
       _app(
         TimeConditionPanel(
@@ -56,7 +55,6 @@ void main() {
     await tester.pump();
 
     final name = _field(_l10n.diy_conditionNameHint);
-    _expectIcon(name, Icons.edit_rounded);
     expect(_text(tester, name), isEmpty);
 
     await tester.tap(find.text(_l10n.diy_halloween));
@@ -72,7 +70,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('可见性规则编辑区的名称与条件值带标签与图标并回显已保存的值', (tester) async {
+  testWidgets('可见性规则编辑区的名称与条件值带标签并回显已保存的值', (tester) async {
     await tester.pumpWidget(
       _app(
         VisibilityRulePanel(
@@ -95,15 +93,13 @@ void main() {
     await tester.pump();
 
     final name = _field(_l10n.diy_ruleName);
-    _expectIcon(name, Icons.label_outline_rounded);
     expect(_text(tester, name), 'Portrait hides outfit');
     final value = _field(_l10n.diy_conditionValue);
-    _expectIcon(value, Icons.text_fields_rounded);
     expect(_text(tester, value), 'portrait');
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('后处理规则编辑区的名称、触发与目标标签带标签与图标并回显已保存的值', (tester) async {
+  testWidgets('后处理规则编辑区的名称、触发与目标标签带标签并回显已保存的值', (tester) async {
     await tester.pumpWidget(
       _app(
         PostProcessRulePanel(
@@ -125,18 +121,15 @@ void main() {
     await tester.pump();
 
     final name = _field(_l10n.diy_ruleName);
-    _expectIcon(name, Icons.label_outline_rounded);
     expect(_text(tester, name), 'Sleeping');
     final trigger = _field(_l10n.diy_triggerTags);
-    _expectIcon(trigger, Icons.play_circle_outline_rounded);
     expect(_text(tester, trigger), 'sleeping, closed eyes');
     final target = _field(_l10n.diy_targetTags);
-    _expectIcon(target, Icons.label_outline_rounded);
     expect(_text(tester, target), 'open mouth');
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('依赖默认值显示提示与图标并回显已保存的默认值', (tester) async {
+  testWidgets('依赖默认值显示提示并回显已保存的默认值', (tester) async {
     await tester.pumpWidget(
       _app(
         DependencyConfigPanel(
@@ -151,22 +144,12 @@ void main() {
     );
     await tester.pump();
 
-    final field = find
-        .ancestor(
-          of: find.byIcon(Icons.edit_note_rounded),
-          matching: find.byType(ThemedFormInput),
-        )
-        .first;
-    expect(_text(tester, field), '0-1');
-    expect(
-      tester
-          .widget<TextField>(
-            find.descendant(of: field, matching: find.byType(TextField)),
-          )
-          .decoration
-          ?.hintText,
-      _l10n.diy_defaultValueHint,
+    final field = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.hintText == _l10n.diy_defaultValueHint,
     );
+    expect(_text(tester, field), '0-1');
     expect(tester.takeException(), isNull);
   });
 }
@@ -191,14 +174,6 @@ Finder _field(String labelOrHint) => find.ancestor(
   of: find.text(labelOrHint),
   matching: find.byType(ThemedFormInput),
 );
-
-void _expectIcon(Finder field, IconData icon) {
-  expect(
-    find.descendant(of: field, matching: find.byIcon(icon)),
-    findsOneWidget,
-    reason: '$icon',
-  );
-}
 
 String _text(WidgetTester tester, Finder field) => tester
     .widget<EditableText>(

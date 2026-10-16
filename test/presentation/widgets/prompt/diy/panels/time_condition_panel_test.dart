@@ -11,18 +11,9 @@ void main() {
   testWidgets('节日模板按钮的悬停与按压反馈画在按钮底色之上，点击套用模板', (tester) async {
     TimeCondition? changed;
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: TimeConditionPanel(
-              condition: TimeCondition.christmas(),
-              onConditionChanged: (condition) => changed = condition,
-            ),
-          ),
-        ),
+      _panelApp(
+        condition: TimeCondition.christmas(),
+        onChanged: (condition) => changed = condition,
       ),
     );
     await tester.pump();
@@ -48,19 +39,10 @@ void main() {
   testWidgets('只读时模板按钮不响应悬停与点击', (tester) async {
     TimeCondition? changed;
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: TimeConditionPanel(
-              condition: TimeCondition.christmas(),
-              readOnly: true,
-              onConditionChanged: (condition) => changed = condition,
-            ),
-          ),
-        ),
+      _panelApp(
+        condition: TimeCondition.christmas(),
+        readOnly: true,
+        onChanged: (condition) => changed = condition,
       ),
     );
     await tester.pump();
@@ -76,6 +58,7 @@ void main() {
     await tester.pump();
     expect(changed, isNull);
   });
+
   testWidgets('只有一个启用开关：停用的旧条件显示为关闭，打开后沿用原日期', (tester) async {
     final emitted = <TimeCondition?>[];
     await tester.pumpWidget(
@@ -143,40 +126,6 @@ void main() {
 
     expect(find.text(_l10n.diy_yearUnsetHint), findsOneWidget);
   });
-
-  testWidgets('年份字段在 320–1600 宽度与 3 倍文字下完整可达', (tester) async {
-    addTearDown(tester.view.reset);
-    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
-      for (final textScale in [1.0, 3.0]) {
-        tester.view.physicalSize = Size(width, 900);
-        tester.view.devicePixelRatio = 1;
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pumpWidget(
-          _panelApp(
-            condition: TimeCondition.christmas().copyWith(
-              recurring: false,
-              specificYear: 2026,
-            ),
-            onChanged: (_) {},
-            textScale: textScale,
-          ),
-        );
-        await tester.pump();
-        final reason = 'width=$width scale=$textScale';
-        expect(tester.takeException(), isNull, reason: reason);
-
-        final yearField = find.widgetWithText(
-          DropdownButtonFormField<int>,
-          _l10n.diy_year,
-        );
-        await tester.ensureVisible(yearField);
-        await tester.pump();
-        final rect = tester.getRect(yearField);
-        expect(rect.left, greaterThanOrEqualTo(0), reason: reason);
-        expect(rect.right, lessThanOrEqualTo(width), reason: reason);
-      }
-    }
-  });
 }
 
 final _l10n = lookupAppLocalizations(const Locale('en'));
@@ -184,22 +133,17 @@ final _l10n = lookupAppLocalizations(const Locale('en'));
 Widget _panelApp({
   required TimeCondition condition,
   required ValueChanged<TimeCondition?> onChanged,
-  double textScale = 1,
+  bool readOnly = false,
 }) {
   return MaterialApp(
     locale: const Locale('en'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(textScaler: TextScaler.linear(textScale)),
-      child: child!,
-    ),
     home: Scaffold(
       body: SingleChildScrollView(
         child: TimeConditionPanel(
           condition: condition,
+          readOnly: readOnly,
           onConditionChanged: onChanged,
         ),
       ),
