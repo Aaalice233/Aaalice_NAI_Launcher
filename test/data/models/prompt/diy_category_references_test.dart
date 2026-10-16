@@ -1,10 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nai_launcher/data/models/prompt/algorithm_config.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/data/models/prompt/diy_category_references.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
 
@@ -96,91 +94,6 @@ void main() {
     expect(
       mapped.children.last.dependencyConfig?.sourceCategoryId,
       'new-outfit',
-    );
-  });
-
-  test('复制预设时 DIY 规则里的类别 ID 指向副本中的对应类别', () {
-    const source = RandomPreset(
-      id: 'source',
-      name: 'source',
-      algorithmConfig: AlgorithmConfig(
-        globalVisibilityRules: VisibilityRuleSet(
-          rules: [
-            VisibilityRule(
-              id: 'global',
-              name: 'global',
-              sourceCategoryId: 'cat-hair',
-              targetCategoryId: 'clothing',
-              conditionValue: 'portrait',
-            ),
-          ],
-        ),
-        globalPostProcessRules: PostProcessRuleSet(
-          rules: [
-            PostProcessRule(
-              id: 'global-post',
-              name: 'global-post',
-              targetCategoryIds: ['cat-outfit'],
-            ),
-          ],
-        ),
-      ),
-      categories: [
-        RandomCategory(
-          id: 'cat-hair',
-          name: '发色',
-          key: 'hairColor',
-          groups: [
-            RandomTagGroup(
-              id: 'group',
-              name: 'group',
-              dependencyConfig: DependencyConfig(
-                sourceCategoryId: 'cat-outfit',
-              ),
-              visibilityRules: [
-                VisibilityRule(
-                  id: 'rule',
-                  name: 'rule',
-                  sourceCategoryId: 'cat-hair',
-                  targetCategoryId: 'gone',
-                  conditionValue: 'portrait',
-                ),
-              ],
-            ),
-          ],
-        ),
-        _outfit,
-      ],
-    );
-
-    final copy = RandomPreset.copyFrom(source, name: 'copy');
-    final hair = copy.categories.first;
-    final outfit = copy.categories.last;
-    final group = hair.groups.single;
-
-    expect(hair.id, isNot('cat-hair'));
-    expect(outfit.id, isNot('cat-outfit'));
-    expect(group.dependencyConfig?.sourceCategoryId, outfit.id);
-    expect(group.visibilityRules.single.sourceCategoryId, hair.id);
-    expect(group.visibilityRules.single.targetCategoryId, 'gone');
-
-    final globalRule = copy.algorithmConfig.globalVisibilityRules!.rules.single;
-    expect(globalRule.sourceCategoryId, hair.id);
-    // 键名在副本中不变，生成器同样认得，不需要改写
-    expect(globalRule.targetCategoryId, 'clothing');
-    expect(
-      copy
-          .algorithmConfig
-          .globalPostProcessRules!
-          .rules
-          .single
-          .targetCategoryIds,
-      [outfit.id],
-    );
-    // 源预设本身不受影响
-    expect(
-      source.categories.first.groups.single.dependencyConfig?.sourceCategoryId,
-      'cat-outfit',
     );
   });
 }

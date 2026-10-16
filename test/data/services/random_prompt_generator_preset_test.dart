@@ -854,59 +854,59 @@ void main() {
       expect(tags, isNot(contains('a tag')));
     });
 
-    test('分支条件可引用先生成的类别标签和其他词组选中的分支', () async {
-      final preset = _preset([
-        _category(
-          id: 'mood-id',
-          key: 'mood',
-          groups: [
-            _group(id: 'mood_group', tags: ['{Sleeping}']),
-          ],
-        ),
-        _category(
-          id: 'outfit',
-          key: 'outfit',
-          groups: [
-            _group(id: 'type').copyWith(
-              conditionalBranchConfig: const ConditionalBranchConfig(
-                id: 'type_config',
-                name: 'Type',
-                branches: [
-                  ConditionalBranch(
-                    name: 'pajamas',
-                    probability: 1,
-                    tagGroupIds: ['pajamas'],
-                    conditions: {'mood-id': 'sleeping'},
-                  ),
-                  ConditionalBranch(
-                    name: 'casual',
-                    probability: 100,
-                    tagGroupIds: ['casual'],
-                    conditions: {'mood-id': 'running'},
-                  ),
-                ],
-              ),
+    RandomPreset chainedConditionPreset() => _preset([
+      _category(
+        id: 'mood-id',
+        key: 'mood',
+        groups: [
+          _group(id: 'mood_group', tags: ['{Sleeping}']),
+        ],
+      ),
+      _category(
+        id: 'outfit',
+        key: 'outfit',
+        groups: [
+          _group(id: 'type').copyWith(
+            conditionalBranchConfig: const ConditionalBranchConfig(
+              id: 'type_config',
+              name: 'Type',
+              branches: [
+                ConditionalBranch(
+                  name: 'pajamas',
+                  probability: 1,
+                  tagGroupIds: ['pajamas'],
+                  conditions: {'mood-id': 'sleeping'},
+                ),
+                ConditionalBranch(
+                  name: 'casual',
+                  probability: 100,
+                  tagGroupIds: ['casual'],
+                  conditions: {'mood-id': 'running'},
+                ),
+              ],
             ),
-            _group(id: 'pajamas', tags: ['pajamas']),
-            _group(id: 'casual', tags: ['t-shirt']),
-            _group(id: 'accessory').copyWith(
-              conditionalBranchConfig: const ConditionalBranchConfig(
-                id: 'accessory_config',
-                name: 'Accessory',
-                branches: [
-                  ConditionalBranch(
-                    name: 'nightcap',
-                    tagGroupIds: ['nightcap'],
-                    conditions: {'type': 'pajamas'},
-                  ),
-                ],
-              ),
+          ),
+          _group(id: 'pajamas', tags: ['pajamas']),
+          _group(id: 'casual', tags: ['t-shirt']),
+          _group(id: 'accessory').copyWith(
+            conditionalBranchConfig: const ConditionalBranchConfig(
+              id: 'accessory_config',
+              name: 'Accessory',
+              branches: [
+                ConditionalBranch(
+                  name: 'nightcap',
+                  tagGroupIds: ['nightcap'],
+                  conditions: {'type': 'pajamas'},
+                ),
+              ],
             ),
-            _group(id: 'nightcap', tags: ['nightcap']),
-          ],
-        ),
-      ]);
+          ),
+          _group(id: 'nightcap', tags: ['nightcap']),
+        ],
+      ),
+    ]);
 
+    Future<void> expectChainedBranches(RandomPreset preset) async {
       final tags = _promptTags(
         (await generator.generateFromPreset(preset: preset, seed: 1))
             .mainPrompt,
@@ -914,6 +914,16 @@ void main() {
 
       expect(tags, containsAll(['pajamas', 'nightcap']));
       expect(tags, isNot(contains('t-shirt')));
+    }
+
+    test('分支条件可引用先生成的类别标签和其他词组选中的分支', () async {
+      await expectChainedBranches(chainedConditionPreset());
+    });
+
+    test('复制预设后分支条件引用的类别与词组指向副本，被分支输出的词组不会消失', () async {
+      await expectChainedBranches(
+        RandomPreset.copyFrom(chainedConditionPreset(), name: 'copy'),
+      );
     });
   });
 

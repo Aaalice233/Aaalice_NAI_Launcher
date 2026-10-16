@@ -122,15 +122,13 @@ class RandomPreset with _$RandomPreset {
   /// 从现有预设复制创建新预设
   factory RandomPreset.copyFrom(RandomPreset source, {required String name}) {
     final now = DateTime.now();
-    final copiedCategories = source.categories
-        .map((c) => c.deepCopy())
-        .toList();
-    // 深拷贝会换新类别 ID，DIY 规则按 ID 引用类别，需同步指向副本
-    final copiedCategoryIds = {
-      for (var i = 0; i < copiedCategories.length; i++)
-        source.categories[i].id: copiedCategories[i].id,
-    };
-    String remap(String reference) => copiedCategoryIds[reference] ?? reference;
+    // 副本里类别与各层词组都换了新 ID，规则、分支输出与分支条件可跨类别按 ID 引用它们
+    final copiedIds = <String, String>{};
+    final copiedCategories = [
+      for (final category in source.categories)
+        _categoryWithFreshIds(category, copiedIds),
+    ];
+    String remap(String reference) => copiedIds[reference] ?? reference;
     return RandomPreset(
       id: const Uuid().v4(),
       name: name,
@@ -139,9 +137,10 @@ class RandomPreset with _$RandomPreset {
       version: source.version,
       algorithmConfig: source.algorithmConfig.mapCategoryReferences(remap),
       categoryProbabilities: source.categoryProbabilities,
-      categories: copiedCategories
-          .map((c) => c.mapCategoryReferences(remap))
-          .toList(),
+      categories: [
+        for (final category in copiedCategories)
+          category.mapCategoryReferences(remap).mapBranchReferences(remap),
+      ],
       tagGroupMappings: source.tagGroupMappings
           .map(
             (m) => m.copyWith(
@@ -468,6 +467,35 @@ class RandomPreset with _$RandomPreset {
       updatedAt: now,
     );
   }
+}
+
+/// 换上新 ID 并把旧 ID 到新 ID 记入 [ids]；引用由调用方按整个复制范围改写
+RandomCategory _categoryWithFreshIds(
+  RandomCategory category,
+  Map<String, String> ids,
+) {
+  final copyId = const Uuid().v4();
+  ids[category.id] = copyId;
+  return category.copyWith(
+    id: copyId,
+    groups: [
+      for (final group in category.groups) _groupWithFreshIds(group, ids),
+    ],
+  );
+}
+
+RandomTagGroup _groupWithFreshIds(
+  RandomTagGroup group,
+  Map<String, String> ids,
+) {
+  final copyId = const Uuid().v4();
+  ids[group.id] = copyId;
+  return group.copyWith(
+    id: copyId,
+    children: [
+      for (final child in group.children) _groupWithFreshIds(child, ids),
+    ],
+  );
 }
 
 /// 导入的预设由更高版本的应用导出，需要先更新应用

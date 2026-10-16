@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
-import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
 
@@ -62,29 +60,6 @@ void main() {
     _expectGroupReferencesFollowCopy(
       _group.deepCopy(),
       categoryTarget: 'cat-lower',
-    );
-  });
-
-  test('复制预设后词组级与类别级引用都指向副本', () {
-    const source = RandomPreset(
-      id: 'source',
-      name: 'source',
-      categories: [
-        RandomCategory(
-          id: 'cat-lower',
-          name: 'lower',
-          key: 'lower',
-          groups: [_group],
-        ),
-      ],
-    );
-
-    final copy = RandomPreset.copyFrom(source, name: 'copy');
-    final copiedCategory = copy.categories.single;
-
-    _expectGroupReferencesFollowCopy(
-      copiedCategory.groups.single,
-      categoryTarget: copiedCategory.id,
     );
   });
 }

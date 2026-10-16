@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch_targets.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
-import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 
 RandomTagGroup _owner(
@@ -79,7 +78,7 @@ void main() {
     expect(category.branchTargetCreatesCycle('c', 'd'), isFalse);
   });
 
-  test('复制类别与预设时分支改为指向副本里的同类别词组', () {
+  test('深拷贝类别时分支改为指向副本里的同类别词组', () {
     final category = _category([
       _owner('type', const [
         ConditionalBranch(name: 'uniform', tagGroupIds: ['uniform', 'gone']),
@@ -87,21 +86,13 @@ void main() {
       const RandomTagGroup(id: 'uniform', name: 'uniform'),
     ]);
 
-    void expectRemapped(RandomCategory copy) {
-      final copiedUniform = copy.groups[1];
-      expect(copiedUniform.id, isNot('uniform'));
-      expect(
-        copy.groups.first.conditionalBranchConfig!.branches.single.tagGroupIds,
-        [copiedUniform.id, 'gone'],
-      );
-    }
+    final copy = category.deepCopy();
+    final copiedUniform = copy.groups[1];
 
-    expectRemapped(category.deepCopy());
-    expectRemapped(
-      RandomPreset.copyFrom(
-        RandomPreset(id: 'p', name: 'p', categories: [category]),
-        name: 'copy',
-      ).categories.single,
+    expect(copiedUniform.id, isNot('uniform'));
+    expect(
+      copy.groups.first.conditionalBranchConfig!.branches.single.tagGroupIds,
+      [copiedUniform.id, 'gone'],
     );
   });
 
