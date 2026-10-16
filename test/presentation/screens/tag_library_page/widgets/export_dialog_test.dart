@@ -233,7 +233,7 @@ class _CapturingSaveFilePicker extends FilePicker {
     requestedFileName = fileName;
     requestedExtensions = allowedExtensions;
     final written = exportsDirectory
-        .listSync()
+        .listSync(recursive: true)
         .whereType<File>()
         .toList(growable: false);
     if (written.length == 1) {
