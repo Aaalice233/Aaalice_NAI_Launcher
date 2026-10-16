@@ -94,7 +94,7 @@ class ImageSaveAsService {
     ImageSaveAsSource source, {
     required String directory,
     required ImageSaveNaming naming,
-    int? index,
+    int index = 0,
   }) async {
     final sourcePath = await _existingFilePath(source);
     if (sourcePath != null) {
@@ -124,7 +124,7 @@ class ImageSaveAsService {
   static Future<({Uint8List bytes, String fileName})> _prepareBytes(
     ImageSaveAsSource source, {
     required ImageSaveNaming naming,
-    int? index,
+    int index = 0,
   }) async {
     final original = await source.loadBytes();
     if (original.isEmpty) {
