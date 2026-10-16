@@ -6,6 +6,7 @@ import '../../../core/constants/storage_keys.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/nai_image_metadata.dart';
 import 'metadata_cache_entry_codec.dart';
+import 'metadata_cache_evictor.dart';
 
 /// 元数据缓存管理器
 ///
@@ -161,7 +162,13 @@ class MetadataCacheManager {
     return box.length - (box.containsKey(_versionKey) ? 1 : 0);
   }
 
-  /// Hive Box 实例（供外部访问，如 L2CacheCleaner）
+  /// 持久化缓存在磁盘上的文件字节数；未初始化时为 0
+  Future<int> get persistentFileBytes async {
+    final box = _persistentBox;
+    return box == null ? 0 : MetadataCacheEvictor.fileBytes(box);
+  }
+
+  /// 供 L2CacheCleaner 压缩与淘汰
   LazyBox<String>? get box => _persistentBox;
 
   /// 重置统计

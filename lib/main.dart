@@ -34,7 +34,7 @@ import 'core/windowing/windows_native_window_state.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
 import 'data/services/temp_image_service.dart';
-import 'core/cache/gallery_cache_manager.dart';
+import 'data/services/metadata/l2_cache_cleaner.dart';
 import 'core/cache/local_gallery_thumbnail_migration.dart';
 import 'core/services/sqflite_bootstrap_service.dart';
 import 'presentation/providers/online_gallery_blacklist_provider.dart';

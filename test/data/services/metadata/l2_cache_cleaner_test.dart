@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
+import 'package:nai_launcher/data/services/metadata/l2_cache_cleaner.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_cache_entry_codec.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_cache_evictor.dart';
 

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:hive/hive.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/nai_image_metadata.dart';
@@ -520,8 +519,8 @@ class ImageMetadataService {
   /// L2 持久化缓存命中率
   double get persistentCacheHitRate => _cacheManager.persistentHitRate;
 
-  /// Hive 缓存 Box（用于 L2CacheCleaner 访问）
-  LazyBox<String>? get persistentBox => _cacheManager.box;
+  /// L2 持久化缓存在磁盘上的文件字节数
+  Future<int> get persistentCacheFileBytes => _cacheManager.persistentFileBytes;
 
   /// 获取解析统计
   ParseStatistics get parseStatistics => _statistics;

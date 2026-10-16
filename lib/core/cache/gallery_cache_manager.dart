@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 
-import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/services/image_metadata_service.dart';
-import '../../data/services/metadata/metadata_cache_evictor.dart';
 import '../database/datasources/gallery_data_source.dart';
 
 /// 缓存统计信息
@@ -81,7 +78,7 @@ class CacheStatistics {
 ///
 /// 特性：
 /// - 缓存统计（L1 按实际条目估算字节数，L2 读取 box 文件大小）
-/// - 内存压力下释放 L1；L2 的容量淘汰由 [L2CacheCleaner] 负责
+/// - 内存压力下释放 L1；L2 的容量淘汰由 L2CacheCleaner 负责
 class GalleryCacheManager {
   static final GalleryCacheManager _instance = GalleryCacheManager._internal();
   factory GalleryCacheManager() => _instance;
@@ -205,10 +202,7 @@ class GalleryCacheManager {
     // 获取 L2 缓存统计
     final l2Size = await imageService.persistentCacheSize;
     final l2HitRate = imageService.persistentCacheHitRate;
-    final persistentBox = imageService.persistentBox;
-    final l2Bytes = persistentBox == null
-        ? 0
-        : await MetadataCacheEvictor.fileBytes(persistentBox);
+    final l2Bytes = await imageService.persistentCacheFileBytes;
 
     // 获取 L3 数据库统计
     final imageCount = await dataSource.countImages();
@@ -249,130 +243,5 @@ class GalleryCacheManager {
     ImageMetadataService().resetStatistics();
     invalidateStatistics();
     AppLogger.i('Cache statistics reset', 'GalleryCacheManager');
-  }
-}
-
-/// L2 Hive 缓存清理器
-///
-/// - 每 7 天压缩一次 box，回收覆盖和删除留下的失效帧
-/// - 每小时最多检查一次 box 文件大小，超过阈值时按写入时间淘汰最旧条目，
-///   降到目标水位后压缩
-///
-/// 调度时间记在 settings box，只属于本机，不参与云同步。
-class L2CacheCleaner {
-  L2CacheCleaner({
-    LazyBox<String>? Function()? cacheBox,
-    Future<Box<dynamic>> Function()? settingsBox,
-    DateTime Function()? clock,
-    this.sizeThresholdBytes = _defaultSizeThresholdMB * _bytesPerMB,
-    this.evictor = const MetadataCacheEvictor(),
-  }) : _cacheBox = cacheBox ?? _metadataCacheBox,
-       _settingsBox = settingsBox ?? _openSettingsBox,
-       _clock = clock ?? DateTime.now;
-
-  static const String _lastCleanupKey = 'l2_cache_last_cleanup';
-  static const String _lastSizeCheckKey = 'l2_cache_last_size_check';
-  static const Duration _cleanupInterval = Duration(days: 7);
-  static const Duration _sizeCheckInterval = Duration(hours: 1);
-
-  static const int _bytesPerMB = 1024 * 1024;
-  static const int _defaultSizeThresholdMB = 500;
-  // 留出余量，避免每次小幅增长都重新扫描并重写整个文件
-  static const double _targetRatio = 0.8;
-
-  final LazyBox<String>? Function() _cacheBox;
-  final Future<Box<dynamic>> Function() _settingsBox;
-  final DateTime Function() _clock;
-
-  /// box 文件超过该字节数时触发淘汰
-  final int sizeThresholdBytes;
-  final MetadataCacheEvictor evictor;
-
-  /// 淘汰后的目标文件字节数
-  int get targetBytes => (sizeThresholdBytes * _targetRatio).floor();
-
-  /// 检查并执行清理
-  Future<void> checkAndClean() async {
-    try {
-      final box = _availableCacheBox();
-      if (box == null) return;
-      final settings = await _settingsBox();
-      final now = _clock();
-
-      if (_isDue(settings, _lastCleanupKey, _cleanupInterval, now)) {
-        await box.compact();
-        await settings.put(_lastCleanupKey, '${now.millisecondsSinceEpoch}');
-      }
-      if (_isDue(settings, _lastSizeCheckKey, _sizeCheckInterval, now)) {
-        await enforceSizeLimit();
-        await settings.put(
-          _lastSizeCheckKey,
-          '${now.millisecondsSinceEpoch}',
-        );
-      }
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to check L2 cache cleanup',
-        e,
-        stack,
-        'L2CacheCleaner',
-      );
-    }
-  }
-
-  /// box 文件超过阈值时淘汰最旧条目；未超过阈值或缓存未就绪时返回 null
-  Future<MetadataCacheEvictionResult?> enforceSizeLimit() async {
-    final box = _availableCacheBox();
-    if (box == null) return null;
-    final bytes = await MetadataCacheEvictor.fileBytes(box);
-    if (bytes <= sizeThresholdBytes) return null;
-
-    final stopwatch = Stopwatch()..start();
-    final result = await evictor.evictToTarget(box, targetBytes: targetBytes);
-    AppLogger.i(
-      'L2 cache evicted ${result.evictedEntries} of '
-          '${result.scannedEntries} entries: '
-          '${_formatMB(result.bytesBefore)} MB -> '
-          '${_formatMB(result.bytesAfter)} MB (threshold '
-          '${_formatMB(sizeThresholdBytes)} MB) in '
-          '${stopwatch.elapsedMilliseconds} ms',
-      'L2CacheCleaner',
-    );
-    return result;
-  }
-
-  LazyBox<String>? _availableCacheBox() {
-    final box = _cacheBox();
-    if (box != null && box.isOpen) return box;
-    AppLogger.w('Persistent box not available for cleanup', 'L2CacheCleaner');
-    return null;
-  }
-
-  static bool _isDue(
-    Box<dynamic> settings,
-    String key,
-    Duration interval,
-    DateTime now,
-  ) {
-    final lastMillis = int.tryParse('${settings.get(key) ?? ''}');
-    if (lastMillis == null) return true;
-    final elapsed = now.difference(
-      DateTime.fromMillisecondsSinceEpoch(lastMillis),
-    );
-    // 系统时间回拨后记录落在未来，不能因此长期不检查
-    return elapsed.isNegative || elapsed >= interval;
-  }
-
-  static String _formatMB(int bytes) =>
-      (bytes / _bytesPerMB).toStringAsFixed(1);
-
-  static LazyBox<String>? _metadataCacheBox() =>
-      ImageMetadataService().persistentBox;
-
-  static Future<Box<dynamic>> _openSettingsBox() async {
-    if (Hive.isBoxOpen(StorageKeys.settingsBox)) {
-      return Hive.box(StorageKeys.settingsBox);
-    }
-    return Hive.openBox(StorageKeys.settingsBox);
   }
 }
