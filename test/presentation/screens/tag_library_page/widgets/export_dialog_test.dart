@@ -17,6 +17,8 @@ import 'package:nai_launcher/presentation/widgets/library_export/library_export_
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import '../../../../helpers/fake_save_file_picker.dart';
+
 void main() {
   late Directory tempDirectory;
   late _CapturingSaveFilePicker picker;
@@ -29,7 +31,7 @@ void main() {
     picker = _CapturingSaveFilePicker(
       Directory(p.join(tempDirectory.path, 'exports')),
     );
-    FilePicker.platform = picker;
+    useFakeFilePicker(picker);
   });
 
   tearDown(() async {

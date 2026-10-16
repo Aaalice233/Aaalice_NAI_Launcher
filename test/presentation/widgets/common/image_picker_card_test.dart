@@ -1,4 +1,5 @@
 import '../../../helpers/card_drop_test_utils.dart';
+import '../../../helpers/fake_save_file_picker.dart';
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
@@ -12,7 +13,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 void main() {
   setUp(() {
-    FilePicker.platform = _FakeFilePicker(Future.value());
+    useFakeFilePicker(_FakeFilePicker(Future.value()));
   });
 
   tearDown(() {
@@ -47,11 +48,8 @@ void main() {
   testWidgets('touch tap selects an image and loading remains bounded', (
     tester,
   ) async {
-    final original = FilePicker.platform;
     final pending = Completer<FilePickerResult?>();
-    final picker = _FakeFilePicker(pending.future);
-    FilePicker.platform = picker;
-    addTearDown(() => FilePicker.platform = original);
+    useFakeFilePicker(_FakeFilePicker(pending.future));
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
     );
@@ -101,9 +99,7 @@ void main() {
   testWidgets('picker errors are reported and clear remains touch reachable', (
     tester,
   ) async {
-    final original = FilePicker.platform;
-    FilePicker.platform = _ThrowingFilePicker();
-    addTearDown(() => FilePicker.platform = original);
+    useFakeFilePicker(_ThrowingFilePicker());
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
     );

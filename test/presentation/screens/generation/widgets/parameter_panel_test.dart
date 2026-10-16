@@ -30,6 +30,8 @@ import 'package:nai_launcher/presentation/widgets/common/editable_double_field.d
 import 'package:nai_launcher/presentation/widgets/common/themed_slider.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import '../../../../helpers/fake_save_file_picker.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -473,13 +475,6 @@ void main() {
     testWidgets('imports every image selected for precise reference', (
       tester,
     ) async {
-      FilePicker? originalFilePicker;
-      try {
-        originalFilePicker = FilePicker.platform;
-      } catch (_) {
-        originalFilePicker = null;
-      }
-
       final filePicker = _FakeFilePicker(
         FilePickerResult([
           PlatformFile(
@@ -494,12 +489,7 @@ void main() {
           ),
         ]),
       );
-      FilePicker.platform = filePicker;
-      addTearDown(() {
-        if (originalFilePicker != null) {
-          FilePicker.platform = originalFilePicker;
-        }
-      });
+      useFakeFilePicker(filePicker);
 
       await tester.pumpWidget(
         ProviderScope(

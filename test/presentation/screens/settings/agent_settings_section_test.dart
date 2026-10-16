@@ -25,6 +25,8 @@ import 'package:nai_launcher/presentation/screens/settings/sections/agent_settin
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_card.dart';
 import 'package:nai_launcher/presentation/screens/settings/widgets/settings_page_layout.dart';
 
+import '../../../helpers/fake_save_file_picker.dart';
+
 class _MemoryLocalStorage extends LocalStorageService {
   final Map<String, Object?> _values = {};
 
@@ -978,27 +980,20 @@ void main() {
   });
 
   testWidgets('配置导入审阅器在极端尺寸保留滚动内容和应用取消操作', (tester) async {
-    FilePicker? originalFilePicker;
-    try {
-      originalFilePicker = FilePicker.platform;
-    } catch (_) {
-      originalFilePicker = null;
-    }
     final profile = const AgentProfileService().exportProfile(
       const AgentSettings(),
     );
-    FilePicker.platform = _FakeFilePicker(
-      FilePickerResult([
-        PlatformFile(
-          name: 'agent-profile.json',
-          size: profile.length,
-          bytes: Uint8List.fromList(profile.codeUnits),
-        ),
-      ]),
+    useFakeFilePicker(
+      _FakeFilePicker(
+        FilePickerResult([
+          PlatformFile(
+            name: 'agent-profile.json',
+            size: profile.length,
+            bytes: Uint8List.fromList(profile.codeUnits),
+          ),
+        ]),
+      ),
     );
-    addTearDown(() {
-      if (originalFilePicker != null) FilePicker.platform = originalFilePicker;
-    });
 
     final root = Directory('tool/.tmp/agent-profile-dialog-test')
       ..createSync(recursive: true);
