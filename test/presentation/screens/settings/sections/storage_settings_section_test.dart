@@ -169,31 +169,19 @@ void main() {
   });
 
   group('本地 tagger 模型缓存', () {
-    late _RecordingFilePicker filePicker;
-
     setUp(() {
-      FilePicker? originalFilePicker;
-      try {
-        originalFilePicker = FilePicker.platform;
-      } catch (_) {
-        originalFilePicker = null;
-      }
-      filePicker = _RecordingFilePicker(
-        result: FilePickerResult([
-          PlatformFile(
-            name: 'tagger.onnx',
-            size: 1,
-            path: r'C:\picked\tagger.onnx',
-          ),
-        ]),
-        directory: r'C:\models\comfyui_wd14',
+      useFakeFilePicker(
+        _RecordingFilePicker(
+          result: FilePickerResult([
+            PlatformFile(
+              name: 'tagger.onnx',
+              size: 1,
+              path: r'C:\picked\tagger.onnx',
+            ),
+          ]),
+          directory: r'C:\models\comfyui_wd14',
+        ),
       );
-      FilePicker.platform = filePicker;
-      addTearDown(() {
-        if (originalFilePicker != null) {
-          FilePicker.platform = originalFilePicker;
-        }
-      });
     });
 
     Future<_CountingOnnxModelService> pumpWithCachedModels(
