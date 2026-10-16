@@ -69,14 +69,19 @@ class RandomPresetGenerationContext {
     }
   }
 
+  /// 源的结果数：类别为已选标签数，角色数量为人数，其他变量有取值时为 1
   int countFor(String key) {
     if (key == characterCountReference) return characterCount;
-    return categoryTags[key]?.length ?? 0;
+    return valuesFor(key).length;
   }
 
+  /// 源的结果：类别为已选标签，角色数量为人数，其他变量为本轮的取值
   List<String> valuesFor(String key) {
     if (key == characterCountReference) return ['$characterCount'];
-    return categoryTags[key] ?? const [];
+    final tags = categoryTags[key];
+    if (tags != null) return tags;
+    final value = variables[key];
+    return value == null || value.isEmpty ? const [] : [value];
   }
 
   String firstValueFor(String key) {
