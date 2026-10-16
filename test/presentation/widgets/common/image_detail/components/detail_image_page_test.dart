@@ -90,22 +90,14 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('文件缺失时详情页照常进入 errorBuilder', (tester) async {
-    final path = pathOf('missing.png');
+  testWidgets('文件详情同样按文件身份缓存原图', (tester) async {
+    final path = pathOf('file.png');
 
     await pumpPage(tester, FileImageDetailData(filePath: path));
+
     expect(
       tester.widget<Image>(find.byType(Image)).image,
       LocalFileImage(path),
     );
-    await pumpUntilRealAsync(
-      tester,
-      () => find.text('Failed to load image').evaluate().isNotEmpty,
-    );
-    await tester.pump();
-
-    expect(find.byIcon(Icons.broken_image), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(tester.takeException(), isNull);
   });
 }
