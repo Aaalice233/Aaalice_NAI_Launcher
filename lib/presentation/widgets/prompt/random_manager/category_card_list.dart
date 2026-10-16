@@ -13,13 +13,11 @@ import 'category_card.dart';
 class CategoryCardList extends ConsumerWidget {
   const CategoryCardList({
     super.key,
-    this.onAddCategory,
     this.query = '',
     this.overviewHeader,
     this.leadingSlivers = const [],
   });
 
-  final VoidCallback? onAddCategory;
   final String query;
   final Widget? overviewHeader;
 
@@ -70,11 +68,7 @@ class CategoryCardList extends ConsumerWidget {
                   overviewHeader!,
                   const SizedBox(height: 14),
                 ],
-                _RecipeSummary(
-                  preset: preset,
-                  visibleCount: categories.length,
-                  onAddCategory: onAddCategory,
-                ),
+                _RecipeSummary(preset: preset, visibleCount: categories.length),
               ],
             ),
           ),
@@ -131,15 +125,10 @@ class CategoryCardList extends ConsumerWidget {
 }
 
 class _RecipeSummary extends ConsumerWidget {
-  const _RecipeSummary({
-    required this.preset,
-    required this.visibleCount,
-    required this.onAddCategory,
-  });
+  const _RecipeSummary({required this.preset, required this.visibleCount});
 
   final RandomPreset preset;
   final int visibleCount;
-  final VoidCallback? onAddCategory;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -194,7 +183,7 @@ class _RecipeSummary extends ConsumerWidget {
       ],
     );
     final addButton = !preset.isDefault && preset.categories.isNotEmpty
-        ? AddCategoryButton(onPressed: onAddCategory)
+        ? const AddCategoryButton()
         : null;
     if (addButton == null) return metrics;
 

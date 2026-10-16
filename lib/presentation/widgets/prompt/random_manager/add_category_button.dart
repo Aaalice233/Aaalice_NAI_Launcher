@@ -8,23 +8,14 @@ import '../../common/themed_input_dialog.dart';
 
 /// 添加类别按钮
 class AddCategoryButton extends ConsumerStatefulWidget {
-  const AddCategoryButton({super.key, this.onPressed});
-
-  final VoidCallback? onPressed;
+  const AddCategoryButton({super.key});
 
   @override
   ConsumerState<AddCategoryButton> createState() => _AddCategoryButtonState();
 }
 
 class _AddCategoryButtonState extends ConsumerState<AddCategoryButton> {
-  /// 未传入上层流程时，按钮仍能完成标准的类别创建。
   Future<void> _handlePressed() async {
-    final customHandler = widget.onPressed;
-    if (customHandler != null) {
-      customHandler();
-      return;
-    }
-
     final l10n = AppLocalizations.of(context)!;
     final name = await ThemedInputDialog.show(
       context: context,
