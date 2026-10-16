@@ -158,11 +158,9 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
           : _diyTabIndex,
     );
     _nameController = TextEditingController(text: widget.tagGroup.name);
-    // 存量规则可能按类别名称或键名引用，打开时统一换成 ID，保存后生成器才能匹配
+    // 存量规则与分支条件可能按名称或键名引用，打开时统一换成 ID，与生成时的解析一致
     final resolver = DiyCategoryReferenceResolver(_presetCategories);
-    _editingTagGroup = widget.tagGroup.mapCategoryReferences(
-      resolver.canonicalId,
-    );
+    _editingTagGroup = widget.tagGroup.canonicalizeReferences(resolver);
     if (initialBranchIndex != null && !widget.isPresetDefault) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
