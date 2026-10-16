@@ -1,5 +1,4 @@
 import '../../core/utils/focused_inpaint_utils.dart';
-import '../../data/datasources/remote/nai_generation_response_processor.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../data/models/queue/replication_task_generation_snapshot.dart';
@@ -56,10 +55,7 @@ Future<ImageParams> resolveFocusedBillingParams(
   ImageParams params,
   GenerationFocusedSnapshot focused,
 ) async {
-  if (!NaiGenerationResponseProcessor.usesFocusedInpaint(
-    params,
-    enabled: focused.enabled,
-  )) {
+  if (!focused.enabled || !params.isInpainting) {
     return params;
   }
   final geometry = await FocusedInpaintUtils.resolveRequestGeometryAsync(
