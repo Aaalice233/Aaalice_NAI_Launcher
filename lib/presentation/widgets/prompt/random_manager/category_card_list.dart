@@ -53,32 +53,29 @@ class CategoryCardList extends ConsumerWidget {
     final leading = overviewHeader == null ? 0.0 : 16.0;
     return [
       AdaptivePinnedHeaderSliver(
-        child: ColoredBox(
-          // 固定时列表从下方滚过，用画布色遮住卡片圆角与间距处的内容
-          color: Theme.of(context).colorScheme.surface,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(leading, 16, 16, 12),
-            child: Container(
-              key: const ValueKey('random-manager-overview-card'),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: sectionSurfaceColor(Theme.of(context).colorScheme),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (overviewHeader != null) ...[
-                    overviewHeader!,
-                    const SizedBox(height: 14),
-                  ],
-                  _RecipeSummary(
-                    preset: preset,
-                    visibleCount: categories.length,
-                    onAddCategory: onAddCategory,
-                  ),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(leading, 16, 16, 12),
+          child: Container(
+            key: const ValueKey('random-manager-overview-card'),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: sectionSurfaceColor(Theme.of(context).colorScheme),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (overviewHeader != null) ...[
+                  overviewHeader!,
+                  const SizedBox(height: 14),
                 ],
-              ),
+                _RecipeSummary(
+                  preset: preset,
+                  visibleCount: categories.length,
+                  onAddCategory: onAddCategory,
+                ),
+              ],
             ),
           ),
         ),
