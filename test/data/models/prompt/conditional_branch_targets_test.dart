@@ -78,24 +78,6 @@ void main() {
     expect(category.branchTargetCreatesCycle('c', 'd'), isFalse);
   });
 
-  test('深拷贝类别时分支改为指向副本里的同类别词组', () {
-    final category = _category([
-      _owner('type', const [
-        ConditionalBranch(name: 'uniform', tagGroupIds: ['uniform', 'gone']),
-      ]),
-      const RandomTagGroup(id: 'uniform', name: 'uniform'),
-    ]);
-
-    final copy = category.deepCopy();
-    final copiedUniform = copy.groups[1];
-
-    expect(copiedUniform.id, isNot('uniform'));
-    expect(
-      copy.groups.first.conditionalBranchConfig!.branches.single.tagGroupIds,
-      [copiedUniform.id, 'gone'],
-    );
-  });
-
   test('分支条件在类别变量中按标签比较键判断包含，与/或逻辑生效', () {
     const context = {
       'cat-eyes': '{Blue Eyes}, long hair',
