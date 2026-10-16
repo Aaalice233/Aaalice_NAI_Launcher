@@ -8,10 +8,7 @@ import '../models/prompt/tag_scope.dart';
 import '../models/prompt/visibility_rule.dart';
 import 'random_preset_generation_context.dart';
 
-/// 一次预设生成中 DIY 规则的作用范围与求值：类别引用统一换成 ID，
-/// 词组上以类别为目标的可见性规则归到目标类别，词组后处理与全局规则一起作用于整轮结果，
-/// 依赖按源的结果数或已选值求值（角色数量源读取本次生成的人数），
-/// 由启用分支输出的词组不参与类别的常规抽取。
+/// 一次预设生成中 DIY 规则的唯一求值入口，构造时把引用统一为 ID，生成全程共用
 class RandomPresetRules {
   factory RandomPresetRules(RandomPreset preset) {
     final resolver = DiyCategoryReferenceResolver(preset.categories);
@@ -47,7 +44,7 @@ class RandomPresetRules {
     this._postProcess,
   );
 
-  /// 类别引用已换成 ID 的预设，生成全程使用它
+  /// 规则引用与分支条件变量已统一为 ID 的预设
   final RandomPreset preset;
 
   final Map<String, VisibilityRuleSet> _categoryVisibility;
@@ -58,7 +55,6 @@ class RandomPresetRules {
   bool isBranchOwned(RandomCategory category, RandomTagGroup group) =>
       _branchOwnedGroupIds[category.id]?.contains(group.id) ?? false;
 
-  /// 类别能否参与本轮生成：启用、作用域、角色性别与可见性
   bool isCategoryEligible(
     RandomCategory category,
     RandomPresetGenerationContext context, {
@@ -72,9 +68,7 @@ class RandomPresetRules {
     return _isCategoryVisible(category, context);
   }
 
-  /// 词组能否参与抽取：启用、作用域、角色性别、时间、可见性与依赖
-  ///
-  /// 常规抽取、子词组与分支输出都经由这里求值；[scope] 为本轮的目标作用域
+  /// 常规抽取、子词组与分支输出共用的参与条件；[scope] 为本轮的目标作用域
   bool isGroupEligible(
     RandomTagGroup group,
     RandomPresetGenerationContext context, {
