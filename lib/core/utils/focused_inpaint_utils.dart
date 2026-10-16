@@ -301,53 +301,6 @@ class FocusedInpaintUtils {
     )?.focusBounds.rect;
   }
 
-  static FocusedInpaintCrop? resolveContextCropForSelection({
-    required int sourceWidth,
-    required int sourceHeight,
-    required Rect selectionRect,
-    required double minContextMegaPixels,
-  }) {
-    return resolveGeometryForSelection(
-      sourceWidth: sourceWidth,
-      sourceHeight: sourceHeight,
-      selectionRect: selectionRect,
-      minContextMegaPixels: minContextMegaPixels,
-    )?.contextCrop;
-  }
-
-  static FocusedInpaintFrame? resolvePreviewFrameForSelection({
-    required int sourceWidth,
-    required int sourceHeight,
-    required Rect selectionRect,
-    required double minContextMegaPixels,
-  }) {
-    return resolveGeometryForSelection(
-      sourceWidth: sourceWidth,
-      sourceHeight: sourceHeight,
-      selectionRect: selectionRect,
-      minContextMegaPixels: minContextMegaPixels,
-    );
-  }
-
-  static (int, int)? resolveRequestSizeForSelection({
-    required int sourceWidth,
-    required int sourceHeight,
-    required Rect selectionRect,
-    required double minContextMegaPixels,
-  }) {
-    final geometry = resolveGeometryForSelection(
-      sourceWidth: sourceWidth,
-      sourceHeight: sourceHeight,
-      selectionRect: selectionRect,
-      minContextMegaPixels: minContextMegaPixels,
-    );
-    if (geometry == null) {
-      return null;
-    }
-
-    return (geometry.requestWidth, geometry.requestHeight);
-  }
-
   /// 解码蒙版并求外接矩形；无法解码或蒙版为空时返回 null。
   static FocusedInpaintMaskExtent? resolveMaskExtent(Uint8List maskImage) {
     final binaryMask = InpaintMaskUtils.decodeBinaryMask(maskImage);

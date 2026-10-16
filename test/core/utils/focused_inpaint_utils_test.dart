@@ -709,14 +709,14 @@ void main() {
     });
 
     test(
-      'resolveContextCropForSelection should expand selection by the requested context band',
+      'selection geometry should expand the crop by the requested context band',
       () {
-        final crop = FocusedInpaintUtils.resolveContextCropForSelection(
+        final crop = FocusedInpaintUtils.resolveGeometryForSelection(
           sourceWidth: 1200,
           sourceHeight: 800,
           selectionRect: const Rect.fromLTWH(420, 180, 120, 96),
           minContextMegaPixels: 88,
-        )!;
+        )!.contextCrop;
 
         expect(crop.x, equals(332));
         expect(crop.y, equals(92));
@@ -725,28 +725,25 @@ void main() {
       },
     );
 
-    test(
-      'resolveContextCropForSelection should enforce minimum context band',
-      () {
-        final crop = FocusedInpaintUtils.resolveContextCropForSelection(
-          sourceWidth: 1200,
-          sourceHeight: 800,
-          selectionRect: const Rect.fromLTWH(420, 180, 120, 96),
-          minContextMegaPixels: 0,
-        )!;
+    test('selection geometry should enforce the minimum context band', () {
+      final crop = FocusedInpaintUtils.resolveGeometryForSelection(
+        sourceWidth: 1200,
+        sourceHeight: 800,
+        selectionRect: const Rect.fromLTWH(420, 180, 120, 96),
+        minContextMegaPixels: 0,
+      )!.contextCrop;
 
-        expect(crop.x, equals(404));
-        expect(crop.y, equals(164));
-        expect(crop.width, equals(152));
-        expect(crop.height, equals(128));
-      },
-    );
+      expect(crop.x, equals(404));
+      expect(crop.y, equals(164));
+      expect(crop.width, equals(152));
+      expect(crop.height, equals(128));
+    });
 
     test(
-      'resolveRequestSizeForSelection should match focused request target size without decoding images',
+      'selection geometry should match the focused request target size without decoding images',
       () {
         const selectionRect = Rect.fromLTWH(420, 180, 120, 96);
-        final requestSize = FocusedInpaintUtils.resolveRequestSizeForSelection(
+        final geometry = FocusedInpaintUtils.resolveGeometryForSelection(
           sourceWidth: 1200,
           sourceHeight: 800,
           selectionRect: selectionRect,
@@ -778,10 +775,10 @@ void main() {
           minContextMegaPixels: 88,
         );
 
-        expect(requestSize, isNotNull);
+        expect(geometry, isNotNull);
         expect(request, isNotNull);
-        expect(requestSize!.$1, equals(request!.targetWidth));
-        expect(requestSize.$2, equals(request.targetHeight));
+        expect(geometry!.requestWidth, equals(request!.targetWidth));
+        expect(geometry.requestHeight, equals(request.targetHeight));
       },
     );
 
