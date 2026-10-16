@@ -12,7 +12,7 @@ import '../../core/network/proxy_service.dart';
 import '../../core/network/system_proxy_http_overrides.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/data_migration_service.dart';
-import '../../core/services/diagnostic_log_export_service.dart';
+import '../../core/services/file_export_service.dart';
 import '../../core/shortcuts/shortcut_storage.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/hive_startup_box_opener.dart';
@@ -84,11 +84,11 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
             true;
         await AppLogger.setFileLoggingEnabled(fileLoggingEnabled);
         try {
-          await DiagnosticLogExportService.cleanupStaleTemporaryFiles();
+          await FileExportService.cleanupTemporaryOutputs();
         } on Object catch (error) {
           AppLogger.w(
-            'Unable to clean stale diagnostic exports: $error',
-            'Diagnostics',
+            'Unable to clean stale temporary exports: $error',
+            'FileExport',
           );
         }
 

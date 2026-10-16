@@ -212,8 +212,7 @@ class FileExportService {
     required String fileName,
     required Future<T> Function(String path) action,
   }) async {
-    final tempRoot = await getTemporaryDirectory();
-    final exportDirectory = Directory(p.join(tempRoot.path, 'exports'));
+    final exportDirectory = await _temporaryOutputRoot();
     await exportDirectory.create(recursive: true);
     // A unique directory lets the leaf skip a prefix and use the full limit.
     final workDirectory = await exportDirectory.createTemp();
@@ -223,6 +222,23 @@ class FileExportService {
       await workDirectory.delete(recursive: true);
     }
   }
+
+  /// Call at startup: no export is running yet, so every entry is a leftover
+  /// of a process that exited inside [withTemporaryOutput].
+  static Future<void> cleanupTemporaryOutputs() async {
+    final exportDirectory = await _temporaryOutputRoot();
+    if (!await exportDirectory.exists()) return;
+    await for (final entity in exportDirectory.list(followLinks: false)) {
+      try {
+        await entity.delete(recursive: true);
+      } on FileSystemException {
+        // A locked leftover is retried on the next launch.
+      }
+    }
+  }
+
+  static Future<Directory> _temporaryOutputRoot() async =>
+      Directory(p.join((await getTemporaryDirectory()).path, 'exports'));
 
   static Future<String?> _withTemporaryFile({
     required Uint8List bytes,

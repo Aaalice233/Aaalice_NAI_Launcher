@@ -305,46 +305,6 @@ void main() {
     },
   );
 
-  test(
-    'startup cleanup removes only stale diagnostic export artifacts',
-    () async {
-      final exportDirectory = await Directory(
-        p.join(tempDirectory.path, 'exports'),
-      ).create();
-      final oldArchive = await File(
-        p.join(exportDirectory.path, '1_nai-launcher-diagnostics-old.zip'),
-      ).writeAsString('old');
-      final oldStaging = await Directory(
-        '${oldArchive.path}.contents',
-      ).create();
-      final workDirectory = await exportDirectory.createTemp();
-      await File(
-        p.join(workDirectory.path, 'nai-launcher-diagnostics-old.zip'),
-      ).writeAsString('old');
-      final unrelatedWorkDirectory = await exportDirectory.createTemp();
-      await File(
-        p.join(unrelatedWorkDirectory.path, 'other-export.zip'),
-      ).writeAsString('keep');
-      final unrelated = await File(
-        p.join(exportDirectory.path, 'other-export.zip'),
-      ).writeAsString('keep');
-      final now = DateTime.now().add(const Duration(days: 3));
-      await oldArchive.setLastModified(now.subtract(const Duration(days: 2)));
-      await unrelated.setLastModified(now.subtract(const Duration(days: 2)));
-
-      await DiagnosticLogExportService.cleanupStaleTemporaryFiles(
-        minimumAge: const Duration(days: 1),
-        now: now,
-      );
-
-      expect(await oldArchive.exists(), isFalse);
-      expect(await oldStaging.exists(), isFalse);
-      expect(await workDirectory.exists(), isFalse);
-      expect(await unrelatedWorkDirectory.exists(), isTrue);
-      expect(await unrelated.exists(), isTrue);
-    },
-  );
-
   test('does not open an exporter when there are no logs', () async {
     var exporterCalled = false;
     final service = DiagnosticLogExportService(

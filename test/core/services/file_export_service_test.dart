@@ -240,6 +240,23 @@ void main() {
       expect(await Directory(p.dirname(temporaryPath)).exists(), isFalse);
     },
   );
+
+  test('startup cleanup removes every leftover temporary output', () async {
+    final workDirectory = await exportDirectory.createTemp();
+    final staging = await Directory(
+      p.join(workDirectory.path, 'nai-launcher-diagnostics-1.zip.contents'),
+    ).create();
+    final legacyFile = await File(
+      p.join(exportDirectory.path, '1_export.png'),
+    ).writeAsBytes([1]);
+
+    await FileExportService.cleanupTemporaryOutputs();
+
+    expect(await staging.exists(), isFalse);
+    expect(await workDirectory.exists(), isFalse);
+    expect(await legacyFile.exists(), isFalse);
+    expect(await exportDirectory.exists(), isTrue);
+  });
 }
 
 class _TestPathProviderPlatform extends PathProviderPlatform {
