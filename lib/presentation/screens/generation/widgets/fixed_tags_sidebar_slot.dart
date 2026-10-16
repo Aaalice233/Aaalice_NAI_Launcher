@@ -7,53 +7,39 @@ import 'resize_handle.dart';
 
 /// 固定标签侧栏插槽（经典布局与官网式布局共用）
 ///
-/// 自管理拖拽宽度与动画状态；侧栏收起时渲染为空。
-class FixedTagsSidebarSlot extends ConsumerStatefulWidget {
+/// 宽度由外层按侧栏宽度加 [ResizeHandle.extentOf] 预留；侧栏收起时渲染为空。
+class FixedTagsSidebarSlot extends ConsumerWidget {
   const FixedTagsSidebarSlot({super.key});
 
-  @override
-  ConsumerState<FixedTagsSidebarSlot> createState() =>
-      _FixedTagsSidebarSlotState();
-}
-
-class _FixedTagsSidebarSlotState extends ConsumerState<FixedTagsSidebarSlot> {
   static const double _minWidth = 240;
   static const double _maxWidth = 400;
 
-  bool _isResizing = false;
-
   @override
-  Widget build(BuildContext context) {
-    final layoutState = ref.watch(layoutStateNotifierProvider);
-    if (!layoutState.fixedTagsSidebarExpanded) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final expanded = ref.watch(
+      layoutStateNotifierProvider.select(
+        (state) => state.fixedTagsSidebarExpanded,
+      ),
+    );
+    if (!expanded) {
       return const SizedBox.shrink();
     }
 
-    final width = layoutState.fixedTagsSidebarWidth;
-    final decoration = BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      border: Border(right: BorderSide(color: Theme.of(context).dividerColor)),
-    );
-    const child = FixedTagsSidebar();
-
+    final theme = Theme.of(context);
+    // 侧栏吃掉手柄之外的全部宽度：外层预留偏窄时收窄侧栏，不把手柄挤出可视区。
     return Row(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_isResizing)
-          Container(width: width, decoration: decoration, child: child)
-        else
-          AnimatedContainer(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 180),
-            width: width,
-            decoration: decoration,
-            child: child,
+        Expanded(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              border: Border(right: BorderSide(color: theme.dividerColor)),
+            ),
+            child: const FixedTagsSidebar(),
           ),
+        ),
         ResizeHandle(
-          onDragStart: () => setState(() => _isResizing = true),
-          onDragEnd: () => setState(() => _isResizing = false),
           onDrag: (dx) {
             final currentWidth = ref
                 .read(layoutStateNotifierProvider)

@@ -578,7 +578,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                   WorkspaceSidePanelContract.constrainedWorkspaceWidth(
                     workspaceWidth: constraints.maxWidth,
                     preferredWidth: WorkspaceSidePanelContract.maximumWidth,
-                    occupiedWidth: ResizeHandle.defaultWidth,
+                    occupiedWidth: ResizeHandle.extentOf(context),
                     minimumPrimaryWidth: _minimumImagePaneWidth,
                     minimumWidth: _minimumMetadataPanelWidth,
                   );
