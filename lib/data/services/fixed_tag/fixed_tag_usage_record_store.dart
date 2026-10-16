@@ -87,10 +87,11 @@ class FixedTagUsageRecordStore {
     if (!isReady) return;
     final calculator = FileHashCalculator();
     try {
-      await copy(
-        fromHash: calculator.calculateFromBytes(sourceBytes),
-        toHash: calculator.calculateFromBytes(outputBytes),
-      );
+      final hashes = await Future.wait([
+        calculator.calculateFromBytesInBackground(sourceBytes),
+        calculator.calculateFromBytesInBackground(outputBytes),
+      ]);
+      await copy(fromHash: hashes[0], toHash: hashes[1]);
     } catch (error, stack) {
       AppLogger.e(
         'Failed to propagate fixed-tag usage to a derivative copy',

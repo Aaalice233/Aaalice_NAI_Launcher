@@ -3,8 +3,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
+import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/presentation/mcp/services/mcp_image_display_cache.dart';
 import 'package:path/path.dart' as p;
+
+import '../../../helpers/shared_compute_gate.dart';
 
 void main() {
   late Directory directory;
@@ -82,5 +85,34 @@ void main() {
     await cache.prepare(image);
     expect(await old.exists(), isFalse);
     expect(await unrelated.exists(), isTrue);
+  });
+
+  test('large images are named and verified behind the compute gate', () async {
+    final large = SanitizedShareImage(
+      bytes: Uint8List.fromList(
+        List.generate(
+          FileHashCalculator.backgroundHashMinBytes,
+          (index) => index * 7 & 0xff,
+        ),
+      ),
+      fileName: 'large.png',
+      mimeType: 'image/png',
+    );
+    final digest = FileHashCalculator().calculateFromBytes(large.bytes);
+
+    final file = await expectQueuedBehindSharedComputeGate(
+      () => cache.prepare(large),
+    );
+    expect(p.basename(file.path), 'image-$digest.png');
+    expect(await file.readAsBytes(), large.bytes);
+
+    final stamp = DateTime.now().subtract(const Duration(hours: 1));
+    await file.setLastModified(stamp);
+    final before = await file.lastModified();
+    final reused = await expectQueuedBehindSharedComputeGate(
+      () => cache.prepare(large),
+    );
+    expect(reused.path, file.path);
+    expect(await reused.lastModified(), before);
   });
 }

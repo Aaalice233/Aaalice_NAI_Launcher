@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/models/inpaint/inpaint_draft_status.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_file_repository.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_file_store.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_repository.dart';
+import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -368,6 +369,33 @@ void main() {
       expect(await repository.readSource(prepared.id), edited);
     });
 
+    test('tells same-size large sources apart by checksum', () async {
+      final original = _storedPng(value: 40);
+      final edited = _storedPng(value: 41);
+      expect(edited.length, original.length);
+      expect(
+        original.length,
+        greaterThanOrEqualTo(FileHashCalculator.backgroundHashMinBytes),
+      );
+      final prepared = await repository.prepare(
+        sourceBytes: original,
+        parameterSnapshot: const {},
+        estimatedAnlas: 1,
+      );
+      await repository.beginEditing(prepared.id);
+
+      await repository.cancelWithEditedSource(
+        prepared.id,
+        sourceBytes: edited,
+        parameterSnapshot: const {},
+        estimatedAnlas: 1,
+      );
+
+      expect(await repository.readSource(prepared.id), edited);
+      await repository.reEdit(prepared.id);
+      expect(await repository.readSource(prepared.id), edited);
+    });
+
     test('never rewrites the file the editing metadata points at', () async {
       final prepared = await _prepare(repository, width: 10, height: 6);
       await repository.beginEditing(prepared.id);
@@ -512,6 +540,13 @@ Uint8List _png({int width = 8, int height = 8, int value = 128}) {
   final image = img.Image(width: width, height: height);
   img.fill(image, color: img.ColorRgb8(value, value, value));
   return Uint8List.fromList(img.encodePng(image));
+}
+
+/// Uncompressed PNG: every fill value encodes to the same byte length.
+Uint8List _storedPng({required int value}) {
+  final image = img.Image(width: 160, height: 160);
+  img.fill(image, color: img.ColorRgb8(value, value, value));
+  return Uint8List.fromList(img.encodePng(image, level: 0));
 }
 
 class _PausingFileStore extends InpaintDraftFileStore {

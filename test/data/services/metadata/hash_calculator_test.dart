@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 
+import '../../../helpers/shared_compute_gate.dart';
+
 void main() {
   final calculator = FileHashCalculator();
   late Directory directory;
@@ -89,6 +91,49 @@ void main() {
 
     expect(calculator.getHashForPath(missing.path), isNull);
     expect(calculator.verifiedHashForPathSync(missing.path), isNull);
+  });
+
+  group('background hashing', () {
+    final large = Uint8List.fromList(
+      List.generate(
+        FileHashCalculator.backgroundHashMinBytes,
+        (index) => index * 31 & 0xff,
+      ),
+    );
+
+    test('small byte arrays are hashed without the compute gate', () async {
+      final release = holdSharedComputeGate();
+      try {
+        expect(
+          await calculator.calculateFromBytesInBackground(
+            Uint8List.fromList([1, 2, 3]),
+          ),
+          hashOf([1, 2, 3]),
+        );
+      } finally {
+        await release();
+      }
+    });
+
+    test('large byte arrays match the sync hash behind the gate', () async {
+      final hash = await expectQueuedBehindSharedComputeGate(
+        () => calculator.calculateFromBytesInBackground(large),
+      );
+
+      expect(hash, calculator.calculateFromBytes(large));
+    });
+
+    test('large files match the sync hash behind the gate', () async {
+      final file = fileNamed('large.bin');
+      await writeFile(file, large, modified: DateTime(2026, 9, 1));
+
+      final hash = await expectQueuedBehindSharedComputeGate(
+        () => calculator.calculate(file.path),
+      );
+
+      expect(hash, calculator.calculateFromBytes(large));
+      expect(calculator.verifiedHashForPathSync(file.path), hash);
+    });
   });
 
   test('a deleted file is not answered from its old mapping', () async {
