@@ -1,10 +1,6 @@
 import '../models/prompt/diy_category_references.dart';
 
-/// Runtime context shared across one `RandomPreset` generation.
-///
-/// The context is intentionally mutable and scoped to one generation call. It
-/// lets category, dependency, visibility, branch, variable replacement, and
-/// post-process rules observe tags selected earlier in the same generation.
+/// 一次预设生成内共享的可变上下文，让后续规则能看到本轮先选出的标签与变量
 class RandomPresetGenerationContext {
   RandomPresetGenerationContext({
     DateTime? generationTime,
