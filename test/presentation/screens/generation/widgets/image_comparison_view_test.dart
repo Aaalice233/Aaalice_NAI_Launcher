@@ -447,7 +447,6 @@ void main() {
       generatedImageBytes: _imageBytes(red: 220),
     );
     expect(view.fit, BoxFit.contain);
-    expect(view.surfaceRadius, ImageCardFrame.defaultRadius);
 
     await _pumpComparison(tester, width: 400, height: 300, useDefaultFit: true);
     final clip = tester.widget<ClipRRect>(

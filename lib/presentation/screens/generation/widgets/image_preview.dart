@@ -58,7 +58,6 @@ import '../../../utils/image_detail_opener.dart';
 import '../../../utils/krita_send_helper.dart';
 import '../../../utils/precise_ref_library_import_helper.dart';
 import '../../tag_library_page/widgets/entry_add_dialog.dart';
-import '../../../widgets/common/image_card_frame.dart';
 import '../../../widgets/common/image_card_size.dart';
 import '../../../widgets/common/image_comparison_toolbar.dart';
 import '../../../widgets/common/image_comparison_view.dart';
@@ -689,7 +688,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               sourceImageBytes: image.comparisonSource!.bytes,
               generatedImageBytes: imageBytes,
               fit: BoxFit.contain,
-              surfaceRadius: ImageCardFrame.defaultRadius,
               imageBackdrop: TransparencyBackgroundLayer(
                 style: transparencyStyle,
               ),

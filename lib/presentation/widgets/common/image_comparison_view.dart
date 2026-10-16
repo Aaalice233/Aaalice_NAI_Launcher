@@ -25,7 +25,6 @@ class ImageComparisonView extends ConsumerStatefulWidget {
     this.fit = BoxFit.contain,
     this.showPixelScaleControls = false,
     this.viewportHeight,
-    this.surfaceRadius = ImageCardFrame.defaultRadius,
     this.imageBackdrop,
   });
 
@@ -34,9 +33,6 @@ class ImageComparisonView extends ConsumerStatefulWidget {
   final BoxFit fit;
   final bool showPixelScaleControls;
   final double? viewportHeight;
-
-  /// Must match the host container's clip so no layer shows between the arcs.
-  final double surfaceRadius;
 
   /// Painted exactly beneath the image pixels, e.g. the transparency backdrop.
   final Widget? imageBackdrop;
@@ -185,7 +181,7 @@ class _ImageComparisonViewState extends ConsumerState<ImageComparisonView> {
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(widget.surfaceRadius),
+    borderRadius: BorderRadius.circular(ImageCardFrame.defaultRadius),
     child: Column(
       mainAxisSize: widget.viewportHeight == null
           ? MainAxisSize.max
