@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_dashboard_snapshot.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_parameter.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/services/statistics_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/screens/statistics/statistics_screen.dart';
-import 'package:nai_launcher/presentation/screens/statistics/statistics_state.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/cards/chart_card.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/charts/parameter_distribution_bar.dart';
 import 'package:nai_launcher/presentation/screens/statistics/widgets/dashboard/parameter_distribution_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/horizontal_segmented_control.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../statistics_dashboard_harness.dart';
 
 void main() {
   final samplerCounts = {
@@ -309,56 +308,13 @@ Future<double> _dashboardCardWidth(
   Size size,
   double textScale,
 ) async {
-  await _pumpDashboard(tester, stats, size, textScale);
+  await pumpStatisticsDashboard(
+    tester,
+    stats,
+    size: size,
+    textScale: textScale,
+  );
   final width = tester.getSize(find.byType(ParameterDistributionCard)).width;
   tester.takeException();
   return width;
-}
-
-Future<void> _pumpDashboard(
-  WidgetTester tester,
-  GalleryStatistics stats,
-  Size size,
-  double textScale,
-) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        statisticsNotifierProvider.overrideWith(
-          () => _LoadedStatisticsNotifier(stats),
-        ),
-      ],
-      child: MaterialApp(
-        locale: const Locale('zh'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
-        home: const StatisticsScreen(),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
-class _LoadedStatisticsNotifier extends StatisticsNotifier {
-  _LoadedStatisticsNotifier(this._statistics);
-
-  final GalleryStatistics _statistics;
-
-  @override
-  StatisticsData build() =>
-      StatisticsData(statistics: _statistics, isLoading: false);
-
-  @override
-  Future<void> whenLoaded() async {}
 }
