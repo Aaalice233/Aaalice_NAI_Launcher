@@ -156,11 +156,14 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     // receive newly introduced stages.
     for (var index = 0; index < presets.length; index++) {
       final preset = presets[index];
-      if (preset.version >= 4) continue;
+      if (preset.version >= RandomPreset.currentVersion) continue;
       final categories = preset.isDefault || preset.isBasedOnDefault
           ? DefaultCategories.mergeMissingBuiltins(preset.categories)
           : preset.categories;
-      final migrated = preset.copyWith(version: 4, categories: categories);
+      final migrated = preset.copyWith(
+        version: RandomPreset.currentVersion,
+        categories: categories,
+      );
       presets[index] = migrated;
       await _savePreset(migrated);
     }
