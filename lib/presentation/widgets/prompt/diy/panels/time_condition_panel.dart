@@ -9,20 +9,14 @@ import '../../../../utils/single_line_text_width.dart';
 import '../../../../widgets/common/elevated_card.dart';
 import '../../../../widgets/common/surface_ink_well.dart';
 import '../diy_panel_header.dart';
+import '../diy_section_card.dart';
+import '../diy_switch_card.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
-/// 时间条件面板
-///
-/// 用于配置特定日期范围启用的规则
-/// 采用 Dimensional Layering 设计风格
+/// 时间条件面板：词组只在指定的日期范围内参与抽取
 class TimeConditionPanel extends StatefulWidget {
-  /// 当前时间条件
   final TimeCondition? condition;
-
-  /// 条件变更回调
   final ValueChanged<TimeCondition?> onConditionChanged;
-
-  /// 是否只读
   final bool readOnly;
 
   const TimeConditionPanel({
@@ -107,7 +101,7 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
           const SizedBox(height: 12),
           _buildOptionsSection(),
           const SizedBox(height: 12),
-          _buildStatusCard(),
+          _TimeConditionStatusCard(condition: _condition),
         ],
       ],
     );
@@ -123,58 +117,21 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
   }
 
   Widget _buildEnableSwitch() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return ElevatedCard(
-      elevation: CardElevation.level1,
-      borderRadius: 12,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            _hasCondition ? Icons.check_circle_rounded : Icons.cancel_rounded,
-            size: 20,
-            color: _hasCondition ? colorScheme.primary : colorScheme.outline,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  context.l10n.diy_enableTimeCondition,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  context.l10n.diy_enableTimeConditionHint,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _hasCondition,
-            onChanged: widget.readOnly
-                ? null
-                : (value) {
-                    setState(() {
-                      _hasCondition = value;
-                      if (value) {
-                        _condition = _condition.copyWith(enabled: true);
-                      }
-                    });
-                    // 关闭时移除条件而不是写 enabled: false，旧版本会把停用的条件当作永不生效
-                    widget.onConditionChanged(value ? _condition : null);
-                  },
-          ),
-        ],
-      ),
+    return DiySwitchCard(
+      title: context.l10n.diy_enableTimeCondition,
+      subtitle: context.l10n.diy_enableTimeConditionHint,
+      value: _hasCondition,
+      onChanged: widget.readOnly ? null : _setHasCondition,
     );
+  }
+
+  void _setHasCondition(bool value) {
+    setState(() {
+      _hasCondition = value;
+      if (value) _condition = _condition.copyWith(enabled: true);
+    });
+    // 关闭时移除条件而不是写 enabled: false，旧版本会把停用的条件当作永不生效
+    widget.onConditionChanged(value ? _condition : null);
   }
 
   Widget _buildPresetButtons() {
@@ -211,60 +168,47 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
       ),
     ];
 
-    return ElevatedCard(
-      elevation: CardElevation.level1,
-      borderRadius: 12,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          DiySectionTitle(
-            icon: Icons.auto_awesome_rounded,
-            accent: colorScheme.secondary,
-            container: colorScheme.secondaryContainer,
-            title: context.l10n.diy_presetTemplates,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: presets.map((preset) {
-              final (emoji, label, condition, color) = preset;
-              return Expanded(
+    return DiySectionCard(
+      icon: Icons.auto_awesome_rounded,
+      accent: colorScheme.secondary,
+      accentContainer: colorScheme.secondaryContainer,
+      title: context.l10n.diy_presetTemplates,
+      child: Row(
+        children: presets.map((preset) {
+          final (emoji, label, condition, color) = preset;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: SurfaceInkWell(
+                borderRadius: BorderRadius.circular(10),
+                color: colorScheme.surfaceContainerHighest,
+                onTap: widget.readOnly
+                    ? null
+                    : () {
+                        _updateCondition(condition.copyWith(id: _condition.id));
+                      },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: SurfaceInkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    color: colorScheme.surfaceContainerHighest,
-                    onTap: widget.readOnly
-                        ? null
-                        : () {
-                            _updateCondition(
-                              condition.copyWith(id: _condition.id),
-                            );
-                          },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 12,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    children: [
+                      Text(emoji, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(height: 4),
+                      Text(
+                        label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          Text(emoji, style: const TextStyle(fontSize: 24)),
-                          const SizedBox(height: 4),
-                          Text(
-                            label,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-        ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -273,20 +217,14 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return ElevatedCard(
-      elevation: CardElevation.level1,
-      borderRadius: 12,
-      padding: const EdgeInsets.all(16),
+    return DiySectionCard(
+      icon: Icons.date_range_rounded,
+      accent: colorScheme.tertiary,
+      accentContainer: colorScheme.tertiaryContainer,
+      title: context.l10n.diy_dateRange,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DiySectionTitle(
-            icon: Icons.date_range_rounded,
-            accent: colorScheme.tertiary,
-            container: colorScheme.tertiaryContainer,
-            title: context.l10n.diy_dateRange,
-          ),
-          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) =>
                 _buildDateRange(constraints.maxWidth),
@@ -574,43 +512,16 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
             ),
           ),
           Divider(height: 1, color: colorScheme.outline.withValues(alpha: 0.1)),
-          // 每年重复开关
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.repeat_rounded,
-                  size: 20,
-                  color: _condition.recurring
-                      ? colorScheme.primary
-                      : colorScheme.outline,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        context.l10n.diy_repeatYearly,
-                        style: theme.textTheme.titleSmall,
-                      ),
-                      Text(
-                        _condition.recurring
-                            ? context.l10n.diy_repeatYearlyHint
-                            : context.l10n.diy_repeatOnceHint,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: _condition.recurring,
-                  onChanged: widget.readOnly ? null : _setRecurring,
-                ),
-              ],
+            child: DiySwitchRow(
+              title: context.l10n.diy_repeatYearly,
+              subtitle: _condition.recurring
+                  ? context.l10n.diy_repeatYearlyHint
+                  : context.l10n.diy_repeatOnceHint,
+              value: _condition.recurring,
+              icon: Icons.repeat_rounded,
+              onChanged: widget.readOnly ? null : _setRecurring,
             ),
           ),
           if (!_condition.recurring)
@@ -643,13 +554,21 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
             ),
     );
   }
+}
 
-  Widget _buildStatusCard() {
+/// 当前是否处于生效日期内，以及剩余天数或日期范围摘要
+class _TimeConditionStatusCard extends StatelessWidget {
+  const _TimeConditionStatusCard({required this.condition});
+
+  final TimeCondition condition;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isActive = _condition.isActive();
-    final remaining = _condition.getRemainingDays();
-
+    final l10n = context.l10n;
+    final isActive = condition.isActive();
+    final remaining = condition.getRemainingDays();
     return ElevatedCard(
       elevation: CardElevation.level2,
       borderRadius: 12,
@@ -667,46 +586,14 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          // 状态图标
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: isActive
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        colorScheme.primary,
-                        colorScheme.primary.withValues(alpha: 0.8),
-                      ],
-                    )
-                  : null,
-              color: isActive ? null : colorScheme.surfaceContainerHighest,
-              shape: BoxShape.circle,
-              boxShadow: isActive
-                  ? [
-                      BoxShadow(
-                        color: colorScheme.primary.withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Icon(
-              isActive ? Icons.celebration_rounded : Icons.schedule_rounded,
-              color: isActive ? Colors.white : colorScheme.onSurfaceVariant,
-            ),
-          ),
+          _StatusIcon(isActive: isActive),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isActive
-                      ? context.l10n.diy_currentlyActive
-                      : context.l10n.diy_inactive,
+                  isActive ? l10n.diy_currentlyActive : l10n.diy_inactive,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: isActive
@@ -717,13 +604,13 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 const SizedBox(height: 2),
                 Text(
                   isActive && remaining != null
-                      ? context.l10n.diy_daysRemaining(remaining)
-                      : context.l10n.diy_timeRangeSummary(
-                          _condition.name,
-                          _condition.startMonth,
-                          _condition.startDay,
-                          _condition.endMonth,
-                          _condition.endDay,
+                      ? l10n.diy_daysRemaining(remaining)
+                      : l10n.diy_timeRangeSummary(
+                          condition.name,
+                          condition.startMonth,
+                          condition.startDay,
+                          condition.endMonth,
+                          condition.endDay,
                         ),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
@@ -732,43 +619,88 @@ class _TimeConditionPanelState extends State<TimeConditionPanel> {
                 // 徽标跟随状态文字换行，不与其争抢同一行宽度
                 if (isActive) ...[
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          colorScheme.primary.withValues(alpha: 0.2),
-                          colorScheme.primary.withValues(alpha: 0.1),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.check_rounded,
-                          size: 16,
-                          color: colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            context.l10n.diy_activeBadge,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const _ActiveBadge(),
                 ],
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusIcon extends StatelessWidget {
+  const _StatusIcon({required this.isActive});
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: isActive
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.primary.withValues(alpha: 0.8),
+                ],
+              )
+            : null,
+        color: isActive ? null : colorScheme.surfaceContainerHighest,
+        shape: BoxShape.circle,
+        boxShadow: isActive
+            ? [
+                BoxShadow(
+                  color: colorScheme.primary.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Icon(
+        isActive ? Icons.celebration_rounded : Icons.schedule_rounded,
+        color: isActive ? Colors.white : colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
+
+class _ActiveBadge extends StatelessWidget {
+  const _ActiveBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primary.withValues(alpha: 0.2),
+            colorScheme.primary.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_rounded, size: 16, color: colorScheme.primary),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              context.l10n.diy_activeBadge,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.primary,
+              ),
             ),
           ),
         ],
