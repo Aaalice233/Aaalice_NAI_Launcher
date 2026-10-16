@@ -2,6 +2,9 @@ import 'dart:typed_data';
 
 /// 只遍历 JPEG 标记段与 WebP RIFF 块头定位 EXIF 载荷，不触碰图像数据；结构损坏时抛 [FormatException]。
 abstract final class ExifContainer {
+  static const int jpegStartOfScan = 0xDA;
+  static const int jpegEndOfImage = 0xD9;
+
   static bool isJpeg(Uint8List bytes) =>
       bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
 
@@ -12,34 +15,52 @@ abstract final class ExifContainer {
 
   /// 每个 `Exif\0\0` APP1 段去掉标识后的 TIFF 载荷；读到 SOS 或 EOI 即停止，不扫描熵编码数据。
   static Iterable<Uint8List> jpegExifPayloads(Uint8List bytes) sync* {
+    for (final (:marker, :payload) in jpegHeaderSegments(bytes)) {
+      if (marker == 0xE1 &&
+          payload != null &&
+          _asciiAt(payload, 0, 'Exif\u0000\u0000')) {
+        yield Uint8List.sublistView(payload, 6);
+      }
+    }
+  }
+
+  /// SOI 之后逐个标记段按段长跳过载荷；以 [jpegStartOfScan] 或 [jpegEndOfImage] 结尾时
+  /// 给出该标记（[payload] 为 null）后停止，不扫描熵编码数据。
+  static Iterable<({int marker, Uint8List? payload})> jpegHeaderSegments(
+    Uint8List bytes,
+  ) sync* {
     if (!isJpeg(bytes)) return;
     var offset = 2;
     while (offset + 4 <= bytes.length) {
       if (bytes[offset] != 0xFF) {
-        throw const FormatException('Malformed JPEG metadata markers');
+        throw const FormatException('Malformed JPEG markers');
       }
       while (offset < bytes.length && bytes[offset] == 0xFF) {
         offset++;
       }
       if (offset >= bytes.length) return;
       final marker = bytes[offset++];
-      if (marker == 0xD9 || marker == 0xDA) return;
+      if (marker == jpegEndOfImage || marker == jpegStartOfScan) {
+        yield (marker: marker, payload: null);
+        return;
+      }
       if (marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) continue;
       if (offset + 2 > bytes.length) {
-        throw const FormatException('Truncated JPEG metadata segment');
+        throw const FormatException('Truncated JPEG segment');
       }
       final segmentLength = (bytes[offset] << 8) | bytes[offset + 1];
       if (segmentLength < 2 || offset + segmentLength > bytes.length) {
-        throw const FormatException('Invalid JPEG metadata segment length');
+        throw const FormatException('Invalid JPEG segment length');
       }
-      final payloadStart = offset + 2;
-      final payloadEnd = offset + segmentLength;
-      if (marker == 0xE1 &&
-          payloadEnd - payloadStart >= 6 &&
-          _asciiAt(bytes, payloadStart, 'Exif\u0000\u0000')) {
-        yield Uint8List.sublistView(bytes, payloadStart + 6, payloadEnd);
-      }
-      offset = payloadEnd;
+      yield (
+        marker: marker,
+        payload: Uint8List.sublistView(
+          bytes,
+          offset + 2,
+          offset + segmentLength,
+        ),
+      );
+      offset += segmentLength;
     }
   }
 
