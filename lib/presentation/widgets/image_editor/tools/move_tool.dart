@@ -75,6 +75,17 @@ class MoveTool extends EditorTool {
     _transforming = false;
   }
 
+  /// 已拖出的变换按松手写回，双指从这个结果继续，画面不跳回
+  @override
+  void onPointerHandoffToMultiTouch(EditorState state) {
+    if (!_transforming) {
+      onPointerCancel(state);
+      return;
+    }
+    state.layerTransformer.pointerUp();
+    _transforming = false;
+  }
+
   /// 换工具即确认变换，已写回的结果保留
   @override
   void onDeactivateFast(EditorState state) {
