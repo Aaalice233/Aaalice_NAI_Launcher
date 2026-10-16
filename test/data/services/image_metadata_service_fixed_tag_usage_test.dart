@@ -1,30 +1,18 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/fixed_tag_usage_fixture.dart';
+import '../../helpers/image_metadata_service_sandbox.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late Directory directory;
-
-  setUp(() async {
-    directory = await Directory.systemTemp.createTemp('metadata-fixed-usage-');
-    Hive.init(directory.path);
-    await ImageMetadataService().initialize();
-  });
-
-  tearDown(() async {
-    ImageMetadataService().clearMemoryCache();
-    await Hive.close();
-    await directory.delete(recursive: true);
-  });
+  final directory = useImageMetadataServiceSandbox();
 
   test(
     'a recorded snapshot is mounted onto metadata parsed from bytes',
@@ -53,7 +41,7 @@ void main() {
     'a recorded snapshot is mounted onto metadata parsed from a file',
     () async {
       final bytes = await novelAiPngBytes('recorded from file');
-      final file = File('${directory.path}/recorded.png');
+      final file = File('${directory().path}/recorded.png');
       await file.writeAsBytes(bytes);
       await FixedTagUsageRecordStore().record(
         contentHash: FileHashCalculator().calculateFromBytes(bytes),

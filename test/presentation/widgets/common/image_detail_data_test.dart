@@ -3,20 +3,17 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/cache/local_file_image.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
-import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/isolate_metadata_service.dart';
-import 'package:nai_launcher/data/services/metadata/metadata_parse_executor.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/file_image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 
-class _MockParseExecutor extends Mock implements MetadataParseExecutor {}
+import '../../../helpers/image_metadata_service_sandbox.dart';
 
 void main() {
   test(
@@ -139,24 +136,10 @@ void main() {
   });
 
   group('local detail metadata resolution', () {
-    late Directory directory;
-    late _MockParseExecutor executor;
-    final service = ImageMetadataService();
+    final directory = useImageMetadataServiceSandbox();
+    late MockMetadataParseExecutor executor;
 
-    setUp(() async {
-      directory = await Directory.systemTemp.createTemp('local_detail_');
-      Hive.init(directory.path);
-      await service.initialize();
-      executor = _MockParseExecutor();
-      service.debugSetParseExecutorForTesting(executor);
-    });
-
-    tearDown(() async {
-      service.debugSetParseExecutorForTesting(null);
-      service.clearMemoryCache();
-      await Hive.close();
-      await directory.delete(recursive: true);
-    });
+    setUp(() => executor = mockImageMetadataParseExecutor());
 
     LocalImageRecord recordFor(File file, {NaiImageMetadata? metadata}) {
       return LocalImageRecord(
@@ -168,7 +151,7 @@ void main() {
     }
 
     test('an image without metadata is parsed exactly once', () async {
-      final file = File('${directory.path}/plain.png')
+      final file = File('${directory().path}/plain.png')
         ..writeAsBytesSync(img.encodePng(img.Image(width: 4, height: 4)));
       when(() => executor.parseFile(any())).thenAnswer(
         (_) async => MetadataParseResult.failed(const [
@@ -186,7 +169,7 @@ void main() {
     });
 
     test('record metadata is returned without parsing the file', () async {
-      final file = File('${directory.path}/recorded.png')
+      final file = File('${directory().path}/recorded.png')
         ..writeAsBytesSync(img.encodePng(img.Image(width: 4, height: 4)));
       const recorded = NaiImageMetadata(prompt: 'from record');
 

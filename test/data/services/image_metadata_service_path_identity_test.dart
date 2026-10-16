@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/cache_manager.dart';
@@ -10,27 +9,12 @@ import 'package:nai_launcher/data/services/metadata/metadata_parse_executor.dart
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/fixed_tag_usage_fixture.dart';
+import '../../helpers/image_metadata_service_sandbox.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late Directory directory;
-
-  setUp(() async {
-    directory = await Directory.systemTemp.createTemp(
-      'metadata-path-identity-',
-    );
-    Hive.init(directory.path);
-    await ImageMetadataService().initialize();
-  });
-
-  tearDown(() async {
-    ImageMetadataService()
-      ..debugSetParseExecutorForTesting(null)
-      ..clearMemoryCache();
-    await Hive.close();
-    await directory.delete(recursive: true);
-  });
+  final directory = useImageMetadataServiceSandbox();
 
   test(
     'overwriting a file in place drops the metadata of the old pixels',
@@ -38,7 +22,7 @@ void main() {
       final original = await novelAiPngBytes('prompt-A');
       final replacement = await novelAiPngBytes('prompt-B');
       expect(replacement.length, original.length);
-      final file = File('${directory.path}/same-path.png');
+      final file = File('${directory().path}/same-path.png');
       await file.writeAsBytes(original, flush: true);
       await file.setLastModified(DateTime(2026, 9, 1));
 
@@ -56,7 +40,7 @@ void main() {
   );
 
   test('the sync lookup answers only from memory', () async {
-    final file = File('${directory.path}/memory-only.png');
+    final file = File('${directory().path}/memory-only.png');
     await file.writeAsBytes(await novelAiPngBytes('persisted'), flush: true);
     final service = ImageMetadataService();
     expect((await service.getMetadata(file.path))?.prompt, 'persisted');
@@ -69,7 +53,7 @@ void main() {
   });
 
   test('a deleted file no longer answers from the sync cache', () async {
-    final file = File('${directory.path}/deleted.png');
+    final file = File('${directory().path}/deleted.png');
     await file.writeAsBytes(await novelAiPngBytes('gone'), flush: true);
     final service = ImageMetadataService();
     expect((await service.getMetadata(file.path))?.prompt, 'gone');
@@ -89,7 +73,7 @@ void main() {
         'under the old hash', () async {
       final original = await novelAiPngBytes('prompt-A');
       final replacement = await novelAiPngBytes('prompt-B');
-      final file = File('${directory.path}/raced.png');
+      final file = File('${directory().path}/raced.png');
       await file.writeAsBytes(original, flush: true);
       await file.setLastModified(DateTime(2026, 9, 1));
       final originalHash = FileHashCalculator().calculateFromBytes(original);
@@ -111,7 +95,7 @@ void main() {
       );
 
       // 同内容的另一份拷贝只能解析出它自己的元数据
-      final copy = File('${directory.path}/copy.png');
+      final copy = File('${directory().path}/copy.png');
       await copy.writeAsBytes(original, flush: true);
       expect((await read(copy.path))?.prompt, 'prompt-A');
       expect((await read(file.path))?.prompt, 'prompt-B');
