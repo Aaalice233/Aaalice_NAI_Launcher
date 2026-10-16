@@ -17,6 +17,7 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
+import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:path/path.dart' as p;
@@ -710,6 +711,34 @@ void main() {
             .fixedTagId,
         'own-fixed',
       );
+    });
+
+    test('large results record the hash of the bytes on disk', () async {
+      final image = img.Image(width: 160, height: 160);
+      img.fill(image, color: img.ColorRgb8(90, 60, 30));
+      final large = Uint8List.fromList(img.encodePng(image, level: 0));
+      expect(
+        large.length,
+        greaterThanOrEqualTo(FileHashCalculator.backgroundHashMinBytes),
+      );
+      const snapshot = FixedTagUsageSnapshot();
+
+      final saved = await ImageSaveUtils.saveResultImage(
+        rootPath: root.path,
+        imageBytes: large,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(prompt: 'large prompt', seed: 7),
+        fixedTagUsageSnapshot: snapshot,
+      );
+
+      final onDisk = await File(saved.path).readAsBytes();
+      final expectedHash = FileHashCalculator().calculateFromBytes(onDisk);
+      expect(saved.contentHash, expectedHash);
+      expect(
+        FileHashCalculator().verifiedHashForPathSync(saved.path),
+        expectedHash,
+      );
+      expect(FixedTagUsageRecordStore().lookup(expectedHash), isNotNull);
     });
 
     test('preserved bytes ignore own metadata and fixed tags', () async {
