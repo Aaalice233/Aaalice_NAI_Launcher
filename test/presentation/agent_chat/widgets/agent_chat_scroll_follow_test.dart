@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -934,6 +935,89 @@ void main() {
       expect(controller.showJumpToLatest, isTrue);
     },
   );
+
+  final releasesDuringHold =
+      <String, Future<void> Function(WidgetTester, AgentChatPanelController)>{
+        'an edge wheel': (tester, _) async {
+          final wheel = TestPointer(2, PointerDeviceKind.mouse);
+          wheel.hover(tester.getCenter(find.byType(CustomScrollView)));
+          await tester.sendEventToBinding(wheel.scroll(const Offset(0, 60)));
+        },
+        'a key release': (tester, controller) async {
+          final focusNode = FocusNode();
+          addTearDown(focusNode.dispose);
+          controller.handleViewportKeyEvent(
+            focusNode,
+            const KeyDownEvent(
+              physicalKey: PhysicalKeyboardKey.arrowUp,
+              logicalKey: LogicalKeyboardKey.arrowUp,
+              timeStamp: Duration.zero,
+            ),
+          );
+          controller.handleViewportKeyEvent(
+            focusNode,
+            const KeyUpEvent(
+              physicalKey: PhysicalKeyboardKey.arrowUp,
+              logicalKey: LogicalKeyboardKey.arrowUp,
+              timeStamp: Duration.zero,
+            ),
+          );
+          await tester.pump();
+        },
+      };
+  for (final MapEntry(key: release, value: releaseDuringHold)
+      in releasesDuringHold.entries) {
+    testWidgets(
+      '$release while a pointer is held keeps its track scroll from being '
+      'pushed by streaming',
+      (tester) async {
+        final controller = AgentChatPanelController();
+        addTearDown(controller.dispose);
+        final turns = _turns(4);
+        var currentHeight = 200.0;
+
+        Future<void> pumpFrame() => _pumpThreadViewport(
+          tester,
+          controller,
+          turns: turns,
+          live: const SizedBox.shrink(),
+          turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
+        );
+
+        await pumpFrame();
+        await tester.pump();
+        expect(controller.scrollController.offset, 0);
+
+        final hold = await tester.startGesture(
+          tester.getCenter(find.byType(CustomScrollView)),
+          kind: PointerDeviceKind.mouse,
+        );
+        await releaseDuringHold(tester, controller);
+        expect(controller.scrollController.offset, 0);
+
+        // A held scrollbar track pages with an animation that has no drag
+        // details, so only the held pointer marks it as the user's scroll.
+        final paging = controller.scrollController.animateTo(
+          300,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.linear,
+        );
+        await tester.pumpAndSettle();
+        await paging;
+        expect(controller.showJumpToLatest, isTrue);
+
+        final anchor = find.byKey(const ValueKey('agent-turn-2'));
+        final painted = _paintedBottomEdge(tester, anchor);
+        currentHeight += 240;
+        await pumpFrame();
+        expect(_paintedBottomEdge(tester, anchor), closeTo(painted, 0.01));
+
+        await hold.up();
+        await tester.pumpAndSettle();
+        expect(controller.showJumpToLatest, isTrue);
+      },
+    );
+  }
 
   testWidgets(
     'turns outside the cache are measured again once a resize settles',
