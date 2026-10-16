@@ -867,7 +867,7 @@ class _CategoryTitle extends StatelessWidget {
               child: Text(
                 customizableLabel,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onTertiaryContainer,
+                  color: theme.colorScheme.tertiary,
                 ),
               ),
             ),
