@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/gallery/local_gallery_repository.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata/cache_manager.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_cache_entry_codec.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
@@ -22,7 +23,7 @@ class _MockGalleryDataSource extends Mock implements GalleryDataSource {}
 const _imageId = 11;
 
 Future<Map<String, dynamic>?> _cachedMetadataJson(String hash) async {
-  final raw = await ImageMetadataService().persistentBox?.get(hash);
+  final raw = await MetadataCacheManager().box?.get(hash);
   final json = raw == null ? null : MetadataCacheEntryCodec.metadataJsonOf(raw);
   if (json == null) return null;
   return jsonDecode(json) as Map<String, dynamic>;
