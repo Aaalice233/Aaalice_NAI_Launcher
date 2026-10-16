@@ -3,9 +3,8 @@ import 'dart:typed_data';
 import '../../../core/utils/isolate_pool.dart';
 import 'unified_metadata_parser.dart';
 
-/// 在后台 isolate 执行元数据解析。
+/// 元数据解析入口：同步读文件与 stealth 整图解码放到后台 isolate。
 ///
-/// 解析含同步文件读取，找不到文本元数据时还会整图解码查找 stealth 数据。
 /// 不复用扫描的 worker 池：池只收文件路径、结果不含 sourceFormat，且任务超时即判失败。
 class MetadataParseExecutor {
   const MetadataParseExecutor();
@@ -18,11 +17,14 @@ class MetadataParseExecutor {
     );
   }
 
-  Future<MetadataParseResult> parseBytes(Uint8List bytes) {
-    return ComputeGate().runCompute(
-      UnifiedMetadataParser.parseFromImage,
-      bytes,
-      debugLabel: 'image_metadata_from_bytes',
-    );
+  /// 与 [UnifiedMetadataParser.parseFromImage] 结果一致；文本块与 WebP EXIF 在调用方
+  /// isolate 直接解析，只有 stealth 整图解码经 [ComputeGate] 交给后台。
+  Future<MetadataParseResult> parseBytes(Uint8List bytes) async {
+    return UnifiedMetadataParser.parseFromImageWithoutPixelDecode(bytes) ??
+        await ComputeGate().runCompute(
+          UnifiedMetadataParser.parseFromImage,
+          bytes,
+          debugLabel: 'image_metadata_from_bytes',
+        );
   }
 }

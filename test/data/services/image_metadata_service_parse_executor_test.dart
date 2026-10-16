@@ -1,20 +1,14 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
-import 'package:nai_launcher/data/services/metadata/metadata_parse_executor.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/fixed_tag_usage_fixture.dart';
-import '../../helpers/stealth_png_fixture.dart';
-import '../../helpers/webp_metadata_fixture.dart';
-
-class _MockParseExecutor extends Mock implements MetadataParseExecutor {}
+import '../../helpers/image_metadata_service_sandbox.dart';
 
 MetadataParseResult _parsed(String prompt) => MetadataParseResult.success(
   NaiImageMetadata(prompt: prompt, width: 2, height: 2),
@@ -23,44 +17,17 @@ MetadataParseResult _parsed(String prompt) => MetadataParseResult.success(
   const ['test'],
 );
 
-void _expectSameResult(MetadataParseResult actual, MetadataParseResult sync) {
-  expect(actual.success, sync.success);
-  expect(actual.sourceFormat, sync.sourceFormat);
-  expect(actual.rawData, sync.rawData);
-  expect(actual.triedParsers, sync.triedParsers);
-  expect(actual.errorMessage, sync.errorMessage);
-  expect(actual.metadata, sync.metadata);
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late Directory directory;
-  late _MockParseExecutor executor;
+  final directory = useImageMetadataServiceSandbox();
   final service = ImageMetadataService();
+  late MockMetadataParseExecutor executor;
 
-  setUpAll(() {
-    registerFallbackValue(Uint8List(0));
-  });
-
-  setUp(() async {
-    directory = await Directory.systemTemp.createTemp('metadata-executor-');
-    Hive.init(directory.path);
-    await service.initialize();
-    service.resetStatistics();
-    executor = _MockParseExecutor();
-    service.debugSetParseExecutorForTesting(executor);
-  });
-
-  tearDown(() async {
-    service.debugSetParseExecutorForTesting(null);
-    service.clearMemoryCache();
-    await Hive.close();
-    await directory.delete(recursive: true);
-  });
+  setUp(() => executor = mockImageMetadataParseExecutor());
 
   Future<File> writePng(String name, String prompt) async {
-    final file = File('${directory.path}/$name');
+    final file = File('${directory().path}/$name');
     await file.writeAsBytes(await novelAiPngBytes(prompt));
     return file;
   }
@@ -93,9 +60,9 @@ void main() {
     });
   });
 
-  group('byte entries hand only the stealth decode to the executor', () {
+  group('byte entries hand parsing to the executor', () {
     test('getMetadataFromBytes', () async {
-      final bytes = await stealthOnlyNovelAiPng('stealth bytes');
+      final bytes = await novelAiPngBytes('embedded bytes');
       when(
         () => executor.parseBytes(any()),
       ).thenAnswer((_) async => _parsed('from executor'));
@@ -108,7 +75,7 @@ void main() {
     });
 
     test('getMetadataParseResultFromBytes', () async {
-      final bytes = await stealthOnlyNovelAiPng('stealth parse result');
+      final bytes = await novelAiPngBytes('embedded parse result');
       when(
         () => executor.parseBytes(any()),
       ).thenAnswer((_) async => _parsed('from executor'));
@@ -119,51 +86,6 @@ void main() {
       expect(result.metadata?.prompt, 'from executor');
       verify(() => executor.parseBytes(bytes)).called(1);
       verifyNever(() => executor.parseFile(any()));
-    });
-
-    test('png text chunks are parsed in place like the sync parser', () async {
-      final forMetadata = await novelAiPngBytes('text chunk metadata');
-      final forResult = await novelAiPngBytes('text chunk result');
-
-      final metadata = await service.getMetadataFromBytes(forMetadata);
-      final result = await service.getMetadataParseResultFromBytes(forResult);
-
-      expect(
-        metadata,
-        UnifiedMetadataParser.parseFromImage(forMetadata).metadata,
-      );
-      _expectSameResult(
-        result,
-        UnifiedMetadataParser.parseFromImage(forResult),
-      );
-      verifyNever(() => executor.parseBytes(any()));
-    });
-
-    test('webp exif is parsed in place like the sync parser', () async {
-      final bytes = buildNovelAiWebpFixture(
-        comment: const {'prompt': 'webp exif', 'seed': 7, 'steps': 28},
-      );
-
-      final result = await service.getMetadataParseResultFromBytes(bytes);
-
-      expect(result.success, isTrue);
-      _expectSameResult(result, UnifiedMetadataParser.parseFromImage(bytes));
-      verifyNever(() => executor.parseBytes(any()));
-    });
-
-    test('the stealth decode matches the sync parser', () async {
-      final bytes = await stealthOnlyNovelAiPng('stealth round trip');
-      when(() => executor.parseBytes(any())).thenAnswer(
-        (invocation) => const MetadataParseExecutor().parseBytes(
-          invocation.positionalArguments.single as Uint8List,
-        ),
-      );
-
-      final result = await service.getMetadataParseResultFromBytes(bytes);
-
-      expect(result.sourceFormat, 'NovelAI stealth_pngcomp');
-      _expectSameResult(result, UnifiedMetadataParser.parseFromImage(bytes));
-      verify(() => executor.parseBytes(bytes)).called(1);
     });
   });
 

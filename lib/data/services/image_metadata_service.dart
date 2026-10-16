@@ -446,7 +446,7 @@ class ImageMetadataService {
 
     final stopwatch = Stopwatch()..start();
     try {
-      final result = await _parseBytes(bytes);
+      final result = await _parseExecutor.parseBytes(bytes);
       final metadata = result.success ? result.metadata : null;
       if (metadata != null && metadata.hasData) {
         try {
@@ -692,7 +692,7 @@ class ImageMetadataService {
         return null;
       }
 
-      final result = await _parseBytes(bytes);
+      final result = await _parseExecutor.parseBytes(bytes);
       final metadata = result.success ? result.metadata : null;
 
       if (metadata != null && metadata.hasData) {
@@ -714,12 +714,6 @@ class ImageMetadataService {
       AppLogger.e('Parse bytes failed', e, stack, 'ImageMetadataService');
       return null;
     }
-  }
-
-  // 文本块与 WebP EXIF 在当前 isolate 就能解析，只有 stealth 整图解码交给执行器。
-  Future<MetadataParseResult> _parseBytes(Uint8List bytes) async {
-    return UnifiedMetadataParser.parseFromImageWithoutPixelDecode(bytes) ??
-        await _parseExecutor.parseBytes(bytes);
   }
 }
 
