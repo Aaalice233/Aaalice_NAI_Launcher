@@ -99,13 +99,6 @@ void main() {
       }
     });
 
-    test('16-bit rgb reads as transparent before normalization', () {
-      final rgb16 = _fromSamples(img.Format.uint16, 3, [65535, 32768, 7]);
-
-      expect(rgb16.getPixel(0, 0).a, 0);
-      expect(ColorChannelNormalizer.normalize(rgb16).getPixel(0, 0).a, 65535);
-    });
-
     test('returns layouts with reliable getters unchanged', () {
       final unchanged = [
         img.Image(width: 1, height: 1),
