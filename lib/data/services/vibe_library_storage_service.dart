@@ -273,22 +273,8 @@ class VibeLibraryStorageService {
   Future<List<VibeLibraryEntry>> getEntriesByUsage({int limit = 20}) =>
       _categories.getEntriesByUsage(limit: limit);
 
-  Future<void> saveGenerationState({
-    required List<Map<String, dynamic>> vibeReferences,
-    required List<Map<String, dynamic>> preciseReferences,
-    required bool normalizeVibeStrength,
-  }) => saveGenerationStateUtf8Json(
-    utf8.encode(
-      jsonEncode({
-        'vibeReferences': vibeReferences,
-        'preciseReferences': preciseReferences,
-        'normalizeVibeStrength': normalizeVibeStrength,
-        'savedAt': DateTime.now().toIso8601String(),
-      }),
-    ),
-  );
-
-  /// Carries base64 images, so callers encode the UTF-8 off the UI isolate.
+  /// [stateJson] is the whole state as UTF-8 JSON; it embeds base64 images,
+  /// so callers encode it off the UI isolate.
   Future<void> saveGenerationStateUtf8Json(Uint8List stateJson) =>
       _generation.saveUtf8Json(stateJson);
   Future<Map<String, dynamic>?> loadGenerationState() async {
