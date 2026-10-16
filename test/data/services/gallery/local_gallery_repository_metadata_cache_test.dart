@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
@@ -16,6 +15,7 @@ import 'package:nai_launcher/data/services/metadata/metadata_cache_entry_codec.d
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../../helpers/fixed_tag_usage_fixture.dart';
+import '../../../helpers/image_metadata_service_sandbox.dart';
 
 class _MockGalleryDataSource extends Mock implements GalleryDataSource {}
 
@@ -31,7 +31,7 @@ Future<Map<String, dynamic>?> _cachedMetadataJson(String hash) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late Directory directory;
+  final directory = useImageMetadataServiceSandbox();
   late _MockGalleryDataSource dataSource;
   late LocalGalleryRepository repository;
 
@@ -45,10 +45,6 @@ void main() {
   });
 
   setUp(() async {
-    directory = await Directory.systemTemp.createTemp('gallery-add-image-');
-    Hive.init(directory.path);
-    await ImageMetadataService().initialize();
-
     dataSource = _MockGalleryDataSource();
     when(
       () => dataSource.upsertImage(
@@ -71,15 +67,9 @@ void main() {
     repository = LocalGalleryRepository(dataSource: dataSource);
   });
 
-  tearDown(() async {
-    ImageMetadataService().clearMemoryCache();
-    await Hive.close();
-    await directory.delete(recursive: true);
-  });
-
   Future<(File, String)> writeGalleryImage(String name, String prompt) async {
     final bytes = await novelAiPngBytes(prompt);
-    final file = File('${directory.path}/$name');
+    final file = File('${directory().path}/$name');
     await file.writeAsBytes(bytes);
     return (file, FileHashCalculator().calculateFromBytes(bytes));
   }
@@ -151,7 +141,7 @@ void main() {
       await novelAiPngBytes('from-png, gallery intake'),
       fixedTagUsageSnapshotOf('from-png'),
     );
-    final file = File('${directory.path}/embedded.png');
+    final file = File('${directory().path}/embedded.png');
     await file.writeAsBytes(bytes);
     final hash = FileHashCalculator().calculateFromBytes(bytes);
     await FixedTagUsageRecordStore().record(
@@ -180,7 +170,7 @@ void main() {
 
   test('caller supplied metadata never reaches the cache', () async {
     final bytes = await novelAiPngBytes('from-store, gallery intake');
-    final file = File('${directory.path}/supplied.png');
+    final file = File('${directory().path}/supplied.png');
     await file.writeAsBytes(bytes);
     final hash = FileHashCalculator().calculateFromBytes(bytes);
     await FixedTagUsageRecordStore().record(

@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -19,6 +17,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/services/image_metadata_import_workflow.dart';
 import 'package:nai_launcher/presentation/services/mobile_image_metadata_importer.dart';
 import 'package:nai_launcher/presentation/utils/fixed_tag_import_resolution.dart';
+
+import '../../helpers/image_metadata_service_sandbox.dart';
 
 void main() {
   testWidgets('system picker cancellation stops without processing', (
@@ -203,19 +203,7 @@ void main() {
     const qualityBlock =
         '<quality>\n2::best quality::,masterpiece,very aesthetic, highres, '
         'absurdres, highly finished\n</quality>';
-    late Directory directory;
-
-    setUp(() async {
-      directory = await Directory.systemTemp.createTemp('import-fixed-usage-');
-      Hive.init(directory.path);
-      await ImageMetadataService().initialize();
-    });
-
-    tearDown(() async {
-      ImageMetadataService().clearMemoryCache();
-      await Hive.close();
-      await directory.delete(recursive: true);
-    });
+    useImageMetadataServiceSandbox();
 
     Future<Uint8List> buildImage(String prompt) =>
         ImageSaveUtils.rebuildImageBytesWithMetadata(
