@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'exif_orientation.dart';
 import 'isolate_pool.dart';
 
 /// 词库预览图导入支持的扩展名；文件选择器必须复用此列表，避免格式漂移。
@@ -24,7 +25,7 @@ const supportedThumbnailImageExtensions = <String>[
 Uint8List normalizeThumbnailImageToPng(Uint8List bytes) {
   img.Image? decoded;
   try {
-    decoded = img.decodeImage(bytes);
+    decoded = ExifOrientation.decodeUpright(bytes);
   } on RangeError {
     throw const FormatException('Unsupported or corrupt image data');
   }
@@ -32,8 +33,7 @@ Uint8List normalizeThumbnailImageToPng(Uint8List bytes) {
     throw const FormatException('Unsupported or corrupt image data');
   }
 
-  final oriented = img.bakeOrientation(decoded);
-  return Uint8List.fromList(img.encodePng(oriented));
+  return Uint8List.fromList(img.encodePng(decoded));
 }
 
 /// 与 [normalizeThumbnailImageToPng] 结果一致，经 [ComputeGate] 在后台 isolate 执行。
