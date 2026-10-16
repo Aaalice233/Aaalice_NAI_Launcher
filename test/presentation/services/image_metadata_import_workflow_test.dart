@@ -12,12 +12,12 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
-import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/services/image_metadata_import_workflow.dart';
 import 'package:nai_launcher/presentation/services/mobile_image_metadata_importer.dart';
 import 'package:nai_launcher/presentation/utils/fixed_tag_import_resolution.dart';
 
+import '../../helpers/content_hash.dart';
 import '../../helpers/image_metadata_service_sandbox.dart';
 
 void main() {
@@ -230,7 +230,7 @@ void main() {
     test('记录库中的空快照阻断词库推断', () async {
       final bytes = await buildImage('$qualityBlock, 1girl');
       await FixedTagUsageRecordStore().record(
-        contentHash: FileHashCalculator().calculateFromBytes(bytes),
+        contentHash: contentHashOf(bytes),
         snapshot: const FixedTagUsageSnapshot(),
       );
       final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);

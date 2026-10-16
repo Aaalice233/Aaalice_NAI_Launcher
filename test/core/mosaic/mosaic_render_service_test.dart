@@ -11,9 +11,9 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/mosaic/mosaic_settings.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
-import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/content_hash.dart';
 import '../../helpers/exif_orientation_fixture.dart';
 import '../../helpers/stealth_png_fixture.dart';
 
@@ -247,9 +247,8 @@ void main() {
     await store.initialize();
 
     final source = _source();
-    final hashes = FileHashCalculator();
     await store.record(
-      contentHash: hashes.calculateFromBytes(source),
+      contentHash: contentHashOf(source),
       snapshot: const FixedTagUsageSnapshot(
         entries: [
           FixedTagUsageEntry(
@@ -279,8 +278,8 @@ void main() {
       outputBytes: result.bytes,
     );
 
-    final outputHash = hashes.calculateFromBytes(result.bytes);
-    expect(outputHash, isNot(hashes.calculateFromBytes(source)));
+    final outputHash = contentHashOf(result.bytes);
+    expect(outputHash, isNot(contentHashOf(source)));
     expect(store.lookup(outputHash)?.entries.single.fixedTagId, 'fixed-a');
 
     final unrecorded = Uint8List.fromList(
@@ -292,7 +291,7 @@ void main() {
     );
     expect(
       store.lookup(
-        hashes.calculateFromBytes(
+        contentHashOf(
           result.bytes.sublist(0, result.bytes.length - 1),
         ),
       ),

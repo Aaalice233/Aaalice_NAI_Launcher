@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
-import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/content_hash.dart';
 import '../../helpers/fixed_tag_usage_fixture.dart';
 import '../../helpers/image_metadata_service_sandbox.dart';
 
@@ -18,7 +18,7 @@ void main() {
     'a recorded snapshot is mounted onto metadata parsed from bytes',
     () async {
       final bytes = await novelAiPngBytes('recorded from bytes');
-      final hash = FileHashCalculator().calculateFromBytes(bytes);
+      final hash = contentHashOf(bytes);
       await FixedTagUsageRecordStore().record(
         contentHash: hash,
         snapshot: fixedTagUsageSnapshotOf('from-store'),
@@ -44,7 +44,7 @@ void main() {
       final file = File('${directory().path}/recorded.png');
       await file.writeAsBytes(bytes);
       await FixedTagUsageRecordStore().record(
-        contentHash: FileHashCalculator().calculateFromBytes(bytes),
+        contentHash: contentHashOf(bytes),
         snapshot: fixedTagUsageSnapshotOf('file-store'),
       );
 
@@ -60,7 +60,7 @@ void main() {
   test('the parse result entry mounts the recorded snapshot too', () async {
     final bytes = await novelAiPngBytes('recorded for parse result');
     await FixedTagUsageRecordStore().record(
-      contentHash: FileHashCalculator().calculateFromBytes(bytes),
+      contentHash: contentHashOf(bytes),
       snapshot: fixedTagUsageSnapshotOf('parse-result'),
     );
 
@@ -81,7 +81,7 @@ void main() {
       fixedTagUsageSnapshotOf('from-png'),
     );
     await FixedTagUsageRecordStore().record(
-      contentHash: FileHashCalculator().calculateFromBytes(bytes),
+      contentHash: contentHashOf(bytes),
       snapshot: fixedTagUsageSnapshotOf('from-store'),
     );
 
@@ -95,7 +95,7 @@ void main() {
 
   test('mounting never leaks into the metadata cache', () async {
     final bytes = await novelAiPngBytes('cache stays clean');
-    final hash = FileHashCalculator().calculateFromBytes(bytes);
+    final hash = contentHashOf(bytes);
     await FixedTagUsageRecordStore().record(
       contentHash: hash,
       snapshot: fixedTagUsageSnapshotOf('from-store'),

@@ -9,9 +9,10 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
-import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/presentation/providers/generation/dlss_enhancement_adopter.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+
+import '../../../helpers/content_hash.dart';
 
 void main() {
   test(
@@ -80,11 +81,10 @@ void main() {
       final store = FixedTagUsageRecordStore();
       await store.initialize();
 
-      final hashes = FileHashCalculator();
       final source = Uint8List.fromList([1]);
       final result = Uint8List.fromList([2]);
       await store.record(
-        contentHash: hashes.calculateFromBytes(source),
+        contentHash: contentHashOf(source),
         snapshot: const FixedTagUsageSnapshot(
           entries: [
             FixedTagUsageEntry(
@@ -113,7 +113,7 @@ void main() {
           .read(dlssEnhancementAdopterProvider)
           .adopt(result: result, source: source);
 
-      final propagated = store.lookup(hashes.calculateFromBytes(result));
+      final propagated = store.lookup(contentHashOf(result));
       expect(path, isNull);
       expect(propagated?.entries.single.fixedTagId, 'fixed-a');
     },

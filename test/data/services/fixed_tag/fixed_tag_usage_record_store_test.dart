@@ -9,6 +9,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 
+import '../../../helpers/content_hash.dart';
 import '../../../helpers/shared_compute_gate.dart';
 
 const _hashA =
@@ -78,7 +79,6 @@ void main() {
   });
 
   test('derivative copies hash large images behind the compute gate', () async {
-    final hashes = FileHashCalculator();
     Uint8List image(int seed) => Uint8List.fromList(
       List.generate(
         FileHashCalculator.backgroundHashMinBytes,
@@ -88,7 +88,7 @@ void main() {
     final source = image(3);
     final output = image(5);
     await store.record(
-      contentHash: hashes.calculateFromBytes(source),
+      contentHash: contentHashOf(source),
       snapshot: _snapshot,
     );
 
@@ -97,7 +97,7 @@ void main() {
     );
 
     expect(
-      store.lookup(hashes.calculateFromBytes(output))?.entries.single.fixedTagId,
+      store.lookup(contentHashOf(output))?.entries.single.fixedTagId,
       'fixed-a',
     );
   });

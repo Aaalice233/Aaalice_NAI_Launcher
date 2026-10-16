@@ -11,10 +11,10 @@ import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_stor
 import 'package:nai_launcher/data/services/gallery/local_gallery_repository.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/cache_manager.dart';
-import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_cache_entry_codec.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../../helpers/content_hash.dart';
 import '../../../helpers/fixed_tag_usage_fixture.dart';
 import '../../../helpers/image_metadata_service_sandbox.dart';
 
@@ -72,7 +72,7 @@ void main() {
     final bytes = await novelAiPngBytes(prompt);
     final file = File('${directory().path}/$name');
     await file.writeAsBytes(bytes);
-    return (file, FileHashCalculator().calculateFromBytes(bytes));
+    return (file, contentHashOf(bytes));
   }
 
   test('addImage keeps the recorded snapshot out of the cache', () async {
@@ -144,7 +144,7 @@ void main() {
     );
     final file = File('${directory().path}/embedded.png');
     await file.writeAsBytes(bytes);
-    final hash = FileHashCalculator().calculateFromBytes(bytes);
+    final hash = contentHashOf(bytes);
     await FixedTagUsageRecordStore().record(
       contentHash: hash,
       snapshot: fixedTagUsageSnapshotOf('from-store'),
@@ -173,7 +173,7 @@ void main() {
     final bytes = await novelAiPngBytes('from-store, gallery intake');
     final file = File('${directory().path}/supplied.png');
     await file.writeAsBytes(bytes);
-    final hash = FileHashCalculator().calculateFromBytes(bytes);
+    final hash = contentHashOf(bytes);
     await FixedTagUsageRecordStore().record(
       contentHash: hash,
       snapshot: fixedTagUsageSnapshotOf('from-store'),
