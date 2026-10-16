@@ -469,16 +469,14 @@ class ImageSaveUtils {
     }
   }
 
-  // 文本块在当前 isolate 就能判断，只有 stealth 整图解码交给后台。
   static Future<bool> _hasReadableNovelAiMetadataOffUi(
     Uint8List imageBytes,
     _EmbeddedPngMetadata? embeddedMetadata,
   ) async {
     if (embeddedMetadata != null) return true;
-    final result =
-        UnifiedMetadataParser.parseFromPngWithoutPixelDecode(imageBytes) ??
-        await const MetadataParseExecutor().parseBytes(imageBytes);
-    return _isNovelAiResult(result);
+    return _isNovelAiResult(
+      await const MetadataParseExecutor().parseBytes(imageBytes),
+    );
   }
 
   static bool _isNovelAiResult(MetadataParseResult result) {

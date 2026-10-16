@@ -25,6 +25,7 @@ import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart
 import 'package:path/path.dart' as p;
 
 import '../../helpers/stealth_png_fixture.dart';
+import '../../helpers/webp_metadata_fixture.dart';
 
 void main() {
   group('ComfyuiPromptParser pipe syntax', () {
@@ -647,6 +648,20 @@ void main() {
 
       expect(prepared.bytes, orderedEquals(stealth));
       expect(UnifiedMetadataParser.extractPngTextData(prepared.bytes), isEmpty);
+    });
+
+    test('NovelAI WebP bytes are recognised and kept', () async {
+      final webp = buildNovelAiWebpFixture(
+        comment: const {'prompt': 'webp prompt', 'seed': 7},
+      );
+
+      final prepared = await ImageSaveUtils.prepareResultBytes(
+        imageBytes: webp,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(prompt: 'must not replace', seed: 1),
+      );
+
+      expect(prepared.bytes, orderedEquals(webp));
     });
 
     test('field projection keeps vibe arrays aligned without raw comment', () async {
