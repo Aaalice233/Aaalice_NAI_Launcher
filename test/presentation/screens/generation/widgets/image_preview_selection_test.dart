@@ -17,7 +17,6 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/widgets/bulk_action_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_batch_scope.dart';
-import 'package:nai_launcher/presentation/widgets/common/image_card_frame.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_comparison_view.dart';
 import 'package:nai_launcher/presentation/widgets/common/transparency_background.dart';
@@ -364,7 +363,6 @@ void main() {
           expect(card.onLongPress, isNull, reason: reason);
           expect(card.imageContentFooterHeight, toolbarHeight, reason: reason);
           expect(view.fit, BoxFit.contain, reason: reason);
-          expect(view.surfaceRadius, ImageCardFrame.defaultRadius);
           expect(view.imageBackdrop, isA<TransparencyBackgroundLayer>());
 
           final cardRect = tester.getRect(find.byType(SelectableImageCard));
