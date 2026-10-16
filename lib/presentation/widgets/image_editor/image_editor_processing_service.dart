@@ -47,6 +47,11 @@ class ImageEditorProcessingService {
   Future<EditorEffectResult> applyEffect(EditorEffectJob job) =>
       _effects.apply(job);
 
+  Future<EditorEffectResult?> previewEffect(
+    EditorEffectJob job, {
+    required bool Function() isCurrent,
+  }) => _effects.preview(job, isCurrent: isCurrent);
+
   Future<ContiguousRegionSelection> selectMagicWand({
     required EditorRawRgbaImage source,
     required int startX,

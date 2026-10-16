@@ -92,8 +92,9 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
       error = '';
     });
     debounce = Timer(const Duration(milliseconds: 180), () async {
+      bool isCurrent() => mounted && epoch == previewEpoch;
       try {
-        final result = await widget.processingService.applyEffect(
+        final result = await widget.processingService.previewEffect(
           EditorEffectJob(
             imageBytes: widget.sourceBytes,
             effectType: type,
@@ -101,14 +102,15 @@ class _EffectsPreviewDialogState extends State<EffectsPreviewDialog> {
             maxPreviewDimension: 768,
             cropRect: widget.cropRect,
           ),
+          isCurrent: isCurrent,
         );
-        if (!mounted || epoch != previewEpoch) return;
+        if (result == null || !isCurrent()) return;
         setState(() {
           previewBytes = result.bytes;
           loading = false;
         });
       } catch (exception) {
-        if (!mounted || epoch != previewEpoch) return;
+        if (!isCurrent()) return;
         setState(() {
           loading = false;
           error = exception.toString();

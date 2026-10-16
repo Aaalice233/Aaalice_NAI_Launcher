@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -27,7 +28,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       expect(tester.takeException(), isNull);
-      expect(processingService.applyCalls, 0);
+      expect(processingService.previewCalls, 0);
     },
   );
 
@@ -37,16 +38,65 @@ void main() {
       await tester.pumpWidget(_wrapDialog(sourceBytes, processingService));
 
       expect(_applyButton(tester).onPressed, isNotNull);
-      expect(processingService.applyCalls, 0);
+      expect(processingService.previewCalls, 0);
 
       await tester.pump();
 
       expect(_applyButton(tester).onPressed, isNull);
-      expect(processingService.applyCalls, 0);
+      expect(processingService.previewCalls, 0);
 
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+
+  testWidgets('superseded previews never overwrite the newest one', (
+    tester,
+  ) async {
+    final service = _PendingPreviewService();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 2400);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(_wrapDialog(sourceBytes, service));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    for (final index in [1, 2]) {
+      await tester.tap(find.byType(ChoiceChip).at(index));
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    expect(service.requests, hasLength(3));
+    expect(service.requests.map((request) => request.isCurrent()), [
+      false,
+      false,
+      true,
+    ]);
+
+    final newest = _png(3);
+    final stale = _png(2);
+    service.requests[2].result.complete(
+      EditorEffectResult(bytes: newest, width: 3, height: 3),
+    );
+    service.requests[1].result.complete(null);
+    await tester.pump();
+    service.requests[0].result.complete(
+      EditorEffectResult(bytes: stale, width: 2, height: 2),
+    );
+    await tester.pump();
+
+    final shown = tester
+        .widgetList<Image>(find.byType(Image))
+        .map((image) => image.image)
+        .whereType<MemoryImage>()
+        .map((image) => image.bytes);
+    expect(shown, contains(same(newest)));
+    expect(shown, isNot(contains(same(stale))));
+    expect(_applyButton(tester).onPressed, isNotNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('320px、3x、IME 与 SafeArea 下全屏且内容和操作可滚动访问', (tester) async {
     await _pumpHost(
@@ -162,6 +212,9 @@ void main() {
   });
 }
 
+Uint8List _png(int size) =>
+    Uint8List.fromList(img.encodePng(img.Image(width: size, height: size)));
+
 FilledButton _applyButton(WidgetTester tester) => tester.widget<FilledButton>(
   find.byKey(const ValueKey('effects-preview-apply')),
 );
@@ -249,11 +302,29 @@ class _RecordingProcessingService extends ImageEditorProcessingService {
   _RecordingProcessingService(this.bytes);
 
   final Uint8List bytes;
-  int applyCalls = 0;
+  int previewCalls = 0;
 
   @override
-  Future<EditorEffectResult> applyEffect(EditorEffectJob job) async {
-    applyCalls++;
+  Future<EditorEffectResult?> previewEffect(
+    EditorEffectJob job, {
+    required bool Function() isCurrent,
+  }) async {
+    previewCalls++;
     return EditorEffectResult(bytes: bytes, width: 4, height: 4);
+  }
+}
+
+class _PendingPreviewService extends ImageEditorProcessingService {
+  final requests =
+      <({Completer<EditorEffectResult?> result, bool Function() isCurrent})>[];
+
+  @override
+  Future<EditorEffectResult?> previewEffect(
+    EditorEffectJob job, {
+    required bool Function() isCurrent,
+  }) {
+    final result = Completer<EditorEffectResult?>();
+    requests.add((result: result, isCurrent: isCurrent));
+    return result.future;
   }
 }
