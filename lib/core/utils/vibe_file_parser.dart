@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
 import '../../data/models/vibe/vibe_reference.dart';
 import 'app_logger.dart';
+import 'isolate_pool.dart';
 import 'novelai_vibe_codec.dart';
 
 // 注意：已移除 png_chunks_extract 依赖，使用 image 包替代
@@ -722,7 +722,7 @@ class VibeFileParser {
       );
     }
 
-    return Isolate.run(
+    return ComputeGate().runIsolate(
       () => _parseBundleBytesSync(
         fileName,
         bytes,
@@ -748,7 +748,7 @@ class VibeFileParser {
       );
     }
 
-    return Isolate.run(() {
+    return ComputeGate().runIsolate(() {
       return _parseBundleBytesSync(
         fileName,
         File(filePath).readAsBytesSync(),

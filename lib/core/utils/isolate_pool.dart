@@ -64,8 +64,8 @@ class ComputeGate {
   /// 在全局计算闸门内运行一次 Isolate.run。
   ///
   /// 这仍会为本次任务创建 isolate，不是常驻 worker 池。
-  Future<T> runIsolate<T>(FutureOr<T> Function() task) {
-    return run(() => Isolate.run(task));
+  Future<T> runIsolate<T>(FutureOr<T> Function() task, {String? debugName}) {
+    return run(() => Isolate.run(task, debugName: debugName));
   }
 }
 

@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/image_pixel_matchers.dart';
+import '../../helpers/shared_compute_gate.dart';
 
 void main() {
   group('InpaintMaskUtils', () {
@@ -66,6 +67,18 @@ void main() {
       );
 
       expect(asyncResult, syncResult);
+    });
+
+    test('maskToEditorOverlayAsync waits for the shared compute gate', () async {
+      final source = img.Image(width: 4, height: 4);
+      source.setPixelRgba(1, 2, 255, 255, 255, 255);
+      final bytes = Uint8List.fromList(img.encodePng(source));
+
+      final overlay = await expectQueuedBehindSharedComputeGate(
+        () => InpaintMaskUtils.maskToEditorOverlayAsync(bytes),
+      );
+
+      expect(overlay, InpaintMaskUtils.maskToEditorOverlay(bytes));
     });
 
     test('hasMaskedPixelsAsync should match the sync check', () async {
@@ -594,6 +607,41 @@ void main() {
         expect(result.status, MaskFillRegionStatus.openRegion);
         expect(result.filledMaskBytes, isNull);
         expect(result.overlayBytes, isNull);
+      },
+    );
+
+    test(
+      'fillEditorMaskRegionAtPointAsync waits for the shared compute gate',
+      () async {
+        final source = img.Image(width: 12, height: 12);
+        img.fill(source, color: img.ColorRgba8(0, 0, 0, 255));
+        img.drawRect(
+          source,
+          x1: 2,
+          y1: 2,
+          x2: 9,
+          y2: 9,
+          color: img.ColorRgba8(255, 255, 255, 255),
+        );
+        final bytes = Uint8List.fromList(img.encodePng(source));
+        final expected = InpaintMaskUtils.fillEditorMaskRegionAtPoint(
+          bytes,
+          x: 5,
+          y: 5,
+        );
+
+        final result = await expectQueuedBehindSharedComputeGate(
+          () => InpaintMaskUtils.fillEditorMaskRegionAtPointAsync(
+            bytes,
+            x: 5,
+            y: 5,
+          ),
+        );
+
+        expect(result.status, MaskFillRegionStatus.filled);
+        expect(result.status, expected.status);
+        expect(result.filledMaskBytes, expected.filledMaskBytes);
+        expect(result.overlayBytes, expected.overlayBytes);
       },
     );
 

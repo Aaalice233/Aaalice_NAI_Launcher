@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -10,6 +9,7 @@ import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/mosaic/mosaic_settings.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../utils/image_share_sanitizer.dart';
+import '../utils/isolate_pool.dart';
 
 class MosaicCancelledException implements Exception {
   const MosaicCancelledException();
@@ -532,7 +532,7 @@ class MosaicRenderService {
 Future<_MetadataTransfer> _preserveMetadataInBackground(
   Uint8List source,
   Uint8List targetPng,
-) => Isolate.run(
+) => ComputeGate().runIsolate(
   () => MosaicRenderService._preserveSupportedMetadata(
     source: source,
     targetPng: targetPng,

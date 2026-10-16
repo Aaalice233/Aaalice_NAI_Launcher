@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -6,6 +5,7 @@ import 'package:image/image.dart' as img;
 
 import '../network/error_mappers/api_error_mapper.dart';
 import 'app_logger.dart';
+import 'isolate_pool.dart';
 
 /// NAI API 工具类
 /// 提供 NovelAI API 相关的共享静态方法
@@ -100,7 +100,7 @@ class NAIApiUtils {
 
   /// 在后台 isolate 中执行 Director Reference 图片规范化，避免阻塞 UI isolate。
   static Future<Uint8List> ensurePngFormatAsync(Uint8List imageBytes) async {
-    final normalizedBytes = await Isolate.run(
+    final normalizedBytes = await ComputeGate().runIsolate(
       () => ensurePngFormat(imageBytes),
     );
     return markNormalizedPreciseReferencePng(normalizedBytes);

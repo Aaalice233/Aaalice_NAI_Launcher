@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/inpaint_outpaint_utils.dart';
 
+import '../../helpers/shared_compute_gate.dart';
+
 void main() {
   group('InpaintOutpaintUtils.resolveExpansionGeometry', () {
     test(
@@ -813,6 +815,74 @@ void main() {
           ),
         );
       }
+    });
+  });
+
+  group('background variants wait for the shared compute gate', () {
+    test('expandAsync', () async {
+      final sourceImage = _sourcePng(64, 64);
+      const edges = OutpaintEdges(left: 8, bottom: 8);
+      final expected = InpaintOutpaintUtils.expand(
+        sourceImage: sourceImage,
+        edges: edges,
+        snapTo64: false,
+      );
+
+      final result = await expectQueuedBehindSharedComputeGate(
+        () => InpaintOutpaintUtils.expandAsync(
+          sourceImage: sourceImage,
+          edges: edges,
+          snapTo64: false,
+        ),
+      );
+
+      expect((result.width, result.height), (expected.width, expected.height));
+      expect(result.sourceImage, expected.sourceImage);
+      expect(result.maskImage, expected.maskImage);
+    });
+
+    test('resizeFrameAsync', () async {
+      final sourceImage = _sourcePng(64, 64);
+      const delta = OutpaintFrameDelta(right: 8, top: -8);
+      final expected = InpaintOutpaintUtils.resizeFrame(
+        sourceImage: sourceImage,
+        delta: delta,
+        snapTo64: false,
+      );
+
+      final result = await expectQueuedBehindSharedComputeGate(
+        () => InpaintOutpaintUtils.resizeFrameAsync(
+          sourceImage: sourceImage,
+          delta: delta,
+          snapTo64: false,
+        ),
+      );
+
+      expect((result.width, result.height), (expected.width, expected.height));
+      expect(result.sourceImage, expected.sourceImage);
+      expect(result.maskImage, expected.maskImage);
+    });
+
+    test('materializeVirtualFrameAsync', () async {
+      final sourceImage = _horizontalGradientPng(64, 64);
+      final frame = OutpaintVirtualFrame.fromSource(
+        sourceWidth: 64,
+        sourceHeight: 64,
+      ).applyDelta(const OutpaintFrameDelta(right: 64)).frame;
+      final expected = InpaintOutpaintUtils.materializeVirtualFrame(
+        sourceImage: sourceImage,
+        frame: frame,
+      );
+
+      final result = await expectQueuedBehindSharedComputeGate(
+        () => InpaintOutpaintUtils.materializeVirtualFrameAsync(
+          sourceImage: sourceImage,
+          frame: frame,
+        ),
+      );
+
+      expect((result.width, result.height), (expected.width, expected.height));
+      expect(result.sourceImage, expected.sourceImage);
     });
   });
 }
