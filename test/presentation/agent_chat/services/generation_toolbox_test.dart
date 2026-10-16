@@ -1016,6 +1016,80 @@ void main() {
     },
   );
 
+  test('submission inpaints with the prepared source and 0/255 mask', () async {
+    final workspace = await Directory.systemTemp.createTemp(
+      'generation-mask-file-',
+    );
+    addTearDown(() => workspace.delete(recursive: true));
+    String workspaceFile(String name) =>
+        '${workspace.path}${Platform.pathSeparator}$name';
+    final sourceBytes = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 64, height: 64)),
+    );
+    await File(workspaceFile('source.png')).writeAsBytes(sourceBytes);
+    final lowGrayMask = image_lib.Image(width: 64, height: 64, numChannels: 1);
+    for (var y = 16; y < 48; y++) {
+      for (var x = 16; x < 48; x++) {
+        lowGrayMask.setPixelR(x, y, 39);
+      }
+    }
+    await File(
+      workspaceFile('mask.png'),
+    ).writeAsBytes(image_lib.encodePng(lowGrayMask));
+    final savedFile = File(workspaceFile('saved.png'));
+    await savedFile.writeAsBytes(
+      image_lib.encodePng(image_lib.Image(width: 1, height: 1)),
+    );
+    final fake = _FakeImageGenerationNotifier(savedFile.path);
+    final container = ProviderContainer(
+      overrides: [
+        imageGenerationNotifierProvider.overrideWith(() => fake),
+        imagesPerRequestProvider.overrideWith(_TestImagesPerRequest.new),
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+        characterPromptNotifierProvider.overrideWith(
+          _TestCharacterPromptNotifier.new,
+        ),
+        subscriptionNotifierProvider.overrideWith(
+          _TestSubscriptionNotifier.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final tools = GenerationToolbox(
+      _makeRef(container),
+      workspaceDir: workspace.path,
+    ).tools();
+    final prepare = tools.firstWhere(
+      (tool) => tool.name == 'prepare_generation',
+    );
+    final submit = tools.firstWhere((tool) => tool.name == 'submit_generation');
+
+    final prepared = await prepare.execute('prepare-mask-file', const {
+      'operation': 'generate',
+      'prompt': '1girl',
+      'width': 64,
+      'height': 64,
+      'count': 1,
+      'source_image': 'source.png',
+      'mask_image': 'mask.png',
+    });
+    final submitted = await submit.execute('submit-mask-file', {
+      'preparation_id': _json(prepared)['preparation_id'],
+      'confirmed': true,
+    });
+
+    expect(submitted.isError, isFalse);
+    expect(fake.generateCalls, 1);
+    final params = fake.params!;
+    expect(params.action, ImageGenerationAction.infill);
+    expect(params.sourceImage, orderedEquals(sourceBytes));
+    final mask = image_lib.decodeImage(params.maskImage!)!;
+    expect(mask.getPixel(32, 32).r.toInt(), 255);
+    expect(mask.getPixel(0, 0).r.toInt(), 0);
+  });
+
   test('update and cancel keep preparation lifecycle structured', () async {
     final container = ProviderContainer(
       overrides: [

@@ -725,8 +725,6 @@ class GenerationPreparationService {
       return _executeQueue(preparation.arguments, prepared: preparation);
     }
     final executionArgs = Map<String, dynamic>.from(preparation.arguments)
-      ..remove('source_image')
-      ..remove('mask_image')
       ..['_prepared_generation'] = preparation;
     return _executeGeneration(toolCallId, executionArgs, signal, onUpdate);
   }

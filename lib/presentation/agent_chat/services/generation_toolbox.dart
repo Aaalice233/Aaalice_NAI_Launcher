@@ -54,7 +54,6 @@ class GenerationToolbox {
     );
     final execution = GenerationExecutionService(
       ref,
-      pathResolver: pathResolver,
       imageReadContract: imageReadContract,
       exporter: GenerationSavePathExporter(
         writer: exportWriter,

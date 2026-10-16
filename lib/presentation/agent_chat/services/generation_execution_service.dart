@@ -1,34 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/tools/image.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/display_thumbnail_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
-import '../../../data/models/image/image_params.dart';
 import '../../providers/image_generation_provider.dart';
 import 'defined_agent_tool.dart';
 import 'generation_image_read_contract.dart';
 import 'generation_preparation_runtime.dart';
 import 'generation_save_path_exporter.dart';
-import 'generation_workspace_path_resolver.dart';
 
 class GenerationExecutionService {
   GenerationExecutionService(
     this._ref, {
-    required GenerationWorkspacePathResolver pathResolver,
     required GenerationImageReadContract imageReadContract,
     required GenerationSavePathExporter exporter,
     required int maxGenerateCount,
-  }) : _pathResolver = pathResolver,
-       _imageReadContract = imageReadContract,
+  }) : _imageReadContract = imageReadContract,
        _exporter = exporter,
        _maxGenerateCount = maxGenerateCount;
   final Ref _ref;
-  final GenerationWorkspacePathResolver _pathResolver;
   final GenerationImageReadContract _imageReadContract;
   final GenerationSavePathExporter _exporter;
   final int _maxGenerateCount;
@@ -77,58 +70,6 @@ class GenerationExecutionService {
     final negativePrompt =
         (args['negative_prompt'] as String?)?.trim() ?? base.negativePrompt;
 
-    // img2img / inpaint：提供 source_image 才启用；未提供时强制纯文生图，
-    // 不受生成页当前 img2img 状态影响（请求构建器按 action 门控源图）。
-    Uint8List? sourceBytes = prepared.sourceImage;
-    Uint8List? maskBytes = prepared.maskImage;
-    var action = prepared.params.action;
-    final sourceImagePath = (args['source_image'] as String?)?.trim() ?? '';
-    if (sourceImagePath.isNotEmpty) {
-      String resolvedSourcePath;
-      try {
-        resolvedSourcePath = await _pathResolver.resolveLocalImagePath(
-          sourceImagePath,
-        );
-      } on Object {
-        return agentToolError(
-          'source_image_not_permitted',
-          'Source image path is not permitted.',
-        );
-      }
-      final sourceFile = File(resolvedSourcePath);
-      if (!sourceFile.existsSync()) {
-        return agentToolError(
-          'source_image_not_found',
-          'Source image not found.',
-        );
-      }
-      sourceBytes = await sourceFile.readAsBytes();
-      final maskImagePath = (args['mask_image'] as String?)?.trim() ?? '';
-      if (maskImagePath.isNotEmpty) {
-        String resolvedMaskPath;
-        try {
-          resolvedMaskPath = await _pathResolver.resolveLocalImagePath(
-            maskImagePath,
-          );
-        } on Object {
-          return agentToolError(
-            'mask_image_not_permitted',
-            'Mask image path is not permitted.',
-          );
-        }
-        final maskFile = File(resolvedMaskPath);
-        if (!maskFile.existsSync()) {
-          return agentToolError(
-            'mask_image_not_found',
-            'Mask image not found.',
-          );
-        }
-        maskBytes = await maskFile.readAsBytes();
-        action = ImageGenerationAction.infill;
-      } else {
-        action = ImageGenerationAction.img2img;
-      }
-    }
     double? clamp01Ratio(String key) {
       final raw = (args[key] as num?)?.toDouble();
       if (raw == null) {
@@ -187,9 +128,9 @@ class GenerationExecutionService {
         // count > 1 时应用原生管线会给每批随机种子（与生成页一致）。
         seed: requestedSeed,
         nSamples: count,
-        action: action,
-        sourceImage: sourceBytes,
-        maskImage: maskBytes,
+        action: prepared.params.action,
+        sourceImage: prepared.sourceImage,
+        maskImage: prepared.maskImage,
         strength: strength ?? base.strength,
         noise: noise ?? base.noise,
         inpaintStrength: inpaintStrength ?? base.inpaintStrength,
