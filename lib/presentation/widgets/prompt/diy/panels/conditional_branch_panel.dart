@@ -128,10 +128,7 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DiyPanelHeader(
-          icon: Icons.call_split_rounded,
-          accent: colorScheme.secondary,
-          title: l10n.diy_conditionalTitle,
-          subtitle: l10n.diy_conditionalSubtitle,
+          description: l10n.diy_conditionalSubtitle,
           trailing: rules.isEmpty
               ? null
               : DiyCountBadge(

@@ -388,12 +388,12 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
       titleBuilder: (panelContext) => Row(
         children: [
           Icon(
-            Icons.auto_awesome,
+            ability.icon,
             color: Theme.of(panelContext).colorScheme.secondary,
             size: 20,
           ),
           const SizedBox(width: 12),
-          // 面板内首行标题会完整换行显示同一名称，这里单行以把高度留给正文
+          // 单行显示，矮视口叠加放大文字时把高度留给正文
           Expanded(
             child: Text(
               title,

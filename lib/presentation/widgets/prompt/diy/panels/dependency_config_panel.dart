@@ -96,10 +96,7 @@ class _DependencyConfigPanelState extends State<DependencyConfigPanel> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return DiyPanelHeader(
-      icon: Icons.link_rounded,
-      accent: colorScheme.tertiary,
-      title: context.l10n.diy_dependencyTitle,
-      subtitle: context.l10n.diy_dependencySubtitle,
+      description: context.l10n.diy_dependencySubtitle,
       trailing: widget.config != null && !widget.readOnly
           ? TextButton.icon(
               onPressed: () => widget.onConfigChanged(null),
