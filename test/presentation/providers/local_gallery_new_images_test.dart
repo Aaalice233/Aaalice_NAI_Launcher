@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
 import 'package:nai_launcher/data/services/gallery/unified_gallery_service.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+
+import '../../helpers/gallery_statistics_probe.dart';
 
 void main() {
   late _RecordingGalleryService service;
@@ -120,19 +121,7 @@ void main() {
   });
 
   group('缓存统计失效', () {
-    late int invalidations;
-
-    void countInvalidation() => invalidations++;
-
-    setUp(() {
-      invalidations = 0;
-      GalleryCacheManager().registerOnStatisticsInvalidated(countInvalidation);
-      addTearDown(
-        () => GalleryCacheManager().unregisterOnStatisticsInvalidated(
-          countInvalidation,
-        ),
-      );
-    });
+    final statistics = useGalleryStatisticsProbe();
 
     test('一批新图即时收录完成后只失效一次', () async {
       final container = createContainer();
@@ -146,7 +135,7 @@ void main() {
       ]);
 
       expect(service.admitted, hasLength(3));
-      expect(invalidations, 1);
+      expect(statistics.invalidations, 1);
     });
 
     test('服务就绪后补收录一批新图只失效一次', () async {
@@ -156,12 +145,12 @@ void main() {
         r'G:\gallery\a.png',
         r'G:\gallery\b.png',
       ]);
-      expect(invalidations, 0);
+      expect(statistics.invalidations, 0);
 
       await notifier.initialize();
 
       expect(service.admitted, hasLength(2));
-      expect(invalidations, 1);
+      expect(statistics.invalidations, 1);
     });
 
     test('全部已被收录时不失效', () async {
@@ -172,7 +161,7 @@ void main() {
 
       await notifier.addNewlySavedImages([r'G:\gallery\a.png']);
 
-      expect(invalidations, 0);
+      expect(statistics.invalidations, 0);
     });
   });
 }
