@@ -185,13 +185,6 @@ class NaiGenerationResponseProcessor {
           }
           if (images.isNotEmpty) return;
         }
-
-        final fallbackImage = _decodeFallbackMessage(bytes);
-        if (fallbackImage != null && fallbackImage.isNotEmpty) {
-          final artifact = await composeImage(fallbackImage, context);
-          yield ImageStreamChunk.complete(artifact.displayImageBytes);
-          return;
-        }
         yield ImageStreamChunk.error('No final image received from stream');
       } catch (error) {
         AppLogger.e('Failed to parse final stream data: $error', 'Stream');
@@ -318,16 +311,6 @@ class NaiGenerationResponseProcessor {
     return decoded.map((key, value) => MapEntry(key.toString(), value));
   }
 
-  Uint8List? _decodeFallbackMessage(Uint8List bytes) {
-    if (bytes.length < 4) return null;
-    final messageLength = _readLength(bytes);
-    if (bytes.length < 4 + messageLength) return null;
-    final message = _decodeMessage(
-      Uint8List.fromList(bytes.sublist(4, 4 + messageLength)),
-    );
-    return _decodeImage(message?['data']);
-  }
-
   Uint8List? _decodeImage(Object? value) {
     if (value is Uint8List) return value;
     if (value is List<int>) return Uint8List.fromList(value);
@@ -341,10 +324,6 @@ class NaiGenerationResponseProcessor {
     return null;
   }
 
-  int _readLength(List<int> bytes) {
-    return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
-  }
-
   bool _isZip(Uint8List bytes) {
     return bytes.length > 4 && bytes[0] == 0x50 && bytes[1] == 0x4b;
   }
@@ -356,9 +335,7 @@ class NaiGenerationResponseProcessor {
   }
 }
 
-/// 按块累积流式响应，按 4 字节大端长度前缀切出完整帧。
-///
-/// 帧内容整段复制到新缓冲区，与此前逐字节复制得到的结果一致，但不再逐元素搬运。
+/// 按块累积流式响应，按 4 字节大端长度前缀切出完整帧；帧内容按块整段复制。
 class _LengthPrefixedFrameBuffer {
   final _chunks = ListQueue<Uint8List>();
   int _headOffset = 0;
