@@ -119,12 +119,6 @@ class AgentChatMessages extends StatelessWidget {
           hasEarlier: state.hasEarlierTurns,
           historyLoading: state.historyLoading,
           prependAnchorEntryId: state.prependAnchorEntryId,
-          geometryRevision: (
-            state.messages,
-            state.streamingMessage,
-            state.activities,
-            state.turns,
-          ),
           onLoadEarlier: commands.loadEarlierHistory,
           live: const SizedBox.shrink(),
           turnBuilder: (context, turn, current) => Column(

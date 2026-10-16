@@ -112,7 +112,6 @@ class AgentChatPanelController extends ChangeNotifier {
   bool get isEditingUserMessage => _editingUserMessageIndex != null;
   bool get showJumpToLatest => !_autoScroll;
   bool get followingLatest => _autoScroll;
-  bool get userScrolling => _userScrollActive || _hasPotentialUserScroll;
   bool get scrollOffsetAnimating {
     if (!scrollController.hasClients) return false;
     final position = scrollController.position;
