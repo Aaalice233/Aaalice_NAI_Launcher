@@ -94,13 +94,11 @@ class ImageMetadataContainerCodec {
   /// 像素经过编辑后不能继续沿用原容器的颜色配置或尺寸声明；这里只迁移
   /// 文本与标准 EXIF chunk，并在目标中去重。NovelAI stealth 元数据属于
   /// 像素载荷，调用方需要根据隐私策略显式重建，不能在这里复制。
-  /// 目标像素由 [source] 按显示方向解码而来时 [orientationApplied] 传 true：
-  /// JPEG 与 WebP 的 EXIF 方向已转进像素，复制的方向改为 1；PNG 的 eXIf 不会被
-  /// 任何解码器应用，始终原样保留。
+  /// 目标像素按显示方向解码而来：JPEG 与 WebP 的 EXIF 方向已转进像素，复制的方向改为 1；
+  /// PNG 的 eXIf 不会被任何解码器应用，始终原样保留。
   static Uint8List copySupportedMetadata({
     required Uint8List source,
     required Uint8List targetPng,
-    bool orientationApplied = false,
   }) {
     if (!isPngHeader(targetPng)) {
       throw const FormatException('Metadata target must be PNG');
@@ -108,8 +106,7 @@ class ImageMetadataContainerCodec {
     final sourceChunks = _supportedMetadataChunks(source);
     if (sourceChunks.isEmpty) return targetPng;
     final orientationBaked =
-        orientationApplied &&
-        (ExifContainer.isJpeg(source) || ExifContainer.isWebp(source));
+        ExifContainer.isJpeg(source) || ExifContainer.isWebp(source);
     const supportedTypes = {'tEXt', 'iTXt', 'zTXt', 'eXIf'};
     final targetChunks = _parsePngChunks(targetPng);
     final output = BytesBuilder()..add(targetPng.sublist(0, 8));
