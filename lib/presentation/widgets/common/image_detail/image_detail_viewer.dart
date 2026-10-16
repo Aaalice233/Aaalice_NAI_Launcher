@@ -309,6 +309,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   void _onPageChanged(int index) {
+    // 滑动换页同样作废还在等预取的缩略图跳转
+    _navigationRequest++;
     setState(() => _currentIndex = index);
     _scrollToThumbnail(index);
     _refreshWhenPrefetched(index);
