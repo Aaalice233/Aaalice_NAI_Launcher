@@ -13,6 +13,8 @@ import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_raster.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
 
+import '../../../../helpers/live_image_counter.dart';
+
 Future<Color> _paintCanvasPixel({
   required bool showTransparentCanvasBackground,
 }) async {
@@ -312,10 +314,8 @@ void main() {
             hardness: 1,
           ),
         );
-    var created = 0;
-    final previousCreate = ui.Image.onCreate;
-    ui.Image.onCreate = (_) => created++;
-    addTearDown(() => ui.Image.onCreate = previousCreate);
+    final live = LiveImageCounter()..install();
+    addTearDown(live.restore);
     void paintOpaque() {
       final recorder = ui.PictureRecorder();
       LayerPainter(state: state).paint(Canvas(recorder), state.canvasSize);
@@ -323,12 +323,12 @@ void main() {
     }
 
     paintOpaque();
-    final afterFirstPaint = created;
+    final afterFirstPaint = live.created;
     paintOpaque();
     paintOpaque();
 
     expect(afterFirstPaint, 1);
-    expect(created, afterFirstPaint);
+    expect(live.created, afterFirstPaint);
   });
 
   test('checkerboard starts its 16px cells at the frame corner', () async {
