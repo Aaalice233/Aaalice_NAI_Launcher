@@ -575,6 +575,99 @@ void main() {
     expect(result.characters[1].prompt, isNot(contains('girl detail')));
   });
 
+  group('角色性别', () {
+    RandomTagGroup onlyFor(String gender, String id, String tag) => _group(
+      id: id,
+      tags: [tag],
+    ).copyWith(genderRestrictionEnabled: true, applicableGenders: [gender]);
+
+    test('无槽位配置的单角色按 girl 筛选类别与顶层词组', () async {
+      final preset = _preset(
+        [
+          _category(
+            id: 'looks',
+            key: 'looks',
+            scope: TagScope.character,
+            groups: [
+              onlyFor('girl', 'girls', 'ribbon'),
+              onlyFor('boy', 'boys', 'necktie'),
+            ],
+          ),
+          _category(
+            id: 'beard',
+            key: 'beard',
+            scope: TagScope.character,
+            groups: [
+              _group(id: 'beard_group', tags: ['beard']),
+            ],
+          ).copyWith(
+            genderRestrictionEnabled: true,
+            applicableGenders: const ['boy'],
+          ),
+        ],
+        algorithmConfig: const AlgorithmConfig(
+          characterCountConfig: CharacterCountConfig(
+            categories: [
+              CharacterCountCategory(
+                id: 'solo',
+                count: 1,
+                label: 'Solo',
+                weight: 100,
+              ),
+            ],
+          ),
+        ),
+        forceNoHumanConfig: false,
+      );
+
+      final result = await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+      );
+      final tags = _promptTags(result.characters.single.prompt);
+
+      expect(tags, contains('ribbon'));
+      expect(tags, isNot(anyOf(contains('necktie'), contains('beard'))));
+    });
+
+    test('角色提示词里的变量按该角色性别展开', () async {
+      final preset = _preset(
+        [
+          _category(
+            id: 'accessories',
+            key: 'accessories',
+            scope: TagScope.character,
+            groups: [
+              onlyFor('girl', 'girls', 'ribbon'),
+              onlyFor('boy', 'boys', 'necktie'),
+            ],
+          ).copyWith(enabled: false),
+          _category(
+            id: 'look',
+            key: 'look',
+            scope: TagScope.character,
+            groups: [
+              _group(id: 'look_group', tags: ['__accessories__']),
+            ],
+          ),
+        ],
+        algorithmConfig: const AlgorithmConfig(
+          characterCountConfig: _soloGirlConfig,
+        ),
+        forceNoHumanConfig: false,
+      );
+
+      final result = await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+      );
+      final tags = _promptTags(result.characters.single.prompt);
+
+      expect(tags, contains('ribbon'));
+      expect(tags, isNot(contains('necktie')));
+    });
+  });
+
   test('global post-process removals stop triggering later visibility rules',
       () async {
     final preset = _preset(
