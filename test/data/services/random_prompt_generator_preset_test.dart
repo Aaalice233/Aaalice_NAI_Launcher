@@ -1132,6 +1132,7 @@ void main() {
     RandomPreset lowerBodyPreset({
       required String pose,
       required List<VisibilityRule> ownerRules,
+      double poseEmphasis = 0,
       bool ownerEnabled = true,
       List<VisibilityRule> shoesRules = const [],
     }) => testPreset([
@@ -1140,7 +1141,11 @@ void main() {
         key: 'pose',
         name: '姿势',
         groups: [
-          testGroup(id: 'pose_group', tags: [pose]),
+          testGroup(
+            id: 'pose_group',
+            tags: [pose],
+            emphasisProbability: poseEmphasis,
+          ),
         ],
       ),
       testCategory(
@@ -1182,46 +1187,18 @@ void main() {
     });
 
     test('条件标签被强调括号包裹、用户输入下划线时仍然命中', () async {
-      final preset = testPreset([
-        testCategory(
-          id: 'cat-pose',
-          key: 'pose',
-          groups: [
-            testGroup(
-              id: 'pose_group',
-              tags: ['full body'],
-              emphasisProbability: 1,
-            ),
-          ],
-        ),
-        testCategory(
-          id: 'cat-lower',
-          key: 'lower',
-          groups: [
-            testGroup(id: 'shoes', tags: ['boots']),
-          ],
-        ),
-        testCategory(
-          id: 'cat-extra',
-          key: 'extra',
-          groups: [
-            testGroup(
-              id: 'owner',
-              tags: ['smile'],
-              visibilityRules: [hideLowerWhen('Full_Body')],
-            ),
-          ],
-        ),
-      ]);
-
       final result = await generator.generateFromPreset(
-        preset: preset,
+        preset: lowerBodyPreset(
+          pose: 'full body',
+          poseEmphasis: 1,
+          ownerRules: [hideLowerWhen('Full_Body')],
+        ),
         seed: 1,
       );
 
       final tags = _promptTags(result.mainPrompt);
       expect(tags, contains('{full body}'));
-      expect(tags, isNot(contains('boots')));
+      expect(tags, isNot(anyOf(contains('boots'), contains('jeans'))));
     });
 
     test('条件不成立时目标类别照常生成', () async {
@@ -1506,49 +1483,10 @@ void main() {
       expect(_promptTags(noHumans.mainPrompt), isNot(contains('crowd')));
     });
 
-    test('存在依赖满足时保留词组自己的多选数量', () async {
-      final preset = testPreset([
-        testCategory(
-          id: 'cat-pose',
-          key: 'pose',
-          groups: [
-            testGroup(id: 'pose_group', tags: ['standing']),
-          ],
-        ),
-        testCategory(
-          id: 'cat-accessory',
-          key: 'accessory',
-          groups: [
-            testGroup(
-              id: 'accessories',
-              tags: ['ribbon', 'hat', 'necklace'],
-              selectionMode: SelectionMode.multipleNum,
-              multipleNum: 2,
-              dependencyConfig: const DependencyConfig(
-                type: DependencyType.exists,
-                sourceCategoryId: 'cat-pose',
-              ),
-            ),
-          ],
-        ),
-      ]);
-
-      final result = await generator.generateFromPreset(
-        preset: preset,
-        seed: 1,
-      );
-
-      expect(
-        _promptTags(
-          result.mainPrompt,
-        ).where((tag) => ['ribbon', 'hat', 'necklace'].contains(tag)),
-        hasLength(2),
-      );
-    });
-
     RandomPreset dependentAccessoryPreset({
       required List<String> expressionTags,
       required DependencyConfig dependency,
+      int multipleNum = 3,
     }) => testPreset([
       testCategory(
         id: 'cat-expression',
@@ -1563,7 +1501,7 @@ void main() {
             id: 'accessories',
             tags: ['ribbon', 'hat', 'necklace'],
             selectionMode: SelectionMode.multipleNum,
-            multipleNum: 3,
+            multipleNum: multipleNum,
             dependencyConfig: dependency,
           ),
         ],
@@ -1573,6 +1511,22 @@ void main() {
     int accessoryCount(RandomPromptResult result) => _promptTags(
       result.mainPrompt,
     ).where((tag) => ['ribbon', 'hat', 'necklace'].contains(tag)).length;
+
+    test('存在依赖满足时保留词组自己的多选数量', () async {
+      final result = await generator.generateFromPreset(
+        preset: dependentAccessoryPreset(
+          expressionTags: ['smile'],
+          multipleNum: 2,
+          dependency: const DependencyConfig(
+            type: DependencyType.exists,
+            sourceCategoryId: 'cat-expression',
+          ),
+        ),
+        seed: 1,
+      );
+
+      expect(accessoryCount(result), 2);
+    });
 
     test('数量依赖以类别源的已选标签数查映射', () async {
       final result = await generator.generateFromPreset(
