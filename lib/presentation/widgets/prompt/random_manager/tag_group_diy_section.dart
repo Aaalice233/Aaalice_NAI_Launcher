@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
-/// DIY 能力条目：未启用时提供添加，已启用时标记并提供编辑
+/// DIY 能力条目：未启用时按钮为添加，已启用时标记并改为编辑，两者打开同一表单
 class TagGroupDiySection extends StatefulWidget {
   const TagGroupDiySection({
     super.key,
@@ -9,16 +9,14 @@ class TagGroupDiySection extends StatefulWidget {
     required this.title,
     required this.description,
     required this.enabled,
-    required this.onAdd,
-    this.onEdit,
+    required this.onOpen,
   });
 
   final IconData icon;
   final String title;
   final String description;
   final bool enabled;
-  final VoidCallback onAdd;
-  final VoidCallback? onEdit;
+  final VoidCallback onOpen;
 
   @override
   State<TagGroupDiySection> createState() => _TagGroupDiySectionState();
@@ -101,7 +99,7 @@ class _TagGroupDiySectionState extends State<TagGroupDiySection> {
             );
             final action = FilledButton.tonal(
               key: ValueKey('tag-group-diy-action-${widget.title}'),
-              onPressed: widget.enabled ? widget.onEdit : widget.onAdd,
+              onPressed: widget.onOpen,
               child: Text(
                 widget.enabled
                     ? AppLocalizations.of(context)!.common_edit
@@ -135,10 +133,8 @@ class _TagGroupDiySectionState extends State<TagGroupDiySection> {
                   const SizedBox(width: 8),
                   Icon(Icons.check, color: colorScheme.primary, size: 20),
                 ],
-                if (!widget.enabled || widget.onEdit != null) ...[
-                  const SizedBox(width: 8),
-                  action,
-                ],
+                const SizedBox(width: 8),
+                action,
               ],
             );
           },
