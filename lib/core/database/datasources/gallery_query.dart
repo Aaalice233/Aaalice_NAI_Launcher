@@ -883,10 +883,10 @@ class SqliteGalleryQuery implements GalleryQuery {
                 '${_statisticsInt(row['width'])}x${_statisticsInt(row['height'])}':
                     _statisticsInt(row['item_count']),
             },
-            modelCounts: _statisticsStringCounts(modelRows),
+            modelCounts: _statisticsValueCounts(modelRows),
             samplerCounts: parameterCounts[GalleryParameter.sampler]!,
-            sizeCounts: _statisticsStringCounts(sizeRows),
-            tagCounts: _statisticsStringCounts(tagRows),
+            sizeCounts: _statisticsValueCounts(sizeRows),
+            tagCounts: _statisticsValueCounts(tagRows),
             dailyCounts: _statisticsIntCounts(dailyRows),
             hourlyCounts: _statisticsIntCounts(hourlyRows),
             weekdayCounts: weekdayCounts,
@@ -970,16 +970,6 @@ class SqliteGalleryQuery implements GalleryQuery {
   }
 
   int _statisticsInt(Object? value) => (value as num?)?.toInt() ?? 0;
-
-  Map<String, int> _statisticsStringCounts(List<Map<String, Object?>> rows) {
-    final counts = <String, int>{};
-    for (final row in rows) {
-      final label = row['label'] as String?;
-      if (label == null || label.isEmpty) continue;
-      counts[label] = _statisticsInt(row['item_count']);
-    }
-    return counts;
-  }
 
   Map<int, int> _statisticsIntCounts(List<Map<String, Object?>> rows) {
     final counts = <int, int>{};
