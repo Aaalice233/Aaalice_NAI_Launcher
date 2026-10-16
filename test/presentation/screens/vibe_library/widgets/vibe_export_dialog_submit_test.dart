@@ -16,6 +16,8 @@ import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_expo
 import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
+import '../../../../helpers/fake_save_file_picker.dart';
+
 void main() {
   late Directory tempDirectory;
   late Directory outputDirectory;
@@ -28,7 +30,7 @@ void main() {
     outputDirectory = Directory(p.join(tempDirectory.path, 'vibe-out'));
     PathProviderPlatform.instance = _TempPathProvider(tempDirectory.path);
     picker = _DirectoryPicker(outputDirectory.path);
-    FilePicker.platform = picker;
+    useFakeFilePicker(picker);
   });
 
   tearDown(() async {
