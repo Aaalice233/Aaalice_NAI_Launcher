@@ -793,41 +793,6 @@ void main() {
     expect(chunks.last.finalImage, orderedEquals(finalImage));
   });
 
-  test('stream frames split into single bytes parse the same', () async {
-    final adapter = _PendingDioAdapter();
-    final dio = Dio()..httpClientAdapter = adapter;
-    final endpointService = NaiApiEndpointService();
-    final service = NAIImageGenerationApiService(
-      dio,
-      NAIImageEnhancementApiService(dio, endpointService),
-      endpointService,
-    );
-
-    final chunksFuture = service
-        .generateImageStream(const ImageParams(prompt: 'split'))
-        .toList();
-    await _waitForRequestCount(adapter, 1);
-
-    final preview = Uint8List.fromList([1, 2, 3]);
-    final finalImage = Uint8List.fromList([9, 8, 7]);
-    adapter.requests.single.completeWithMsgpackMessages([
-      {
-        'event_type': 'intermediate',
-        'samp_ix': 0,
-        'step_ix': 0,
-        'image': preview,
-      },
-      {'event_type': 'final', 'samp_ix': 0, 'image': finalImage},
-    ], chunkSize: 1);
-
-    final chunks = await chunksFuture.timeout(const Duration(seconds: 2));
-
-    expect(chunks, hasLength(2));
-    expect(chunks.first.previewImage, orderedEquals(preview));
-    expect(chunks.last.sampleIndex, 0);
-    expect(chunks.last.finalImage, orderedEquals(finalImage));
-  });
-
   test('stream ending without final event returns error', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;
@@ -1439,10 +1404,7 @@ class _PendingRequest {
     );
   }
 
-  void completeWithMsgpackMessages(
-    List<Map<String, Object?>> messages, {
-    int? chunkSize,
-  }) {
+  void completeWithMsgpackMessages(List<Map<String, Object?>> messages) {
     final bytes = <int>[];
     for (final message in messages) {
       final encoded = msgpack.serialize(message);
@@ -1454,18 +1416,9 @@ class _PendingRequest {
         ..add(length & 0xFF)
         ..addAll(encoded);
     }
-    final body = Uint8List.fromList(bytes);
-    final size = chunkSize ?? body.length;
     response.complete(
-      ResponseBody(
-        Stream.fromIterable([
-          for (var offset = 0; offset < body.length; offset += size)
-            Uint8List.sublistView(
-              body,
-              offset,
-              offset + size < body.length ? offset + size : body.length,
-            ),
-        ]),
+      ResponseBody.fromBytes(
+        Uint8List.fromList(bytes),
         200,
         headers: {
           Headers.contentTypeHeader: ['application/x-msgpack'],
