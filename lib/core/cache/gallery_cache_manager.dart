@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
@@ -8,18 +6,6 @@ import '../../core/utils/app_logger.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/metadata_cache_evictor.dart';
 import '../database/datasources/gallery_data_source.dart';
-
-/// 缓存层级类型
-enum CacheLayer {
-  /// L1 内存缓存
-  memory,
-
-  /// L2 Hive 持久化缓存
-  hive,
-
-  /// L3 SQLite 数据库缓存
-  database,
-}
 
 /// 缓存统计信息
 class CacheStatistics {
@@ -66,27 +52,6 @@ class CacheStatistics {
     required this.lastUpdated,
   });
 
-  /// 获取指定层级的缓存大小（字节数）
-  int getLayerBytes(CacheLayer layer) {
-    return switch (layer) {
-      CacheLayer.memory => l1MemoryBytes,
-      CacheLayer.hive => l2HiveBytes,
-      CacheLayer.database => 0, // 数据库大小需要单独计算
-    };
-  }
-
-  /// 获取指定层级的缓存命中率
-  double getLayerHitRate(CacheLayer layer) {
-    return switch (layer) {
-      CacheLayer.memory => l1HitRate,
-      CacheLayer.hive => l2HitRate,
-      CacheLayer.database => 0.0, // 数据库不计算命中率
-    };
-  }
-
-  /// 获取总缓存条目数（估算）
-  int get totalEntryCount => l1MemorySize + l2HiveSize + l3DatabaseImageCount;
-
   /// 获取总缓存大小（字节数）
   int get totalBytes => l1MemoryBytes + l2HiveBytes;
 
@@ -105,37 +70,6 @@ class CacheStatistics {
     }
     return '${(bytes / 1024 / 1024 / 1024).toStringAsFixed(1)} GB';
   }
-
-  /// 转换为 JSON
-  Map<String, dynamic> toJson() => {
-        'l1MemorySize': l1MemorySize,
-        'l1HitRate': l1HitRate,
-        'l1MemoryBytes': l1MemoryBytes,
-        'l2HiveSize': l2HiveSize,
-        'l2HitRate': l2HitRate,
-        'l2HiveBytes': l2HiveBytes,
-        'l3DatabaseImageCount': l3DatabaseImageCount,
-        'l3DatabaseMetadataCount': l3DatabaseMetadataCount,
-        'totalHitRate': totalHitRate,
-        'lastUpdated': lastUpdated.toIso8601String(),
-      };
-
-  /// 从 JSON 创建
-  factory CacheStatistics.fromJson(Map<String, dynamic> json) {
-    return CacheStatistics(
-      l1MemorySize: json['l1MemorySize'] as int? ?? 0,
-      l1HitRate: json['l1HitRate'] as double? ?? 0.0,
-      l1MemoryBytes: json['l1MemoryBytes'] as int? ?? 0,
-      l2HiveSize: json['l2HiveSize'] as int? ?? 0,
-      l2HitRate: json['l2HitRate'] as double? ?? 0.0,
-      l2HiveBytes: json['l2HiveBytes'] as int? ?? 0,
-      l3DatabaseImageCount: json['l3DatabaseImageCount'] as int? ?? 0,
-      l3DatabaseMetadataCount: json['l3DatabaseMetadataCount'] as int? ?? 0,
-      totalHitRate: json['totalHitRate'] as double? ?? 0.0,
-      lastUpdated: DateTime.tryParse(json['lastUpdated'] as String? ?? '') ??
-          DateTime.now(),
-    );
-  }
 }
 
 /// 画廊缓存管理器
@@ -147,13 +81,11 @@ class CacheStatistics {
 ///
 /// 特性：
 /// - 缓存统计（L1 按实际条目估算字节数，L2 读取 box 文件大小）
-/// - 分层清理；L2 的容量淘汰由 [L2CacheCleaner] 负责
+/// - 内存压力下释放 L1；L2 的容量淘汰由 [L2CacheCleaner] 负责
 class GalleryCacheManager {
   static final GalleryCacheManager _instance = GalleryCacheManager._internal();
   factory GalleryCacheManager() => _instance;
   GalleryCacheManager._internal();
-
-  final List<VoidCallback> _onClearedCallbacks = [];
 
   /// 统计信息刷新回调列表
   final List<VoidCallback> _onStatisticsInvalidatedCallbacks = [];
@@ -167,20 +99,9 @@ class GalleryCacheManager {
   /// 统计信息缓存有效期
   static const Duration _statisticsCacheValidity = Duration(seconds: 30);
 
-  /// 注册缓存清除回调
-  void registerOnCacheCleared(VoidCallback callback) {
-    _onClearedCallbacks.add(callback);
-  }
-
-  /// 注销缓存清除回调
-  void unregisterOnCacheCleared(VoidCallback callback) {
-    _onClearedCallbacks.remove(callback);
-  }
-
   /// 注册统计信息刷新回调
   ///
   /// 当统计信息缓存失效时，会通知所有注册的监听者（如设置页面的统计组件）。
-  /// 注意：此回调与缓存清除回调是分开的，不会触发状态重置。
   void registerOnStatisticsInvalidated(VoidCallback callback) {
     _onStatisticsInvalidatedCallbacks.add(callback);
   }
@@ -204,49 +125,12 @@ class GalleryCacheManager {
     }
   }
 
-  void _notifyCacheCleared() {
-    // 创建列表副本以避免并发修改错误
-    for (final callback in _onClearedCallbacks.toList()) {
-      try {
-        callback();
-      } catch (e) {
-        AppLogger.w('Cache clear callback failed: $e', 'GalleryCacheManager');
-      }
-    }
-  }
-
-  /// 清除所有层级缓存
-  Future<void> clearAll() async {
-    await clearL1MemoryCache();
-    await clearL2HiveCache();
-    await clearL3DatabaseCache();
-    _notifyCacheCleared();
-    _invalidateStatisticsCache();
-    AppLogger.i('All cache layers cleared', 'GalleryCacheManager');
-  }
-
   /// 清除 L1 内存缓存
   Future<void> clearL1MemoryCache() async {
     await ImageMetadataService().clearCache();
     GalleryDataSource().clearCache();
     _invalidateStatisticsCache();
     AppLogger.i('L1 memory cache cleared', 'GalleryCacheManager');
-  }
-
-  /// 清除 L2 Hive 缓存
-  Future<void> clearL2HiveCache() async {
-    await ImageMetadataService().clearPersistentCache();
-    _invalidateStatisticsCache();
-    AppLogger.i('L2 Hive cache cleared', 'GalleryCacheManager');
-  }
-
-  /// 清除 L3 数据库（谨慎使用）
-  Future<void> clearL3DatabaseCache() async {
-    final dataSource = GalleryDataSource();
-    await dataSource.deleteAllImages();
-    await dataSource.deleteAllMetadata();
-    _invalidateStatisticsCache();
-    AppLogger.i('L3 database cache cleared', 'GalleryCacheManager');
   }
 
   /// 使统计信息缓存失效（私有）
@@ -260,8 +144,6 @@ class GalleryCacheManager {
   /// 当外部操作（如扫描新文件）修改了数据库后，调用此方法使统计缓存失效，
   /// 下次获取统计时将重新计算。
   /// 同时通知统计信息监听者（如设置页面的统计组件）立即刷新。
-  ///
-  /// 注意：此方法不会触发缓存清除回调，仅用于刷新统计信息显示。
   void invalidateStatistics() {
     _invalidateStatisticsCache();
     _notifyStatisticsInvalidated(); // 通知设置页面的统计组件刷新
@@ -345,23 +227,6 @@ class GalleryCacheManager {
     ImageMetadataService().resetStatistics();
     _invalidateStatisticsCache();
     AppLogger.i('Cache statistics reset', 'GalleryCacheManager');
-  }
-
-  /// 导出缓存统计到 JSON
-  Future<String> exportStatisticsToJson() async {
-    final stats = await getStatistics();
-    return jsonEncode(stats.toJson());
-  }
-
-  /// 从 JSON 导入缓存统计
-  Future<CacheStatistics?> importStatisticsFromJson(String json) async {
-    try {
-      final map = jsonDecode(json) as Map<String, dynamic>;
-      return CacheStatistics.fromJson(map);
-    } catch (e) {
-      AppLogger.w('Failed to import statistics: $e', 'GalleryCacheManager');
-      return null;
-    }
   }
 }
 
