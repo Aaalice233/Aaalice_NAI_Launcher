@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -478,18 +477,29 @@ void main() {
     });
   });
 
-  group('NaiResolutionAdapter EXIF-oriented jpeg sources', () {
-    const orientations = [1, 2, 3, 4, 5, 6, 7, 8];
+  group('NaiResolutionAdapter EXIF-oriented sources', () {
+    final formats = <String, _MarkedSource>{
+      'jpeg': (width, height, orientation) => orientedMarkedJpeg(
+        width: width,
+        height: height,
+        orientation: orientation,
+      ),
+      'webp': (width, height, orientation) => orientedMarkedWebp(
+        width: width,
+        height: height,
+        orientation: orientation,
+      ),
+    };
 
-    test('reads the decoded size for every orientation', () {
-      for (final orientation in orientations) {
-        final jpeg = _orientedJpeg(6, 4, orientation);
-
-        expect(
-          NaiResolutionAdapter.readImageSize(jpeg),
-          _decodedSize(jpeg),
-          reason: 'orientation $orientation',
-        );
+    test('reads the upright size for every orientation', () {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
+          expect(
+            NaiResolutionAdapter.readImageSize(source(20, 14, orientation)),
+            uprightSizeOf(20, 14, orientation),
+            reason: '$format $orientation',
+          );
+        }
       }
     });
 
@@ -515,134 +525,107 @@ void main() {
       }
     });
 
-    test('describes imports from the decoded size, sync and async', () async {
-      for (final orientation in orientations) {
-        final jpeg = _orientedJpeg(128, 64, orientation);
-        final decoded = _decodedSize(jpeg);
+    test('describes imports from the upright size, sync and async', () async {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        final bytes = source(128, 64, 6);
         final infos = [
-          NaiResolutionAdapter.describeImageForImport(jpeg)!,
-          (await NaiResolutionAdapter.describeImageForImportAsync(jpeg))!,
+          NaiResolutionAdapter.describeImageForImport(bytes)!,
+          (await NaiResolutionAdapter.describeImageForImportAsync(bytes))!,
         ];
 
         for (final info in infos) {
           expect(
             (info.originalWidth, info.originalHeight),
-            decoded,
-            reason: 'orientation $orientation',
+            (64, 128),
+            reason: format,
           );
-          expect(
-            (info.width, info.height),
-            decoded,
-            reason: 'orientation $orientation',
-          );
+          expect((info.width, info.height), (64, 128), reason: format);
         }
       }
     });
 
-    test('adapts imports without swapping the target size', () {
-      for (final orientation in orientations) {
-        final jpeg = _orientedJpeg(130, 64, orientation);
-        final (decodedWidth, decodedHeight) = _decodedSize(jpeg)!;
-        final adapted = NaiResolutionAdapter.adaptImageForImport(jpeg)!;
+    test('adapts imports on the upright axes', () {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        final bytes = source(130, 64, 6);
+        final adapted = NaiResolutionAdapter.adaptImageForImport(bytes)!;
 
         expect(
           (adapted.originalWidth, adapted.originalHeight),
-          (decodedWidth, decodedHeight),
-          reason: 'orientation $orientation',
+          (64, 130),
+          reason: format,
         );
-        expect(
-          (adapted.width, adapted.height),
-          decodedWidth > decodedHeight ? (128, 64) : (64, 128),
-          reason: 'orientation $orientation',
-        );
-        final adaptedSize = (adapted.width, adapted.height);
-        expect(
-          _decodedSize(adapted.bytes),
-          adaptedSize,
-          reason: 'orientation $orientation',
-        );
+        expect((adapted.width, adapted.height), (64, 128), reason: format);
+        _expectUprightMarker(adapted.bytes, (64, 128), reason: format);
       }
     });
 
-    test('scales large editor images on the decoded axes', () async {
-      for (final orientation in orientations) {
-        final jpeg = _orientedJpeg(2600, 40, orientation);
-        final (decodedWidth, decodedHeight) = _decodedSize(jpeg)!;
-        final expected = decodedWidth > decodedHeight ? (2560, 39) : (39, 2560);
+    test('scales large editor images on the upright axes', () async {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        final bytes = source(2600, 40, 6);
         final results = [
           NaiResolutionAdapter.prepareImageForEditor(
-            jpeg,
+            bytes,
             alignForInpaint: false,
           )!,
           (await NaiResolutionAdapter.prepareImageForEditorAsync(
-            jpeg,
+            bytes,
             alignForInpaint: false,
           ))!,
         ];
 
         for (final working in results) {
-          final reason = 'orientation $orientation';
           expect(
             (working.originalWidth, working.originalHeight),
-            (decodedWidth, decodedHeight),
-            reason: reason,
+            (40, 2600),
+            reason: format,
           );
-          expect((working.width, working.height), expected, reason: reason);
           expect(
             working.resizeMode,
             NaiEditorResizeMode.picaLanczos3,
-            reason: reason,
+            reason: format,
           );
-          expect(_decodedSize(working.bytes), expected, reason: reason);
+          _expectUprightMarker(working.bytes, (39, 2560), reason: format);
         }
       }
     });
 
-    test('keeps small editor images on the decoded axes', () {
-      for (final orientation in orientations) {
-        final jpeg = _orientedJpeg(96, 40, orientation);
-        final decoded = _decodedSize(jpeg)!;
-        final reason = 'orientation $orientation';
+    test('keeps small editor images on the upright axes', () {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        final bytes = source(96, 40, 6);
         final edit = NaiResolutionAdapter.prepareImageForEditor(
-          jpeg,
+          bytes,
           alignForInpaint: false,
         )!;
         final inpaint = NaiResolutionAdapter.prepareImageForEditor(
-          jpeg,
+          bytes,
           alignForInpaint: true,
         )!;
 
-        expect((edit.width, edit.height), decoded, reason: reason);
+        expect((edit.width, edit.height), (40, 96), reason: format);
         expect(
           edit.resizeMode,
           NaiEditorResizeMode.passthrough,
-          reason: reason,
+          reason: format,
         );
-        expect(
-          (inpaint.width, inpaint.height),
-          decoded.$1 > decoded.$2 ? (128, 64) : (64, 128),
-          reason: reason,
-        );
-        expect(inpaint.resizeMode, NaiEditorResizeMode.medium, reason: reason);
+        expect((inpaint.width, inpaint.height), (64, 128), reason: format);
+        expect(inpaint.resizeMode, NaiEditorResizeMode.medium, reason: format);
       }
     });
 
-    test('sends oriented request sources as png at the target size', () async {
-      for (final orientation in orientations.skip(1)) {
-        final jpeg = _orientedJpeg(128, 64, orientation);
-        final decoded = _decodedSize(jpeg)!;
-        final targets = [decoded, (decoded.$2, decoded.$1)];
+    test('sends oriented request sources as upright png', () async {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        final bytes = source(128, 64, 6);
 
-        for (final (width, height) in targets) {
-          final reason = 'orientation $orientation, ${width}x$height';
+        for (final (width, height) in [(64, 128), (128, 64)]) {
+          final reason = '$format ${width}x$height';
           final results = [
             NaiResolutionAdapter.normalizeImageForRequest(
-              jpeg,
+              bytes,
               targetWidth: width,
               targetHeight: height,
             ),
             await NaiResolutionAdapter.normalizeImageForRequestAsync(
-              jpeg,
+              bytes,
               targetWidth: width,
               targetHeight: height,
             ),
@@ -653,17 +636,27 @@ void main() {
             expect(_decodedSize(normalized), (width, height), reason: reason);
           }
         }
+        _expectUprightMarker(
+          NaiResolutionAdapter.normalizeImageForRequest(
+            bytes,
+            targetWidth: 64,
+            targetHeight: 128,
+          )!,
+          (64, 128),
+          reason: format,
+        );
       }
     });
 
     test('passes unrotated request sources through byte for byte', () async {
       final cases = <String, Uint8List>{
-        'jpeg orientation 1': _orientedJpeg(128, 64, 1),
+        for (final MapEntry(key: format, value: source) in formats.entries)
+          '$format orientation 1': source(128, 64, 1),
         'jpeg without exif': Uint8List.fromList(
           img.encodeJpg(img.Image(width: 128, height: 64)),
         ),
         'png': _png(width: 128, height: 64),
-        'webp': _webpLossless,
+        'webp without exif': plainWebp,
       };
 
       for (final MapEntry(key: name, value: bytes) in cases.entries) {
@@ -685,253 +678,26 @@ void main() {
       }
     });
   });
-
-  group('NaiResolutionAdapter EXIF-oriented webp sources', () {
-    const orientations = [1, 2, 3, 4, 5, 6, 7, 8];
-
-    (int, int) upright(int width, int height, int orientation) =>
-        orientation >= 5 ? (height, width) : (width, height);
-
-    test('reads the upright size for every orientation', () {
-      for (final orientation in orientations) {
-        expect(
-          NaiResolutionAdapter.readImageSize(
-            orientedCameraWebp(orientation: orientation),
-          ),
-          upright(20, 14, orientation),
-          reason: 'orientation $orientation',
-        );
-      }
-    });
-
-    test('describes imports from the upright size, sync and async', () async {
-      for (final orientation in orientations) {
-        final webp = orientedMarkedWebp(
-          width: 128,
-          height: 64,
-          orientation: orientation,
-        );
-        final expected = upright(128, 64, orientation);
-        final infos = [
-          NaiResolutionAdapter.describeImageForImport(webp)!,
-          (await NaiResolutionAdapter.describeImageForImportAsync(webp))!,
-        ];
-
-        for (final info in infos) {
-          final reason = 'orientation $orientation';
-          expect(
-            (info.originalWidth, info.originalHeight),
-            expected,
-            reason: reason,
-          );
-          expect((info.width, info.height), expected, reason: reason);
-        }
-      }
-    });
-
-    test('adapts imports on the upright axes', () {
-      for (final orientation in orientations) {
-        final webp = orientedMarkedWebp(
-          width: 130,
-          height: 64,
-          orientation: orientation,
-        );
-        final expected = upright(128, 64, orientation);
-        final adapted = NaiResolutionAdapter.adaptImageForImport(webp)!;
-        final reason = 'orientation $orientation';
-
-        expect(
-          (adapted.originalWidth, adapted.originalHeight),
-          upright(130, 64, orientation),
-          reason: reason,
-        );
-        expect((adapted.width, adapted.height), expected, reason: reason);
-        expect(_decodedSize(adapted.bytes), expected, reason: reason);
-        expect(
-          markerCorners(img.decodeImage(adapted.bytes)!),
-          markerCorners(displayedWebp(webp, orientation)),
-          reason: reason,
-        );
-      }
-    });
-
-    test('scales large editor images on the upright axes', () async {
-      for (final orientation in orientations) {
-        final webp = orientedMarkedWebp(
-          width: 2600,
-          height: 40,
-          orientation: orientation,
-        );
-        final expected = upright(2560, 39, orientation);
-        final results = [
-          NaiResolutionAdapter.prepareImageForEditor(
-            webp,
-            alignForInpaint: false,
-          )!,
-          (await NaiResolutionAdapter.prepareImageForEditorAsync(
-            webp,
-            alignForInpaint: false,
-          ))!,
-        ];
-
-        for (final working in results) {
-          final reason = 'orientation $orientation';
-          expect(
-            (working.originalWidth, working.originalHeight),
-            upright(2600, 40, orientation),
-            reason: reason,
-          );
-          expect((working.width, working.height), expected, reason: reason);
-          expect(
-            working.resizeMode,
-            NaiEditorResizeMode.picaLanczos3,
-            reason: reason,
-          );
-          expect(_decodedSize(working.bytes), expected, reason: reason);
-          expect(
-            markerCorners(img.decodeImage(working.bytes)!),
-            markerCorners(displayedWebp(webp, orientation)),
-            reason: reason,
-          );
-        }
-      }
-    });
-
-    test('keeps small editor images on the upright axes', () {
-      for (final orientation in orientations) {
-        final webp = orientedMarkedWebp(
-          width: 96,
-          height: 40,
-          orientation: orientation,
-        );
-        final reason = 'orientation $orientation';
-        final edit = NaiResolutionAdapter.prepareImageForEditor(
-          webp,
-          alignForInpaint: false,
-        )!;
-        final inpaint = NaiResolutionAdapter.prepareImageForEditor(
-          webp,
-          alignForInpaint: true,
-        )!;
-
-        expect(
-          (edit.width, edit.height),
-          upright(96, 40, orientation),
-          reason: reason,
-        );
-        expect(
-          edit.resizeMode,
-          NaiEditorResizeMode.passthrough,
-          reason: reason,
-        );
-        expect(
-          (inpaint.width, inpaint.height),
-          upright(128, 64, orientation),
-          reason: reason,
-        );
-        expect(inpaint.resizeMode, NaiEditorResizeMode.medium, reason: reason);
-      }
-    });
-
-    test('sends oriented request sources as upright png', () async {
-      for (final orientation in orientations.skip(1)) {
-        final solid = orientedMarkedWebp(
-          width: 128,
-          height: 64,
-          orientation: orientation,
-        );
-        final solidSize = upright(128, 64, orientation);
-        final camera = orientedCameraWebp(orientation: orientation);
-        final cameraSize = upright(20, 14, orientation);
-        final cases = [
-          (solid, solidSize),
-          (solid, (solidSize.$2, solidSize.$1)),
-          (camera, cameraSize),
-        ];
-
-        for (final (source, (width, height)) in cases) {
-          final reason = 'orientation $orientation, ${width}x$height';
-          final results = [
-            NaiResolutionAdapter.normalizeImageForRequest(
-              source,
-              targetWidth: width,
-              targetHeight: height,
-            ),
-            await NaiResolutionAdapter.normalizeImageForRequestAsync(
-              source,
-              targetWidth: width,
-              targetHeight: height,
-            ),
-          ];
-
-          for (final normalized in results) {
-            final png = img.decodePng(normalized!);
-            expect(png, isNotNull, reason: reason);
-            expect((png!.width, png.height), (width, height), reason: reason);
-          }
-        }
-
-        final sent = img.decodePng(
-          NaiResolutionAdapter.normalizeImageForRequest(
-            camera,
-            targetWidth: cameraSize.$1,
-            targetHeight: cameraSize.$2,
-          )!,
-        )!;
-        for (final pixel in displayedWebp(camera, orientation)) {
-          final other = sent.getPixel(pixel.x, pixel.y);
-          expect(
-            (other.r, other.g, other.b),
-            (pixel.r, pixel.g, pixel.b),
-            reason: 'orientation $orientation at ${pixel.x},${pixel.y}',
-          );
-        }
-      }
-    });
-
-    test('passes orientation 1 webp through byte for byte', () async {
-      for (final webp in [
-        orientedCameraWebp(orientation: 1),
-        orientedMarkedWebp(width: 128, height: 64, orientation: 1),
-      ]) {
-        final (width, height) = _decodedSize(webp)!;
-        final normalized = NaiResolutionAdapter.normalizeImageForRequest(
-          webp,
-          targetWidth: width,
-          targetHeight: height,
-        );
-        final normalizedAsync =
-            await NaiResolutionAdapter.normalizeImageForRequestAsync(
-              webp,
-              targetWidth: width,
-              targetHeight: height,
-            );
-
-        expect(identical(normalized, webp), isTrue);
-        expect(identical(normalizedAsync, webp), isTrue);
-      }
-    });
-  });
 }
 
-final _webpLossless = base64Decode(
-  'UklGRqAAAABXRUJQVlA4TJQAAAAvE0ADALkyRPQ/FgrSNmC6419vpZhp28b8Ebfdjuh//CUC'
-  'gEEjSYrqSQH617p0EhS3bePGmFx79WMUSZLi+Ebk8Yvxdx6YJFxMAOGaVt4jYOUS3RKsMPhm'
-  'JIIJEyqwAwNK8ECyAPfQYkXeIGEBAIVto8UCABfAbebs4ATAXzkF+FEcULLiAwANBxB2ALwg'
-  '1Xr3AwAS',
-);
+typedef _MarkedSource =
+    Uint8List Function(int width, int height, int orientation);
+
+/// 方向 6 显示时顺时针转 90°：存储在左上角的标记应出现在 [output] 的右上角。
+void _expectUprightMarker(
+  Uint8List output,
+  (int, int) size, {
+  required String reason,
+}) {
+  final decoded = img.decodeImage(output)!;
+  expect((decoded.width, decoded.height), size, reason: reason);
+  expect(markerCorners(decoded), [false, true, false, false], reason: reason);
+}
 
 Uint8List _png({required int width, required int height}) {
   return Uint8List.fromList(
     img.encodePng(img.Image(width: width, height: height)),
   );
-}
-
-Uint8List _orientedJpeg(int width, int height, int orientation) {
-  final image = img.Image(width: width, height: height)
-    ..exif.imageIfd.orientation = orientation;
-  img.fill(image, color: img.ColorRgb8(200, 40, 90));
-  return Uint8List.fromList(img.encodeJpg(image));
 }
 
 (int, int)? _decodedSize(Uint8List bytes) {

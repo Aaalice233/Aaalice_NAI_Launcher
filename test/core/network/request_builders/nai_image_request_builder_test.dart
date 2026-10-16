@@ -2393,6 +2393,15 @@ void main() {
   });
 
   group('NAIImageRequestBuilder EXIF-oriented sources', () {
+    // 方向 6 显示时顺时针转 90°：存储在左上角的标记出现在右上角
+    const displayedMarker = [false, true, false, false];
+    final formats = <String, Uint8List Function(int orientation)>{
+      'jpeg': (orientation) =>
+          orientedMarkedJpeg(width: 96, height: 64, orientation: orientation),
+      'webp': (orientation) =>
+          orientedMarkedWebp(width: 96, height: 64, orientation: orientation),
+    };
+
     Future<Map<String, dynamic>> buildSource(
       ImageGenerationAction action,
       Uint8List source, {
@@ -2416,33 +2425,42 @@ void main() {
       return result.requestParameters;
     }
 
-    test('img2img and infill send a png at the declared size', () async {
-      for (final action in [
-        ImageGenerationAction.img2img,
-        ImageGenerationAction.infill,
-      ]) {
-        final parameters = await buildSource(
-          action,
-          _orientedJpeg(96, 64, 6),
-          width: 64,
-          height: 96,
-        );
+    Future<Map<String, dynamic>> buildWith(ImageParams params) async =>
+        (await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler')).requestParameters;
 
-        final sent = img.decodePng(base64Decode(parameters['image'] as String));
-        expect(sent, isNotNull, reason: action.name);
-        expect(
-          (sent!.width, sent.height),
-          (parameters['width'], parameters['height']),
-          reason: action.name,
-        );
+    test('img2img and infill send the displayed pixels as png', () async {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        for (final action in [
+          ImageGenerationAction.img2img,
+          ImageGenerationAction.infill,
+        ]) {
+          final reason = '$format ${action.name}';
+          final parameters = await buildSource(
+            action,
+            source(6),
+            width: 64,
+            height: 96,
+          );
+
+          final sent = img.decodePng(
+            base64Decode(parameters['image'] as String),
+          );
+          expect(sent, isNotNull, reason: reason);
+          expect((sent!.width, sent.height), (64, 96), reason: reason);
+          expect(markerCorners(sent), displayedMarker, reason: reason);
+        }
       }
     });
 
     test('unrotated sources keep their exact request bytes', () async {
       final cases = <String, Uint8List>{
-        'jpeg orientation 1': _orientedJpeg(64, 96, 1),
+        for (final MapEntry(key: format, value: source) in formats.entries)
+          '$format orientation 1': source(1),
         'png': _solidPngBytes(width: 64, height: 96),
-        'webp': _webpLossless,
+        'webp without exif': plainWebp,
       };
 
       for (final MapEntry(key: name, value: source) in cases.entries) {
@@ -2458,178 +2476,65 @@ void main() {
       }
     });
 
-    test('V3 raw vibes upload an oriented png', () async {
-      final unrotated = _orientedJpeg(96, 64, 1);
-      final params = ImageParams(
-        model: ImageModels.animeDiffusionV3,
-        vibeReferencesV4: [
-          VibeReference(
-            displayName: 'rotated',
-            vibeEncoding: '',
-            rawImageData: _orientedJpeg(96, 64, 6),
-            sourceType: VibeSourceType.rawImage,
+    test('V3 raw vibes upload the displayed pixels', () async {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        final unrotated = source(1);
+        final parameters = await buildWith(
+          ImageParams(
+            model: ImageModels.animeDiffusionV3,
+            vibeReferencesV4: [
+              for (final (name, bytes) in [
+                ('rotated', source(6)),
+                ('unrotated', unrotated),
+              ])
+                VibeReference(
+                  displayName: name,
+                  vibeEncoding: '',
+                  rawImageData: bytes,
+                  sourceType: VibeSourceType.rawImage,
+                ),
+            ],
           ),
-          VibeReference(
-            displayName: 'unrotated',
-            vibeEncoding: '',
-            rawImageData: unrotated,
-            sourceType: VibeSourceType.rawImage,
-          ),
-        ],
-      );
-
-      final result = await NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      ).build(sampler: 'k_euler');
-      final uploads =
-          result.requestParameters['reference_image_multiple'] as List;
-
-      final rotated = img.decodePng(base64Decode(uploads.first as String))!;
-      expect((rotated.width, rotated.height), (64, 96));
-      expect(uploads.last, base64Encode(unrotated));
-    });
-
-    test('precise references are fitted to the oriented canvas', () async {
-      final params = ImageParams(
-        model: 'nai-diffusion-4-5-full',
-        preciseReferences: [
-          PreciseReference(
-            image: _orientedJpeg(96, 64, 6),
-            type: PreciseRefType.character,
-          ),
-        ],
-      );
-
-      final result = await NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      ).build(sampler: 'k_euler');
-      final images =
-          result.requestParameters['director_reference_images'] as List;
-
-      final sent = img.decodePng(base64Decode(images.single as String))!;
-      expect((sent.width, sent.height), (1024, 1536));
-    });
-
-    test('webp sources follow the displayed axes', () async {
-      for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
-        final source = orientedMarkedWebp(
-          width: 96,
-          height: 64,
-          orientation: orientation,
         );
-        final (width, height) = orientation >= 5 ? (64, 96) : (96, 64);
+        final uploads = parameters['reference_image_multiple'] as List;
 
-        for (final action in [
-          ImageGenerationAction.img2img,
-          ImageGenerationAction.infill,
+        final rotated = img.decodePng(base64Decode(uploads.first as String))!;
+        expect((rotated.width, rotated.height), (64, 96), reason: format);
+        expect(markerCorners(rotated), displayedMarker, reason: format);
+        expect(uploads.last, base64Encode(unrotated), reason: format);
+      }
+    });
+
+    test('precise references are fitted to the displayed canvas', () async {
+      for (final MapEntry(key: format, value: source) in formats.entries) {
+        for (final (orientation, canvas) in [
+          (1, (1536, 1024)),
+          (6, (1024, 1536)),
         ]) {
-          final reason = '${action.name} $orientation';
-          final parameters = await buildSource(
-            action,
-            source,
-            width: width,
-            height: height,
+          final parameters = await buildWith(
+            ImageParams(
+              model: 'nai-diffusion-4-5-full',
+              preciseReferences: [
+                PreciseReference(
+                  image: source(orientation),
+                  type: PreciseRefType.character,
+                ),
+              ],
+            ),
           );
+          final images = parameters['director_reference_images'] as List;
 
-          if (orientation == 1) {
-            expect(parameters['image'], base64Encode(source), reason: reason);
-            continue;
-          }
-          final sent = img.decodePng(
-            base64Decode(parameters['image'] as String),
-          );
-          expect(sent, isNotNull, reason: reason);
-          expect((sent!.width, sent.height), (width, height), reason: reason);
+          final sent = img.decodePng(base64Decode(images.single as String))!;
           expect(
-            markerCorners(sent),
-            markerCorners(displayedWebp(source, orientation)),
-            reason: reason,
+            (sent.width, sent.height),
+            canvas,
+            reason: '$format $orientation',
           );
         }
       }
     });
-
-    test('V3 raw webp vibes upload the displayed pixels', () async {
-      final unrotated = orientedCameraWebp(orientation: 1);
-      final params = ImageParams(
-        model: ImageModels.animeDiffusionV3,
-        vibeReferencesV4: [
-          for (final (name, bytes) in [
-            ('rotated', orientedCameraWebp(orientation: 6)),
-            ('unrotated', unrotated),
-          ])
-            VibeReference(
-              displayName: name,
-              vibeEncoding: '',
-              rawImageData: bytes,
-              sourceType: VibeSourceType.rawImage,
-            ),
-        ],
-      );
-
-      final result = await NAIImageRequestBuilder(
-        params: params,
-        encodeVibe: _fakeEncodeVibe,
-      ).build(sampler: 'k_euler');
-      final uploads =
-          result.requestParameters['reference_image_multiple'] as List;
-
-      final rotated = img.decodePng(base64Decode(uploads.first as String))!;
-      expect((rotated.width, rotated.height), (14, 20));
-      expect(
-        rotated.getBytes(order: img.ChannelOrder.rgb),
-        displayedWebp(
-          orientedCameraWebp(orientation: 6),
-          6,
-        ).getBytes(order: img.ChannelOrder.rgb),
-      );
-      expect(uploads.last, base64Encode(unrotated));
-    });
-
-    test('precise webp references fit the displayed canvas', () async {
-      for (final (orientation, canvas) in [
-        (1, (1536, 1024)),
-        (6, (1024, 1536)),
-      ]) {
-        final params = ImageParams(
-          model: 'nai-diffusion-4-5-full',
-          preciseReferences: [
-            PreciseReference(
-              image: orientedCameraWebp(orientation: orientation),
-              type: PreciseRefType.character,
-            ),
-          ],
-        );
-
-        final result = await NAIImageRequestBuilder(
-          params: params,
-          encodeVibe: _fakeEncodeVibe,
-        ).build(sampler: 'k_euler');
-        final images =
-            result.requestParameters['director_reference_images'] as List;
-
-        final sent = img.decodePng(base64Decode(images.single as String))!;
-        expect((sent.width, sent.height), canvas, reason: '$orientation');
-      }
-    });
   });
 }
-
-Uint8List _orientedJpeg(int width, int height, int orientation) {
-  final image = img.Image(width: width, height: height)
-    ..exif.imageIfd.orientation = orientation;
-  img.fill(image, color: img.ColorRgb8(200, 40, 90));
-  return Uint8List.fromList(img.encodeJpg(image));
-}
-
-final _webpLossless = base64Decode(
-  'UklGRqAAAABXRUJQVlA4TJQAAAAvE0ADALkyRPQ/FgrSNmC6419vpZhp28b8Ebfdjuh//CUC'
-  'gEEjSYrqSQH617p0EhS3bePGmFx79WMUSZLi+Ebk8Yvxdx6YJFxMAOGaVt4jYOUS3RKsMPhm'
-  'JIIJEyqwAwNK8ECyAPfQYkXeIGEBAIVto8UCABfAbebs4ATAXzkF+FEcULLiAwANBxB2ALwg'
-  '1Xr3AwAS',
-);
 
 Future<String> _fakeEncodeVibe(
   Uint8List image, {
