@@ -50,6 +50,8 @@ void main() {
         orientedCameraWebp(orientation: 6, exifPrefix: true),
         truncatedWebp.sublist(0, truncatedWebp.length - 4),
         Uint8List.fromList(img.encodeJpg(_image(6, 4))),
+        _orientedJpeg(6).sublist(0, 24),
+        Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE1, 0x00, 0x01, 0xFF, 0xD9]),
         Uint8List(0),
         Uint8List.fromList([0xFF, 0xD8, 0xFF]),
       ]) {
@@ -58,6 +60,28 @@ void main() {
         expect(ExifOrientation.swapsAxes(bytes), isFalse);
       }
     });
+  });
+
+  test('ignores jpeg exif after the scan like flutter', () async {
+    final jpeg = Uint8List.fromList(img.encodeJpg(_image(6, 4)));
+    final exif = jpegExifPayload(_orientedJpeg(6));
+    final app1 = [
+      0xFF,
+      0xE1,
+      ...[(exif.length + 8) >> 8, (exif.length + 8) & 0xFF],
+      ...'Exif\u0000\u0000'.codeUnits,
+      ...exif,
+    ];
+    final exifAfterScan = Uint8List.fromList([
+      ...jpeg.sublist(0, jpeg.length - 2),
+      ...app1,
+      0xFF,
+      0xD9,
+    ]);
+
+    expect(ExifOrientation.read(exifAfterScan), isNull);
+    final shown = await _flutterDecode(exifAfterScan);
+    expect((shown.width, shown.height), (6, 4));
   });
 
   group('ExifOrientation.decodeUpright', () {
