@@ -72,7 +72,7 @@ void main() {
   });
 
   tearDown(() async {
-    await ImageMetadataService().clearCache();
+    ImageMetadataService().clearMemoryCache();
     await Hive.close();
     await directory.delete(recursive: true);
   });
