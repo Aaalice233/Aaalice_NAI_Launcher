@@ -93,7 +93,12 @@ class NAIImageEnhancementApiService {
         'Upscale v2 rejected with $status, falling back to legacy format',
         'NAIEnhancement',
       );
-      return _upscaleImageLegacy(image, scale: scale, onProgress: onProgress);
+      // 不 await 时 finally 会在回退请求完成前释放租约
+      return await _upscaleImageLegacy(
+        image,
+        scale: scale,
+        onProgress: onProgress,
+      );
     } finally {
       activity.release();
     }

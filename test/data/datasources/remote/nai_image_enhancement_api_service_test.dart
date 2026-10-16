@@ -401,6 +401,78 @@ void main() {
     });
 
     test(
+      'legacy upscale fallback holds the lease until its request settles',
+      () async {
+        for (final succeeds in [true, false]) {
+          final dio = _MockDio();
+          final activity = CriticalNetworkActivityCoordinator();
+          final legacyResponse = Completer<Response<dynamic>>();
+          var calls = 0;
+          when(
+            () => dio.post<dynamic>(
+              any(),
+              data: any(named: 'data'),
+              options: any(named: 'options'),
+              onReceiveProgress: any(named: 'onReceiveProgress'),
+            ),
+          ).thenAnswer((_) {
+            calls++;
+            if (calls == 1) {
+              return Future.error(
+                DioException(
+                  requestOptions: RequestOptions(path: '/ai/upscale'),
+                  response: Response<dynamic>(
+                    statusCode: 404,
+                    requestOptions: RequestOptions(path: '/ai/upscale'),
+                  ),
+                  type: DioExceptionType.badResponse,
+                ),
+              );
+            }
+            return legacyResponse.future;
+          });
+          final service = NAIImageEnhancementApiService(
+            dio,
+            NaiApiEndpointService(),
+            activity,
+          );
+
+          final request = service.upscaleImage(_buildPng(width: 8, height: 8));
+          await pumpEventQueue();
+          expect(calls, 2, reason: 'succeeds=$succeeds');
+          expect(activity.activeTypes, {
+            CriticalNetworkActivityType.cloudUpscale,
+          }, reason: 'succeeds=$succeeds');
+
+          if (succeeds) {
+            legacyResponse.complete(
+              Response<dynamic>(
+                data: _buildZipWithSingleImage(
+                  _buildPng(width: 16, height: 16),
+                ),
+                requestOptions: RequestOptions(path: '/ai/upscale'),
+              ),
+            );
+            expect(await request, isNotEmpty);
+          } else {
+            legacyResponse.completeError(
+              DioException(
+                requestOptions: RequestOptions(path: '/ai/upscale'),
+                response: Response<dynamic>(
+                  statusCode: 500,
+                  requestOptions: RequestOptions(path: '/ai/upscale'),
+                ),
+                type: DioExceptionType.badResponse,
+              ),
+            );
+            await expectLater(request, throwsA(isA<Exception>()));
+          }
+          expect(activity.isActive, isFalse, reason: 'succeeds=$succeeds');
+        }
+      },
+    );
+
+    test(
       'director tools send the decoded size for oriented jpeg and gif sources',
       () async {
         final cases = [
