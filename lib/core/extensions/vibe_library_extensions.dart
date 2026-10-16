@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import '../../../data/models/vibe/vibe_library_entry.dart';
+import '../../data/models/vibe/vibe_library_entry.dart';
 import '../utils/byte_content.dart';
 
 /// Deduplication helpers for VibeLibraryEntry lists

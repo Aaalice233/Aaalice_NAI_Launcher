@@ -467,11 +467,11 @@ class GlobalDropActionCoordinator {
         : l10n.drop_addedMultipleToVibe(addedCount);
   }
 
-  Future<bool> _handleVibeReuse(
+  bool _handleVibeReuse(
     VibeReference vibe,
     GenerationParamsNotifier notifier,
     AppLocalizations l10n,
-  ) async {
+  ) {
     final currentState = ref.read(generationParamsNotifierProvider);
     const maxCount = 16;
     if (currentState.vibeReferencesV4.length >= maxCount) {
