@@ -19,6 +19,7 @@ class FileImageDetailData implements ImageDetailData {
   final Uint8List? _cachedBytes;
   final String? _id;
   final NaiImageMetadata? _initialMetadata;
+  NaiImageMetadata? _prefetchedMetadata;
   final bool _showCopyButton;
   final bool _showSaveAsButton;
 
@@ -43,8 +44,7 @@ class FileImageDetailData implements ImageDetailData {
     final fileImage = LocalFileImage(filePath);
 
     // 尝试从初始元数据或缓存获取元数据以进行缩放优化
-    final cachedMetadata =
-        _initialMetadata ?? ImageMetadataService().getCached(filePath);
+    final cachedMetadata = _knownMetadata;
     if (cachedMetadata != null) {
       final width = cachedMetadata.width ?? 0;
       final height = cachedMetadata.height ?? 0;
@@ -76,11 +76,21 @@ class FileImageDetailData implements ImageDetailData {
     return File(filePath).readAsBytes();
   }
 
-  /// 同步获取元数据（优先使用初始传入的元数据，其次从缓存获取）
+  /// 首帧前把 L2 命中取进来：L2 只能异步读，同步的 [metadata] 否则先空后填
+  Future<void> prefetchMetadata() async {
+    if (_knownMetadata != null) return;
+    _prefetchedMetadata = await ImageMetadataService().getCachedAsync(filePath);
+  }
+
+  NaiImageMetadata? get _knownMetadata =>
+      _initialMetadata ??
+      _prefetchedMetadata ??
+      ImageMetadataService().getCached(filePath);
+
+  /// 同步获取元数据（初始传入、预取结果、L1 缓存依次兜底）
   @override
   NaiImageMetadata? get metadata {
-    final result =
-        _initialMetadata ?? ImageMetadataService().getCached(filePath);
+    final result = _knownMetadata;
     AppLogger.d(
       '[MetadataFlow] FileImageDetailData.metadata sync: path=$filePath, hasInitial=${_initialMetadata != null}, result=${result?.hasData}',
       'FileImageDetailData',
@@ -106,8 +116,8 @@ class FileImageDetailData implements ImageDetailData {
       return _initialMetadata;
     }
 
-    // 2. 检查缓存
-    final cached = ImageMetadataService().getCached(filePath);
+    // 2. 检查预取结果与缓存
+    final cached = _knownMetadata;
     if (cached != null) {
       AppLogger.i(
         '[MetadataFlow] Returning cached metadata: hasData=${cached.hasData}',

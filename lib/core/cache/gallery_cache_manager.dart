@@ -261,7 +261,7 @@ class GalleryCacheManager {
 /// 调度时间记在 settings box，只属于本机，不参与云同步。
 class L2CacheCleaner {
   L2CacheCleaner({
-    Box<String>? Function()? cacheBox,
+    LazyBox<String>? Function()? cacheBox,
     Future<Box<dynamic>> Function()? settingsBox,
     DateTime Function()? clock,
     this.sizeThresholdBytes = _defaultSizeThresholdMB * _bytesPerMB,
@@ -280,7 +280,7 @@ class L2CacheCleaner {
   // 留出余量，避免每次小幅增长都重新扫描并重写整个文件
   static const double _targetRatio = 0.8;
 
-  final Box<String>? Function() _cacheBox;
+  final LazyBox<String>? Function() _cacheBox;
   final Future<Box<dynamic>> Function() _settingsBox;
   final DateTime Function() _clock;
 
@@ -341,7 +341,7 @@ class L2CacheCleaner {
     return result;
   }
 
-  Box<String>? _availableCacheBox() {
+  LazyBox<String>? _availableCacheBox() {
     final box = _cacheBox();
     if (box != null && box.isOpen) return box;
     AppLogger.w('Persistent box not available for cleanup', 'L2CacheCleaner');
@@ -366,7 +366,7 @@ class L2CacheCleaner {
   static String _formatMB(int bytes) =>
       (bytes / _bytesPerMB).toStringAsFixed(1);
 
-  static Box<String>? _metadataCacheBox() =>
+  static LazyBox<String>? _metadataCacheBox() =>
       ImageMetadataService().persistentBox;
 
   static Future<Box<dynamic>> _openSettingsBox() async {

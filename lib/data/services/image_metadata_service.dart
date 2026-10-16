@@ -209,7 +209,7 @@ class ImageMetadataService {
     }
 
     // 检查 L2 持久化缓存
-    final persistentCached = _cacheManager.getFromPersistent(hash);
+    final persistentCached = await _cacheManager.getFromPersistent(hash);
     if (persistentCached != null) {
       stopwatch.stop();
       _statistics.recordCacheHit();
@@ -323,7 +323,7 @@ class ImageMetadataService {
     }
 
     // 检查 L2 持久化缓存
-    final persistentCached = _cacheManager.getFromPersistent(hash);
+    final persistentCached = await _cacheManager.getFromPersistent(hash);
     if (persistentCached != null) {
       _statistics.recordCacheHit();
       return persistentCached;
@@ -414,7 +414,7 @@ class ImageMetadataService {
     if (memoryCached != null) return memoryCached;
 
     // 检查 L2 持久化缓存
-    final persistentCached = _cacheManager.getFromPersistent(hash);
+    final persistentCached = await _cacheManager.getFromPersistent(hash);
     if (persistentCached != null) {
       return persistentCached;
     }
@@ -463,7 +463,7 @@ class ImageMetadataService {
     final hash = _hashCalculator.calculateFromBytes(bytes);
     final cached =
         _cacheManager.getFromMemory(hash) ??
-        _cacheManager.getFromPersistent(hash);
+        await _cacheManager.getFromPersistent(hash);
     if (cached != null) {
       return MetadataParseResult.success(
         _withRecordedFixedTags(hash, cached)!,
@@ -510,25 +510,24 @@ class ImageMetadataService {
     }
   }
 
-  /// 从缓存获取元数据（同步检查）
+  /// 从 L1 内存缓存同步获取元数据
   ///
+  /// L2 需要读盘，只在 [getCachedAsync] 里查；需要首帧就有元数据的界面先用它预取。
   /// 已知路径会同步 stat 一次校验文件身份，文件被改写或删除时返回 null。
   NaiImageMetadata? getCached(String path) {
     final hash = _hashCalculator.verifiedHashForPathSync(path);
     if (hash == null) return null;
+    return _withRecordedFixedTags(hash, _cacheManager.getFromMemory(hash));
+  }
 
-    // 检查 L1 内存缓存
-    final memoryCached = _cacheManager.getFromMemory(hash);
-    if (memoryCached != null) {
-      return _withRecordedFixedTags(hash, memoryCached);
-    }
-
-    // 检查 L2 持久化缓存
-    final persistentCached = _cacheManager.getFromPersistent(hash);
-    if (persistentCached != null) {
-      return _withRecordedFixedTags(hash, persistentCached);
-    }
-    return null;
+  /// 依次查 L1、L2，不解析文件；L2 命中会放入 L1，之后 [getCached] 可同步取到
+  Future<NaiImageMetadata?> getCachedAsync(String path) async {
+    final hash = _hashCalculator.verifiedHashForPathSync(path);
+    if (hash == null) return null;
+    final metadata =
+        _cacheManager.getFromMemory(hash) ??
+        await _cacheManager.getFromPersistent(hash);
+    return _withRecordedFixedTags(hash, metadata);
   }
 
   /// 清除 L1 与路径哈希缓存；L2 保留
@@ -555,7 +554,7 @@ class ImageMetadataService {
   double get persistentCacheHitRate => _cacheManager.persistentHitRate;
 
   /// Hive 缓存 Box（用于 L2CacheCleaner 访问）
-  Box<String>? get persistentBox => _cacheManager.box;
+  LazyBox<String>? get persistentBox => _cacheManager.box;
 
   /// 获取解析统计
   ParseStatistics get parseStatistics => _statistics;

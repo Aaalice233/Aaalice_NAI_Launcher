@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
@@ -27,6 +29,7 @@ import 'components/detail_metadata_panel.dart';
 import 'components/prompt_copy_dialog.dart';
 import 'components/detail_thumbnail_bar.dart';
 import 'components/detail_top_bar.dart';
+import 'file_image_detail_data.dart';
 import 'image_detail_data.dart';
 
 /// 图像详情查看器回调函数
@@ -113,7 +116,11 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     bool showThumbnails = true,
     ImageDetailCallbacks? callbacks,
     String? heroTagPrefix,
-  }) {
+  }) async {
+    if (images.isNotEmpty) {
+      await _prefetchMetadata(images[initialIndex.clamp(0, images.length - 1)]);
+      if (!context.mounted) return;
+    }
     final isWindows = PlatformCapabilities.current.isWindows;
     final transitionDuration = isWindows
         ? Duration.zero
@@ -122,7 +129,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
         ? Duration.zero
         : const Duration(milliseconds: 250);
 
-    return Navigator.of(context).push(
+    await Navigator.of(context).push(
       PageRouteBuilder(
         // Windows + 外部截图工具 + 焦点切换下，透明路由和快照过渡更容易触发
         // Flutter 引擎原生崩溃；Windows 走纯黑不透明且无动画路径。
@@ -204,10 +211,20 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       initialWidth: _initialMetadataPanelWidth,
     );
 
+    _prefetchNeighbors(_currentIndex);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToThumbnail(_currentIndex, animate: false);
       _focusNode.requestFocus();
     });
+  }
+
+  // 滑动只会到相邻页，提前预取让切页后的首帧就有元数据
+  void _prefetchNeighbors(int index) {
+    for (final neighbor in [index - 1, index + 1]) {
+      if (neighbor < 0 || neighbor >= widget.images.length) continue;
+      unawaited(_prefetchMetadata(widget.images[neighbor]));
+    }
   }
 
   void _scrollToThumbnail(int index, {bool animate = true}) {
@@ -238,6 +255,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   void _goToPage(int index) {
     if (index < 0 || index >= widget.images.length) return;
 
+    // 动画过半才切页，预取早已完成
+    unawaited(_prefetchMetadata(widget.images[index]));
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -247,12 +266,20 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   void _jumpToPage(int index) {
     if (index < 0 || index >= widget.images.length) return;
+    unawaited(_jumpAfterPrefetch(index));
+  }
+
+  // 缩略图可跳到任意页，立即切页前先等预取
+  Future<void> _jumpAfterPrefetch(int index) async {
+    await _prefetchMetadata(widget.images[index]);
+    if (!mounted || !_pageController.hasClients) return;
     _pageController.jumpToPage(index);
   }
 
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
     _scrollToThumbnail(index);
+    _prefetchNeighbors(index);
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -837,4 +864,9 @@ class _NavigationButton extends StatelessWidget {
       ),
     );
   }
+}
+
+// L2 缓存只能异步读；切到某张图之前取进来，元数据面板首帧就能同步拿到
+Future<void> _prefetchMetadata(ImageDetailData image) async {
+  if (image is FileImageDetailData) await image.prefetchMetadata();
 }

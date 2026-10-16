@@ -21,8 +21,8 @@ class _MockGalleryDataSource extends Mock implements GalleryDataSource {}
 
 const _imageId = 11;
 
-Map<String, dynamic>? _cachedMetadataJson(String hash) {
-  final raw = ImageMetadataService().persistentBox?.get(hash);
+Future<Map<String, dynamic>?> _cachedMetadataJson(String hash) async {
+  final raw = await ImageMetadataService().persistentBox?.get(hash);
   final json = raw == null ? null : MetadataCacheEntryCodec.metadataJsonOf(raw);
   if (json == null) return null;
   return jsonDecode(json) as Map<String, dynamic>;
@@ -97,7 +97,7 @@ void main() {
     await repository.addImage(file);
     await pumpEventQueue();
 
-    final cached = _cachedMetadataJson(hash);
+    final cached = await _cachedMetadataJson(hash);
     expect(cached, isNotNull);
     expect(cached!['fixedTagUsageData'], isNull);
     expect(cached['fixedPrefixTags'], isEmpty);
@@ -161,7 +161,7 @@ void main() {
 
     await repository.addImage(file);
 
-    final cached = _cachedMetadataJson(hash);
+    final cached = await _cachedMetadataJson(hash);
     expect(
       NaiImageMetadata.fromJson(
         cached!,
@@ -195,7 +195,7 @@ void main() {
 
     await repository.addImage(file, metadata: supplied);
 
-    expect(_cachedMetadataJson(hash), isNull);
+    expect(await _cachedMetadataJson(hash), isNull);
     expect(
       (await ImageMetadataService().getMetadataImmediate(file.path))
           ?.fixedTagUsageSnapshot

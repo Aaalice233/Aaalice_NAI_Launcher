@@ -22,8 +22,8 @@ class MetadataCacheEvictionResult {
 
 /// 按写入时间淘汰 L2 元数据缓存最旧的条目，使 box 文件降到目标大小以下。
 ///
-/// 扫描与删除都分批并让出事件循环；普通 Box 的值常驻内存，只读值头部的写入时间，
-/// 不解码元数据 JSON。
+/// 懒加载 box 的值不在内存里：扫描逐条异步读值，只留下键、写入时间与权重，
+/// 值读完即丢弃，也不解码元数据 JSON；扫描与删除都分批并让出事件循环。
 class MetadataCacheEvictor {
   const MetadataCacheEvictor({this.batchSize = 500});
 
@@ -41,7 +41,7 @@ class MetadataCacheEvictor {
   }
 
   Future<MetadataCacheEvictionResult> evictToTarget(
-    Box<String> box, {
+    LazyBox<String> box, {
     required int targetBytes,
   }) async {
     final bytesBefore = await fileBytes(box);
@@ -86,8 +86,8 @@ class MetadataCacheEvictor {
         evictedEntries: 0,
       );
 
-  Future<List<_CachedEntry>> _scan(Box<String> box) async {
-    // 先取键快照：让出事件循环期间的写入不会打断遍历
+  Future<List<_CachedEntry>> _scan(LazyBox<String> box) async {
+    // 先取键快照：读值期间的写入不会打断遍历
     final keys = box.keys
         .whereType<String>()
         .where((key) => !key.startsWith('_'))
@@ -95,7 +95,7 @@ class MetadataCacheEvictor {
     final entries = <_CachedEntry>[];
     for (var index = 0; index < keys.length; index++) {
       final key = keys[index];
-      final raw = box.get(key);
+      final raw = await box.get(key);
       if (raw != null) {
         entries.add(
           _CachedEntry(
@@ -134,14 +134,14 @@ class MetadataCacheEvictor {
     return victims;
   }
 
-  Future<int> _delete(Box<String> box, List<_CachedEntry> victims) async {
+  Future<int> _delete(LazyBox<String> box, List<_CachedEntry> victims) async {
     var evicted = 0;
     for (var start = 0; start < victims.length; start += batchSize) {
       final end = math.min(start + batchSize, victims.length);
       final keys = <String>[];
       for (var index = start; index < end; index++) {
         final victim = victims[index];
-        final raw = box.get(victim.key);
+        final raw = await box.get(victim.key);
         // 扫描后被重新写入的条目已是新数据，不再淘汰
         if (raw != null &&
             MetadataCacheEntryCodec.writtenAtMillisOf(raw) ==
