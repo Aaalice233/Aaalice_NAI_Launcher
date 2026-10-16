@@ -57,10 +57,7 @@ class FileHashCalculator {
     }
   }
 
-  /// 从字节数据计算哈希（同步）
-  String calculateFromBytes(Uint8List bytes) => _sha256OfBytes(bytes);
-
-  /// 与 [calculateFromBytes] 结果一致；较大的数据经 [ComputeGate] 在后台 isolate 计算
+  /// 字节内容的 SHA-256；较大的数据经 [ComputeGate] 在后台 isolate 计算
   Future<String> calculateFromBytesInBackground(Uint8List bytes) async {
     if (bytes.length < backgroundHashMinBytes) {
       return _sha256OfBytes(bytes);

@@ -24,6 +24,7 @@ import 'package:nai_launcher/data/services/metadata/image_metadata_container_cod
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:path/path.dart' as p;
 
+import '../../helpers/content_hash.dart';
 import '../../helpers/stealth_png_fixture.dart';
 import '../../helpers/webp_metadata_fixture.dart';
 
@@ -749,7 +750,7 @@ void main() {
       );
 
       final onDisk = await File(saved.path).readAsBytes();
-      final expectedHash = FileHashCalculator().calculateFromBytes(onDisk);
+      final expectedHash = contentHashOf(onDisk);
       expect(saved.contentHash, expectedHash);
       expect(
         FileHashCalculator().verifiedHashForPathSync(saved.path),
