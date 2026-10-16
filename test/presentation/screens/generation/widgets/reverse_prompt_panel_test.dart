@@ -56,23 +56,12 @@ void main() {
     await container
         .read(generationPanelExpansionProvider.notifier)
         .setExpanded(GenerationWorkbenchPanel.reversePrompt, true);
-    await tester.binding.setSurfaceSize(const Size(600, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: Scaffold(
-            body: SingleChildScrollView(child: ReversePromptPanel()),
-          ),
-        ),
-      ),
+    await pumpPanelInLightTheme(
+      tester,
+      container: container,
+      panel: const ReversePromptPanel(),
+      surfaceSize: const Size(600, 1200),
     );
-    await tester.pumpAndSettle();
-    tester.takeException();
 
     expect(models.scans, 1);
 
@@ -87,7 +76,6 @@ void main() {
     expect(refresh, findsOneWidget);
     await tester.tap(refresh);
     await tester.pumpAndSettle();
-    tester.takeException();
 
     expect(models.scans, 2);
   });
