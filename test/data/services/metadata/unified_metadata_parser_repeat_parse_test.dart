@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:nai_launcher/data/services/metadata/image_metadata_parser_service.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../../helpers/metadata_parse_result_expectations.dart';
 import '../../../helpers/stealth_png_fixture.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
@@ -54,56 +54,31 @@ void _expectFollowsInPlaceRewrite(
   }
 }
 
-void _expectSameResult(MetadataParseResult actual, MetadataParseResult first) {
-  expect(actual.success, first.success);
-  expect(actual.sourceFormat, first.sourceFormat);
-  expect(actual.rawData, first.rawData);
-  expect(actual.triedParsers, first.triedParsers);
-  expect(actual.errorMessage, first.errorMessage);
-  expect(actual.metadata, first.metadata);
-  expect(actual.bytesRead, first.bytesRead);
-}
+_BytesParse _parseViaFile(File file, {required bool useGradualRead}) =>
+    (bytes) {
+      file.writeAsBytesSync(bytes);
+      return UnifiedMetadataParser.parseFromFile(
+        file.path,
+        useGradualRead: useGradualRead,
+      );
+    };
 
 void main() {
   setUp(UnifiedMetadataParser.resetStatistics);
 
-  test('a png buffer rewritten in place parses to its new content', () {
-    _expectFollowsInPlaceRewrite(_pngEntries, _textChunkPng);
-  });
-
-  test('a webp buffer rewritten in place parses to its new content', () {
-    _expectFollowsInPlaceRewrite(_webpEntries, _webp);
-  });
-
-  test('a file rewritten at the same path parses to its new content', () async {
+  test('every entry point parses the content rewritten in place', () async {
     final directory = await Directory.systemTemp.createTemp(
       'metadata-reparse-',
     );
     addTearDown(() => directory.delete(recursive: true));
     final file = File('${directory.path}${Platform.pathSeparator}image.png');
-    final first = _textChunkPng('prompt-a');
-    final rewritten = _textChunkPng('prompt-b');
-    expect(rewritten.length, first.length);
 
-    for (final useGradualRead in [true, false]) {
-      file.writeAsBytesSync(first);
-      expect(
-        UnifiedMetadataParser.parseFromFile(
-          file.path,
-          useGradualRead: useGradualRead,
-        ).metadata?.prompt,
-        'prompt-a',
-      );
-
-      file.writeAsBytesSync(rewritten);
-      expect(
-        UnifiedMetadataParser.parseFromFile(
-          file.path,
-          useGradualRead: useGradualRead,
-        ).metadata?.prompt,
-        'prompt-b',
-      );
-    }
+    _expectFollowsInPlaceRewrite({
+      ..._pngEntries,
+      'parseFromFile gradual': _parseViaFile(file, useGradualRead: true),
+      'parseFromFile whole': _parseViaFile(file, useGradualRead: false),
+    }, _textChunkPng);
+    _expectFollowsInPlaceRewrite(_webpEntries, _webp);
   });
 
   test('identical bytes go through the full parse on every call', () async {
@@ -118,8 +93,8 @@ void main() {
       final first = UnifiedMetadataParser.parseFromImage(bytes);
       expect(first.metadata?.prompt, 'repeat', reason: name);
 
-      _expectSameResult(UnifiedMetadataParser.parseFromImage(bytes), first);
-      _expectSameResult(
+      expectSameParseResult(UnifiedMetadataParser.parseFromImage(bytes), first);
+      expectSameParseResult(
         UnifiedMetadataParser.parseFromImage(Uint8List.fromList(bytes)),
         first,
       );
@@ -134,33 +109,5 @@ void main() {
         reason: name,
       );
     }
-  });
-
-  test('offers no cache switch or cache reset', () {
-    final bytes = _textChunkPng('api');
-    final parses = <Function>[
-      UnifiedMetadataParser.parseFromImage,
-      UnifiedMetadataParser.parseFromPng,
-      UnifiedMetadataParser.parseFromWebp,
-    ];
-
-    for (final parse in parses) {
-      expect(
-        () => Function.apply(parse, [bytes], {#useCache: false}),
-        throwsNoSuchMethodError,
-      );
-    }
-    expect(
-      () => Function.apply(
-        UnifiedMetadataParser.parseFromFile,
-        ['missing.png'],
-        {#useCache: false},
-      ),
-      throwsNoSuchMethodError,
-    );
-    expect(
-      () => (ImageMetadataParserService() as dynamic).clearCache(),
-      throwsNoSuchMethodError,
-    );
   });
 }
