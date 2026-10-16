@@ -910,6 +910,57 @@ void main() {
       expect(tags, containsAll(['school uniform', 't-shirt', 'hat']));
     });
 
+    test('输出的同类别词组按本轮作用域筛选，不会跨入主提示词或角色提示词', () async {
+      final preset = _preset(
+        [
+          _category(
+            id: 'outfit',
+            key: 'outfit',
+            scope: TagScope.all,
+            groups: [
+              _group(id: 'type').copyWith(
+                conditionalBranchConfig: const ConditionalBranchConfig(
+                  id: 'type_config',
+                  name: 'Type',
+                  branches: [
+                    ConditionalBranch(
+                      name: 'both',
+                      probability: 100,
+                      tagGroupIds: ['uniform', 'backdrop'],
+                    ),
+                  ],
+                ),
+              ),
+              _group(
+                id: 'uniform',
+                tags: ['school uniform'],
+              ).copyWith(scope: TagScope.character),
+              _group(
+                id: 'backdrop',
+                tags: ['classroom'],
+              ).copyWith(scope: TagScope.global),
+            ],
+          ),
+        ],
+        algorithmConfig: const AlgorithmConfig(
+          characterCountConfig: _soloGirlConfig,
+        ),
+        forceNoHumanConfig: false,
+      );
+
+      final result = await generator.generateFromPreset(
+        preset: preset,
+        seed: 1,
+      );
+      final mainTags = _promptTags(result.mainPrompt);
+      final characterTags = _promptTags(result.characters.single.prompt);
+
+      expect(mainTags, contains('classroom'));
+      expect(mainTags, isNot(contains('school uniform')));
+      expect(characterTags, contains('school uniform'));
+      expect(characterTags, isNot(contains('classroom')));
+    });
+
     test('存量数据里的循环引用在生成时被截断，不会无限展开', () async {
       ConditionalBranchConfig to(String target) => ConditionalBranchConfig(
         id: 'to_$target',

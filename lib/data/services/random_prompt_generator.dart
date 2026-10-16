@@ -543,6 +543,7 @@ class RandomPromptGenerator {
         random,
         rules,
         context,
+        targetScope: targetScope,
         selectionCount: _dependentSelectionCount(group, rules, context, random),
       );
       results.addAll(tags);
@@ -570,6 +571,7 @@ class RandomPromptGenerator {
 
   /// 从单个词组生成标签（支持递归嵌套）
   ///
+  /// [targetScope] 为本轮的目标作用域，分支输出的同类别词组按它筛选；
   /// [selectionCount] 为依赖给出的抽取数量，覆盖选择模式的数量；
   /// [branchPath] 为正在经由分支展开的词组，分支不会再输出它们
   Future<List<String>> _generateFromGroup(
@@ -578,6 +580,7 @@ class RandomPromptGenerator {
     Random random,
     RandomPresetRules rules,
     RandomPresetGenerationContext context, {
+    TagScope targetScope = TagScope.all,
     int? selectionCount,
     Set<String> branchPath = const {},
   }) async {
@@ -593,17 +596,16 @@ class RandomPromptGenerator {
       context.addVariable(group.name, branch.name);
       context.addVariable(group.id, branch.name);
       final targets = _branchTargets(group, branch, category, branchPath);
-      if (targets.isNotEmpty) {
-        final branchGroup = group.copyWith(
-          nodeType: TagGroupNodeType.config,
-          children: targets,
-        );
+      if (targets.children.isNotEmpty || targets.siblings.isNotEmpty) {
         return _generateFromNestedGroup(
-          branchGroup,
+          group,
           category,
           random,
           rules,
           context,
+          children: targets.children,
+          siblings: targets.siblings,
+          targetScope: targetScope,
           selectionCount: selectionCount,
           branchPath: {...branchPath, group.id},
         );
@@ -618,6 +620,8 @@ class RandomPromptGenerator {
         random,
         rules,
         context,
+        children: group.children,
+        targetScope: targetScope,
         selectionCount: selectionCount,
         branchPath: branchPath,
       );
@@ -676,10 +680,11 @@ class RandomPromptGenerator {
     return bracketedTags;
   }
 
-  /// 分支输出的词组：本词组的子词组在前，同类别的其他词组在后
+  /// 分支输出的词组：本词组的子词组，以及同类别的其他词组
   ///
   /// 已在展开路径上的词组不再输出，存量数据里的循环引用因此不会无限展开
-  List<RandomTagGroup> _branchTargets(
+  ({List<RandomTagGroup> children, List<RandomTagGroup> siblings})
+  _branchTargets(
     RandomTagGroup group,
     ConditionalBranch branch,
     RandomCategory category,
@@ -688,18 +693,20 @@ class RandomPromptGenerator {
     final targetIds = branch.tagGroupIds.toSet()
       ..remove(group.id)
       ..removeAll(branchPath);
-    if (targetIds.isEmpty) return const [];
     final children = group.children
         .where((child) => targetIds.contains(child.id))
         .toList();
     final childIds = {for (final child in children) child.id};
-    return [
-      ...children,
-      ...category.groups.where(
-        (sibling) =>
-            targetIds.contains(sibling.id) && !childIds.contains(sibling.id),
-      ),
-    ];
+    return (
+      children: children,
+      siblings: category.groups
+          .where(
+            (sibling) =>
+                targetIds.contains(sibling.id) &&
+                !childIds.contains(sibling.id),
+          )
+          .toList(),
+    );
   }
 
   /// 从 Pool 类型词组生成标签
@@ -797,21 +804,29 @@ class RandomPromptGenerator {
     );
   }
 
-  /// 从嵌套词组生成标签（递归）
+  /// 按 [group] 的选择模式从 [children] 与分支输出的 [siblings] 中抽取并递归生成
   ///
-  /// 子词组与顶层词组一样求值性别、时间、可见性与依赖，作用域随父词组
+  /// 子词组与顶层词组一样求值性别、时间、可见性与依赖，作用域随父词组；
+  /// 同类别词组是独立的顶层词组，按本轮的 [targetScope] 筛选
   Future<List<String>> _generateFromNestedGroup(
     RandomTagGroup group,
     RandomCategory category,
     Random random,
     RandomPresetRules rules,
     RandomPresetGenerationContext context, {
+    required List<RandomTagGroup> children,
+    List<RandomTagGroup> siblings = const [],
+    required TagScope targetScope,
     int? selectionCount,
     Set<String> branchPath = const {},
   }) async {
-    final enabledChildren = group.children
-        .where((child) => rules.isGroupEligible(child, context))
-        .toList();
+    final enabledChildren = [
+      ...children.where((child) => rules.isGroupEligible(child, context)),
+      ...siblings.where(
+        (sibling) =>
+            rules.isGroupEligible(sibling, context, scope: targetScope),
+      ),
+    ];
     if (enabledChildren.isEmpty) return [];
 
     // 根据 selectionMode 选择子词组
@@ -837,6 +852,7 @@ class RandomPromptGenerator {
         random,
         rules,
         context,
+        targetScope: targetScope,
         selectionCount: _dependentSelectionCount(child, rules, context, random),
         branchPath: branchPath,
       );
