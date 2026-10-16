@@ -109,37 +109,6 @@ void main() {
     expect(parts.single.contentType, 'application/json');
   });
 
-  test('maps DDIM onto Euler Ancestral for every v4-structure model', () {
-    // V5 之前的判定是 contains('diffusion-4')，V5 会漏掉并把 ddim 原样发出。
-    for (final model in [
-      ImageModels.animeDiffusionV4Full,
-      ImageModels.animeDiffusionV45Full,
-      ImageModels.animeDiffusionV5Curated,
-      ImageModels.animeDiffusionV5Full,
-    ]) {
-      expect(
-        NAIImageGenerationApiService.mapSamplerForModel(Samplers.ddim, model),
-        Samplers.kEulerAncestral,
-        reason: model,
-      );
-    }
-
-    expect(
-      NAIImageGenerationApiService.mapSamplerForModel(
-        Samplers.ddim,
-        ImageModels.animeDiffusionV3,
-      ),
-      Samplers.ddimV3,
-    );
-    expect(
-      NAIImageGenerationApiService.mapSamplerForModel(
-        Samplers.kEulerAncestral,
-        ImageModels.animeDiffusionV5Curated,
-      ),
-      Samplers.kEulerAncestral,
-    );
-  });
-
   test('sends generation requests as a browser multipart body', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;

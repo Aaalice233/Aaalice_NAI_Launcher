@@ -307,6 +307,7 @@ void main() {
       for (final model in const [
         ImageModels.animeDiffusionV4Full,
         ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV5Curated,
         ImageModels.animeDiffusionV5Full,
         ImageModels.animeDiffusionV5FullMedium,
         'N/A',
