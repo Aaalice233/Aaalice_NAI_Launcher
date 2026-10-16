@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
+import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/metadata/cache_manager.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_cache_entry_codec.dart';
@@ -53,7 +54,7 @@ void main() {
     });
 
     tearDown(() async {
-      await manager.clear();
+      manager.clearMemory();
       await Hive.close();
       await directory.delete(recursive: true);
     });
@@ -99,6 +100,19 @@ void main() {
       await manager.save(hash, const NaiImageMetadata(prompt: 'estimated'));
 
       expect(manager.estimatedMemoryBytes, manager.box!.get(hash)!.length * 2);
+    });
+
+    test('memory pressure drops the memory layer but keeps the disk', () async {
+      final hash = '2' * 64;
+      await manager.save(hash, const NaiImageMetadata(prompt: 'survivor'));
+      expect(manager.memorySize, 1);
+
+      await GalleryCacheManager().clearL1MemoryCache();
+
+      expect(manager.memorySize, 0);
+      expect(manager.estimatedMemoryBytes, 0);
+      expect(manager.persistentSize, 1);
+      expect(manager.getFromPersistent(hash)?.prompt, 'survivor');
     });
   });
 }

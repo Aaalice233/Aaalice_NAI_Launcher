@@ -123,25 +123,8 @@ class MetadataCacheManager {
     }
   }
 
-  /// 清除所有缓存
-  Future<void> clear() async {
-    _memoryCache.clear();
-    try {
-      final box = _getBox();
-      final version = box.get('_cacheVersion');
-      await box.clear();
-      if (version != null) {
-        await box.put('_cacheVersion', version);
-      }
-    } catch (e, stack) {
-      AppLogger.e(
-        'Failed to clear persistent cache',
-        e,
-        stack,
-        'MetadataCacheManager',
-      );
-    }
-  }
+  /// 只清 L1；L2 由容量淘汰管理，内存压力下不丢持久化结果
+  void clearMemory() => _memoryCache.clear();
 
   // ==================== 统计信息 ====================
 
@@ -214,8 +197,8 @@ class MetadataCacheManager {
   }
 
   Future<void> _migrateCacheIfNeeded() async {
+    final box = _persistentBox!;
     try {
-      final box = _persistentBox!;
       final storedVersion = int.tryParse(box.get('_cacheVersion') ?? '1') ?? 1;
 
       if (storedVersion < _currentCacheVersion) {
@@ -223,7 +206,7 @@ class MetadataCacheManager {
           'Cache migration needed: v$storedVersion -> v$_currentCacheVersion',
           'MetadataCacheManager',
         );
-        await clear();
+        await _discardAll(box);
         await box.put('_cacheVersion', _currentCacheVersion.toString());
         AppLogger.i(
           'Cache migrated to version $_currentCacheVersion',
@@ -235,7 +218,22 @@ class MetadataCacheManager {
         'Cache version check failed, clearing cache',
         'MetadataCacheManager',
       );
-      await clear();
+      await _discardAll(box);
+    }
+  }
+
+  /// 版本升级时旧解析快照整体作废
+  Future<void> _discardAll(Box<String> box) async {
+    _memoryCache.clear();
+    try {
+      await box.clear();
+    } catch (e, stack) {
+      AppLogger.e(
+        'Failed to clear persistent cache',
+        e,
+        stack,
+        'MetadataCacheManager',
+      );
     }
   }
 }

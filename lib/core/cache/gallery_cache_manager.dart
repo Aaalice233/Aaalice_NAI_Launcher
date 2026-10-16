@@ -143,9 +143,9 @@ class GalleryCacheManager {
     }
   }
 
-  /// 清除 L1 内存缓存
+  /// 清除 L1 内存缓存与路径哈希、图库查询的内存缓存；L2 保持不动
   Future<void> clearL1MemoryCache() async {
-    await ImageMetadataService().clearCache();
+    ImageMetadataService().clearMemoryCache();
     GalleryDataSource().clearCache();
     _invalidateStatisticsCache();
     AppLogger.i('L1 memory cache cleared', 'GalleryCacheManager');

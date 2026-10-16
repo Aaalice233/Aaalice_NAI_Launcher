@@ -531,9 +531,9 @@ class ImageMetadataService {
     return null;
   }
 
-  /// 清除所有缓存
-  Future<void> clearCache() async {
-    await _cacheManager.clear();
+  /// 清除 L1 与路径哈希缓存；L2 保留
+  void clearMemoryCache() {
+    _cacheManager.clearMemory();
     _hashCalculator.clearCache();
   }
 

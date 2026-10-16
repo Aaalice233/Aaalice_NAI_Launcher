@@ -153,7 +153,7 @@ void main() {
 
     tearDown(() async {
       service.debugSetParseExecutorForTesting(null);
-      await service.clearCache();
+      service.clearMemoryCache();
       await Hive.close();
       await directory.delete(recursive: true);
     });
