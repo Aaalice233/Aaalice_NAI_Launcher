@@ -11,7 +11,7 @@ class WatermarkAnalysisRaster {
     required this.sourceSize,
   });
 
-  static const int defaultLongEdge = 256;
+  static const int _longEdge = 256;
 
   final int width;
   final int height;
@@ -22,10 +22,7 @@ class WatermarkAnalysisRaster {
   /// 已按 EXIF 方向摆正的原图尺寸
   final ui.Size sourceSize;
 
-  static Future<WatermarkAnalysisRaster> decode(
-    Uint8List bytes, {
-    int longEdge = defaultLongEdge,
-  }) async {
+  static Future<WatermarkAnalysisRaster> decode(Uint8List bytes) async {
     final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
     ui.ImageDescriptor? descriptor;
     ui.Codec? codec;
@@ -39,7 +36,7 @@ class WatermarkAnalysisRaster {
       }
       final scale = math.min(
         1.0,
-        longEdge / math.max(sourceWidth, sourceHeight),
+        _longEdge / math.max(sourceWidth, sourceHeight),
       );
       codec = await descriptor.instantiateCodec(
         targetWidth: math.max(1, (sourceWidth * scale).round()),
