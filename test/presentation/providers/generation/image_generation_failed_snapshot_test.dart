@@ -27,7 +27,8 @@ class _AuthenticatedAuthNotifier extends AuthNotifier {
   AuthState build() => const AuthState(status: AuthStatus.authenticated);
 }
 
-/// 合成结果由测试逐个放行，用来卡在“已捕获、未落地”的中间态。
+/// Holds every composition until the test releases it, so a snapshot can be
+/// observed after capture but before it lands in history.
 class _HeldComposer {
   final List<StreamPreviewFrame> frames = [];
   final List<int> coordinatorSignalsAtCompose = [];
