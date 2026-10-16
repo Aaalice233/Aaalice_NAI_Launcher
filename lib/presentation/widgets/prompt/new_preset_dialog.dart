@@ -6,16 +6,13 @@ import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../themes/core/layered_surface_style.dart';
 import '../common/themed_input.dart';
 
-/// 预设创建模式
 enum PresetCreationMode {
-  /// 完全空白
   blank,
 
-  /// 基于默认预设
+  /// 复制默认预设作为起点
   template,
 }
 
-/// 新建预设结果
 class NewPresetResult {
   final String name;
   final PresetCreationMode mode;
@@ -23,17 +20,12 @@ class NewPresetResult {
   NewPresetResult({required this.name, required this.mode});
 }
 
-/// 新建预设对话框
-///
-/// 用于输入预设名称并选择创建模式：
-/// - 完全空白：从头开始创建
-/// - 基于默认预设：复制默认预设作为起点
+/// 输入预设名称，并选择从空白还是从默认预设创建
 class NewPresetDialog extends StatefulWidget {
   const NewPresetDialog({super.key, this.scrollController});
 
   final ScrollController? scrollController;
 
-  /// 显示对话框并返回结果
   static Future<NewPresetResult?> show(BuildContext context) {
     return AdaptivePresenter.showForm<NewPresetResult>(
       context: context,
@@ -114,8 +106,6 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
           onSubmitted: (_) => _validateAndSubmit(),
         ),
         const SizedBox(height: 20),
-
-        // 创建模式选择
         Text(
           l10n.newPresetDialog_creationMode,
           style: theme.textTheme.titleSmall?.copyWith(
@@ -123,8 +113,6 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
           ),
         ),
         const SizedBox(height: 8),
-
-        // 基于默认预设选项
         _ModeOptionCard(
           icon: Icons.content_copy_outlined,
           title: l10n.newPresetDialog_template,
@@ -134,8 +122,6 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
               setState(() => _selectedMode = PresetCreationMode.template),
         ),
         const SizedBox(height: 8),
-
-        // 完全空白选项
         _ModeOptionCard(
           icon: Icons.note_add_outlined,
           title: l10n.newPresetDialog_blank,
@@ -174,7 +160,6 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
   }
 }
 
-/// 模式选项卡片
 class _ModeOptionCard extends StatelessWidget {
   const _ModeOptionCard({
     required this.icon,

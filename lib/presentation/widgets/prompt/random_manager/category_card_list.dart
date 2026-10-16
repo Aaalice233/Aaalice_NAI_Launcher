@@ -21,7 +21,7 @@ class CategoryCardList extends ConsumerWidget {
   final String query;
   final Widget? overviewHeader;
 
-  /// Page chrome that shares this scroll view above the overview.
+  /// 排在总览上方、与列表共用同一滚动视图的页面顶部区域
   final List<Widget> leadingSlivers;
 
   @override

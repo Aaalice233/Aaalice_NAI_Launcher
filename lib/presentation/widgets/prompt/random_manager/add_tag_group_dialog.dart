@@ -91,12 +91,10 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   String _selectedEmoji = '';
   int _sourceTabIndex = 0; // 0 = 自定义, 1 = Tag Group, 2 = Pool
 
-  // Danbooru 导入相关
   String? _selectedDanbooruGroup;
   int? _selectedPoolId;
   String _searchQuery = '';
 
-  // 预定义 Tag Groups
   static const _tagGroups = [
     ('Hair Color', 'tag_group:hair_color'),
     ('Eye Color', 'tag_group:eye_color'),
@@ -112,7 +110,6 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
     ('Body Types', 'tag_group:body_types'),
   ];
 
-  // 预定义 Pools
   static const _popularPools = [
     ('Genshin Characters', 21512),
     ('Blue Archive', 22345),
@@ -637,7 +634,6 @@ class _EmptySourceList extends StatelessWidget {
 /// Danbooru 列表项类型
 enum DanbooruItemType { tagGroup, pool }
 
-/// Danbooru 列表项
 class _DanbooruListTile extends StatefulWidget {
   const _DanbooruListTile({
     required this.label,
