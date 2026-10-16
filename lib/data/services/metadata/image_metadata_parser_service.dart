@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../../core/utils/exif_container.dart';
 import '../../../core/utils/portable_logger.dart';
 import 'image_metadata_container_codec.dart';
 import 'metadata_file_repository.dart';
@@ -82,7 +83,7 @@ class ImageMetadataParserService {
     if (ImageMetadataContainerCodec.isPngHeader(bytes)) {
       return parseFromPng(bytes, filePathForLog: filePathForLog);
     }
-    if (WebpExifMetadataExtractor.hasWebpHeader(bytes)) {
+    if (ExifContainer.isWebp(bytes)) {
       return parseFromWebp(bytes, filePathForLog: filePathForLog);
     }
 
