@@ -4,8 +4,10 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
+import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/random_preset_provider.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../common/ink_host.dart';
@@ -125,12 +127,9 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
   late TextEditingController _nameController;
   late RandomTagGroup _editingTagGroup;
 
-  // 标签栏与操作栏在固定和随正文滚动之间切换时保留焦点
+  // 操作栏在固定与随正文滚动之间移动时保留焦点；两者也是横滑切页的排除区域
   final _tabBarKey = GlobalKey();
   final _actionsKey = GlobalKey();
-
-  // 低于此高度时标签栏与操作栏随正文滚动，否则两者固定后正文视口不足以编辑
-  static const double _minBodyHeightForFixedChrome = 320;
 
   List<RandomCategory> get _presetCategories {
     final state = ref.read(randomPresetNotifierProvider);
@@ -186,6 +185,13 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
   void _setGroup(RandomTagGroup group) =>
       setState(() => _editingTagGroup = group);
 
+  // 固定操作栏后正文要留出与固定标题相同的最小高度，否则操作栏随正文滚动
+  bool _actionsScroll(double maxHeight) =>
+      maxHeight -
+          _actionsPadding.vertical -
+          context.interactionPolicy.minimumControlExtent <
+      AdaptivePinnedHeaderSliver.defaultMinContentExtent;
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -194,9 +200,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
     final actions = _buildActions(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final actionsScroll =
-            constraints.maxHeight < _minBodyHeightForFixedChrome;
-        // 两种排布下标签栏都是首个 sliver，正文滚动偏移与输入状态不因切换而变
+        final actionsScroll = _actionsScroll(constraints.maxHeight);
         return Column(
           children: [
             Expanded(
@@ -222,10 +226,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
                           key: const ValueKey('tag-group-editor-scroll'),
                           controller: widget.scrollController,
                           slivers: [
-                            if (actionsScroll)
-                              SliverToBoxAdapter(child: tabBar)
-                            else
-                              PinnedHeaderSliver(child: tabBar),
+                            AdaptivePinnedHeaderSliver(child: tabBar),
                             KeyedSubtree(
                               key: ValueKey(
                                 'tag-group-editor-tab-${_tabController.index}',

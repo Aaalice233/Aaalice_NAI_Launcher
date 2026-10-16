@@ -461,6 +461,26 @@ void main() {
     }
   });
 
+  testWidgets('标签栏留不出最小正文高度时随正文滚走，操作栏仍可固定', (tester) async {
+    await _openEditor(tester, size: const Size(412, 700), textScale: 1);
+    await _selectTab(tester, Icons.sell_outlined);
+
+    Future<double> tabBarOffsetAfterScroll(double keyboardInset) async {
+      await _setKeyboard(tester, keyboardInset);
+      _editorPosition(tester).jumpTo(200);
+      await tester.pumpAndSettle();
+      return tester.getRect(find.byType(TabBar, skipOffstage: false)).top -
+          tester.getRect(_editorScrollable()).top;
+    }
+
+    // 键盘占去一部分高度后正文视口约 230，放不下标签栏加最小正文高度
+    expect(await tabBarOffsetAfterScroll(264), lessThan(0));
+    expect(_actionsScrollWithContent(), isFalse);
+    expect(await tabBarOffsetAfterScroll(0), moreOrLessEquals(0));
+    expect(_actionsScrollWithContent(), isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('操作栏在固定与随正文滚动之间切换时标签列表的滚动位置不变，切换标签页回到开头', (tester) async {
     await _openEditor(tester, size: const Size(412, 700), textScale: 1);
     await _selectTab(tester, Icons.sell_outlined);
