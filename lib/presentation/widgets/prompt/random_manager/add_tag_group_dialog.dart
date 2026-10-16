@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:nai_launcher/presentation/themes/core/input_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 import '../../../../core/utils/localization_extension.dart';
@@ -16,6 +15,8 @@ import '../../common/emoji_picker_dialog.dart';
 import '../../common/hover_preview_card.dart';
 import '../../common/surface_ink_well.dart';
 import '../../common/tab_swipe_detector.dart';
+import '../../common/themed_form_input.dart';
+import '../../common/themed_input.dart';
 import 'danbooru_preview_content.dart';
 import 'random_config_l10n.dart';
 
@@ -230,15 +231,10 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
       child: Row(
         children: [
           Expanded(
-            child: TextFormField(
+            child: ThemedFormInput(
               controller: _nameController,
-              decoration: InputDecoration(
-                labelText: context.l10n.randomManager_tagGroupName,
-                hintText: context.l10n.randomManager_tagGroupNameHint,
-                border: InputBorder.none,
-                filled: true,
-                fillColor: inputSurfaceFillColor(colorScheme),
-              ),
+              labelText: context.l10n.randomManager_tagGroupName,
+              hintText: context.l10n.randomManager_tagGroupNameHint,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return context.l10n.randomManager_tagGroupNameRequired;
@@ -327,35 +323,17 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   }
 
   Widget _buildSearchBar(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: TextField(
+      child: ThemedInput(
         controller: _searchController,
-        textAlignVertical: TextAlignVertical.center,
-        decoration: InputDecoration(
-          hintText: _sourceTabIndex == 1
-              ? context.l10n.randomManager_searchTagGroup
-              : context.l10n.randomManager_searchPool,
-          prefixIcon: const Icon(Icons.search, size: 20),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() => _searchQuery = '');
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: inputSurfaceFillColor(colorScheme),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 10,
-          ),
-          isDense: true,
+        hintText: _sourceTabIndex == 1
+            ? context.l10n.randomManager_searchTagGroup
+            : context.l10n.randomManager_searchPool,
+        decoration: const InputDecoration(
+          prefixIcon: Icon(Icons.search, size: 20),
         ),
+        showClearButton: true,
         onChanged: (value) => setState(() => _searchQuery = value),
       ),
     );
@@ -392,18 +370,14 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
             ),
           ),
           const SizedBox(height: 8),
-          TextFormField(
+          ThemedInput(
             controller: _tagsController,
             minLines: 6,
             maxLines: null,
             keyboardType: TextInputType.multiline,
             textAlignVertical: TextAlignVertical.top,
-            decoration: InputDecoration(
-              hintText: 'red hair\nblue eyes:2\nlong hair',
-              filled: true,
-              fillColor: inputSurfaceFillColor(colorScheme),
-              contentPadding: const EdgeInsets.all(12),
-            ),
+            hintText: 'red hair\nblue eyes:2\nlong hair',
+            contentPadding: const EdgeInsets.all(12),
           ),
         ],
       ),
