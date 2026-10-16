@@ -144,9 +144,14 @@ void main() {
     final harness = await _Harness.create(source: _png(832, 1216));
     addTearDown(harness.dispose);
 
-    await harness.estimate({'image_path': 'other.png'});
+    final otherCost = await harness.estimate({
+      'resource_ref': AgentChatResourceReferenceCodec.encodeJsonMap(
+        generationImageResourceReference('other'),
+      ),
+    });
     final result = await harness.upscale({'resource_ref': _sourceRef});
 
+    expect(otherCost, 1);
     expect(_json(result)['code'], 'upscale_cost_changed');
     expect(harness.coordinator.requests, isEmpty);
   });
