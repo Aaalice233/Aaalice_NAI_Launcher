@@ -8,6 +8,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_panel_expansion_provider.dart';
 import 'package:nai_launcher/presentation/providers/reverse_prompt_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/reverse_prompt_panel.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/reverse_prompt_tagger_category_chips.dart';
 
 import '../../../../helpers/labeled_rows_expectations.dart';
 import '../../../../helpers/light_theme_contrast.dart';
@@ -81,9 +82,13 @@ void main() {
       for (final scale in labeledRowTextScales) {
         final scenario = '$locale ${width.toInt()} ${scale}x';
         testWidgets('$scenario 下输出分类开关完整可达', (tester) async {
-          await _pumpPanel(
+          await _pumpInApp(
             tester,
-            model: _pixaiModel,
+            _container(_pixaiModel),
+            body: ReversePromptTaggerCategoryChips(
+              labelsPath: _pixaiModel.labelsPath!,
+              enabled: true,
+            ),
             locale: locale,
             width: width,
             textScale: scale,
@@ -117,7 +122,6 @@ void main() {
               reason: '$scenario $label',
             );
           }
-          tester.takeException();
         });
       }
     }
@@ -127,13 +131,10 @@ void main() {
 FilterChip _chip(WidgetTester tester, String label) =>
     tester.widget<FilterChip>(find.widgetWithText(FilterChip, label));
 
-Future<ProviderContainer> _pumpPanel(
-  WidgetTester tester, {
-  required LocalOnnxModelDescriptor model,
-  String locale = 'zh',
-  double width = 1180,
-  double textScale = 1,
-}) async {
+ProviderContainer _container(
+  LocalOnnxModelDescriptor model, {
+  List<Override> overrides = const [],
+}) {
   final categories = model.kind == LocalOnnxModelKind.pixaiTagger
       ? OnnxTaggerLabelCategory.values.toSet()
       : {
@@ -143,19 +144,44 @@ Future<ProviderContainer> _pumpPanel(
         };
   final container = createStorageFreeContainer(
     overrides: [
+      reversePromptTaggerCategoriesProvider.overrideWith(
+        (ref, labelsPath) async => categories,
+      ),
+      ...overrides,
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+Future<ProviderContainer> _pumpPanel(
+  WidgetTester tester, {
+  required LocalOnnxModelDescriptor model,
+}) async {
+  final container = _container(
+    model,
+    overrides: [
       localOnnxModelServiceProvider.overrideWith(
         (ref) =>
             _FixedTaggerModels(ref.read(localStorageServiceProvider), model),
       ),
-      reversePromptTaggerCategoriesProvider.overrideWith(
-        (ref, labelsPath) async => categories,
-      ),
     ],
   );
-  addTearDown(container.dispose);
   await container
       .read(generationPanelExpansionProvider.notifier)
       .setExpanded(GenerationWorkbenchPanel.reversePrompt, true);
+  await _pumpInApp(tester, container, body: const ReversePromptPanel());
+  return container;
+}
+
+Future<void> _pumpInApp(
+  WidgetTester tester,
+  ProviderContainer container, {
+  required Widget body,
+  String locale = 'zh',
+  double width = 1180,
+  double textScale = 1,
+}) async {
   await tester.binding.setSurfaceSize(Size(width, 1600));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
@@ -171,16 +197,11 @@ Future<ProviderContainer> _pumpPanel(
           ).copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
-        home: const Scaffold(
-          body: SingleChildScrollView(child: ReversePromptPanel()),
-        ),
+        home: Scaffold(body: SingleChildScrollView(child: body)),
       ),
     ),
   );
   await tester.pumpAndSettle();
-  // 底部操作按钮行在窄屏大字号下的既有溢出与分类开关无关，分类开关由逐项边界断言覆盖
-  tester.takeException();
-  return container;
 }
 
 class _FixedTaggerModels extends LocalOnnxModelService {
