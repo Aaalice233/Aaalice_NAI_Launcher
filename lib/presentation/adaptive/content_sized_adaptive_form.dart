@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
+import 'adaptive_chrome_placement.dart';
 import 'adaptive_pinned_header_sliver.dart';
 
 /// A form body that follows its content until the presenter-imposed height cap
@@ -169,23 +169,21 @@ class _HostedHeaderForm extends StatefulWidget {
 
 class _HostedHeaderFormState extends State<_HostedHeaderForm> {
   final _footerKey = GlobalKey();
-  final _extents = _ChromeExtents();
 
   @override
   Widget build(BuildContext context) {
-    return _ChromePlacementBuilder(
-      extents: _extents,
-      builder: (context, placement) => _buildForm(placement),
+    return AdaptiveChromePlacementBuilder(
+      builder: (context, placement, probes) => _buildForm(placement, probes),
     );
   }
 
-  Widget _buildForm(_ChromePlacement placement) {
+  Widget _buildForm(
+    AdaptiveChromePlacement placement,
+    AdaptiveChromeProbes probes,
+  ) {
     final footer = widget.footer == null
         ? null
-        : _ChromeExtentProbe(
-            onLayout: _extents.recordFooter,
-            child: KeyedSubtree(key: _footerKey, child: widget.footer!),
-          );
+        : probes.footer(KeyedSubtree(key: _footerKey, child: widget.footer!));
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -199,10 +197,7 @@ class _HostedHeaderFormState extends State<_HostedHeaderForm> {
             slivers: [
               AdaptivePinnedHeaderSliver(
                 trailingExtent: footer == null ? 0 : placement.trailingExtent,
-                child: _ChromeExtentProbe(
-                  onLayout: _extents.recordHeader,
-                  child: widget.header,
-                ),
+                child: probes.header(widget.header),
               ),
               SliverPadding(
                 padding: widget.padding,
@@ -216,150 +211,5 @@ class _HostedHeaderFormState extends State<_HostedHeaderForm> {
         if (footer != null && placement.footerFixed) footer,
       ],
     );
-  }
-}
-
-@immutable
-class _ChromePlacement {
-  const _ChromePlacement({
-    required this.footerFixed,
-    required this.footerExtent,
-  });
-
-  // Scrolling never overflows, so it is the safe choice before measuring.
-  static const unmeasured = _ChromePlacement(
-    footerFixed: false,
-    footerExtent: 0,
-  );
-
-  final bool footerFixed;
-  final double footerExtent;
-
-  double get trailingExtent => footerFixed ? 0 : footerExtent;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _ChromePlacement &&
-      other.footerFixed == footerFixed &&
-      other.footerExtent == footerExtent;
-
-  @override
-  int get hashCode => Object.hash(footerFixed, footerExtent);
-}
-
-/// The header and footer extents from their latest layout.
-class _ChromeExtents {
-  double? _header;
-  double? _footer;
-
-  void recordHeader(double extent) => _header = extent;
-
-  void recordFooter(double extent) => _footer = extent;
-
-  _ChromePlacement placementWithin(double availableExtent) {
-    final header = _header;
-    final footer = _footer;
-    if (header == null || footer == null) return _ChromePlacement.unmeasured;
-    return _ChromePlacement(
-      footerFixed: AdaptivePinnedHeaderSliver.chromeFits(
-        header + footer,
-        availableExtent,
-      ),
-      footerExtent: footer,
-    );
-  }
-}
-
-/// Builds the form for the footer placement that the measured chrome allows
-/// within the incoming height.
-class _ChromePlacementBuilder extends AbstractLayoutBuilder<_ChromePlacement> {
-  const _ChromePlacementBuilder({required this.extents, required this.builder});
-
-  final _ChromeExtents extents;
-
-  @override
-  final Widget Function(BuildContext context, _ChromePlacement placement)
-  builder;
-
-  @override
-  _RenderChromePlacement createRenderObject(BuildContext context) =>
-      _RenderChromePlacement(extents);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderChromePlacement renderObject,
-  ) {
-    renderObject.extents = extents;
-  }
-}
-
-class _RenderChromePlacement extends RenderProxyBox
-    with
-        RenderObjectWithLayoutCallbackMixin,
-        RenderAbstractLayoutBuilderMixin<_ChromePlacement, RenderBox> {
-  _RenderChromePlacement(this.extents);
-
-  _ChromeExtents extents;
-  _ChromePlacement _placement = _ChromePlacement.unmeasured;
-
-  @override
-  _ChromePlacement get layoutInfo => _placement;
-
-  @override
-  void performLayout() {
-    _placement = extents.placementWithin(constraints.maxHeight);
-    runLayoutCallback();
-    child!.layout(constraints, parentUsesSize: true);
-    // The first layout, or a header or footer that changed size, can only be
-    // placed once it has been measured, so build and lay out once more.
-    final measured = extents.placementWithin(constraints.maxHeight);
-    if (measured != _placement) {
-      _placement = measured;
-      runLayoutCallback();
-      child!.layout(constraints, parentUsesSize: true);
-    }
-    size = constraints.constrain(child!.size);
-  }
-
-  @override
-  Size computeDryLayout(covariant BoxConstraints constraints) {
-    assert(
-      debugCannotComputeDryLayout(
-        reason:
-            'The footer placement depends on the laid out header and footer.',
-      ),
-    );
-    return Size.zero;
-  }
-}
-
-class _ChromeExtentProbe extends SingleChildRenderObjectWidget {
-  const _ChromeExtentProbe({required this.onLayout, required super.child});
-
-  final ValueSetter<double> onLayout;
-
-  @override
-  _RenderChromeExtentProbe createRenderObject(BuildContext context) =>
-      _RenderChromeExtentProbe(onLayout);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderChromeExtentProbe renderObject,
-  ) {
-    renderObject.onLayout = onLayout;
-  }
-}
-
-class _RenderChromeExtentProbe extends RenderProxyBox {
-  _RenderChromeExtentProbe(this.onLayout);
-
-  ValueSetter<double> onLayout;
-
-  @override
-  void performLayout() {
-    super.performLayout();
-    onLayout(size.height);
   }
 }
