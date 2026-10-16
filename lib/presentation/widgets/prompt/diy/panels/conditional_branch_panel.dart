@@ -1,27 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
 import '../../../../adaptive/interaction_policy.dart';
 import '../../../../../data/models/prompt/conditional_branch.dart';
+import '../../../common/elevated_card.dart';
 import '../../../common/labeled_slider_rows.dart';
 import '../../../common/surface_ink_well.dart';
-import '../../../../widgets/common/themed_divider.dart';
-import '../../../../widgets/common/elevated_card.dart';
 import '../diy_badges.dart';
 import '../diy_category_field.dart';
+import '../diy_editor_card.dart';
+import '../diy_empty_state.dart';
 import '../diy_panel_header.dart';
+import '../diy_rule_list_card.dart';
+import '../diy_switch_card.dart';
 import 'branch_conditions_editor.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
 
-/// 条件分支配置面板
-///
-/// 用于配置和编辑条件分支规则
-/// 采用 Dimensional Layering 设计风格
+/// 条件分支面板：按概率与条件选择输出哪些词组
 class ConditionalBranchPanel extends StatefulWidget {
-  /// 当前配置
   final ConditionalBranchConfig? config;
-
-  /// 配置变更回调
   final ValueChanged<ConditionalBranchConfig?> onConfigChanged;
 
   /// 分支可输出的词组：本词组的子词组与同类别的其他词组
@@ -36,7 +33,6 @@ class ConditionalBranchPanel extends StatefulWidget {
   /// 打开时直接编辑的分支
   final int? initialSelectedIndex;
 
-  /// 是否只读
   final bool readOnly;
 
   const ConditionalBranchPanel({
@@ -58,6 +54,8 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
   late ConditionalBranchConfig _config;
   int? _selectedIndex;
   bool _usesDefaultConfig = false;
+
+  List<ConditionalBranch> get _branches => _config.branches;
 
   @override
   void initState() {
@@ -102,14 +100,14 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
 
   void _addBranch() {
     final newBranch = ConditionalBranch(
-      name: context.l10n.diy_branchDefaultName(_config.branches.length + 1),
+      name: context.l10n.diy_branchDefaultName(_branches.length + 1),
       probability: 10,
     );
-    _updateConfig(_config.copyWith(branches: [..._config.branches, newBranch]));
+    _updateConfig(_config.copyWith(branches: [..._branches, newBranch]));
   }
 
   void _removeBranch(int index) {
-    final newBranches = List<ConditionalBranch>.from(_config.branches)
+    final newBranches = List<ConditionalBranch>.from(_branches)
       ..removeAt(index);
     final selected = _selectedIndex;
     _selectedIndex = selected == null || selected == index
@@ -121,78 +119,152 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
   }
 
   void _updateBranch(int index, ConditionalBranch branch) {
-    final newBranches = List<ConditionalBranch>.from(_config.branches);
+    final newBranches = List<ConditionalBranch>.from(_branches);
     newBranches[index] = branch;
     _updateConfig(_config.copyWith(branches: newBranches));
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final colorScheme = Theme.of(context).colorScheme;
+    final accents = _branchAccents(colorScheme);
+    final index = _selectedIndex;
+    final editor = index == null || index >= _branches.length
+        ? null
+        // 输入框只在创建时读取初始值，切换分支需要重建编辑区
+        : KeyedSubtree(
+            key: ValueKey(index),
+            child: _BranchEditor(
+              branch: _branches[index],
+              targetOptions: widget.targetOptions,
+              cyclicTargetIds: widget.cyclicTargetIds,
+              conditionSources: widget.conditionSources,
+              readOnly: widget.readOnly,
+              onChanged: (branch) => _updateBranch(index, branch),
+              onClose: () => setState(() => _selectedIndex = null),
+            ),
+          );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(),
+        DiyPanelHeader(
+          icon: Icons.call_split_rounded,
+          accent: colorScheme.secondary,
+          title: l10n.diy_conditionalTitle,
+          subtitle: l10n.diy_conditionalSubtitle,
+          trailing: _branches.isEmpty
+              ? null
+              : DiyCountBadge(
+                  label: l10n.diy_branchCount(_branches.length),
+                  accent: colorScheme.secondary,
+                  container: colorScheme.secondaryContainer,
+                ),
+        ),
         const SizedBox(height: 12),
-        if (_config.branches.isNotEmpty) ...[
-          _buildProbabilityBar(),
+        if (_branches.any((branch) => branch.probability > 0)) ...[
+          _ProbabilityBar(
+            branches: _branches,
+            accents: accents,
+            selectedIndex: _selectedIndex,
+            onSelected: (index) => setState(() => _selectedIndex = index),
+          ),
           const SizedBox(height: 12),
         ],
-        _buildBranchList(),
+        DiyRuleListCard(
+          items: [
+            for (final (index, branch) in _branches.indexed)
+              _listItem(branch, accents[index % accents.length]),
+          ],
+          selectedIndex: _selectedIndex,
+          onSelected: (index) => setState(() => _selectedIndex = index),
+          onDeleted: widget.readOnly ? null : _removeBranch,
+          deleteTooltip: l10n.diy_deleteBranch,
+          emptyState: DiyEmptyState(
+            icon: Icons.call_split_rounded,
+            title: l10n.diy_noConditionalBranches,
+            hint: l10n.diy_noConditionalBranchesHint,
+          ),
+        ),
         if (!widget.readOnly) ...[
           const SizedBox(height: 12),
-          _buildAddButton(),
+          DiyAddRuleButton(label: l10n.diy_addBranch, onPressed: _addBranch),
         ],
-        if (_selectedIndex != null &&
-            _selectedIndex! < _config.branches.length) ...[
-          const SizedBox(height: 12),
-          // 输入框只在创建时读取初始值，切换分支需要重建编辑区
-          KeyedSubtree(
-            key: ValueKey(_selectedIndex),
-            child: _buildBranchEditor(_selectedIndex!),
-          ),
-        ],
+        if (editor != null) ...[const SizedBox(height: 12), editor],
       ],
     );
   }
 
-  Widget _buildHeader() {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return DiyPanelHeader(
-      icon: Icons.call_split_rounded,
-      accent: colorScheme.secondary,
-      title: context.l10n.diy_conditionalTitle,
-      subtitle: context.l10n.diy_conditionalSubtitle,
-      trailing: _config.branches.isEmpty
-          ? null
-          : DiyCountBadge(
-              label: context.l10n.diy_branchCount(_config.branches.length),
-              accent: colorScheme.secondary,
-              container: colorScheme.secondaryContainer,
+  DiyRuleListItem _listItem(ConditionalBranch branch, Color accent) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final detailStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return DiyRuleListItem(
+      // 放大文字后撑成胶囊而不是让读数溢出
+      leading: DiyRuleAvatar(
+        accent: accent,
+        enabled: branch.enabled,
+        shape: const StadiumBorder(),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        builder: (foreground) => Center(
+          child: Text(
+            '${branch.probability}%',
+            maxLines: 1,
+            softWrap: false,
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: foreground,
             ),
+          ),
+        ),
+      ),
+      title: branch.name,
+      enabled: branch.enabled,
+      details: [
+        if (branch.tagGroupIds.isNotEmpty)
+          Text(
+            l10n.diy_branchTargetCount(branch.tagGroupIds.length),
+            style: detailStyle,
+          ),
+        if (branch.conditions.isNotEmpty)
+          Text(
+            l10n.diy_conditionCount(branch.conditions.length),
+            style: detailStyle,
+          ),
+      ],
     );
   }
+}
 
-  Widget _buildProbabilityBar() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+List<Color> _branchAccents(ColorScheme colorScheme) => [
+  colorScheme.primary,
+  colorScheme.secondary,
+  colorScheme.tertiary,
+  Colors.orange,
+  Colors.purple,
+  Colors.teal,
+];
 
-    // 渐变色组合
-    final gradients = [
-      [colorScheme.primary, colorScheme.primary.withValues(alpha: 0.7)],
-      [colorScheme.secondary, colorScheme.secondary.withValues(alpha: 0.7)],
-      [colorScheme.tertiary, colorScheme.tertiary.withValues(alpha: 0.7)],
-      [Colors.orange, Colors.orange.withValues(alpha: 0.7)],
-      [Colors.purple, Colors.purple.withValues(alpha: 0.7)],
-      [Colors.teal, Colors.teal.withValues(alpha: 0.7)],
-    ];
+/// 各分支概率占比的横条，点按分段选中对应分支
+class _ProbabilityBar extends StatelessWidget {
+  const _ProbabilityBar({
+    required this.branches,
+    required this.accents,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
 
-    final total = _config.branches.fold<int>(
-      0,
-      (sum, b) => sum + b.probability,
-    );
-    if (total <= 0) return const SizedBox.shrink();
+  final List<ConditionalBranch> branches;
+  final List<Color> accents;
+  final int? selectedIndex;
+  final ValueChanged<int> onSelected;
 
+  @override
+  Widget build(BuildContext context) {
+    final total = branches.fold<int>(0, (sum, b) => sum + b.probability);
     return ElevatedCard(
       elevation: CardElevation.level1,
       borderRadius: 12,
@@ -208,13 +280,14 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final (index, branch) in _config.branches.indexed)
+                for (final (index, branch) in branches.indexed)
                   Expanded(
                     flex: branch.probability,
-                    child: _buildProbabilitySegment(
+                    child: _segment(
+                      context,
                       index: index,
                       branch: branch,
-                      colors: gradients[index % gradients.length],
+                      accent: accents[index % accents.length],
                       percent: (branch.probability / total * 100)
                           .toStringAsFixed(0),
                     ),
@@ -227,13 +300,13 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
     );
   }
 
-  Widget _buildProbabilitySegment({
+  Widget _segment(
+    BuildContext context, {
     required int index,
     required ConditionalBranch branch,
-    required List<Color> colors,
+    required Color accent,
     required String percent,
   }) {
-    final isSelected = _selectedIndex == index;
     final textTheme = Theme.of(context).textTheme;
     return Tooltip(
       message: '${branch.name}: $percent%',
@@ -242,15 +315,12 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: isSelected
-              ? colors
-              : [
-                  colors[0].withValues(alpha: 0.6),
-                  colors[1].withValues(alpha: 0.4),
-                ],
+          colors: selectedIndex == index
+              ? [accent, accent.withValues(alpha: 0.7)]
+              : [accent.withValues(alpha: 0.6), accent.withValues(alpha: 0.4)],
         ),
         duration: const Duration(milliseconds: 200),
-        onTap: () => setState(() => _selectedIndex = index),
+        onTap: () => onSelected(index),
         child: Center(
           child: branch.probability >= 10
               ? Column(
@@ -284,218 +354,129 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
       ),
     );
   }
+}
 
-  Widget _buildBranchList() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+class _BranchEditor extends StatelessWidget {
+  const _BranchEditor({
+    required this.branch,
+    required this.targetOptions,
+    required this.cyclicTargetIds,
+    required this.conditionSources,
+    required this.readOnly,
+    required this.onChanged,
+    required this.onClose,
+  });
 
-    if (_config.branches.isEmpty) {
-      return ElevatedCard(
-        elevation: CardElevation.level1,
-        borderRadius: 12,
-        padding: const EdgeInsets.all(32),
-        child: Center(
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.call_split_rounded,
-                  size: 40,
-                  color: colorScheme.outline,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                context.l10n.diy_noConditionalBranches,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                context.l10n.diy_noConditionalBranchesHint,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.outline,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // 渐变色组合
-    final accentColors = [
-      colorScheme.primary,
-      colorScheme.secondary,
-      colorScheme.tertiary,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-    ];
-
-    return ElevatedCard(
-      elevation: CardElevation.level1,
-      borderRadius: 12,
-      padding: EdgeInsets.zero,
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _config.branches.length,
-        separatorBuilder: (_, __) => Divider(
-          height: 1,
-          color: colorScheme.outline.withValues(alpha: 0.1),
-        ),
-        itemBuilder: (context, index) {
-          final branch = _config.branches[index];
-          final accentColor = accentColors[index % accentColors.length];
-          final isSelected = _selectedIndex == index;
-
-          return Material(
-            color: isSelected
-                ? colorScheme.primaryContainer.withValues(alpha: 0.3)
-                : Colors.transparent,
-            child: InkWell(
-              onTap: () => setState(() => _selectedIndex = index),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    // 概率圆形指示器；放大文字后撑成胶囊而不是让读数溢出
-                    Container(
-                      constraints: const BoxConstraints(
-                        minWidth: 44,
-                        minHeight: 44,
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: ShapeDecoration(
-                        shape: const StadiumBorder(),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: branch.enabled
-                              ? [
-                                  accentColor,
-                                  accentColor.withValues(alpha: 0.7),
-                                ]
-                              : [
-                                  colorScheme.surfaceContainerHighest,
-                                  colorScheme.surfaceContainerHighest,
-                                ],
-                        ),
-                        shadows: branch.enabled
-                            ? [
-                                BoxShadow(
-                                  color: accentColor.withValues(alpha: 0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${branch.probability}%',
-                          maxLines: 1,
-                          softWrap: false,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: branch.enabled
-                                ? Colors.white
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    // 分支信息
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            branch.name,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (branch.tagGroupIds.isNotEmpty)
-                            Text(
-                              context.l10n.diy_branchTargetCount(
-                                branch.tagGroupIds.length,
-                              ),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          if (branch.conditions.isNotEmpty)
-                            Text(
-                              context.l10n.diy_conditionCount(
-                                branch.conditions.length,
-                              ),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          if (!branch.enabled) ...[
-                            const SizedBox(height: 4),
-                            const DiyDisabledBadge(),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (!widget.readOnly) ...[
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(
-                          Icons.delete_outline_rounded,
-                          color: colorScheme.error.withValues(alpha: 0.7),
-                        ),
-                        onPressed: () => _removeBranch(index),
-                        tooltip: context.l10n.diy_deleteBranch,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildAddButton() {
-    return Center(
-      child: FilledButton.tonalIcon(
-        onPressed: _addBranch,
-        icon: const Icon(Icons.add_rounded, size: 18),
-        label: Text(context.l10n.diy_addBranch),
-      ),
-    );
-  }
+  final ConditionalBranch branch;
+  final List<DiyCategoryOption> targetOptions;
+  final Set<String> cyclicTargetIds;
+  final List<BranchConditionSource> conditionSources;
+  final bool readOnly;
+  final ValueChanged<ConditionalBranch> onChanged;
+  final VoidCallback onClose;
 
   static String _probabilityText(double probability) =>
       '${probability.round()}%';
 
-  Widget _buildTargetsEditor(int index, ConditionalBranch branch) {
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final l10n = context.l10n;
-    final blocksCycle = widget.targetOptions.any(
+    return DiyEditorCard(
+      title: l10n.diy_editBranch(branch.name),
+      accent: colorScheme.primary,
+      accentContainer: colorScheme.primaryContainer,
+      borderEnd: colorScheme.secondary,
+      onClose: onClose,
+      children: [
+        ThemedFormInput(
+          initialValue: branch.name,
+          decoration: InputDecoration(
+            labelText: l10n.diy_branchName,
+            prefixIcon: const Icon(Icons.label_outline_rounded),
+          ),
+          readOnly: readOnly,
+          onChanged: (value) => onChanged(branch.copyWith(name: value)),
+        ),
+        const SizedBox(height: 16),
+        LabeledSliderRows(
+          labelStyle: theme.textTheme.titleSmall,
+          valueStyle: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.tertiary,
+          ),
+          sliders: [
+            LabeledSlider(
+              label: l10n.diy_probability,
+              valueText: _probabilityText,
+              value: branch.probability.toDouble(),
+              min: 0,
+              max: 100,
+              divisions: 100,
+              onChanged: readOnly
+                  ? null
+                  : (value) =>
+                        onChanged(branch.copyWith(probability: value.round())),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _BranchTargetsEditor(
+          branch: branch,
+          options: targetOptions,
+          cyclicTargetIds: cyclicTargetIds,
+          readOnly: readOnly,
+          onChanged: (ids) => onChanged(branch.copyWith(tagGroupIds: ids)),
+        ),
+        const SizedBox(height: 16),
+        BranchConditionsEditor(
+          conditions: branch.conditions,
+          logicType: branch.logicType,
+          sources: conditionSources,
+          readOnly: readOnly,
+          onChanged: (conditions, logicType) => onChanged(
+            branch.copyWith(conditions: conditions, logicType: logicType),
+          ),
+        ),
+        const SizedBox(height: 12),
+        DiySwitchCard(
+          title: l10n.diy_enableBranch,
+          value: branch.enabled,
+          onChanged: readOnly
+              ? null
+              : (value) => onChanged(branch.copyWith(enabled: value)),
+        ),
+      ],
+    );
+  }
+}
+
+class _BranchTargetsEditor extends StatelessWidget {
+  const _BranchTargetsEditor({
+    required this.branch,
+    required this.options,
+    required this.cyclicTargetIds,
+    required this.readOnly,
+    required this.onChanged,
+  });
+
+  final ConditionalBranch branch;
+  final List<DiyCategoryOption> options;
+  final Set<String> cyclicTargetIds;
+  final bool readOnly;
+  final ValueChanged<List<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final l10n = context.l10n;
+    final blocksCycle = options.any(
       (option) =>
-          widget.cyclicTargetIds.contains(option.id) &&
+          cyclicTargetIds.contains(option.id) &&
           !branch.tagGroupIds.contains(option.id),
     );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -508,20 +489,17 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
         const SizedBox(height: 12),
         DiyCategoryMultiSelect(
           values: branch.tagGroupIds,
-          options: widget.targetOptions,
-          disabledIds: widget.cyclicTargetIds,
+          options: options,
+          disabledIds: cyclicTargetIds,
           disabledReason: l10n.diy_branchTargetCycle,
-          readOnly: widget.readOnly,
+          readOnly: readOnly,
           decoration: InputDecoration(
-            hintText: widget.targetOptions.isEmpty
-                ? l10n.diy_branchTargetsEmpty
-                : null,
+            hintText: options.isEmpty ? l10n.diy_branchTargetsEmpty : null,
             helperText: l10n.diy_branchTargetsHint,
             helperMaxLines: 4,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
-          onChanged: (ids) =>
-              _updateBranch(index, branch.copyWith(tagGroupIds: ids)),
+          onChanged: onChanged,
         ),
         if (blocksCycle) ...[
           const SizedBox(height: 8),
@@ -533,133 +511,6 @@ class _ConditionalBranchPanelState extends State<ConditionalBranchPanel> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildBranchEditor(int index) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final branch = _config.branches[index];
-
-    return ElevatedCard(
-      elevation: CardElevation.level2,
-      borderRadius: 12,
-      gradientBorder: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          colorScheme.primary.withValues(alpha: 0.5),
-          colorScheme.secondary.withValues(alpha: 0.3),
-        ],
-      ),
-      gradientBorderWidth: 1.5,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          DiySectionTitle(
-            icon: Icons.edit_rounded,
-            accent: colorScheme.primary,
-            container: colorScheme.primaryContainer,
-            title: context.l10n.diy_editBranch(branch.name),
-            trailing: IconButton(
-              icon: Icon(
-                Icons.close_rounded,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              onPressed: () => setState(() => _selectedIndex = null),
-              tooltip: context.l10n.common_close,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const ThemedDivider(),
-          const SizedBox(height: 12),
-          // 分支名称
-          ThemedFormInput(
-            initialValue: branch.name,
-            decoration: InputDecoration(
-              labelText: context.l10n.diy_branchName,
-              prefixIcon: const Icon(Icons.label_outline_rounded),
-            ),
-            readOnly: widget.readOnly,
-            onChanged: (value) {
-              _updateBranch(index, branch.copyWith(name: value));
-            },
-          ),
-          const SizedBox(height: 16),
-          LabeledSliderRows(
-            labelStyle: theme.textTheme.titleSmall,
-            valueStyle: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.tertiary,
-            ),
-            sliders: [
-              LabeledSlider(
-                label: context.l10n.diy_probability,
-                valueText: _probabilityText,
-                value: branch.probability.toDouble(),
-                min: 0,
-                max: 100,
-                divisions: 100,
-                onChanged: widget.readOnly
-                    ? null
-                    : (value) => _updateBranch(
-                        index,
-                        branch.copyWith(probability: value.round()),
-                      ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildTargetsEditor(index, branch),
-          const SizedBox(height: 16),
-          BranchConditionsEditor(
-            conditions: branch.conditions,
-            logicType: branch.logicType,
-            sources: widget.conditionSources,
-            readOnly: widget.readOnly,
-            onChanged: (conditions, logicType) => _updateBranch(
-              index,
-              branch.copyWith(conditions: conditions, logicType: logicType),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // 启用开关
-          ElevatedCard(
-            elevation: CardElevation.level1,
-            borderRadius: 10,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  branch.enabled
-                      ? Icons.check_circle_rounded
-                      : Icons.cancel_rounded,
-                  size: 20,
-                  color: branch.enabled
-                      ? colorScheme.primary
-                      : colorScheme.outline,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    context.l10n.diy_enableBranch,
-                    style: theme.textTheme.titleSmall,
-                  ),
-                ),
-                Switch(
-                  value: branch.enabled,
-                  onChanged: widget.readOnly
-                      ? null
-                      : (value) {
-                          _updateBranch(index, branch.copyWith(enabled: value));
-                        },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
