@@ -32,6 +32,25 @@ void main() {
     expect(node.label, isEmpty);
     expect(node.value, '0.60');
   });
+
+  testWidgets('只聚焦不改动时失焦不提交按位数截短的显示值', (tester) async {
+    final committed = <double>[];
+    await _pumpField(
+      tester,
+      EditableDoubleField(value: 1.234, onChanged: committed.add),
+    );
+
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    FocusManager.instance.primaryFocus!.unfocus();
+    await tester.pump();
+    expect(committed, isEmpty);
+
+    await tester.enterText(find.byType(TextField), '2');
+    FocusManager.instance.primaryFocus!.unfocus();
+    await tester.pump();
+    expect(committed, [2]);
+  });
 }
 
 Future<void> _pumpField(WidgetTester tester, Widget field) {

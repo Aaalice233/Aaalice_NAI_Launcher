@@ -101,7 +101,10 @@ class _EditableDoubleFieldState extends State<EditableDoubleField> {
   }
 
   void _commit() {
-    final parsed = double.tryParse(_controller.text.trim());
+    final text = _controller.text.trim();
+    // 未改动的文本只是按 decimals 截短的显示值，提交会把外部数值悄悄改成近似值
+    if (text == _format(widget.value)) return;
+    final parsed = double.tryParse(text);
     if (parsed == null || !parsed.isFinite) {
       _controller.text = _format(widget.value);
       return;
