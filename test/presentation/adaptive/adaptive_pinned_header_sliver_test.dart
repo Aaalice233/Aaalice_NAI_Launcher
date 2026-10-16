@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_pinned_header_sliver.dart';
 
-const _minContent = AdaptivePinnedHeaderSliver.defaultMinContentExtent;
+const _minContent = AdaptivePinnedHeaderSliver.minContentExtent;
 final _scrollKey = GlobalKey();
 
 Widget _header(String label, double height, {FocusNode? fieldFocus}) {

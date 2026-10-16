@@ -53,22 +53,25 @@ void main() {
     expect(find.byKey(const Key('color_picker_cancel')), findsOneWidget);
     expect(find.byKey(const Key('color_picker_confirm')), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('color_picker_hex')),
-      100,
-      scrollable: find.descendant(
-        of: find.byKey(const Key('color_picker_scroll')),
-        matching: find.byType(Scrollable),
-      ),
-    );
+    final scrollable = find
+        .descendant(
+          of: find.byKey(const Key('color_picker_scroll')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final hex = find.byKey(const Key('color_picker_hex'));
+    final confirm = find.byKey(const Key('color_picker_confirm'));
+    await tester.scrollUntilVisible(hex, 100, scrollable: scrollable);
     await tester.pumpAndSettle();
-    final hexRect = tester.getRect(find.byKey(const Key('color_picker_hex')));
-    final confirmRect = tester.getRect(
-      find.byKey(const Key('color_picker_confirm')),
+    expect(tester.getRect(hex).top, greaterThanOrEqualTo(0));
+    // 标题、操作栏与最小正文放不下时，操作栏随正文滚动
+    await tester.scrollUntilVisible(confirm, 100, scrollable: scrollable);
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(hex).bottom,
+      lessThanOrEqualTo(tester.getRect(confirm).top),
     );
-    expect(hexRect.top, greaterThanOrEqualTo(0));
-    expect(hexRect.bottom, lessThanOrEqualTo(confirmRect.top));
-    expect(confirmRect.bottom, lessThanOrEqualTo(600));
+    expect(tester.getRect(confirm).bottom, lessThanOrEqualTo(600));
     expect(tester.takeException(), isNull);
   });
 

@@ -61,12 +61,15 @@ void main() {
     expect(find.text('9:16'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    // 标题、操作栏与最小正文放不下时，操作栏随正文滚动
     final cancel = find.widgetWithText(TextButton, '取消');
     final confirm = find.widgetWithText(FilledButton, 'Apply');
-    expect(cancel, findsOneWidget);
-    expect(confirm, findsOneWidget);
-    expect(tester.getRect(cancel).bottom, lessThanOrEqualTo(388));
-    expect(tester.getRect(confirm).bottom, lessThanOrEqualTo(388));
+    for (final action in [cancel, confirm]) {
+      await tester.scrollUntilVisible(action, 100, scrollable: scrollable);
+      await tester.pump();
+      expect(action, findsOneWidget);
+      expect(tester.getRect(action).bottom, lessThanOrEqualTo(388));
+    }
     expect(tester.takeException(), isNull);
   });
 

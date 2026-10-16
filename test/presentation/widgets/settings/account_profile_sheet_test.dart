@@ -174,7 +174,6 @@ void main() {
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
           final logout = find.byKey(const Key('account-profile-logout-button'));
-          expect(logout.hitTestable(), findsOneWidget);
           final panel = find.byKey(
             ValueKey(
               size.width >= 600
@@ -233,6 +232,8 @@ void main() {
           await _revealInProfile(tester, removeAction);
           expect(removeAction.hitTestable(), findsOneWidget);
           expect(tester.getSize(removeAction).height, greaterThanOrEqualTo(48));
+          await _revealInProfile(tester, logout);
+          expect(logout.hitTestable(), findsOneWidget);
           final error = tester.takeException();
           expect(
             error,

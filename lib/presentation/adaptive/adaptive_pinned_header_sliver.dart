@@ -5,8 +5,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 /// Pins [child] to the leading edge of the viewport only while every header up
-/// to and including it still leaves [minContentExtent] for the content below;
-/// otherwise it scrolls away with the content.
+/// to and including it, plus [trailingExtent], still leaves [minContentExtent]
+/// for the content; otherwise it scrolls away with the content.
 ///
 /// The choice is made from measured extents during layout, so switching modes
 /// on rotation, text scaling or the soft keyboard keeps the same elements and
@@ -15,51 +15,60 @@ class AdaptivePinnedHeaderSliver extends StatelessWidget {
   const AdaptivePinnedHeaderSliver({
     super.key,
     required this.child,
-    this.minContentExtent = defaultMinContentExtent,
+    this.trailingExtent = 0,
   });
 
-  static const double defaultMinContentExtent = 240;
+  /// Viewport extent the content keeps whenever the surrounding chrome stays
+  /// fixed.
+  static const double minContentExtent = 240;
+
+  /// Whether chrome of [chromeExtent] can stay fixed in [availableExtent].
+  static bool chromeFits(double chromeExtent, double availableExtent) =>
+      chromeExtent + minContentExtent <= availableExtent;
 
   final Widget child;
-  final double minContentExtent;
+
+  /// Chrome after the content in the same viewport, such as a footer that
+  /// scrolls with it, which has to fit before this header may pin.
+  final double trailingExtent;
 
   @override
   Widget build(BuildContext context) => _AdaptivePinnedHeader(
-    minContentExtent: minContentExtent,
+    trailingExtent: trailingExtent,
     child: Semantics(container: true, explicitChildNodes: true, child: child),
   );
 }
 
 class _AdaptivePinnedHeader extends SingleChildRenderObjectWidget {
   const _AdaptivePinnedHeader({
-    required this.minContentExtent,
+    required this.trailingExtent,
     required super.child,
   });
 
-  final double minContentExtent;
+  final double trailingExtent;
 
   @override
   RenderAdaptivePinnedHeaderSliver createRenderObject(BuildContext context) =>
-      RenderAdaptivePinnedHeaderSliver(minContentExtent: minContentExtent);
+      RenderAdaptivePinnedHeaderSliver(trailingExtent: trailingExtent);
 
   @override
   void updateRenderObject(
     BuildContext context,
     RenderAdaptivePinnedHeaderSliver renderObject,
   ) {
-    renderObject.minContentExtent = minContentExtent;
+    renderObject.trailingExtent = trailingExtent;
   }
 }
 
 class RenderAdaptivePinnedHeaderSliver extends RenderSliverSingleBoxAdapter {
-  RenderAdaptivePinnedHeaderSliver({required double minContentExtent})
-    : _minContentExtent = minContentExtent;
+  RenderAdaptivePinnedHeaderSliver({double trailingExtent = 0})
+    : _trailingExtent = trailingExtent;
 
-  double get minContentExtent => _minContentExtent;
-  double _minContentExtent;
-  set minContentExtent(double value) {
-    if (value == _minContentExtent) return;
-    _minContentExtent = value;
+  double get trailingExtent => _trailingExtent;
+  double _trailingExtent;
+  set trailingExtent(double value) {
+    if (value == _trailingExtent) return;
+    _trailingExtent = value;
     markNeedsLayout();
   }
 
@@ -80,9 +89,10 @@ class RenderAdaptivePinnedHeaderSliver extends RenderSliverSingleBoxAdapter {
       Axis.horizontal => child.size.width,
     };
     // Not overlap: it stays 0 until scrolling starts and would flip the choice.
-    _isPinned =
-        constraints.precedingScrollExtent + childExtent + minContentExtent <=
-        constraints.viewportMainAxisExtent;
+    _isPinned = AdaptivePinnedHeaderSliver.chromeFits(
+      constraints.precedingScrollExtent + childExtent + trailingExtent,
+      constraints.viewportMainAxisExtent,
+    );
     geometry = _isPinned
         ? _pinnedGeometry(childExtent)
         : _scrollingGeometry(childExtent);
