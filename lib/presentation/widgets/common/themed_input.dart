@@ -192,6 +192,7 @@ class _ThemedInputState extends State<ThemedInput> {
   // 下方文字出现或消失会改变外层结构，靠它移动而非重建输入框，焦点与输入法连接不中断
   final GlobalKey _surfaceKey = GlobalKey();
   late TextEditingController _effectiveController;
+  bool _ownsController = false;
   late FocusNode _effectiveFocusNode;
   bool _ownsFocusNode = false;
   bool _hasContent = false;
@@ -199,31 +200,19 @@ class _ThemedInputState extends State<ThemedInput> {
   @override
   void initState() {
     super.initState();
-    _effectiveController = widget.controller ?? TextEditingController();
+    _attachController(widget.controller);
     _effectiveFocusNode = widget.focusNode ?? FocusNode();
     _ownsFocusNode = widget.focusNode == null;
     _effectiveFocusNode.addListener(_onFocusChanged);
-    _hasContent = _effectiveController.text.isNotEmpty;
-    if (widget.showClearButton) {
-      _effectiveController.addListener(_onTextChanged);
-    }
   }
 
   @override
   void didUpdateWidget(ThemedInput oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.controller != oldWidget.controller) {
-      if (oldWidget.showClearButton && oldWidget.controller == null) {
-        _effectiveController.removeListener(_onTextChanged);
-        _effectiveController.dispose();
-      } else if (oldWidget.showClearButton) {
-        oldWidget.controller?.removeListener(_onTextChanged);
-      }
-      _effectiveController = widget.controller ?? TextEditingController();
-      _hasContent = _effectiveController.text.isNotEmpty;
-      if (widget.showClearButton) {
-        _effectiveController.addListener(_onTextChanged);
-      }
+      final previous = _effectiveController.value;
+      _detachController();
+      _attachController(widget.controller, carryOver: previous);
     }
     if (widget.focusNode != oldWidget.focusNode) {
       _effectiveFocusNode.removeListener(_onFocusChanged);
@@ -236,15 +225,27 @@ class _ThemedInputState extends State<ThemedInput> {
 
   @override
   void dispose() {
-    if (widget.showClearButton) {
-      _effectiveController.removeListener(_onTextChanged);
-    }
-    if (widget.controller == null) {
-      _effectiveController.dispose();
-    }
+    _detachController();
     _effectiveFocusNode.removeListener(_onFocusChanged);
     if (_ownsFocusNode) _effectiveFocusNode.dispose();
     super.dispose();
+  }
+
+  // 一直监听：清空按钮可能在之后才开启，届时需要已知的内容状态
+  void _attachController(
+    TextEditingController? external, {
+    TextEditingValue? carryOver,
+  }) {
+    _ownsController = external == null;
+    _effectiveController =
+        external ?? TextEditingController.fromValue(carryOver);
+    _effectiveController.addListener(_onTextChanged);
+    _hasContent = _effectiveController.text.isNotEmpty;
+  }
+
+  void _detachController() {
+    _effectiveController.removeListener(_onTextChanged);
+    if (_ownsController) _effectiveController.dispose();
   }
 
   void _onFocusChanged() {
@@ -253,11 +254,12 @@ class _ThemedInputState extends State<ThemedInput> {
 
   void _onTextChanged() {
     final hasContent = _effectiveController.text.isNotEmpty;
-    if (_hasContent != hasContent) {
-      setState(() {
-        _hasContent = hasContent;
-      });
+    if (_hasContent == hasContent) return;
+    if (!widget.showClearButton) {
+      _hasContent = hasContent;
+      return;
     }
+    setState(() => _hasContent = hasContent);
   }
 
   Future<void> _handleClear() async {

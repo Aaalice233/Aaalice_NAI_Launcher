@@ -113,6 +113,55 @@ void main() {
   });
 
   group('ThemedInput 清空按钮', () {
+    testWidgets('之后才开启清空按钮也按内容显隐，卸载后不再监听外部控制器', (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      Future<void> pumpInput({required bool showClearButton}) {
+        return tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ThemedInput(
+                controller: controller,
+                showClearButton: showClearButton,
+              ),
+            ),
+          ),
+        );
+      }
+
+      await pumpInput(showClearButton: false);
+      await pumpInput(showClearButton: true);
+      await tester.enterText(find.byType(TextField), 'girl');
+      await tester.pump();
+      expect(find.byIcon(Icons.close), findsOneWidget);
+
+      await pumpInput(showClearButton: false);
+      expect(find.byIcon(Icons.close), findsNothing);
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      controller.text = '';
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('改由内部持有控制器时保留已输入内容', (tester) async {
+      final controller = TextEditingController(text: 'girl');
+      addTearDown(controller.dispose);
+      Future<void> pumpInput(TextEditingController? value) {
+        return tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: ThemedInput(controller: value)),
+          ),
+        );
+      }
+
+      await pumpInput(controller);
+      await pumpInput(null);
+      expect(
+        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+        'girl',
+      );
+    });
+
     testWidgets('文本在空/非空间切换时输入框不重建、焦点不丢失', (tester) async {
       final controller = TextEditingController(text: 'girl');
       final focusNode = FocusNode();
