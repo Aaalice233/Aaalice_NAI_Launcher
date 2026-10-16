@@ -238,35 +238,26 @@ Future<HttpServer> _startImageServer(Uint8List bytes) async {
   return server;
 }
 
-class _PlainTextDataReader extends DataReader {
-  _PlainTextDataReader(this.text);
+/// 只声明 [formats] 的拖入项；读值、读文件默认都不提供。
+class _StubDataReader extends Fake implements DataReader {
+  _StubDataReader(this.formats);
 
-  final String text;
-
-  @override
-  bool canProvide(DataFormat format) => format == Formats.plainText;
+  final List<DataFormat> formats;
 
   @override
-  List<DataFormat> getFormats(List<DataFormat> allFormats) {
-    return allFormats
-        .where((format) => format == Formats.plainText)
-        .toList(growable: false);
-  }
+  bool canProvide(DataFormat format) =>
+      formats.any((provided) => identical(provided, format));
+
+  @override
+  List<DataFormat> getFormats(List<DataFormat> allFormats) =>
+      allFormats.where(canProvide).toList(growable: false);
 
   @override
   ReadProgress? getValue<T extends Object>(
     ValueFormat<T> format,
     AsyncValueChanged<T?> onValue, {
     ValueChanged<Object>? onError,
-  }) {
-    if (!identical(format, Formats.plainText)) {
-      return null;
-    }
-    Future<void>.microtask(() async {
-      await onValue(text as T);
-    });
-    return _CompletedReadProgress();
-  }
+  }) => null;
 
   @override
   ReadProgress? getFile(
@@ -275,9 +266,7 @@ class _PlainTextDataReader extends DataReader {
     ValueChanged<Object>? onError,
     bool allowVirtualFiles = true,
     bool synthesizeFilesFromURIs = true,
-  }) {
-    return null;
-  }
+  }) => null;
 
   @override
   bool isSynthesized(DataFormat format) => false;
@@ -291,49 +280,51 @@ class _PlainTextDataReader extends DataReader {
   @override
   Future<VirtualFileReceiver?> getVirtualFileReceiver({
     FileFormat? format,
-  }) async {
-    return null;
-  }
+  }) async => null;
 
   @override
   List<PlatformFormat> get platformFormats => const [];
+
+  ReadProgress _deliver(Future<void> Function() delivery) {
+    Future<void>.microtask(delivery);
+    return _CompletedReadProgress();
+  }
 }
 
-class _ImageAndUriDataReader extends DataReader {
+class _PlainTextDataReader extends _StubDataReader {
+  _PlainTextDataReader(this.text) : super([Formats.plainText]);
+
+  final String text;
+
+  @override
+  ReadProgress? getValue<T extends Object>(
+    ValueFormat<T> format,
+    AsyncValueChanged<T?> onValue, {
+    ValueChanged<Object>? onError,
+  }) => identical(format, Formats.plainText)
+      ? _deliver(() async => onValue(text as T))
+      : null;
+}
+
+class _ImageAndUriDataReader extends _StubDataReader {
   _ImageAndUriDataReader({
     required this.uri,
     required this.imageBytes,
     required this.synthesizedImage,
-  });
+  }) : super([Formats.png, Formats.uri]);
 
   final Uri uri;
   final Uint8List imageBytes;
   final bool synthesizedImage;
 
   @override
-  bool canProvide(DataFormat format) {
-    return identical(format, Formats.png) || identical(format, Formats.uri);
-  }
-
-  @override
-  List<DataFormat> getFormats(List<DataFormat> allFormats) {
-    return allFormats.where(canProvide).toList(growable: false);
-  }
-
-  @override
   ReadProgress? getValue<T extends Object>(
     ValueFormat<T> format,
     AsyncValueChanged<T?> onValue, {
     ValueChanged<Object>? onError,
-  }) {
-    if (!identical(format, Formats.uri)) {
-      return null;
-    }
-    Future<void>.microtask(() async {
-      await onValue(NamedUri(uri) as T);
-    });
-    return _CompletedReadProgress();
-  }
+  }) => identical(format, Formats.uri)
+      ? _deliver(() async => onValue(NamedUri(uri) as T))
+      : null;
 
   @override
   ReadProgress? getFile(
@@ -342,90 +333,43 @@ class _ImageAndUriDataReader extends DataReader {
     ValueChanged<Object>? onError,
     bool allowVirtualFiles = true,
     bool synthesizeFilesFromURIs = true,
-  }) {
-    if (!identical(format, Formats.png)) {
-      return null;
-    }
-    Future<void>.microtask(() async {
-      await onFile(_MemoryDataReaderFile(imageBytes, fileName: 'preview.png'));
-    });
-    return _CompletedReadProgress();
-  }
+  }) => identical(format, Formats.png)
+      ? _deliver(
+          () async => onFile(
+            _MemoryDataReaderFile(imageBytes, fileName: 'preview.png'),
+          ),
+        )
+      : null;
 
   @override
-  bool isSynthesized(DataFormat format) {
-    return identical(format, Formats.png) && synthesizedImage;
-  }
-
-  @override
-  bool isVirtual(DataFormat format) => false;
+  bool isSynthesized(DataFormat format) =>
+      identical(format, Formats.png) && synthesizedImage;
 
   @override
   Future<String?> getSuggestedName() async => 'preview.png';
-
-  @override
-  Future<VirtualFileReceiver?> getVirtualFileReceiver({
-    FileFormat? format,
-  }) async {
-    return null;
-  }
-
-  @override
-  List<PlatformFormat> get platformFormats => const [];
 }
 
-class _WebpDataReader extends DataReader {
-  _WebpDataReader(this.bytes, {required this.fileName});
+class _WebpDataReader extends _StubDataReader {
+  _WebpDataReader(this.bytes, {required this.fileName}) : super([Formats.webp]);
 
   final Uint8List bytes;
   final String fileName;
 
   @override
-  bool canProvide(DataFormat format) => identical(format, Formats.webp);
-
-  @override
-  List<DataFormat> getFormats(List<DataFormat> allFormats) => allFormats
-      .where((format) => identical(format, Formats.webp))
-      .toList(growable: false);
-
-  @override
   ReadProgress? getFile(
     FileFormat? format,
     AsyncValueChanged<DataReaderFile> onFile, {
     ValueChanged<Object>? onError,
     bool allowVirtualFiles = true,
     bool synthesizeFilesFromURIs = true,
-  }) {
-    if (!identical(format, Formats.webp)) return null;
-    Future<void>.microtask(
-      () async => onFile(_MemoryDataReaderFile(bytes, fileName: fileName)),
-    );
-    return _CompletedReadProgress();
-  }
-
-  @override
-  ReadProgress? getValue<T extends Object>(
-    ValueFormat<T> format,
-    AsyncValueChanged<T?> onValue, {
-    ValueChanged<Object>? onError,
-  }) => null;
-
-  @override
-  bool isSynthesized(DataFormat format) => false;
-
-  @override
-  bool isVirtual(DataFormat format) => false;
+  }) => identical(format, Formats.webp)
+      ? _deliver(
+          () async => onFile(_MemoryDataReaderFile(bytes, fileName: fileName)),
+        )
+      : null;
 
   @override
   Future<String?> getSuggestedName() async => fileName;
-
-  @override
-  Future<VirtualFileReceiver?> getVirtualFileReceiver({
-    FileFormat? format,
-  }) async => null;
-
-  @override
-  List<PlatformFormat> get platformFormats => const [];
 }
 
 class _FailingSuggestedNameWebpDataReader extends _WebpDataReader {
@@ -436,55 +380,19 @@ class _FailingSuggestedNameWebpDataReader extends _WebpDataReader {
       Future<String?>.error(const FileSystemException('name lookup failed'));
 }
 
-class _FileUriDataReader extends DataReader {
-  _FileUriDataReader(this.uri);
+class _FileUriDataReader extends _StubDataReader {
+  _FileUriDataReader(this.uri) : super([Formats.fileUri]);
 
   final Uri uri;
-
-  @override
-  bool canProvide(DataFormat format) => identical(format, Formats.fileUri);
-
-  @override
-  List<DataFormat> getFormats(List<DataFormat> allFormats) {
-    return allFormats.where(canProvide).toList(growable: false);
-  }
 
   @override
   ReadProgress? getValue<T extends Object>(
     ValueFormat<T> format,
     AsyncValueChanged<T?> onValue, {
     ValueChanged<Object>? onError,
-  }) {
-    if (!identical(format, Formats.fileUri)) return null;
-    Future<void>.microtask(() => onValue(uri as T));
-    return _CompletedReadProgress();
-  }
-
-  @override
-  ReadProgress? getFile(
-    FileFormat? format,
-    AsyncValueChanged<DataReaderFile> onFile, {
-    ValueChanged<Object>? onError,
-    bool allowVirtualFiles = true,
-    bool synthesizeFilesFromURIs = true,
-  }) => null;
-
-  @override
-  bool isSynthesized(DataFormat format) => false;
-
-  @override
-  bool isVirtual(DataFormat format) => false;
-
-  @override
-  Future<String?> getSuggestedName() async => null;
-
-  @override
-  Future<VirtualFileReceiver?> getVirtualFileReceiver({
-    FileFormat? format,
-  }) async => null;
-
-  @override
-  List<PlatformFormat> get platformFormats => const [];
+  }) => identical(format, Formats.fileUri)
+      ? _deliver(() async => onValue(uri as T))
+      : null;
 }
 
 class _MemoryDataReaderFile extends DataReaderFile {
