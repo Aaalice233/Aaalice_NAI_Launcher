@@ -371,7 +371,7 @@ class _ThemedInputState extends State<ThemedInput> {
       borderRadius: widget.borderRadius,
       enabled: widget.enabled,
       isFocused: _effectiveFocusNode.hasFocus,
-      hasError: widget.hasError || surface.hasError(),
+      hasError: widget.hasError || surface.hasError,
       backgroundColor: widget.surfaceColor,
       child: content,
     );

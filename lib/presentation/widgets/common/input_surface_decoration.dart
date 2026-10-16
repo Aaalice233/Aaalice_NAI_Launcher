@@ -8,7 +8,6 @@ class InputSurfaceDecoration {
   InputSurfaceDecoration(
     InputDecoration? decoration, {
     required EdgeInsetsGeometry contentPadding,
-    this.labelText,
     this.hintText,
     this.hintStyle,
     this.prefixIcon,
@@ -20,7 +19,6 @@ class InputSurfaceDecoration {
 
   final InputDecoration decoration;
   final EdgeInsetsGeometry contentPadding;
-  final String? labelText;
   final String? hintText;
   final TextStyle? hintStyle;
   final Widget? prefixIcon;
@@ -32,13 +30,12 @@ class InputSurfaceDecoration {
 
   /// 色面内 TextField 使用的装饰
   InputDecoration get fieldDecoration {
-    final hasLabel = decoration.label != null || decoration.labelText != null;
     final hasHint = decoration.hint != null || decoration.hintText != null;
     return InputDecoration(
       icon: decoration.icon,
       iconColor: decoration.iconColor,
       label: decoration.label,
-      labelText: hasLabel ? decoration.labelText : labelText,
+      labelText: decoration.labelText,
       labelStyle: decoration.labelStyle,
       floatingLabelStyle: decoration.floatingLabelStyle,
       hint: decoration.hint,
@@ -80,18 +77,13 @@ class InputSurfaceDecoration {
     );
   }
 
-  /// 是否处于错误状态；[validatorError] 来自表单校验
-  bool hasError([String? validatorError]) =>
-      validatorError != null ||
-      decoration.error != null ||
-      decoration.errorText != null;
+  /// 是否处于错误状态
+  bool get hasError => decoration.error != null || decoration.errorText != null;
 
-  /// 色面下方的文字；没有可显示的内容时返回 null
-  ///
-  /// [validatorError] 优先于 [InputDecoration.errorText]，错误出现时隐藏帮助文字。
-  Widget? supportingText([String? validatorError]) {
+  /// 色面下方的文字；没有可显示的内容时返回 null，错误出现时隐藏帮助文字
+  Widget? supportingText() {
     final hasMessage =
-        hasError(validatorError) ||
+        hasError ||
         decoration.helper != null ||
         (decoration.helperText ?? helperText) != null;
     final hasCounter =
@@ -100,7 +92,6 @@ class InputSurfaceDecoration {
     if (!hasMessage && !hasCounter) return null;
     return _InputSupportingText(
       surface: this,
-      validatorError: validatorError,
       showMessage: hasMessage,
       showCounter: hasCounter,
     );
@@ -110,13 +101,11 @@ class InputSurfaceDecoration {
 class _InputSupportingText extends StatelessWidget {
   const _InputSupportingText({
     required this.surface,
-    required this.validatorError,
     required this.showMessage,
     required this.showCounter,
   });
 
   final InputSurfaceDecoration surface;
-  final String? validatorError;
   final bool showMessage;
   final bool showCounter;
 
@@ -151,18 +140,14 @@ class _InputSupportingText extends StatelessWidget {
   Widget _buildMessage(ThemeData theme) {
     final decoration = surface.decoration;
     final base = theme.textTheme.bodySmall;
-    if (surface.hasError(validatorError)) {
+    if (surface.hasError) {
       final style = base
           ?.copyWith(color: theme.colorScheme.error)
           .merge(decoration.errorStyle);
-      if (validatorError == null && decoration.error != null) {
+      if (decoration.error != null) {
         return DefaultTextStyle.merge(style: style, child: decoration.error!);
       }
-      return _text(
-        validatorError ?? decoration.errorText!,
-        style,
-        decoration.errorMaxLines,
-      );
+      return _text(decoration.errorText!, style, decoration.errorMaxLines);
     }
 
     final style = base
