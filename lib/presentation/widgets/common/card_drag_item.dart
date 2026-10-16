@@ -44,7 +44,7 @@ Future<DragItem> buildCardDragItem(
   if (format == null || bytes == null) return item;
   final files = store ?? DragExportFileStore.instance;
   switch (exportMode) {
-    case DragFileExportMode.virtualFile when item.virtualFileSupported:
+    case DragFileExportMode.virtualFile:
       addCardVirtualFile(
         item,
         format: format,
@@ -57,7 +57,7 @@ Future<DragItem> buildCardDragItem(
         export: () async => files.write(resource.fileName, await bytes()),
         reportFailure: reportFailure,
       );
-    case DragFileExportMode.virtualFile || DragFileExportMode.preparedFile:
+    case DragFileExportMode.preparedFile:
       final contents = await bytes();
       item.add(format(contents));
       item.add(

@@ -150,20 +150,6 @@ void main() {
     expect(await root.list().isEmpty, isTrue);
   });
 
-  test('virtual mode falls back to a prepared file elsewhere', () async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    addTearDown(() => debugDefaultTargetPlatformOverride = null);
-    final representations = await build(
-      resource(),
-      DragFileExportMode.virtualFile,
-    );
-    expect(
-      representations.whereType<raw.DataRepresentationVirtualFile>(),
-      isEmpty,
-    );
-    expect(preparations, 1);
-  });
-
   test('resources without exportable contents only carry payloads', () async {
     final representations = await build(
       const CardDragResource(id: 'a', fileName: 'a.png'),
