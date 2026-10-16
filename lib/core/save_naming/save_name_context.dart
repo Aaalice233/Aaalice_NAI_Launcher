@@ -27,14 +27,13 @@ final class SaveNameContext implements SaveNameValues {
 
   SaveNameContext copyWith({
     NaiImageMetadata? metadata,
-    int? index,
     int? width,
     int? height,
   }) => SaveNameContext(
     createdAt: createdAt,
     metadata: metadata ?? this.metadata,
     imageId: imageId,
-    index: index ?? this.index,
+    index: index,
     width: width ?? this.width,
     height: height ?? this.height,
   );
