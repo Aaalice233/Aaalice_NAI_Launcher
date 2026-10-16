@@ -1,10 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
+
+import '../../helpers/image_stream_resolution.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -178,7 +178,7 @@ void main() {
     test('cover 按覆盖尺寸解码，contain 按适配尺寸解码', () async {
       final bytes = _pngBytes(width: 200, height: 100);
 
-      final cover = await _resolve(
+      final cover = await resolveImageInfo(
         BoxFitResizeImage(
           MemoryImage(bytes),
           width: 50,
@@ -187,7 +187,7 @@ void main() {
         ),
       );
       addTearDown(cover.dispose);
-      final contain = await _resolve(
+      final contain = await resolveImageInfo(
         BoxFitResizeImage(
           MemoryImage(bytes),
           width: 50,
@@ -210,7 +210,7 @@ void main() {
       );
       final key = await provider.obtainKey(ImageConfiguration.empty);
 
-      await expectLater(_resolve(provider), throwsA(anything));
+      await expectLater(resolveImageInfo(provider), throwsA(anything));
       await Future<void>.delayed(Duration.zero);
 
       expect(
@@ -235,21 +235,3 @@ class _FailingKeyImage extends ImageProvider<Object> {
 
 Uint8List _pngBytes({required int width, required int height}) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
-
-Future<ImageInfo> _resolve(ImageProvider provider) {
-  final completer = Completer<ImageInfo>();
-  late ImageStreamListener listener;
-  final stream = provider.resolve(ImageConfiguration.empty);
-  listener = ImageStreamListener(
-    (info, _) {
-      stream.removeListener(listener);
-      if (!completer.isCompleted) completer.complete(info);
-    },
-    onError: (Object error, StackTrace? stackTrace) {
-      stream.removeListener(listener);
-      if (!completer.isCompleted) completer.completeError(error, stackTrace);
-    },
-  );
-  stream.addListener(listener);
-  return completer.future.timeout(const Duration(seconds: 5));
-}

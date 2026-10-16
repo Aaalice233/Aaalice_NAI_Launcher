@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -7,6 +6,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/cache/local_file_image.dart';
+
+import '../../helpers/image_stream_resolution.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,7 +52,7 @@ void main() {
     final path = pathOf('stable.png');
     await File(path).writeAsBytes(_solidPng(img.ColorRgb8(0, 255, 0)));
     final first = LocalFileImage(path);
-    final info = await _resolve(first);
+    final info = await resolveImageInfo(first);
     addTearDown(info.dispose);
 
     final key = await first.obtainKey(ImageConfiguration.empty);
@@ -116,7 +117,7 @@ void main() {
       ),
     )!;
 
-    await expectLater(_firstImage(completer), throwsA(isA<StateError>()));
+    await expectLater(firstImageInfo(completer), throwsA(isA<StateError>()));
     expect(
       PaintingBinding.instance.imageCache.statusForKey(unknownKey).untracked,
       isTrue,
@@ -141,7 +142,7 @@ void main() {
     )!;
 
     await expectLater(
-      _firstImage(completer),
+      firstImageInfo(completer),
       throwsA(isA<PathNotFoundException>()),
     );
     expect(
@@ -158,7 +159,7 @@ void main() {
     final corruptKey = await provider.obtainKey(ImageConfiguration.empty);
 
     final failed = provider.resolve(ImageConfiguration.empty).completer!;
-    await expectLater(_firstImage(failed), throwsException);
+    await expectLater(firstImageInfo(failed), throwsException);
     expect(
       PaintingBinding.instance.imageCache.statusForKey(corruptKey).pending,
       isTrue,
@@ -192,7 +193,7 @@ void main() {
     expect(resized.height, isNull);
     expect(resized.imageProvider, LocalFileImage(path, scale: 2));
 
-    final info = await _resolve(provider);
+    final info = await resolveImageInfo(provider);
     addTearDown(info.dispose);
     expect((info.image.width, info.image.height), (10, 5));
     expect(info.scale, 2);
@@ -220,7 +221,7 @@ Uint8List _solidPng(img.Color color) {
 }
 
 Future<(int, int, int)> _firstPixel(ImageProvider provider) async {
-  final info = await _resolve(provider);
+  final info = await resolveImageInfo(provider);
   try {
     final pixels = await info.image.toByteData(
       format: ui.ImageByteFormat.rawRgba,
@@ -231,47 +232,12 @@ Future<(int, int, int)> _firstPixel(ImageProvider provider) async {
   }
 }
 
-Future<ImageInfo> _resolve(ImageProvider provider) {
-  final completer = Completer<ImageInfo>();
-  late ImageStreamListener listener;
-  final stream = provider.resolve(ImageConfiguration.empty);
-  listener = ImageStreamListener(
-    (info, _) {
-      stream.removeListener(listener);
-      if (!completer.isCompleted) completer.complete(info);
-    },
-    onError: (Object error, StackTrace? stackTrace) {
-      stream.removeListener(listener);
-      if (!completer.isCompleted) completer.completeError(error, stackTrace);
-    },
-  );
-  stream.addListener(listener);
-  return completer.future.timeout(const Duration(seconds: 5));
-}
-
 Future<Object> _resolveError(ImageProvider provider) async {
   try {
-    final info = await _resolve(provider);
+    final info = await resolveImageInfo(provider);
     info.dispose();
   } catch (error) {
     return error;
   }
   fail('$provider resolved an image instead of an error');
-}
-
-Future<ImageInfo> _firstImage(ImageStreamCompleter completer) {
-  final result = Completer<ImageInfo>();
-  late ImageStreamListener listener;
-  listener = ImageStreamListener(
-    (info, _) {
-      completer.removeListener(listener);
-      if (!result.isCompleted) result.complete(info);
-    },
-    onError: (Object error, StackTrace? stackTrace) {
-      completer.removeListener(listener);
-      if (!result.isCompleted) result.completeError(error, stackTrace);
-    },
-  );
-  completer.addListener(listener);
-  return result.future.timeout(const Duration(seconds: 5));
 }
