@@ -3,14 +3,14 @@ class VibeFolderSyncResult {
     required this.scannedCount,
     required this.upsertedCount,
     required this.deletedCount,
-    required this.failedCount,
     required this.errors,
   });
 
   final int scannedCount;
   final int upsertedCount;
   final int deletedCount;
-  final int failedCount;
+
+  /// 每个失败的文件或条目一条。
   final List<String> errors;
 }
 
