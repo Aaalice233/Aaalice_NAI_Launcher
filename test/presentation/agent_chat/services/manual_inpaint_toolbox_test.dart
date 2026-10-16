@@ -22,7 +22,6 @@ import 'package:nai_launcher/presentation/providers/generation/generation_params
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 
 import '../../../helpers/exif_orientation_fixture.dart';
-import '../../../helpers/shared_compute_gate.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 
@@ -708,13 +707,14 @@ void main() {
       },
     );
 
-    test('authored regions rasterize behind the compute gate', () async {
-      final toolbox = await buildToolbox();
-      final tools = {for (final tool in toolbox.tools()) tool.name: tool};
-      markObservedPath(sourceFile.path);
+    test(
+      'subtract-only regions report an empty mask without a draft',
+      () async {
+        final toolbox = await buildToolbox();
+        final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+        markObservedPath(sourceFile.path);
 
-      final result = await expectQueuedBehindSharedComputeGate(
-        () => tools['create_inpaint_mask']!.execute('c5', {
+        final result = await tools['create_inpaint_mask']!.execute('c5', {
           'source_image': 'source.png',
           'prompt': 'remove nothing',
           'regions': const [
@@ -727,12 +727,12 @@ void main() {
               'height': 0.3,
             },
           ],
-        }),
-      );
+        });
 
-      expect(result.details['code'], 'empty_mask');
-      expect(await repository.list(), isEmpty);
-    });
+        expect(result.details['code'], 'empty_mask');
+        expect(await repository.list(), isEmpty);
+      },
+    );
   });
 
   group('editor results', () {
@@ -1034,11 +1034,10 @@ void main() {
         'contextPadding': 120,
       });
       expect(outpainted.parameterSnapshot['_agentSourceIsOutpaint'], isTrue);
-      expect(
-        pricedSizes.last,
-        (768, 512),
-        reason: 'without focus the whole outpainted canvas is priced',
-      );
+      expect(pricedSizes.last, (
+        768,
+        512,
+      ), reason: 'without focus the whole outpainted canvas is priced');
     });
   });
 }

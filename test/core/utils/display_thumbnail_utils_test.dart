@@ -34,27 +34,20 @@ void main() {
 
   test('thumbnail-sized sources stay inline', () async {
     final source = _noisePng(64, 48);
-    final release = holdSharedComputeGate();
-    try {
-      final thumbnail = await DisplayThumbnailUtils.normalize(
-        source,
-      ).timeout(const Duration(seconds: 5));
-      expect(thumbnail, same(source));
-    } finally {
-      await release();
-    }
+
+    final thumbnail = await expectRunsWithoutSharedComputeGate(
+      () => DisplayThumbnailUtils.normalize(source),
+    );
+
+    expect(thumbnail, same(source));
   });
 
   test('undecodable bytes still resolve to null', () async {
-    final release = holdSharedComputeGate();
-    try {
-      final thumbnail = await DisplayThumbnailUtils.normalize(
-        Uint8List.fromList([1, 2, 3, 4]),
-      ).timeout(const Duration(seconds: 5));
-      expect(thumbnail, isNull);
-    } finally {
-      await release();
-    }
+    final thumbnail = await expectRunsWithoutSharedComputeGate(
+      () => DisplayThumbnailUtils.normalize(Uint8List.fromList([1, 2, 3, 4])),
+    );
+
+    expect(thumbnail, isNull);
     expect(await DisplayThumbnailUtils.normalize(Uint8List(64)), isNull);
   });
 }
@@ -63,11 +56,7 @@ Uint8List _noisePng(int width, int height) {
   final random = math.Random(7);
   final image = img.Image(width: width, height: height);
   for (final pixel in image) {
-    pixel.setRgb(
-      random.nextInt(256),
-      random.nextInt(256),
-      random.nextInt(256),
-    );
+    pixel.setRgb(random.nextInt(256), random.nextInt(256), random.nextInt(256));
   }
   return Uint8List.fromList(img.encodePng(image));
 }

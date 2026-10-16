@@ -120,15 +120,10 @@ void main() {
       final tool = FillTool()..setTolerance(0);
       state.setForegroundColor(_green);
 
-      final release = holdSharedComputeGate();
-      try {
+      await expectQueuedBehindSharedComputeGate(() {
         _tap(tool, state, const Offset(48, 32));
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-        expect(layer.strokes, isEmpty, reason: '填充计算须经 ComputeGate 排队');
-      } finally {
-        await release();
-      }
-      await _settle(state);
+        return _settle(state);
+      }, whileQueued: () => expect(layer.strokes, isEmpty));
 
       expect(layer.strokes.single.points, hasLength(64 * 32));
       expect(
@@ -146,19 +141,17 @@ void main() {
       final tool = FillTool()..setTolerance(0);
       state.setForegroundColor(_blue);
 
-      final release = holdSharedComputeGate();
-      try {
-        _tap(tool, state, const Offset(10, 32));
+      await expectQueuedBehindSharedComputeGate(
+        () {
+          _tap(tool, state, const Offset(10, 32));
+          return _settle(state);
+        },
         // 回读已完成、填充计算正在闸门后排队时画一道隔墙
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-        state.historyManager.execute(
+        whileQueued: () => state.historyManager.execute(
           AddStrokeAction(layerId: layer.id, stroke: _wall()),
           state,
-        );
-      } finally {
-        await release();
-      }
-      await _settle(state);
+        ),
+      );
 
       expect(state.historyManager.undoStackSize, 2);
       final fill = layer.strokes.last;

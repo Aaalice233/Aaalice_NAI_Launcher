@@ -339,16 +339,12 @@ void main() {
         _json('entries/$_entryId.json', entry.toJson()),
       ]);
       final preview = await service.parseImportFile(package);
-      final release = holdSharedComputeGate();
-      try {
-        final result = await runImport(
-          package,
-          preview,
-        ).timeout(const Duration(seconds: 5));
-        expect(result.success, isTrue);
-      } finally {
-        await release();
-      }
+
+      final result = await expectRunsWithoutSharedComputeGate(
+        () => runImport(package, preview),
+      );
+
+      expect(result.success, isTrue);
     });
 
     test('包内未携带预览图时丢弃导出机器的外部路径', () async {

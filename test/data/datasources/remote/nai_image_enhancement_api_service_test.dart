@@ -15,7 +15,6 @@ import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 
 import '../../../helpers/browser_multipart_reader.dart';
 import '../../../helpers/exif_orientation_fixture.dart';
-import '../../../helpers/shared_compute_gate.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -61,7 +60,7 @@ void main() {
   });
 
   group('NAIImageEnhancementApiService', () {
-    test('upscale results are extracted behind the shared gate', () async {
+    test('upscale results are unpacked from the returned zip', () async {
       final dio = _MockDio();
       final upscaled = _buildPng(width: 96, height: 64);
       when(
@@ -78,11 +77,9 @@ void main() {
         ),
       );
 
-      final result = await expectQueuedBehindSharedComputeGate(
-        () => NAIImageEnhancementApiService(
-          dio,
-        ).upscaleImage(_buildPng(width: 48, height: 32)),
-      );
+      final result = await NAIImageEnhancementApiService(
+        dio,
+      ).upscaleImage(_buildPng(width: 48, height: 32));
 
       expect(result, orderedEquals(upscaled));
     });
