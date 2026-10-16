@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'image_viewport_surface.dart';
+import '../../../core/utils/encoded_image_dimensions.dart';
 import '../../themes/core/layered_surface_style.dart';
 
 enum ImageHoverPreviewTone { primary, secondary, tertiary, neutral }
@@ -265,17 +266,13 @@ Future<double> decodeMemoryImageAspectRatio(
   double fallback = 1,
 }) async {
   if (bytes == null || bytes.isEmpty) return fallback;
-  ui.ImmutableBuffer? buffer;
-  ui.ImageDescriptor? descriptor;
   try {
-    buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-    descriptor = await ui.ImageDescriptor.encoded(buffer);
-    if (descriptor.width <= 0 || descriptor.height <= 0) return fallback;
-    return descriptor.width / descriptor.height;
+    final (width, height) = await readEncodedImageDimensions(
+      await ui.ImmutableBuffer.fromUint8List(bytes),
+    );
+    if (width <= 0 || height <= 0) return fallback;
+    return width / height;
   } catch (_) {
     return fallback;
-  } finally {
-    descriptor?.dispose();
-    buffer?.dispose();
   }
 }

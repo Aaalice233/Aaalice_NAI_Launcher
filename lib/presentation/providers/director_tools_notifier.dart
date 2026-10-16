@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/encoded_image_dimensions.dart';
 import '../../core/services/anlas_calculator.dart';
 import '../../core/services/pixel_snap/pixel_snap_options.dart';
 import '../../core/services/pixel_snap/pixel_snap_progress.dart';
@@ -149,12 +150,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
 
   Future<void> _resolveImageDimensions(Uint8List bytes) async {
     try {
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final w = frame.image.width;
-      final h = frame.image.height;
-      frame.image.dispose();
-      codec.dispose();
+      final (w, h) = await readEncodedImageDimensions(
+        await ui.ImmutableBuffer.fromUint8List(bytes),
+      );
       state = state.copyWith(imageWidth: w, imageHeight: h);
     } catch (e) {
       AppLogger.d(

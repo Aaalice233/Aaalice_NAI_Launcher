@@ -576,13 +576,11 @@ class LayerManager extends ChangeNotifier {
     renderWhere(canvas, include ?? (_) => true);
 
     final picture = recorder.endRecording();
-    final image = await picture.toImage(
-      region.width.round(),
-      region.height.round(),
-    );
-    picture.dispose();
-
-    return image;
+    try {
+      return await picture.toImage(region.width.round(), region.height.round());
+    } finally {
+      picture.dispose();
+    }
   }
 
   // ===== 批量操作方法 =====

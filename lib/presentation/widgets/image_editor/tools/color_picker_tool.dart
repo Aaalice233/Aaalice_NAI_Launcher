@@ -97,12 +97,16 @@ class ColorPickerTool extends EditorTool {
     state.layerManager.renderImageLayers(canvas);
 
     final picture = recorder.endRecording();
-    // 只生成小区域的图像，而非整个画布
-    final image = await picture.toImage(regionWidth, regionHeight);
-
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-    image.dispose();
-    picture.dispose();
+    ui.Image? image;
+    final ByteData? byteData;
+    try {
+      // 只生成小区域的图像，而非整个画布
+      image = await picture.toImage(regionWidth, regionHeight);
+      byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    } finally {
+      image?.dispose();
+      picture.dispose();
+    }
 
     if (byteData == null) return null;
 

@@ -7,6 +7,7 @@ import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../core/cache/local_gallery_thumbnail_provider.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/encoded_image_dimensions.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -377,11 +378,10 @@ class _GenericGalleryContentViewState<T>
     }
 
     try {
-      final buffer = await ui.ImmutableBuffer.fromFilePath(record.path);
-      final descriptor = await ui.ImageDescriptor.encoded(buffer);
-      if (descriptor.width > 0 && descriptor.height > 0) {
-        return descriptor.width / descriptor.height;
-      }
+      final (width, height) = await readEncodedImageDimensions(
+        await ui.ImmutableBuffer.fromFilePath(record.path),
+      );
+      if (width > 0 && height > 0) return width / height;
     } catch (e) {
       AppLogger.d(
         'Failed to read gallery image aspect ratio: $e',

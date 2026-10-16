@@ -169,42 +169,36 @@ class CanvasSnapshotManager {
     renderCallback(canvas);
 
     final picture = recorder.endRecording();
+    ui.Image? image;
 
     try {
-      final image = await picture.toImage(width, height);
+      image = await picture.toImage(width, height);
 
       // 检查版本号，如果已过期则放弃
-      if (_snapshotVersion != targetVersion) {
-        image.dispose();
-        picture.dispose();
-        return false;
-      }
+      if (_snapshotVersion != targetVersion) return false;
 
       final byteData = await image.toByteData(
         format: ui.ImageByteFormat.rawRgba,
       );
 
       // 再次检查版本号
-      if (_snapshotVersion != targetVersion) {
-        image.dispose();
-        picture.dispose();
-        return false;
-      }
+      if (_snapshotVersion != targetVersion) return false;
 
       // 更新缓存
       _canvasSnapshot?.dispose();
       _canvasSnapshot = image;
+      image = null;
       _canvasSnapshotBytes = byteData;
       _snapshotLeft = left;
       _snapshotTop = top;
       _snapshotWidth = width;
       _snapshotHeight = height;
-
-      picture.dispose();
       return true;
     } catch (e) {
-      picture.dispose();
       return false;
+    } finally {
+      image?.dispose();
+      picture.dispose();
     }
   }
 
@@ -290,6 +284,8 @@ class CanvasSnapshotManager {
       return false;
     }
 
+    ui.Picture? picture;
+    ui.Image? image;
     try {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
@@ -313,35 +309,21 @@ class CanvasSnapshotManager {
       // 渲染所有可见图层
       renderCallback(canvas);
 
-      final picture = recorder.endRecording();
+      picture = recorder.endRecording();
 
       // 检查版本号
-      if (_snapshotVersion != targetVersion) {
-        picture.dispose();
-        _regionalCache.isUpdating = false;
-        return false;
-      }
+      if (_snapshotVersion != targetVersion) return false;
 
-      final image = await picture.toImage(width, height);
+      image = await picture.toImage(width, height);
 
       // 再次检查版本号
-      if (_snapshotVersion != targetVersion) {
-        image.dispose();
-        picture.dispose();
-        _regionalCache.isUpdating = false;
-        return false;
-      }
+      if (_snapshotVersion != targetVersion) return false;
 
       final byteData = await image.toByteData(
         format: ui.ImageByteFormat.rawRgba,
       );
-      image.dispose();
-      picture.dispose();
 
-      if (byteData == null || _snapshotVersion != targetVersion) {
-        _regionalCache.isUpdating = false;
-        return false;
-      }
+      if (byteData == null || _snapshotVersion != targetVersion) return false;
 
       // 更新区域缓存
       _regionalCache.update(
@@ -352,12 +334,13 @@ class CanvasSnapshotManager {
         height: height,
         version: targetVersion,
       );
-
-      _regionalCache.isUpdating = false;
       return true;
     } catch (e) {
-      _regionalCache.isUpdating = false;
       return false;
+    } finally {
+      image?.dispose();
+      picture?.dispose();
+      _regionalCache.isUpdating = false;
     }
   }
 
@@ -380,6 +363,8 @@ class CanvasSnapshotManager {
 
   /// 释放资源
   void dispose() {
+    // 在途的快照更新据版本号作废，不会在释放后写回
+    _snapshotVersion++;
     _canvasSnapshot?.dispose();
     _canvasSnapshot = null;
     _canvasSnapshotBytes = null;
