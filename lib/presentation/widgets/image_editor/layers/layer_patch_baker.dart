@@ -186,11 +186,14 @@ class LayerPatchBaker {
     });
   }
 
-  /// 只保留 [keep] 内的像素
-  static BakedLayerImage? cropTo(Layer layer, Rect keep) {
-    final extent = layer.contentBounds.intersect(keep);
+  /// 只保留 [keep] 内的像素；没有 [extentLock] 且无像素留下时返回 null
+  static BakedLayerImage? cropTo(Layer layer, Rect keep, {Rect? extentLock}) {
+    final extent = extentLock ?? layer.contentBounds.intersect(keep);
     if (_roundOut(extent).isEmpty) return null;
-    return _bake(extent, layer.renderPixels);
+    return _bake(extent, (canvas) {
+      canvas.clipRect(keep);
+      layer.renderPixels(canvas);
+    });
   }
 
   static Rect _roundOut(Rect rect) {
