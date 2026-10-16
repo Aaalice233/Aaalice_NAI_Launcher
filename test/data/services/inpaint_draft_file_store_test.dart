@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
+import 'package:nai_launcher/core/utils/decoded_image_size.dart';
 import 'package:nai_launcher/data/models/inpaint/inpaint_draft.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_file_store.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_repository.dart';
@@ -100,7 +100,7 @@ void main() {
     test('verifies an EXIF-rotated JPEG from its oriented header', () async {
       final bytes = _rotatedJpeg(width: 12, height: 8);
       final decoded = img.decodeImage(bytes)!;
-      expect(NaiResolutionAdapter.readImageSize(bytes), (8, 12));
+      expect(DecodedImageSize.readHeader(bytes), (8, 12));
       expect((decoded.width, decoded.height), (8, 12));
       final decoder = _RecordingDecoder();
       final store = InpaintDraftFileStore(decodeImageSize: decoder.call);
