@@ -59,7 +59,6 @@ class GenerationToolbox {
         writer: exportWriter,
         prepareExport: prepareImageExport,
       ),
-      maxGenerateCount: maxGenerateCount,
     );
     final queue = GenerationQueueTaskService(
       ref,
