@@ -139,9 +139,7 @@ void main() {
     });
   }
 
-  testWidgets('在来源内容上横滑切换来源且方向与原 TabBarView 一致，纵滑与从标签栏开始的横拖不切换', (
-    tester,
-  ) async {
+  testWidgets('在来源内容上左甩切到下一个来源、右甩回到上一个，纵滑与从标签栏开始的横拖不切换', (tester) async {
     applyViewport(tester, plainViewport(const Size(412, 900)));
     await _pumpHost(tester, category: category);
     await tester.tap(find.text('Open'));
@@ -182,7 +180,7 @@ void main() {
       1000,
     );
     await tester.pumpAndSettle();
-    expect(_sourceIndex(tester), 1, reason: '标签栏在原 TabBarView 之外');
+    expect(_sourceIndex(tester), 1, reason: '从标签栏开始的横拖不切换来源');
     expect(tester.takeException(), isNull);
   });
 
