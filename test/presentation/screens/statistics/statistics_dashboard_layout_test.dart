@@ -3,18 +3,16 @@ import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_dashboard_snapshot.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_parameter.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/services/anlas_statistics_service.dart';
 import 'package:nai_launcher/data/services/statistics_service.dart';
-import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/screens/statistics/statistics_screen.dart';
-import 'package:nai_launcher/presentation/screens/statistics/statistics_state.dart';
 import 'package:nai_launcher/presentation/screens/statistics/utils/statistics_formatter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'statistics_dashboard_harness.dart';
 
 void main() {
   final stats = _dashboardStatistics();
@@ -44,12 +42,12 @@ void main() {
         testWidgets('dashboard at $config keeps every card and number whole', (
           tester,
         ) async {
-          await _pumpDashboard(
+          await pumpStatisticsDashboard(
             tester,
             stats,
-            Size(width, 900),
-            textScale,
-            locale,
+            size: Size(width, 900),
+            textScale: textScale,
+            locale: locale,
           );
 
           expect(tester.takeException(), isNull, reason: config);
@@ -89,7 +87,12 @@ void main() {
   testWidgets('weekday chart switches to rows when a day slot is too narrow', (
     tester,
   ) async {
-    await _pumpDashboard(tester, stats, const Size(320, 900), 3, _zh);
+    await pumpStatisticsDashboard(
+      tester,
+      stats,
+      size: const Size(320, 900),
+      textScale: 3,
+    );
 
     final rows = find.byKey(const ValueKey('weekday-distribution-rows'));
     expect(rows, findsOneWidget);
@@ -110,7 +113,12 @@ void main() {
       );
     }
 
-    await _pumpDashboard(tester, stats, const Size(1600, 900), 1, _zh);
+    await pumpStatisticsDashboard(
+      tester,
+      stats,
+      size: const Size(1600, 900),
+      textScale: 1,
+    );
 
     expect(
       find.byKey(const ValueKey('weekday-distribution-bars')),
@@ -122,8 +130,6 @@ void main() {
     );
   });
 }
-
-const _zh = Locale('zh');
 
 GalleryStatistics _dashboardStatistics() {
   final now = DateTime.now();
@@ -176,55 +182,6 @@ GalleryStatistics _dashboardStatistics() {
 }
 
 int _dayKey(DateTime date) => date.year * 10000 + date.month * 100 + date.day;
-
-Future<void> _pumpDashboard(
-  WidgetTester tester,
-  GalleryStatistics stats,
-  Size size,
-  double textScale,
-  Locale locale,
-) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        statisticsNotifierProvider.overrideWith(
-          () => _LoadedStatisticsNotifier(stats),
-        ),
-      ],
-      child: MaterialApp(
-        locale: locale,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
-        home: const StatisticsScreen(),
-      ),
-    ),
-  );
-  await tester.pumpAndSettle();
-}
-
-class _LoadedStatisticsNotifier extends StatisticsNotifier {
-  _LoadedStatisticsNotifier(this._statistics);
-
-  final GalleryStatistics _statistics;
-
-  @override
-  StatisticsData build() =>
-      StatisticsData(statistics: _statistics, isLoading: false);
-
-  @override
-  Future<void> whenLoaded() async {}
-}
 
 bool _insideHorizontalScroll(Element element) {
   var found = false;
