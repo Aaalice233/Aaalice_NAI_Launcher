@@ -428,8 +428,16 @@ class _FileUriDataReader extends _StubDataReader {
 
 /// Mirrors a drop session: requests made after [endSession] fail like a
 /// disposed native reader.
-class _SessionBoundDataReader extends DataReader {
-  _SessionBoundDataReader({required this.pngBytes});
+class _SessionBoundDataReader extends _StubDataReader {
+  _SessionBoundDataReader({required this.pngBytes})
+    : super([..._values.keys, Formats.png, Formats.jpeg]);
+
+  static final Map<DataFormat, String> _values = {
+    Formats.fileUri: 'fileUri',
+    Formats.uri: 'uri',
+    Formats.htmlText: 'html',
+    Formats.plainText: 'plainText',
+  };
 
   final Uint8List pngBytes;
   final requests = <String>{};
@@ -448,23 +456,6 @@ class _SessionBoundDataReader extends DataReader {
     requests.add(name);
   }
 
-  static final Map<DataFormat, String> _values = {
-    Formats.fileUri: 'fileUri',
-    Formats.uri: 'uri',
-    Formats.htmlText: 'html',
-    Formats.plainText: 'plainText',
-  };
-
-  @override
-  bool canProvide(DataFormat format) =>
-      _values.containsKey(format) ||
-      identical(format, Formats.png) ||
-      identical(format, Formats.jpeg);
-
-  @override
-  List<DataFormat> getFormats(List<DataFormat> allFormats) =>
-      allFormats.where(canProvide).toList(growable: false);
-
   @override
   ReadProgress? getValue<T extends Object>(
     ValueFormat<T> format,
@@ -479,8 +470,7 @@ class _SessionBoundDataReader extends DataReader {
       'uri' => NamedUri(Uri.parse('https://cdn.example.test/original.png')),
       _ => '<img src="https://cdn.example.test/original.png">',
     };
-    Future<void>.microtask(() => onValue(value as T));
-    return _CompletedReadProgress();
+    return _deliver(() async => onValue(value as T));
   }
 
   @override
@@ -493,65 +483,38 @@ class _SessionBoundDataReader extends DataReader {
   }) {
     if (identical(format, Formats.png)) {
       _record('png');
-      Future<void>.microtask(
-        () => onFile(_MemoryDataReaderFile(pngBytes, fileName: 'a.png')),
+      return _deliver(
+        () async => onFile(_MemoryDataReaderFile(pngBytes, fileName: 'a.png')),
       );
-      return _CompletedReadProgress();
     }
     if (identical(format, Formats.jpeg)) {
       _record('jpeg');
       final file = _CountingDataReaderFile(onRead: () => jpegReads++);
-      Future<void>.microtask(() async {
+      return _deliver(() async {
         await onFile(file);
         jpegCallbackFinished = true;
       });
-      return _CompletedReadProgress();
     }
     return null;
   }
-
-  @override
-  bool isSynthesized(DataFormat format) => false;
-
-  @override
-  bool isVirtual(DataFormat format) => false;
 
   @override
   Future<String?> getSuggestedName() {
     _record('suggestedName');
     return Future.value('dropped.png');
   }
-
-  @override
-  Future<VirtualFileReceiver?> getVirtualFileReceiver({
-    FileFormat? format,
-  }) async => null;
-
-  @override
-  List<PlatformFormat> get platformFormats => const [];
 }
 
-class _CountingDataReaderFile extends DataReaderFile {
-  _CountingDataReaderFile({required this.onRead});
+class _CountingDataReaderFile extends _MemoryDataReaderFile {
+  _CountingDataReaderFile({required this.onRead})
+    : super(Uint8List(1), fileName: 'b.jpg');
 
   final VoidCallback onRead;
 
   @override
-  String? get fileName => 'b.jpg';
-
-  @override
-  int? get fileSize => 1;
-
-  @override
-  void close() {}
-
-  @override
-  Stream<Uint8List> getStream() => Stream.value(Uint8List(1));
-
-  @override
-  Future<Uint8List> readAll() async {
+  Future<Uint8List> readAll() {
     onRead();
-    return Uint8List(1);
+    return super.readAll();
   }
 }
 
