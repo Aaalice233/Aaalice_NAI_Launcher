@@ -70,7 +70,7 @@ class Img2ImgPreviewDerivedData {
 /// 缓存图生图预览区的重型派生数据，避免无关重建时反复解码大图。
 ///
 /// 蒙版叠加图与蒙版外接矩形在后台计算，完成后经 onUpdated 通知；
-/// 同一张源图上重算期间沿用上一次的结果，换了源图则先不显示。
+/// 同一张源图上重算期间沿用上一次的结果，换了源图或清除过蒙版则先不显示。
 class Img2ImgPreviewCache {
   Img2ImgPreviewCache({
     required VoidCallback onUpdated,
@@ -116,9 +116,13 @@ class Img2ImgPreviewCache {
     final keepStale = identical(sourceImage, _lastSourceImage);
     _lastSourceImage = sourceImage;
 
-    final maskOverlayBytes = maskImage == null
-        ? null
-        : _maskOverlay.resolve(maskImage, keepStale: keepStale);
+    final Uint8List? maskOverlayBytes;
+    if (maskImage == null) {
+      _maskOverlay.clear();
+      maskOverlayBytes = null;
+    } else {
+      maskOverlayBytes = _maskOverlay.resolve(maskImage, keepStale: keepStale);
+    }
 
     final FocusedInpaintFrame? focusedFrame;
     if (!focusedInpaintEnabled) {
@@ -211,6 +215,14 @@ class _BackgroundDerivation<V> {
       _value = null;
     }
     return _value;
+  }
+
+  /// 输入已不存在：丢弃结果与未完成的计算，之后的输入不再沿用它。
+  void clear() {
+    _input = null;
+    _value = null;
+    _ready = false;
+    _generation++;
   }
 
   void dispose() {
