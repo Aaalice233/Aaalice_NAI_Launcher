@@ -69,16 +69,8 @@ class CacheStatistics {
   }
 }
 
-/// 画廊缓存管理器
-///
-/// 提供统一接口管理三层缓存：
-/// - L1: 内存缓存 (ImageMetadataService._memoryCache)
-/// - L2: Hive 缓存 (ImageMetadataService._persistentBox)
-/// - L3: SQLite 数据库 (GalleryDataSource)
-///
-/// 特性：
-/// - 缓存统计（L1 按实际条目估算字节数，L2 读取 box 文件大小）
-/// - 内存压力下释放 L1；L2 的容量淘汰由 L2CacheCleaner 负责
+/// 汇总元数据 L1 内存、L2 Hive 与图库 SQLite 三层缓存的统计；内存压力下只释放 L1，
+/// L2 的容量淘汰由 L2CacheCleaner 负责。
 class GalleryCacheManager {
   static final GalleryCacheManager _instance = GalleryCacheManager._internal();
   factory GalleryCacheManager() => _instance;

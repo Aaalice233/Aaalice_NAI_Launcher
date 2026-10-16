@@ -5,7 +5,6 @@ import 'package:hive/hive.dart';
 
 import 'metadata_cache_entry_codec.dart';
 
-/// 一次淘汰的结果
 class MetadataCacheEvictionResult {
   const MetadataCacheEvictionResult({
     required this.bytesBefore,
