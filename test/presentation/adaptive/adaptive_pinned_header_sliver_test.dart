@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_pinned_header_sliver.dart';
 
@@ -175,6 +176,39 @@ void main() {
     expect(focus.hasFocus, isTrue);
     expect(_top(tester, 'item-6'), itemTop);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('固定与随内容滚动切换时，读屏树里的头部随之移出或移回滚动区域', (tester) async {
+    final semantics = tester.ensureSemantics();
+    Future<void> pumpAt(double height) => _pump(
+      tester,
+      viewportHeight: height,
+      headers: [AdaptivePinnedHeaderSliver(child: _header('a', 100))],
+    );
+    bool scrollsWithContent() {
+      SemanticsNode? node = tester.getSemantics(find.text('a'));
+      while (node != null) {
+        if (node.getSemanticsData().flagsCollection.hasImplicitScrolling) {
+          return true;
+        }
+        node = node.parent;
+      }
+      return false;
+    }
+
+    await pumpAt(600);
+    _position(tester).jumpTo(60);
+    await tester.pump();
+    expect(scrollsWithContent(), isFalse, reason: '固定且列表已滚过头部下方');
+
+    await pumpAt(300);
+    expect(_sliver(tester, 'a').isPinned, isFalse);
+    expect(scrollsWithContent(), isTrue);
+
+    await pumpAt(600);
+    expect(_sliver(tester, 'a').isPinned, isTrue);
+    expect(scrollsWithContent(), isFalse);
+    semantics.dispose();
   });
 
   testWidgets('固定时点入头部的输入框不会把列表滚回顶部', (tester) async {
