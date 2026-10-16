@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/derivatives/derivative_registry.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/picture_png_encoder.dart';
 import '../../adaptive/adaptive_presenter.dart';
 
 class DerivativeEditorSource {
@@ -207,21 +208,11 @@ class DerivativeEditorLauncher {
   }) async {
     final recorder = ui.PictureRecorder();
     paint(ui.Canvas(recorder), size);
-    final picture = recorder.endRecording();
-    try {
-      final image = await picture.toImage(
-        size.width.toInt(),
-        size.height.toInt(),
-      );
-      try {
-        final data = await image.toByteData(format: ui.ImageByteFormat.png);
-        return data!.buffer.asUint8List();
-      } finally {
-        image.dispose();
-      }
-    } finally {
-      picture.dispose();
-    }
+    return encodePictureAsPng(
+      recorder.endRecording(),
+      size.width.toInt(),
+      size.height.toInt(),
+    );
   }
 
   static Future<String?> _present({

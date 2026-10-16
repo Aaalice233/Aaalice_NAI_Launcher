@@ -15,6 +15,7 @@ import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/inpaint_outpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../core/utils/picture_png_encoder.dart';
 import '../../../data/services/efficient_vit_sam_service.dart';
 import '../../adaptive/adaptive_layout.dart';
 import '../../adaptive/adaptive_presenter.dart';
@@ -1511,8 +1512,6 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
 
     ui.Codec? codec;
     ui.Image? sourceImage;
-    ui.Picture? picture;
-    ui.Image? targetImage;
     try {
       codec = await ui.instantiateImageCodec(imageBytes);
       final frame = await codec.getNextFrame();
@@ -1544,26 +1543,14 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         );
       }
 
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      canvas.drawImageRect(
+      return await resampleImageAsPng(
         sourceImage,
-        sourceRect,
-        Rect.fromLTWH(0, 0, targetWidth.toDouble(), targetHeight.toDouble()),
-        Paint()..filterQuality = FilterQuality.high,
+        width: targetWidth,
+        height: targetHeight,
+        sourceRect: sourceRect,
+        filterQuality: FilterQuality.high,
       );
-      picture = recorder.endRecording();
-      targetImage = await picture.toImage(targetWidth, targetHeight);
-      final byteData = await targetImage.toByteData(
-        format: ui.ImageByteFormat.png,
-      );
-      if (byteData == null) {
-        throw StateError('Failed to encode dropped image layer');
-      }
-      return byteData.buffer.asUint8List();
     } finally {
-      targetImage?.dispose();
-      picture?.dispose();
       sourceImage?.dispose();
       codec?.dispose();
     }

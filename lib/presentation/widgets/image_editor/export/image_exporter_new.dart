@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/utils/editor_compression_utils.dart';
 import '../../../../core/utils/hard_edge_mask_exporter.dart';
 import '../../../../core/utils/inpaint_mask_utils.dart';
+import '../../../../core/utils/picture_png_encoder.dart';
 import '../core/history_manager.dart';
 import '../layers/layer.dart';
 import '../layers/layer_manager.dart';
@@ -130,18 +131,8 @@ class ImageExporterNew {
 
     canvas.restore();
 
-    final byteData = await _encodePicture(
-      recorder.endRecording(),
-      width,
-      height,
-    );
-
-    if (byteData == null) {
-      throw Exception('Failed to convert mask to bytes');
-    }
-
     return InpaintMaskUtils.normalizeMaskBytesAsync(
-      byteData.buffer.asUint8List(),
+      await encodePictureAsPng(recorder.endRecording(), width, height),
     );
   }
 
@@ -213,16 +204,8 @@ class ImageExporterNew {
     canvas.translate(-region.left, -region.top);
     _drawMaskLayer(canvas, layer, forceHardEdges: true);
     canvas.restore();
-    final byteData = await _encodePicture(
-      recorder.endRecording(),
-      width,
-      height,
-    );
-    if (byteData == null) {
-      throw Exception('Failed to convert mask to bytes');
-    }
     final decoded = await InpaintMaskUtils.decodeBinaryMaskAsync(
-      byteData.buffer.asUint8List(),
+      await encodePictureAsPng(recorder.endRecording(), width, height),
     );
     if (decoded == null) {
       throw StateError('Failed to read the layer mask.');
@@ -282,21 +265,6 @@ class ImageExporterNew {
   }
 
   /// 把 [picture]（所有权移交）栅格化并编码为 PNG
-  static Future<ByteData?> _encodePicture(
-    ui.Picture picture,
-    int width,
-    int height,
-  ) async {
-    ui.Image? image;
-    try {
-      image = await picture.toImage(width, height);
-      return await image.toByteData(format: ui.ImageByteFormat.png);
-    } finally {
-      image?.dispose();
-      picture.dispose();
-    }
-  }
-
   static bool _hasEraser(Layer layer) =>
       layer.strokes.any((stroke) => stroke.isEraser);
 

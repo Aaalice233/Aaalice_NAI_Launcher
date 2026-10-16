@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 
+import '../../../../core/utils/picture_png_encoder.dart';
+
 abstract interface class ImageEditorIo {
   Future<ui.Codec> instantiateCodec(Uint8List bytes);
 }
@@ -38,30 +40,14 @@ class ImageDecodeService {
     ui.FilterQuality quality = ui.FilterQuality.medium,
   }) async {
     final source = await decode(bytes);
-    ui.Picture? picture;
-    ui.Image? target;
     try {
-      final recorder = ui.PictureRecorder();
-      final canvas = ui.Canvas(recorder);
-      canvas.drawImageRect(
+      return await resampleImageAsPng(
         source,
-        ui.Rect.fromLTWH(
-          0,
-          0,
-          source.width.toDouble(),
-          source.height.toDouble(),
-        ),
-        ui.Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
-        ui.Paint()..filterQuality = quality,
+        width: width,
+        height: height,
+        filterQuality: quality,
       );
-      picture = recorder.endRecording();
-      target = await picture.toImage(width, height);
-      final data = await target.toByteData(format: ui.ImageByteFormat.png);
-      if (data == null) throw StateError('Failed to encode editor image.');
-      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     } finally {
-      target?.dispose();
-      picture?.dispose();
       source.dispose();
     }
   }
