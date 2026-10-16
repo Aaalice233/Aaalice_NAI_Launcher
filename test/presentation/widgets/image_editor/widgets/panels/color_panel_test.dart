@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/adaptive/adaptive_form_footer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/panels/color_panel.dart';
 
@@ -50,7 +51,13 @@ void main() {
     expect(find.byKey(const ValueKey('adaptive-bottom-sheet')), findsOneWidget);
     expect(find.byKey(const Key('color_picker_surface')), findsOneWidget);
     expectPanelHeaderScrollsWithContent(tester);
-    expect(find.byKey(const Key('color_picker_cancel')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AdaptiveFormFooter),
+        matching: find.byType(TextButton),
+      ),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('color_picker_confirm')), findsOneWidget);
 
     final scrollable = find

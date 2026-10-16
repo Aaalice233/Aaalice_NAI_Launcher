@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_chrome_placement.dart';
+import '../../../adaptive/adaptive_form_footer.dart';
 import '../../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
@@ -121,7 +122,6 @@ class TagGroupEditDialog extends ConsumerStatefulWidget {
 class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
     with SingleTickerProviderStateMixin {
   static const _diyTabIndex = 2;
-  static const _actionsPadding = EdgeInsets.fromLTRB(16, 12, 16, 14);
 
   late TabController _tabController;
   late TextEditingController _nameController;
@@ -197,6 +197,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
       builder: (context, placement, probes) {
         final footer = probes.footer(actions);
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               child: TabSwipeDetector(
@@ -341,33 +342,17 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
     final l10n = AppLocalizations.of(context)!;
     return KeyedSubtree(
       key: _actionsKey,
-      child: SafeArea(
-        top: false,
-        child: Container(
-          color: sectionSurfaceColor(Theme.of(context).colorScheme),
-          padding: _actionsPadding,
-          child: Wrap(
-            alignment: WrapAlignment.end,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  widget.isPresetDefault
-                      ? l10n.common_close
-                      : l10n.common_cancel,
-                ),
+      child: AdaptiveFormFooter(
+        cancelLabel: widget.isPresetDefault
+            ? l10n.common_close
+            : l10n.common_cancel,
+        primary: widget.isPresetDefault
+            ? null
+            : FilledButton.icon(
+                onPressed: _saveChanges,
+                icon: const Icon(Icons.check_rounded, size: 18),
+                label: Text(l10n.common_save),
               ),
-              if (!widget.isPresetDefault)
-                FilledButton.icon(
-                  onPressed: _saveChanges,
-                  icon: const Icon(Icons.check_rounded, size: 18),
-                  label: Text(l10n.common_save),
-                ),
-            ],
-          ),
-        ),
       ),
     );
   }

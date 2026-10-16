@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import '../../../../adaptive/adaptive_form_footer.dart';
 import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../prompt_assistant/models/assistant_model_capability.dart';
-import '../../widgets/settings_form_footer.dart';
 
 typedef ProviderModelFormResult = ({String id, String displayName});
 
@@ -114,7 +114,12 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
           onSubmitted: (_) => _save(),
         ),
       ],
-      footer: SettingsFormFooter(onSave: _save),
+      footer: AdaptiveFormFooter(
+        primary: FilledButton(
+          onPressed: _save,
+          child: Text(context.l10n.common_save),
+        ),
+      ),
     );
   }
 }

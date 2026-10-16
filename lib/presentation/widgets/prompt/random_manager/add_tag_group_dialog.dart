@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../adaptive/adaptive_form_footer.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../adaptive/interaction_policy.dart';
@@ -450,23 +451,11 @@ class _AddTagGroupDialogState extends ConsumerState<AddTagGroupDialog>
   }
 
   Widget _buildFooter(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: OverflowBar(
-        alignment: MainAxisAlignment.end,
-        spacing: 8,
-        overflowSpacing: 8,
-        children: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton.icon(
-            onPressed: _canSubmit() ? _addGroup : null,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: Text(context.l10n.common_add),
-          ),
-        ],
+    return AdaptiveFormFooter(
+      primary: FilledButton.icon(
+        onPressed: _canSubmit() ? _addGroup : null,
+        icon: const Icon(Icons.add_rounded, size: 18),
+        label: Text(context.l10n.common_add),
       ),
     );
   }

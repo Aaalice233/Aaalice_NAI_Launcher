@@ -14,6 +14,7 @@ import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/discord_share_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/adaptive_form_footer.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../utils/asset_protection_guard.dart';
 import 'discord_share_error.dart';
@@ -593,10 +594,7 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
           scrollViewKey: const ValueKey('discord-share-scroll'),
           scrollController: widget.scrollController,
           padding: const EdgeInsets.all(20),
-          footer: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [const Divider(height: 1), _buildActions()],
-          ),
+          footer: _buildActions(),
           content: [
             compact
                 ? Column(
@@ -825,37 +823,26 @@ class _DiscordShareDialogState extends ConsumerState<DiscordShareDialog> {
   }
 
   Widget _buildActions() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          TextButton(
-            onPressed: _sending ? null : () => Navigator.of(context).pop(),
-            child: Text(context.l10n.common_cancel),
-          ),
-          FilledButton.icon(
-            onPressed:
-                _sending ||
-                    _selectedTargets.isEmpty ||
-                    _rateLimitSecondsRemaining > 0
-                ? null
-                : _send,
-            icon: _sending
-                ? const SizedBox.square(
-                    dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.send_rounded, size: 18),
-            label: Text(
-              _sending
-                  ? context.l10n.discordShare_sending
-                  : context.l10n.discordShare_send,
-            ),
-          ),
-        ],
+    return AdaptiveFormFooter(
+      cancelEnabled: !_sending,
+      primary: FilledButton.icon(
+        onPressed:
+            _sending ||
+                _selectedTargets.isEmpty ||
+                _rateLimitSecondsRemaining > 0
+            ? null
+            : _send,
+        icon: _sending
+            ? const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.send_rounded, size: 18),
+        label: Text(
+          _sending
+              ? context.l10n.discordShare_sending
+              : context.l10n.discordShare_send,
+        ),
       ),
     );
   }

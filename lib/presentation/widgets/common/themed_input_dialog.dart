@@ -3,6 +3,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/adaptive_form_footer.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
 
 /// 通用输入对话框，用于重命名、输入名称等需要用户输入一段文本的场景
@@ -130,7 +131,6 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final l10n = context.l10n;
     final confirmText = widget.confirmText ?? l10n.common_confirm;
     final cancelText = widget.cancelText ?? l10n.common_cancel;
@@ -154,20 +154,6 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
       onChanged: _validate,
       onSubmitted: widget.multiline ? null : (_) => _submit(),
     );
-    final actions = <Widget>[
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: Text(
-          cancelText,
-          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-        ),
-      ),
-      FilledButton(
-        onPressed: _canSubmit ? _submit : null,
-        child: Text(confirmText),
-      ),
-    ];
-
     return ContentSizedAdaptiveForm(
       scrollController: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -180,11 +166,11 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
           ),
         ),
       ],
-      footer: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: Wrap(spacing: 8, runSpacing: 8, children: actions),
+      footer: AdaptiveFormFooter(
+        cancelLabel: cancelText,
+        primary: FilledButton(
+          onPressed: _canSubmit ? _submit : null,
+          child: Text(confirmText),
         ),
       ),
     );

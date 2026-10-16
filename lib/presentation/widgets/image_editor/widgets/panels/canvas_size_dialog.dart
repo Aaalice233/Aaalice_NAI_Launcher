@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 import '../../../../../core/utils/localization_extension.dart';
+import '../../../../adaptive/adaptive_form_footer.dart';
 import '../../../../adaptive/adaptive_presenter.dart';
 import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../adaptive/window_size_class.dart';
@@ -281,32 +282,11 @@ class _CanvasSizeDialogState extends State<CanvasSizeDialog> {
           mode: _selectedMode,
         ),
       ],
-      footer: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Divider(height: 1),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.all(compact ? 12 : 16),
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(context.l10n.common_cancel),
-                  ),
-                  FilledButton(
-                    onPressed: _isValid() ? _confirm : null,
-                    child: Text(widget.confirmText),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+      footer: AdaptiveFormFooter(
+        primary: FilledButton(
+          onPressed: _isValid() ? _confirm : null,
+          child: Text(widget.confirmText),
+        ),
       ),
     );
   }
