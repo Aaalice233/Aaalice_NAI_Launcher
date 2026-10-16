@@ -6,13 +6,15 @@ import 'package:nai_launcher/presentation/widgets/image_editor/core/history_mana
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/snapshot_cache.dart';
 
+import '../../../../helpers/live_image_counter.dart';
+
 const _region = Rect.fromLTWH(0, 0, 64, 64);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late _LiveImages live;
-  setUp(() => live = _LiveImages()..install());
+  late LiveImageCounter live;
+  setUp(() => live = LiveImageCounter()..install());
   tearDown(() => live.restore());
 
   testWidgets('the shown thumbnail stays usable until its replacement is ready', (
@@ -80,23 +82,4 @@ Layer _layerWithStroke() {
       hardness: 1,
     ),
   );
-}
-
-// 只统计安装之后创建的图像：创建加一、释放减一
-class _LiveImages {
-  int count = 0;
-  ui.ImageEventCallback? _previousCreate;
-  ui.ImageEventCallback? _previousDispose;
-
-  void install() {
-    _previousCreate = ui.Image.onCreate;
-    _previousDispose = ui.Image.onDispose;
-    ui.Image.onCreate = (_) => count++;
-    ui.Image.onDispose = (_) => count--;
-  }
-
-  void restore() {
-    ui.Image.onCreate = _previousCreate;
-    ui.Image.onDispose = _previousDispose;
-  }
 }

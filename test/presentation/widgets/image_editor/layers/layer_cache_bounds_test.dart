@@ -8,6 +8,7 @@ import 'package:nai_launcher/presentation/widgets/image_editor/core/stroke_rende
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_raster.dart';
 
+import '../../../../helpers/live_image_counter.dart';
 import 'layer_pixel_test_helpers.dart';
 
 const _region = Rect.fromLTWH(-80, -20, 100, 100);
@@ -15,8 +16,8 @@ const _region = Rect.fromLTWH(-80, -20, 100, 100);
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late _LiveImages live;
-  setUp(() => live = _LiveImages()..install());
+  late LiveImageCounter live;
+  setUp(() => live = LiveImageCounter()..install());
   tearDown(() => live.restore());
 
   test(
@@ -285,28 +286,5 @@ void _expectSameAlpha(Uint8List actual, Uint8List expected) {
       lessThanOrEqualTo(1),
       reason: 'alpha mismatch at pixel ${i ~/ 4}',
     );
-  }
-}
-
-// 只统计安装之后创建的图像：创建加一、释放减一
-class _LiveImages {
-  int count = 0;
-  int created = 0;
-  ui.ImageEventCallback? _previousCreate;
-  ui.ImageEventCallback? _previousDispose;
-
-  void install() {
-    _previousCreate = ui.Image.onCreate;
-    _previousDispose = ui.Image.onDispose;
-    ui.Image.onCreate = (_) {
-      count++;
-      created++;
-    };
-    ui.Image.onDispose = (_) => count--;
-  }
-
-  void restore() {
-    ui.Image.onCreate = _previousCreate;
-    ui.Image.onDispose = _previousDispose;
   }
 }
