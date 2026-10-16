@@ -222,16 +222,6 @@ class LocalOnnxTaggerPreprocessor {
     required int sourceHeight,
     required int inputSize,
   }) {
-    if (sourceWidth == inputSize && sourceHeight == inputSize) {
-      return OnnxLetterboxLayout(
-        canvasWidth: inputSize,
-        canvasHeight: inputSize,
-        resizedWidth: inputSize,
-        resizedHeight: inputSize,
-        offsetX: 0,
-        offsetY: 0,
-      );
-    }
     final ratio = math.min(inputSize / sourceHeight, inputSize / sourceWidth);
     final resizedWidth = (sourceWidth * ratio).toInt().clamp(1, inputSize);
     final resizedHeight = (sourceHeight * ratio).toInt().clamp(1, inputSize);
