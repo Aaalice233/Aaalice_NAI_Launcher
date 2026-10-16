@@ -7,6 +7,12 @@ import 'package:nai_launcher/presentation/widgets/prompt/new_preset_dialog.dart'
 import '../../../helpers/reachability_expectations.dart';
 
 const _landscapePadding = FakeViewPadding(left: 32, right: 48);
+const _safeAreaPadding = FakeViewPadding(
+  left: 12,
+  top: 32,
+  right: 20,
+  bottom: 28,
+);
 
 final _viewports = <({Size size, double keyboard, FakeViewPadding padding})>[
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0])
@@ -16,6 +22,7 @@ final _viewports = <({Size size, double keyboard, FakeViewPadding padding})>[
   (size: const Size(740, 360), keyboard: 160, padding: _landscapePadding),
   (size: const Size(568, 320), keyboard: 120, padding: FakeViewPadding.zero),
   (size: const Size(360, 740), keyboard: 300, padding: FakeViewPadding.zero),
+  (size: const Size(320, 800), keyboard: 280, padding: _safeAreaPadding),
 ];
 
 Finder _ancestorOfText(String text, bool Function(Widget) matches) =>
@@ -151,41 +158,6 @@ void main() {
       findsOneWidget,
     );
     _expectBoundedDialog(tester, surfaceKey: 'adaptive-centered-form');
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('3x 字体、IME 与 SafeArea 下可滚动且动作可达', (tester) async {
-    await _setView(
-      tester,
-      size: const Size(320, 800),
-      padding: const FakeViewPadding(left: 12, top: 32, right: 20, bottom: 28),
-      viewInsets: const FakeViewPadding(bottom: 280),
-    );
-
-    await _pumpLauncher(tester, textScale: 3);
-    await tester.tap(find.text('打开'));
-    await tester.pumpAndSettle();
-
-    final surfaceRect = tester.getRect(
-      find.byKey(const ValueKey('adaptive-bottom-sheet')),
-    );
-    expect(surfaceRect.left, greaterThanOrEqualTo(12));
-    expect(surfaceRect.right, lessThanOrEqualTo(300));
-    expect(surfaceRect.top, greaterThanOrEqualTo(32));
-    expect(surfaceRect.bottom, lessThanOrEqualTo(520));
-
-    final scrollable = find.byKey(const ValueKey('new-preset-dialog-scroll'));
-    expect(scrollable, findsOneWidget);
-    await tester.drag(scrollable, const Offset(0, -400));
-    await tester.pumpAndSettle();
-
-    for (final label in ['取消', '创建']) {
-      final rect = tester.getRect(find.text(label));
-      expect(rect.left, greaterThanOrEqualTo(12));
-      expect(rect.right, lessThanOrEqualTo(300));
-      expect(rect.top, greaterThanOrEqualTo(32));
-      expect(rect.bottom, lessThanOrEqualTo(492));
-    }
     expect(tester.takeException(), isNull);
   });
 
