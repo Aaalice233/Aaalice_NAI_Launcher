@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/interaction_policy.dart';
+import '../../../widgets/common/editable_double_field.dart';
 import '../../../widgets/common/themed_divider.dart';
-import '../../../widgets/common/themed_input.dart';
 import '../core/editor_state.dart';
 import '../core/transform_geometry.dart';
 import 'tool_setting_rows.dart';
@@ -108,6 +108,11 @@ class _TransformSection extends StatelessWidget {
   final EditorState state;
   final TransformParams params;
 
+  static const _decimals = 1;
+
+  // 宽高必须为正；更小的比例由几何计算夹到至少 1 像素
+  static const _minScalePercent = 0.1;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -117,6 +122,7 @@ class _TransformSection extends StatelessWidget {
     final widthPercent = params.scaleX.abs() * 100;
     final heightPercent = params.scaleY.abs() * 100;
     final size = params.size;
+    final fieldStyle = theme.textTheme.bodySmall;
 
     void setScale({double? widthValue, double? heightValue}) {
       final ratio = params.scaleY.abs() / params.scaleX.abs();
@@ -145,32 +151,39 @@ class _TransformSection extends StatelessWidget {
           rows: [
             ToolSettingRow(
               label: l10n.editor_transformWidth,
-              control: _TransformNumberField(
-                label: l10n.editor_transformWidth,
+              control: EditableDoubleField(
+                semanticLabel: l10n.editor_transformWidth,
                 value: widthPercent,
+                min: _minScalePercent,
+                decimals: _decimals,
+                textStyle: fieldStyle,
                 enabled: enabled,
-                onSubmitted: (value) => setScale(widthValue: value),
+                onChanged: (value) => setScale(widthValue: value),
               ),
               trailing: const _UnitText('%'),
             ),
             ToolSettingRow(
               label: l10n.editor_transformHeight,
-              control: _TransformNumberField(
-                label: l10n.editor_transformHeight,
+              control: EditableDoubleField(
+                semanticLabel: l10n.editor_transformHeight,
                 value: heightPercent,
+                min: _minScalePercent,
+                decimals: _decimals,
+                textStyle: fieldStyle,
                 enabled: enabled,
-                onSubmitted: (value) => setScale(heightValue: value),
+                onChanged: (value) => setScale(heightValue: value),
               ),
               trailing: const _UnitText('%'),
             ),
             ToolSettingRow(
               label: l10n.editor_transformAngle,
-              control: _TransformNumberField(
-                label: l10n.editor_transformAngle,
+              control: EditableDoubleField(
+                semanticLabel: l10n.editor_transformAngle,
                 value: params.rotation * 180 / math.pi,
+                decimals: _decimals,
+                textStyle: fieldStyle,
                 enabled: enabled,
-                allowNegative: true,
-                onSubmitted: (degrees) => transformer.update(
+                onChanged: (degrees) => transformer.update(
                   (current) => current.withRotation(degrees * math.pi / 180),
                 ),
               ),
@@ -178,12 +191,13 @@ class _TransformSection extends StatelessWidget {
             ),
             ToolSettingRow(
               label: l10n.editor_transformCenterX,
-              control: _TransformNumberField(
-                label: l10n.editor_transformCenterX,
+              control: EditableDoubleField(
+                semanticLabel: l10n.editor_transformCenterX,
                 value: params.center.dx,
+                decimals: _decimals,
+                textStyle: fieldStyle,
                 enabled: enabled,
-                allowNegative: true,
-                onSubmitted: (x) => transformer.update(
+                onChanged: (x) => transformer.update(
                   (current) =>
                       current.translated(Offset(x - current.center.dx, 0)),
                 ),
@@ -192,12 +206,13 @@ class _TransformSection extends StatelessWidget {
             ),
             ToolSettingRow(
               label: l10n.editor_transformCenterY,
-              control: _TransformNumberField(
-                label: l10n.editor_transformCenterY,
+              control: EditableDoubleField(
+                semanticLabel: l10n.editor_transformCenterY,
                 value: params.center.dy,
+                decimals: _decimals,
+                textStyle: fieldStyle,
                 enabled: enabled,
-                allowNegative: true,
-                onSubmitted: (y) => transformer.update(
+                onChanged: (y) => transformer.update(
                   (current) =>
                       current.translated(Offset(0, y - current.center.dy)),
                 ),
@@ -262,108 +277,6 @@ class _UnitText extends StatelessWidget {
       unit,
       style: Theme.of(context).textTheme.bodySmall,
       textAlign: TextAlign.center,
-    );
-  }
-}
-
-/// 失焦或回车时提交；改动未提交前不被外部数值覆盖
-class _TransformNumberField extends StatefulWidget {
-  const _TransformNumberField({
-    required this.label,
-    required this.value,
-    required this.enabled,
-    required this.onSubmitted,
-    this.allowNegative = false,
-  });
-
-  final String label;
-  final double value;
-  final bool enabled;
-  final bool allowNegative;
-  final ValueChanged<double> onSubmitted;
-
-  @override
-  State<_TransformNumberField> createState() => _TransformNumberFieldState();
-}
-
-class _TransformNumberFieldState extends State<_TransformNumberField> {
-  late final TextEditingController _controller = TextEditingController(
-    text: _format(widget.value),
-  );
-  final FocusNode _focusNode = FocusNode();
-  bool _edited = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(_onFocusChanged);
-  }
-
-  @override
-  void didUpdateWidget(_TransformNumberField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_edited && oldWidget.value != widget.value) {
-      _controller.text = _format(widget.value);
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.removeListener(_onFocusChanged);
-    _focusNode.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onFocusChanged() {
-    if (!_focusNode.hasFocus) _submit(_controller.text);
-  }
-
-  void _submit(String text) {
-    final edited = _edited;
-    _edited = false;
-    final parsed = double.tryParse(text.trim());
-    final valid =
-        parsed != null &&
-        parsed.isFinite &&
-        (widget.allowNegative || parsed > 0);
-    if (edited && valid && _format(parsed) != _format(widget.value)) {
-      widget.onSubmitted(parsed);
-      // 结果可能被夹紧或没有可变换的内容，以父组件重建后的实际数值为准
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_edited) _controller.text = _format(widget.value);
-      });
-      return;
-    }
-    _controller.text = _format(widget.value);
-  }
-
-  static String _format(double value) {
-    final rounded = (value * 10).roundToDouble() / 10;
-    return rounded == rounded.roundToDouble()
-        ? rounded.toStringAsFixed(0)
-        : rounded.toStringAsFixed(1);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ThemedInput(
-      controller: _controller,
-      focusNode: _focusNode,
-      semanticLabel: widget.label,
-      enabled: widget.enabled,
-      style: Theme.of(context).textTheme.bodySmall,
-      textAlign: TextAlign.center,
-      decoration: const InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      ),
-      keyboardType: TextInputType.numberWithOptions(
-        signed: widget.allowNegative,
-        decimal: true,
-      ),
-      onChanged: (_) => _edited = true,
-      onSubmitted: _submit,
     );
   }
 }
