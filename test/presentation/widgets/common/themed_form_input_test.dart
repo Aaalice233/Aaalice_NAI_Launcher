@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/widgets/common/input_surface_container.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_form_input.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
 
 import '../../../helpers/text_layout_expectations.dart';
 
@@ -178,6 +180,23 @@ void main() {
     });
   });
 
+  testWidgets('沿用共享输入框的主题右键菜单与 Ctrl+Y 重做', (tester) async {
+    await tester.pumpWidget(_app(const ThemedFormInput()));
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).contextMenuBuilder,
+      themedContextMenuBuilder,
+    );
+
+    await tester.enterText(find.byType(TextField), 'a');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(find.byType(TextField), 'ab');
+    await tester.pump(const Duration(seconds: 1));
+    await _pressWithControl(tester, LogicalKeyboardKey.keyZ);
+    expect(_text(tester), 'a');
+    await _pressWithControl(tester, LogicalKeyboardKey.keyY);
+    expect(_text(tester), 'ab');
+  });
+
   group('ThemedFormInput 校验与内容', () {
     testWidgets('校验错误优先于 decoration 的错误文字，校验通过后仍显示调用方错误', (tester) async {
       await tester.pumpWidget(
@@ -340,6 +359,16 @@ void main() {
       }
     }
   });
+}
+
+Future<void> _pressWithControl(
+  WidgetTester tester,
+  LogicalKeyboardKey key,
+) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pump();
 }
 
 String? _required(String? value) => (value ?? '').isEmpty ? 'Required' : null;

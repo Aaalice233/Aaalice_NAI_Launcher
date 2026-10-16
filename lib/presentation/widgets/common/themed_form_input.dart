@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'input_surface_container.dart';
-import 'input_surface_decoration.dart';
+import 'themed_input.dart';
 
-/// 带表单验证的统一样式输入框组件
+/// 带表单校验的共享输入框
 ///
-/// 使用共享深色填充与清晰、无发光的聚焦和错误轮廓。
-/// 支持 [validator] 验证功能和错误提示显示。
+/// 校验错误作为 [InputDecoration.errorText] 交给 [ThemedInput] 呈现，
+/// 色面、下方文字、右键菜单与快捷键都与 [ThemedInput] 一致。
 class ThemedFormInput extends StatefulWidget {
   /// 文本控制器
   final TextEditingController? controller;
@@ -53,8 +52,9 @@ class ThemedFormInput extends StatefulWidget {
   /// 文本对齐方式
   final TextAlign textAlign;
 
-  /// 额外的 InputDecoration，呈现规则见 [InputSurfaceDecoration]；
-  /// [validator] 的错误优先于 [InputDecoration.errorText]
+  /// 额外的 InputDecoration，呈现规则见 [ThemedInput.decoration]；
+  /// [validator] 的错误优先于 [InputDecoration.errorText]，其中的标签与提示
+  /// 优先于 [labelText] 与 [hintText]
   final InputDecoration? decoration;
 
   const ThemedFormInput({
@@ -151,72 +151,51 @@ class _ThemedFormInputState extends State<ThemedFormInput> {
     setState(() {});
   }
 
+  InputDecoration _decorationWith(String? validatorError) {
+    final decoration = widget.decoration ?? const InputDecoration();
+    assert(
+      validatorError == null || decoration.error == null,
+      'Validator errors replace InputDecoration.errorText; '
+      'use errorText instead of error.',
+    );
+    final hasLabel = decoration.label != null || decoration.labelText != null;
+    return decoration.copyWith(
+      labelText: hasLabel ? null : widget.labelText,
+      errorText: validatorError,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final surface = InputSurfaceDecoration(
-      widget.decoration,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      labelText: widget.labelText,
-      hintText: widget.hintText,
-    );
-
+    final validator = widget.validator;
     return Focus(
       canRequestFocus: false,
       skipTraversal: true,
       onFocusChange: _handleFocusChange,
-      child: Builder(
-        builder: (focusContext) {
-          final hasFocus = Focus.of(focusContext).hasFocus;
-          final validator = widget.validator;
-          return FormField<String>(
-            initialValue: _controller.text,
-            validator: validator == null
-                ? null
-                : (_) => validator(_controller.text),
-            autovalidateMode:
-                widget.autovalidateMode ?? AutovalidateMode.disabled,
-            builder: (field) {
-              final supporting = surface.supportingText(field.errorText);
-              // 恒用 Column 包裹：错误出现或消失时输入框不重建，焦点与输入法连接不中断
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  InputSurfaceContainer(
-                    hasError: surface.hasError(field.errorText),
-                    isFocused: hasFocus,
-                    child: _buildTextField(field, surface.fieldDecoration),
-                  ),
-                  if (supporting != null) supporting,
-                ],
-              );
-            },
-          );
-        },
+      child: FormField<String>(
+        initialValue: _controller.text,
+        validator: validator == null
+            ? null
+            : (_) => validator(_controller.text),
+        autovalidateMode: widget.autovalidateMode ?? AutovalidateMode.disabled,
+        builder: (field) => ThemedInput(
+          controller: _controller,
+          focusNode: widget.focusNode,
+          hintText: widget.hintText,
+          textInputAction: widget.textInputAction,
+          keyboardType: widget.keyboardType,
+          onChanged: (value) {
+            field.didChange(value);
+            widget.onChanged?.call(value);
+          },
+          onSubmitted: widget.onFieldSubmitted,
+          readOnly: widget.readOnly,
+          maxLength: widget.maxLength,
+          autofocus: widget.autofocus,
+          textAlign: widget.textAlign,
+          decoration: _decorationWith(field.errorText),
+        ),
       ),
-    );
-  }
-
-  TextField _buildTextField(
-    FormFieldState<String> field,
-    InputDecoration decoration,
-  ) {
-    return TextField(
-      controller: _controller,
-      focusNode: widget.focusNode,
-      textInputAction: widget.textInputAction,
-      keyboardType: widget.keyboardType,
-      onChanged: (value) {
-        field.didChange(value);
-        widget.onChanged?.call(value);
-      },
-      onSubmitted: widget.onFieldSubmitted,
-      readOnly: widget.readOnly,
-      maxLength: widget.maxLength,
-      autofocus: widget.autofocus,
-      textAlign: widget.textAlign,
-      textAlignVertical: TextAlignVertical.center,
-      decoration: decoration,
     );
   }
 }
