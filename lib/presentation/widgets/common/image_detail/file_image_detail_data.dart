@@ -19,7 +19,9 @@ class FileImageDetailData implements ImageDetailData {
   final Uint8List? _cachedBytes;
   final String? _id;
   final NaiImageMetadata? _initialMetadata;
+  final Future<NaiImageMetadata?> Function(String path) _readCachedMetadata;
   NaiImageMetadata? _prefetchedMetadata;
+  Future<void>? _pendingPrefetch;
   final bool _showCopyButton;
   final bool _showSaveAsButton;
 
@@ -33,9 +35,12 @@ class FileImageDetailData implements ImageDetailData {
     NaiImageMetadata? initialMetadata,
     bool showCopyButton = true,
     bool showSaveAsButton = true,
+    Future<NaiImageMetadata?> Function(String path)? readCachedMetadata,
   }) : _cachedBytes = cachedBytes,
        _id = id ?? filePath,
        _initialMetadata = initialMetadata,
+       _readCachedMetadata =
+           readCachedMetadata ?? ImageMetadataService().getCachedAsync,
        _showCopyButton = showCopyButton,
        _showSaveAsButton = showSaveAsButton;
 
@@ -77,9 +82,27 @@ class FileImageDetailData implements ImageDetailData {
   }
 
   /// 首帧前把 L2 命中取进来：L2 只能异步读，同步的 [metadata] 否则先空后填
-  Future<void> prefetchMetadata() async {
-    if (_knownMetadata != null) return;
-    _prefetchedMetadata = await ImageMetadataService().getCachedAsync(filePath);
+  ///
+  /// 读取在途时重复调用共享同一次读取，等待方超时放弃后读取照常完成。
+  Future<void> prefetchMetadata() {
+    if (_knownMetadata != null) return Future.value();
+    return _pendingPrefetch ??= _readPrefetch().whenComplete(
+      () => _pendingPrefetch = null,
+    );
+  }
+
+  /// 预取仍在读盘；等待方先行显示后据此决定读完是否刷新
+  bool get isPrefetchingMetadata => _pendingPrefetch != null;
+
+  Future<void> _readPrefetch() async {
+    try {
+      _prefetchedMetadata = await _readCachedMetadata(filePath);
+    } catch (error) {
+      AppLogger.w(
+        '[MetadataFlow] Metadata prefetch failed: path=$filePath, error=$error',
+        'FileImageDetailData',
+      );
+    }
   }
 
   NaiImageMetadata? get _knownMetadata =>
@@ -126,7 +149,21 @@ class FileImageDetailData implements ImageDetailData {
       return cached;
     }
 
-    // 3. 前台高优先级解析
+    // 3. 预取还在读 L2 时接着等它，不并行再读一次
+    final pending = _pendingPrefetch;
+    if (pending != null) {
+      await pending;
+      final prefetched = _knownMetadata;
+      if (prefetched != null) {
+        AppLogger.i(
+          '[MetadataFlow] Returning prefetched metadata: hasData=${prefetched.hasData}',
+          'FileImageDetailData',
+        );
+        return prefetched;
+      }
+    }
+
+    // 4. 前台高优先级解析
     AppLogger.i(
       '[MetadataFlow] No cache, calling getMetadataImmediate...',
       'FileImageDetailData',

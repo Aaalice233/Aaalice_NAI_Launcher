@@ -173,13 +173,16 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     }
 
     if (future != null) {
+      // 切图后加载期间不能沿用上一张的元数据，上一张晚到的结果也不能盖掉这一张
+      _loadedMetadata = null;
       _metadataFuture = future
           .then((metadata) {
             AppLogger.i(
               '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
               'DetailMetadataPanel',
             );
-            if (mounted) {
+            if (mounted &&
+                widget.currentImage?.identifier == image.identifier) {
               setState(() => _loadedMetadata = metadata);
             }
             return metadata;

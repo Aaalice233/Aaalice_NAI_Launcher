@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -422,6 +423,53 @@ void main() {
       expect(clipboardText, selectedText);
       expect(copiedPrompt, isFalse);
     },
+  );
+
+  testWidgets('切图后上一张晚到的元数据既不在加载时显示，也不覆盖当前图', (tester) async {
+    final slowRead = Completer<NaiImageMetadata?>();
+    final slow = FileImageDetailData(
+      filePath: _neverCreatedPath('slow'),
+      readCachedMetadata: (_) => slowRead.future,
+    );
+    final current = FileImageDetailData(
+      filePath: _neverCreatedPath('current'),
+      initialMetadata: const NaiImageMetadata(prompt: 'blue sky'),
+    );
+    final loadingText = lookupAppLocalizations(
+      const Locale('zh'),
+    ).detail_parsingMetadata;
+    unawaited(slow.prefetchMetadata());
+
+    await tester.pumpWidget(_panelApp(current));
+    expect(find.textContaining('blue sky'), findsWidgets);
+
+    await tester.pumpWidget(_panelApp(slow));
+    expect(find.text(loadingText), findsOneWidget);
+    expect(find.textContaining('blue sky'), findsNothing);
+
+    await tester.pumpWidget(_panelApp(current));
+    slowRead.complete(const NaiImageMetadata(prompt: 'red moon'));
+    await tester.pump();
+
+    expect(find.textContaining('blue sky'), findsWidgets);
+    expect(find.textContaining('red moon'), findsNothing);
+  });
+}
+
+String _neverCreatedPath(String name) =>
+    '${Directory.systemTemp.path}${Platform.pathSeparator}'
+    'detail_panel_never_created_$name.png';
+
+Widget _panelApp(ImageDetailData image) {
+  return ProviderScope(
+    child: MaterialApp(
+      locale: const Locale('zh'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: DetailMetadataPanel(currentImage: image, expandedWidth: 600),
+      ),
+    ),
   );
 }
 
