@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../exif_orientation.dart';
 import '../isolate_pool.dart';
 
 /// Renders a mask over its source so a caller can visually verify placement.
@@ -26,7 +27,7 @@ abstract final class InpaintMaskPreview {
 
     final img.Image? decoded;
     try {
-      decoded = img.decodeImage(sourceImage);
+      decoded = ExifOrientation.decodeUpright(sourceImage);
     } catch (_) {
       return null;
     }

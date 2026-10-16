@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../core/utils/exif_orientation.dart';
 import '../../core/utils/pica_lanczos_resizer.dart';
 
 class CompressedTagThumbnail {
@@ -24,7 +25,7 @@ class TagLibraryThumbnailCompressor {
     await for (final chunk in source) {
       builder.add(chunk);
     }
-    final decoded = img.decodeImage(builder.takeBytes());
+    final decoded = ExifOrientation.decodeUpright(builder.takeBytes());
     if (decoded == null) {
       throw const FormatException('Tag thumbnail is not a supported image');
     }

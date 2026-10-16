@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/inpaint_outpaint_utils.dart';
 
+import '../../helpers/exif_orientation_fixture.dart';
 import '../../helpers/shared_compute_gate.dart';
 
 void main() {
@@ -132,6 +133,35 @@ void main() {
   });
 
   group('InpaintOutpaintUtils.expand', () {
+    test('expands an EXIF-rotated webp around its displayed pixels', () {
+      for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
+        final webp = orientedCameraWebp(orientation: orientation);
+        final displayed = displayedWebp(webp, orientation);
+        final reason = 'orientation $orientation';
+
+        final result = InpaintOutpaintUtils.expand(
+          sourceImage: webp,
+          edges: const OutpaintEdges(left: 2, top: 1, right: 3, bottom: 2),
+          snapTo64: false,
+        );
+
+        expect(
+          (result.width, result.height),
+          orientation >= 5 ? (19, 23) : (25, 17),
+          reason: reason,
+        );
+        final expanded = img.decodePng(result.sourceImage)!;
+        for (final pixel in displayed) {
+          final other = expanded.getPixel(pixel.x + 2, pixel.y + 1);
+          expect(
+            (other.r, other.g, other.b),
+            (pixel.r, pixel.g, pixel.b),
+            reason: '$reason at ${pixel.x},${pixel.y}',
+          );
+        }
+      }
+    });
+
     test('expands source without snapping and masks only outpaint edges', () {
       final sourceImage = _sourcePng(4, 4);
 

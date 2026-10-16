@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:image/image.dart' as img;
 
+import '../../../../core/utils/exif_orientation.dart';
 import '../../models/agent_protocol.dart';
 import '../../../../core/utils/isolate_pool.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
@@ -332,7 +333,7 @@ String? detectImageMime(Uint8List bytes) {
 _OptimizedPromptAssistantImage? _optimizePromptAssistantImageBytes(
   _PromptAssistantImageOptimizationJob job,
 ) {
-  final source = img.decodeImage(job.bytes);
+  final source = ExifOrientation.decodeUpright(job.bytes);
   if (source == null || source.width <= 0 || source.height <= 0) {
     return null;
   }

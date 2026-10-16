@@ -2,9 +2,10 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'exif_orientation.dart';
 import 'isolate_pool.dart';
 
-/// 读取与 `img.decodeImage` 结果一致的图像宽高，能从编码头确定时不解码像素。
+/// 读取与 [ExifOrientation.decodeUpright] 结果一致的图像宽高，能从编码头确定时不解码像素。
 abstract final class DecodedImageSize {
   static const Set<img.ImageFormat> _headerFormats = {
     img.ImageFormat.png,
@@ -23,7 +24,7 @@ abstract final class DecodedImageSize {
       if (info == null || info.width <= 0 || info.height <= 0) {
         return null;
       }
-      if (decoder.format == img.ImageFormat.jpg && _jpegSwapsAxes(bytes)) {
+      if (ExifOrientation.swapsAxes(bytes)) {
         return (info.height, info.width);
       }
       return (info.width, info.height);
@@ -55,15 +56,6 @@ abstract final class DecodedImageSize {
 
   static (int, int)? _decodeSize(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
-    return decoded == null ? null : (decoded.width, decoded.height);
-  }
-
-  // decodeImage 会把 EXIF 方向烘焙进像素，方向 5–8 输出宽高互换。
-  static bool _jpegSwapsAxes(Uint8List bytes) {
-    final imageIfd = img.decodeJpgExif(bytes)?.imageIfd;
-    final orientation = imageIfd != null && imageIfd.hasOrientation
-        ? imageIfd.orientation!
-        : 0;
-    return orientation >= 5 && orientation <= 8;
+    return decoded == null ? null : ExifOrientation.uprightSize(bytes, decoded);
   }
 }

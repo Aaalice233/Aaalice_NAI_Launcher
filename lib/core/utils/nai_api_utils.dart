@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 
 import '../network/error_mappers/api_error_mapper.dart';
 import 'app_logger.dart';
+import 'exif_orientation.dart';
 import 'isolate_pool.dart';
 
 /// NAI API 工具类
@@ -32,7 +33,7 @@ class NAIApiUtils {
   /// - 转换为 PNG 格式
   static Uint8List ensurePngFormat(Uint8List imageBytes) {
     // 解码图片
-    final originalImage = img.decodeImage(imageBytes);
+    final originalImage = ExifOrientation.decodeUpright(imageBytes);
     if (originalImage == null) {
       AppLogger.w('Failed to decode image, returning original bytes', 'Utils');
       return imageBytes;

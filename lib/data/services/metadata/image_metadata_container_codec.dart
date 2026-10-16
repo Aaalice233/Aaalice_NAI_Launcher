@@ -93,19 +93,21 @@ class ImageMetadataContainerCodec {
   /// 像素经过编辑后不能继续沿用原容器的颜色配置或尺寸声明；这里只迁移
   /// 文本与标准 EXIF chunk，并在目标中去重。NovelAI stealth 元数据属于
   /// 像素载荷，调用方需要根据隐私策略显式重建，不能在这里复制。
-  /// [decodedBy] 是从 [source] 解码出目标像素的解码器；源图方向已转进像素时，
-  /// 复制的 EXIF 方向改为 1。目标像素不是由 [source] 解码而来时传 null。
+  /// 目标像素由 [source] 按显示方向解码而来时 [orientationApplied] 传 true：
+  /// JPEG 与 WebP 的 EXIF 方向已转进像素，复制的方向改为 1；PNG 的 eXIf 不会被
+  /// 任何解码器应用，始终原样保留。
   static Uint8List copySupportedMetadata({
     required Uint8List source,
     required Uint8List targetPng,
-    SourcePixelDecoder? decodedBy,
+    bool orientationApplied = false,
   }) {
     if (!isPngHeader(targetPng)) {
       throw const FormatException('Metadata target must be PNG');
     }
     final sourceChunks = _supportedMetadataChunks(source);
     if (sourceChunks.isEmpty) return targetPng;
-    final orientationBaked = _orientationBaked(source, decodedBy);
+    final orientationBaked =
+        orientationApplied && (_isJpeg(source) || _isWebP(source));
     const supportedTypes = {'tEXt', 'iTXt', 'zTXt', 'eXIf'};
     final targetChunks = _parsePngChunks(targetPng);
     final output = BytesBuilder()..add(targetPng.sublist(0, 8));
@@ -149,15 +151,6 @@ class ImageMetadataContainerCodec {
     if (_isWebP(source)) return _extractWebPExif(source);
     return const [];
   }
-
-  static bool _orientationBaked(
-    Uint8List source,
-    SourcePixelDecoder? decodedBy,
-  ) => switch (decodedBy) {
-    null => false,
-    SourcePixelDecoder.imagePackage => _isJpeg(source),
-    SourcePixelDecoder.flutterEngine => _isJpeg(source) || _isWebP(source),
-  };
 
   static bool _isJpeg(Uint8List bytes) =>
       bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;

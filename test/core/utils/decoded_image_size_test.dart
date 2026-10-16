@@ -5,7 +5,10 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/decoded_image_size.dart';
+import 'package:nai_launcher/core/utils/exif_orientation.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
+
+import '../../helpers/exif_orientation_fixture.dart';
 
 void main() {
   group('DecodedImageSize.readHeader', () {
@@ -40,6 +43,25 @@ void main() {
         expect(
           DecodedImageSize.readHeader(jpeg),
           expected,
+          reason: '$orientation',
+        );
+      }
+    });
+
+    test('applies webp exif orientation like flutter', () {
+      for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
+        final webp = orientedCameraWebp(orientation: orientation);
+        final upright = ExifOrientation.decodeUpright(webp)!;
+        final uprightSize = (upright.width, upright.height);
+
+        expect(
+          DecodedImageSize.readHeader(webp),
+          orientation >= 5 ? (14, 20) : (20, 14),
+          reason: '$orientation',
+        );
+        expect(
+          DecodedImageSize.readHeader(webp),
+          uprightSize,
           reason: '$orientation',
         );
       }
@@ -137,6 +159,10 @@ void main() {
       final bmp = Uint8List.fromList(img.encodeBmp(_image(5, 3)));
 
       expect(await DecodedImageSize.tryRead(jpeg), (4, 6));
+      expect(
+        await DecodedImageSize.tryRead(orientedCameraWebp(orientation: 8)),
+        (14, 20),
+      );
       expect(await DecodedImageSize.tryRead(bmp), (5, 3));
     });
   });

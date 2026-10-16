@@ -12,6 +12,8 @@ import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
+import '../../../helpers/exif_orientation_fixture.dart';
+
 void main() {
   test(
     'request boundary rejects unprocessed disabled markers before encoding',
@@ -2508,6 +2510,109 @@ void main() {
 
       final sent = img.decodePng(base64Decode(images.single as String))!;
       expect((sent.width, sent.height), (1024, 1536));
+    });
+
+    test('webp sources follow the displayed axes', () async {
+      for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
+        final source = orientedMarkedWebp(
+          width: 96,
+          height: 64,
+          orientation: orientation,
+        );
+        final (width, height) = orientation >= 5 ? (64, 96) : (96, 64);
+
+        for (final action in [
+          ImageGenerationAction.img2img,
+          ImageGenerationAction.infill,
+        ]) {
+          final reason = '${action.name} $orientation';
+          final parameters = await buildSource(
+            action,
+            source,
+            width: width,
+            height: height,
+          );
+
+          if (orientation == 1) {
+            expect(parameters['image'], base64Encode(source), reason: reason);
+            continue;
+          }
+          final sent = img.decodePng(
+            base64Decode(parameters['image'] as String),
+          );
+          expect(sent, isNotNull, reason: reason);
+          expect((sent!.width, sent.height), (width, height), reason: reason);
+          expect(
+            markerCorners(sent),
+            markerCorners(displayedWebp(source, orientation)),
+            reason: reason,
+          );
+        }
+      }
+    });
+
+    test('V3 raw webp vibes upload the displayed pixels', () async {
+      final unrotated = orientedCameraWebp(orientation: 1);
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV3,
+        vibeReferencesV4: [
+          for (final (name, bytes) in [
+            ('rotated', orientedCameraWebp(orientation: 6)),
+            ('unrotated', unrotated),
+          ])
+            VibeReference(
+              displayName: name,
+              vibeEncoding: '',
+              rawImageData: bytes,
+              sourceType: VibeSourceType.rawImage,
+            ),
+        ],
+      );
+
+      final result = await NAIImageRequestBuilder(
+        params: params,
+        encodeVibe: _fakeEncodeVibe,
+      ).build(sampler: 'k_euler');
+      final uploads =
+          result.requestParameters['reference_image_multiple'] as List;
+
+      final rotated = img.decodePng(base64Decode(uploads.first as String))!;
+      expect((rotated.width, rotated.height), (14, 20));
+      expect(
+        rotated.getBytes(order: img.ChannelOrder.rgb),
+        displayedWebp(
+          orientedCameraWebp(orientation: 6),
+          6,
+        ).getBytes(order: img.ChannelOrder.rgb),
+      );
+      expect(uploads.last, base64Encode(unrotated));
+    });
+
+    test('precise webp references fit the displayed canvas', () async {
+      for (final (orientation, canvas) in [
+        (1, (1536, 1024)),
+        (6, (1024, 1536)),
+      ]) {
+        final params = ImageParams(
+          model: 'nai-diffusion-4-5-full',
+          preciseReferences: [
+            PreciseReference(
+              image: orientedCameraWebp(orientation: orientation),
+              type: PreciseRefType.character,
+            ),
+          ],
+        );
+
+        final result = await NAIImageRequestBuilder(
+          params: params,
+          encodeVibe: _fakeEncodeVibe,
+        ).build(sampler: 'k_euler');
+        final images =
+            result.requestParameters['director_reference_images'] as List;
+
+        final sent = img.decodePng(base64Decode(images.single as String))!;
+        expect((sent.width, sent.height), canvas, reason: '$orientation');
+      }
     });
   });
 }

@@ -14,6 +14,7 @@ import 'package:nai_launcher/core/network/dio_client.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 
 import '../../../helpers/browser_multipart_reader.dart';
+import '../../../helpers/exif_orientation_fixture.dart';
 
 class _MockDio extends Mock implements Dio {}
 
@@ -551,6 +552,40 @@ void main() {
       final sent = img.decodePng(base64Decode(body['image'] as String))!;
       expect((sent.width, sent.height), (body['width'], body['height']));
       expect((sent.width, sent.height), (4, 6));
+    });
+
+    test('webp uploads carry the displayed pixels', () async {
+      for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
+        final source = orientedCameraWebp(orientation: orientation);
+        final size = orientation >= 5 ? (14, 20) : (20, 14);
+        final displayed = displayedWebp(source, orientation);
+        final uploads = await _multipartUploadsFor(source);
+        final legacy = await _legacyUpscaleBodyFor(source);
+        final sentImages = {
+          for (final MapEntry(key: endpoint, value: upload) in uploads.entries)
+            endpoint: upload.image,
+          'legacy upscale': base64Decode(legacy['image'] as String),
+        };
+
+        for (final MapEntry(key: endpoint, value: sent) in sentImages.entries) {
+          final reason = 'orientation $orientation $endpoint';
+          if (orientation == 1) {
+            expect(sent, source, reason: reason);
+            continue;
+          }
+          final png = img.decodePng(sent);
+          expect(png, isNotNull, reason: reason);
+          expect((png!.width, png.height), size, reason: reason);
+          expect(
+            png.getBytes(order: img.ChannelOrder.rgb),
+            displayed.getBytes(order: img.ChannelOrder.rgb),
+            reason: reason,
+          );
+        }
+        final director = uploads['augment-image']!.request;
+        expect((director['width'], director['height']), size);
+        expect((legacy['width'], legacy['height']), size);
+      }
     });
 
     test('unrotated uploads keep their exact bytes', () async {

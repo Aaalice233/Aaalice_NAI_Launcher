@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:image/image.dart' as img;
 
 import '../models/image_generation_artifact.dart';
+import 'exif_orientation.dart';
 import 'inpaint_mask_utils.dart';
 import 'isolate_pool.dart';
 import 'pica_lanczos_resizer.dart';
@@ -307,7 +308,7 @@ class FocusedInpaintUtils {
     Rect? focusedSelectionRect,
     required double minContextMegaPixels,
   }) {
-    final decodedSource = img.decodeImage(sourceImage);
+    final decodedSource = ExifOrientation.decodeUpright(sourceImage);
     if (decodedSource == null) {
       return null;
     }
@@ -519,7 +520,7 @@ class FocusedInpaintUtils {
     Rect? contextCrop,
     required double minContextMegaPixels,
   }) {
-    final decodedSource = img.decodeImage(sourceImage);
+    final decodedSource = ExifOrientation.decodeUpright(sourceImage);
     if (decodedSource == null) {
       return null;
     }

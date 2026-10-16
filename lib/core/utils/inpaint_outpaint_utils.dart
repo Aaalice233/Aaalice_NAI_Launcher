@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/utils/exif_orientation.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/core/utils/pica_lanczos_resizer.dart';
@@ -904,7 +905,7 @@ class InpaintOutpaintUtils {
 
   static img.Image? _decodeSourceImage(Uint8List sourceImage) {
     try {
-      return img.decodeImage(sourceImage);
+      return ExifOrientation.decodeUpright(sourceImage);
     } catch (_) {
       throw const FormatException('Unable to decode source image');
     }

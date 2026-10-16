@@ -13,7 +13,7 @@ import '../../../core/network/js_compatible_json.dart';
 import '../../../core/network/nai_api_endpoint_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/decoded_image_size.dart';
-import '../../../core/utils/jpeg_exif_orientation.dart';
+import '../../../core/utils/exif_orientation.dart';
 import '../../../core/utils/zip_utils.dart';
 
 part 'nai_image_enhancement_api_service.g.dart';
@@ -136,9 +136,9 @@ class NAIImageEnhancementApiService {
     }
   }
 
-  // 官网经 canvas 上传已转正的 PNG，带 EXIF 方向的 JPEG 不能原样发出
+  // 官网经 canvas 上传已转正的 PNG，带 EXIF 方向的 JPEG 与 WebP 不能原样发出
   static Future<Uint8List> _orientedUpload(Uint8List image) =>
-      JpegExifOrientation.bakeToPngAsync(image);
+      ExifOrientation.bakeToPngAsync(image);
 
   static Future<(int, int)> _readImageSize(Uint8List image) async {
     final size = await DecodedImageSize.read(image);
