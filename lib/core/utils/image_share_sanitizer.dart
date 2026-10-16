@@ -672,7 +672,10 @@ class ImageShareSanitizer {
     final target = File(
       p.join(
         folder.path,
-        FileNameSanitizer.shareName(p.setExtension(image.fileName, extension)),
+        FileNameSanitizer.fileName(
+          p.setExtension(image.fileName, extension),
+          fallback: 'image',
+        ),
       ),
     );
     final temporary = File('${target.path}.tmp');

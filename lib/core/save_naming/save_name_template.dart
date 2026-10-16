@@ -183,7 +183,7 @@ final class SaveNameTemplate {
         token == SaveNameToken.day,
   );
 
-  /// 未清洗的渲染结果；落盘前须经过 `SavePathSanitizer`。
+  /// 未清洗的渲染结果；落盘前须经过 `FileNameSanitizer`。
   String render(SaveNameValues values) =>
       renderSegments(values, splitOnSeparators: false).single;
 

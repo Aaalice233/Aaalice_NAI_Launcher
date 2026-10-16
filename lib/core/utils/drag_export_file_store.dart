@@ -26,7 +26,10 @@ class DragExportFileStore {
     final session = await (_session ??= _createSession());
     final folder = await session.createTemp('item_');
     final file = File(
-      p.join(folder.path, FileNameSanitizer.shareName(fileName)),
+      p.join(
+        folder.path,
+        FileNameSanitizer.fileName(fileName, fallback: 'image'),
+      ),
     );
     await file.writeAsBytes(bytes, flush: true);
     return file;

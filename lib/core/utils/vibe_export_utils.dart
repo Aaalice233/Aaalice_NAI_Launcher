@@ -105,7 +105,7 @@ class VibeExportUtils {
           displayName: entry.displayName,
           vibes: [entry.toVibeReference()],
           carrierImageBytes: candidate.bytes,
-          fileName: _generateEmbeddedPngFileName(entry.displayName),
+          fileName: embeddedPngFileName(entry.displayName),
         ),
       );
     }
@@ -518,10 +518,10 @@ class VibeExportUtils {
 
   static String _archiveFileNameForEntry(VibeLibraryEntry entry) {
     final extension = entry.isBundle ? 'naiv4vibebundle' : 'naiv4vibe';
-    final baseName = FileNameSanitizer.sanitize(
+    final baseName = FileNameSanitizer.segment(
       entry.displayName,
       fallback: entry.isBundle ? 'vibe-bundle' : 'vibe',
-      maxLength: 80,
+      maxCodePoints: 80,
     );
     return '$baseName.$extension';
   }
@@ -585,10 +585,10 @@ class VibeExportUtils {
 
   /// 生成文件名
   static String _generateFileName(String name) {
-    final finalName = FileNameSanitizer.sanitize(
+    final finalName = FileNameSanitizer.segment(
       name,
       fallback: 'vibe',
-      maxLength: 50,
+      maxCodePoints: 50,
     );
 
     return '$finalName.naiv4vibe';
@@ -596,30 +596,30 @@ class VibeExportUtils {
 
   /// 生成 bundle 文件名
   static String _generateBundleFileName(String name) {
-    final finalName = FileNameSanitizer.sanitize(
+    final finalName = FileNameSanitizer.segment(
       name,
       fallback: 'vibe-bundle',
-      maxLength: 50,
+      maxCodePoints: 50,
     );
 
     return '$finalName.naiv4vibebundle';
   }
 
   static String _generateZipFileName(String name) {
-    final finalName = FileNameSanitizer.sanitize(
+    final finalName = FileNameSanitizer.segment(
       name,
       fallback: 'vibe-library',
-      maxLength: 50,
+      maxCodePoints: 50,
     );
 
     return '$finalName.zip';
   }
 
-  static String _generateEmbeddedPngFileName(String name) {
-    final finalName = FileNameSanitizer.sanitize(
+  static String embeddedPngFileName(String name) {
+    final finalName = FileNameSanitizer.segment(
       name,
       fallback: 'vibe',
-      maxLength: 50,
+      maxCodePoints: 50,
     );
 
     return '${finalName}_vibe.png';

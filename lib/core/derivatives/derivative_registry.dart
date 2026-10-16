@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../constants/storage_keys.dart';
-import '../save_naming/save_path_sanitizer.dart';
 import '../storage/local_storage_service.dart';
+import '../utils/file_name_sanitizer.dart';
 
 class DerivativeLink {
   const DerivativeLink({
@@ -48,11 +48,12 @@ class DerivativeKind {
   /// 来源文件名加本类后缀；超长时只截短来源部分，后缀是识别派生副本的依据。
   String outputFileName(String sourceFileName) {
     final base = p.basenameWithoutExtension(p.basename(sourceFileName.trim()));
-    final stem = SavePathSanitizer.segment(
+    final stem = FileNameSanitizer.segment(
       '$base$fileNameSuffix',
+      fallback: 'image',
       protectedSuffix: fileNameSuffix,
     );
-    return '${stem.isEmpty ? 'image$fileNameSuffix' : stem}.png';
+    return '$stem.png';
   }
 }
 

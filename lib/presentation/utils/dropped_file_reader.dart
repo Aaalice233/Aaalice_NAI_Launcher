@@ -712,7 +712,7 @@ class DroppedFileReader {
   }
 
   static String _sanitizeFileName(String fileName) {
-    return FileNameSanitizer.sanitize(fileName, fallback: 'dropped_image');
+    return FileNameSanitizer.fileName(fileName, fallback: 'dropped_image');
   }
 
   static String _extensionOf(String fileName) {

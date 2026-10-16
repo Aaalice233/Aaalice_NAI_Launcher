@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/services/file_export_service.dart';
 import '../../../../core/utils/app_logger.dart';
-import '../../../../core/utils/file_name_sanitizer.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
 import '../../../../data/models/vibe/vibe_library_category.dart';
@@ -667,14 +666,6 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     return segments.isEmpty ? path : segments.last;
   }
 
-  String _embeddedPngFileName(VibeLibraryEntry entry) {
-    final baseName = entry.displayName.trim().isEmpty
-        ? 'vibe'
-        : entry.displayName.trim();
-    final safeBaseName = FileNameSanitizer.sanitize(baseName, fallback: 'vibe');
-    return '${safeBaseName}_vibe.png';
-  }
-
   /// 构建选择操作按钮
   Widget _buildSelectionActions(ThemeData theme) {
     final allSelected = _selection.isEverythingSelected;
@@ -978,7 +969,7 @@ class _VibeExportDialogState extends ConsumerState<VibeExportDialog> {
     final exportedPath = await VibeExportUtils.exportToEmbeddedPng(
       [entry.toVibeReference()],
       carrierImageBytes: carrierImageBytes,
-      fileName: _embeddedPngFileName(entry),
+      fileName: VibeExportUtils.embeddedPngFileName(entry.displayName),
       defaultModel: _defaultModel,
     );
 

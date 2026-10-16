@@ -215,7 +215,7 @@ void main() {
         allowRemoteImages: false,
       );
 
-      expect(result?.fileName, 'clipboard.WEBP');
+      expect(result?.fileName, 'clipboard.webp');
       expect(result?.bytes, bytes);
       expect(result?.sourcePath, isNull);
       expect(result?.sourceUri, isNull);
@@ -235,7 +235,7 @@ void main() {
         allowRemoteImages: false,
       );
 
-      expect(result?.fileName, 'clipboard.WEBP');
+      expect(result?.fileName, 'clipboard.webp');
       expect(result?.bytes, bytes);
     });
 
