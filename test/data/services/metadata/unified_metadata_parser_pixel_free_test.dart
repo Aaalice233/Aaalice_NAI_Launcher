@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../../helpers/metadata_parse_result_expectations.dart';
 import '../../../helpers/stealth_png_fixture.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
@@ -19,17 +20,6 @@ Uint8List _textChunkPng() => UnifiedMetadataParser.embedTextChunkOnly(
 
 const _webpComment = {'prompt': 'webp exif', 'seed': 7, 'steps': 28};
 
-void _expectSameResult(MetadataParseResult? actual, MetadataParseResult sync) {
-  expect(actual, isNotNull);
-  expect(actual!.success, sync.success);
-  expect(actual.sourceFormat, sync.sourceFormat);
-  expect(actual.rawData, sync.rawData);
-  expect(actual.triedParsers, sync.triedParsers);
-  expect(actual.errorMessage, sync.errorMessage);
-  expect(actual.metadata, sync.metadata);
-  expect(actual.bytesRead, sync.bytesRead);
-}
-
 void main() {
   group('parseFromImageWithoutPixelDecode', () {
     test('answers png text chunks exactly like the full parser', () {
@@ -40,7 +30,10 @@ void main() {
       );
 
       expect(result?.metadata?.seed, 42);
-      _expectSameResult(result, UnifiedMetadataParser.parseFromImage(bytes));
+      expectSameParseResult(
+        result,
+        UnifiedMetadataParser.parseFromImage(bytes),
+      );
     });
 
     test('answers webp exif exactly like the full parser', () {
@@ -51,7 +44,10 @@ void main() {
       );
 
       expect(result?.metadata?.prompt, 'webp exif');
-      _expectSameResult(result, UnifiedMetadataParser.parseFromImage(bytes));
+      expectSameParseResult(
+        result,
+        UnifiedMetadataParser.parseFromImage(bytes),
+      );
     });
 
     test('answers unsupported and truncated containers directly', () {
@@ -63,7 +59,10 @@ void main() {
           bytes,
         );
         expect(result?.success, isFalse);
-        _expectSameResult(result, UnifiedMetadataParser.parseFromImage(bytes));
+        expectSameParseResult(
+          result,
+          UnifiedMetadataParser.parseFromImage(bytes),
+        );
       }
     });
 
@@ -92,7 +91,7 @@ void main() {
     test('rejects non-png bytes like parseFromPng', () {
       final bytes = buildNovelAiWebpFixture(comment: _webpComment);
 
-      _expectSameResult(
+      expectSameParseResult(
         UnifiedMetadataParser.parseFromPngWithoutPixelDecode(bytes),
         UnifiedMetadataParser.parseFromPng(bytes),
       );
@@ -101,7 +100,7 @@ void main() {
     test('defers only when the png pixels decide the answer', () async {
       final text = _textChunkPng();
 
-      _expectSameResult(
+      expectSameParseResult(
         UnifiedMetadataParser.parseFromPngWithoutPixelDecode(text),
         UnifiedMetadataParser.parseFromPng(text),
       );
