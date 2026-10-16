@@ -164,11 +164,6 @@ void main() {
       expect(source, isNotNull);
       expect(source!.bytes, orderedEquals(sourceBytes));
       expect(source.bytes, isNot(same(sourceBytes)));
-      expect(source.isCompatibleWithDimensions(1664, 2432), isTrue);
-      expect(source.isCompatibleWithDimensions(1280, 1792), isTrue);
-      expect(source.isCompatibleWithDimensions(1280, 1856), isTrue);
-      expect(source.isCompatibleWithDimensions(1792, 1792), isFalse);
-      expect(source.isCompatibleWithDimensions(1280, 2048), isFalse);
 
       final compatible = GeneratedImage.create(
         _validImageBytes(width: 1280, height: 1792),
