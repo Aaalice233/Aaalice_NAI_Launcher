@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
+import '../../../core/utils/isolate_pool.dart';
+
 /// 文件哈希计算器
 ///
 /// 提供文件 SHA256 哈希计算，支持：
@@ -15,6 +17,9 @@ class FileHashCalculator {
   static final FileHashCalculator _instance = FileHashCalculator._internal();
   factory FileHashCalculator() => _instance;
   FileHashCalculator._internal();
+
+  // 低于此体积时同步计算比 isolate 往返更快
+  static const int backgroundHashMinBytes = 64 * 1024;
 
   final _pathEntries = <String, _PathHashEntry>{};
   final _pendingHashFutures = <String, Future<String>>{};
@@ -53,8 +58,14 @@ class FileHashCalculator {
   }
 
   /// 从字节数据计算哈希（同步）
-  String calculateFromBytes(Uint8List bytes) {
-    return sha256.convert(bytes).toString();
+  String calculateFromBytes(Uint8List bytes) => _sha256OfBytes(bytes);
+
+  /// 与 [calculateFromBytes] 结果一致；较大的数据经 [ComputeGate] 在后台 isolate 计算
+  Future<String> calculateFromBytesInBackground(Uint8List bytes) async {
+    if (bytes.length < backgroundHashMinBytes) {
+      return _sha256OfBytes(bytes);
+    }
+    return ComputeGate().runCompute(_sha256OfBytes, bytes);
   }
 
   /// 登记刚写入文件的哈希，文件已不存在时不登记
@@ -107,8 +118,9 @@ class FileHashCalculator {
     await _semaphore.acquire();
     try {
       final before = await _FileIdentity.stat(filePath);
-      final bytes = await File(filePath).readAsBytes();
-      final hash = sha256.convert(bytes).toString();
+      final hash = before != null && before.size >= backgroundHashMinBytes
+          ? await ComputeGate().runCompute(_sha256OfFile, filePath)
+          : _sha256OfBytes(await File(filePath).readAsBytes());
 
       // 读取期间文件被改写时不登记映射，下次重新计算
       if (before != null && before == await _FileIdentity.stat(filePath)) {
@@ -126,6 +138,14 @@ class FileHashCalculator {
     if (identical(_pathEntries[filePath], stale)) {
       _pathEntries.remove(filePath);
     }
+  }
+
+  static String _sha256OfBytes(Uint8List bytes) {
+    return sha256.convert(bytes).toString();
+  }
+
+  static Future<String> _sha256OfFile(String filePath) async {
+    return (await sha256.bind(File(filePath).openRead()).first).toString();
   }
 }
 

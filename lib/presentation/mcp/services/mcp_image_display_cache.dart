@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/utils/image_share_sanitizer.dart';
+import '../../../data/services/metadata/hash_calculator.dart';
 
 /// Optional, content-addressed files for clients that render Markdown images.
 /// Only already-prepared outgoing bytes enter this cache, never source paths.
@@ -16,21 +16,27 @@ class McpImageDisplayCache {
   final Map<String, Future<File>> _pending = {};
   Future<void>? _cleanup;
 
-  Future<File> prepare(SanitizedShareImage image) {
-    final digest = sha256.convert(image.bytes).toString();
+  Future<File> prepare(SanitizedShareImage image) async {
+    final digest = await FileHashCalculator().calculateFromBytesInBackground(
+      image.bytes,
+    );
     final extension = image.mimeType == 'image/jpeg'
         ? 'jpg'
         : image.mimeType.split('/').last;
     final key = '$digest.$extension';
     return _pending.putIfAbsent(
       key,
-      () => _write(key, image).whenComplete(() {
+      () => _write(key, digest, image).whenComplete(() {
         _pending.remove(key);
       }),
     );
   }
 
-  Future<File> _write(String key, SanitizedShareImage image) async {
+  Future<File> _write(
+    String key,
+    String digest,
+    SanitizedShareImage image,
+  ) async {
     final directory = await _directory();
     await directory.create(recursive: true);
     await (_cleanup ??= _pruneExpired(directory));
@@ -38,7 +44,8 @@ class McpImageDisplayCache {
     if (await target.exists()) {
       final cached = await target.readAsBytes();
       if (cached.length == image.bytes.length &&
-          sha256.convert(cached) == sha256.convert(image.bytes)) {
+          await FileHashCalculator().calculateFromBytesInBackground(cached) ==
+              digest) {
         return target;
       }
     }

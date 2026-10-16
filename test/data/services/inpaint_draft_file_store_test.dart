@@ -8,6 +8,9 @@ import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 import 'package:nai_launcher/data/models/inpaint/inpaint_draft.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_file_store.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_repository.dart';
+import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
+
+import '../../helpers/shared_compute_gate.dart';
 
 void main() {
   group('inspectImage', () {
@@ -116,6 +119,68 @@ void main() {
       await expectLater(store.verifyBytes(bytes, asset, 'source'), completes);
     });
   });
+
+  group('large assets', () {
+    final bytes = _storedPng(value: 40);
+
+    test('are large enough to hash in the background', () {
+      expect(
+        bytes.length,
+        greaterThanOrEqualTo(FileHashCalculator.backgroundHashMinBytes),
+      );
+    });
+
+    test('inspectImage hashes behind the shared compute gate', () async {
+      final store = InpaintDraftFileStore(
+        decodeImageSize: _RecordingDecoder().call,
+      );
+
+      final asset = await expectQueuedBehindSharedComputeGate(
+        () => store.inspectImage(bytes, label: 'source'),
+      );
+
+      _expectMatchesDirectDecode(asset, bytes);
+    });
+
+    test(
+      'verifyBytes checks the checksum behind the shared compute gate',
+      () async {
+        final decoder = _RecordingDecoder();
+        final store = InpaintDraftFileStore(decodeImageSize: decoder.call);
+        final expected = _assetOf(bytes, _storedPngSide, _storedPngSide);
+
+        await expectQueuedBehindSharedComputeGate(
+          () => store.verifyBytes(bytes, expected, 'source'),
+        );
+
+        expect(decoder.calls, isEmpty);
+      },
+    );
+
+    test('a same-size asset with other pixels fails the checksum', () async {
+      final decoder = _RecordingDecoder();
+      final store = InpaintDraftFileStore(decodeImageSize: decoder.call);
+      final other = _storedPng(value: 41);
+      expect(other.length, bytes.length);
+
+      await expectLater(
+        store.hasChecksum(
+          other,
+          _assetOf(bytes, _storedPngSide, _storedPngSide),
+        ),
+        completion(isFalse),
+      );
+      await expectLater(
+        store.verifyBytes(
+          other,
+          _assetOf(bytes, _storedPngSide, _storedPngSide),
+          'mask',
+        ),
+        throwsA(_integrityError('mask checksum or size mismatch')),
+      );
+      expect(decoder.calls, isEmpty);
+    });
+  });
 }
 
 class _RecordingDecoder {
@@ -152,6 +217,15 @@ Uint8List _png({int width = 8, int height = 8, int value = 128}) {
   final image = img.Image(width: width, height: height);
   img.fill(image, color: img.ColorRgb8(value, value, value));
   return Uint8List.fromList(img.encodePng(image));
+}
+
+const _storedPngSide = 160;
+
+/// Uncompressed PNG: every fill value encodes to the same byte length.
+Uint8List _storedPng({required int value}) {
+  final image = img.Image(width: _storedPngSide, height: _storedPngSide);
+  img.fill(image, color: img.ColorRgb8(value, value, value));
+  return Uint8List.fromList(img.encodePng(image, level: 0));
 }
 
 Uint8List _rotatedJpeg({required int width, required int height}) {

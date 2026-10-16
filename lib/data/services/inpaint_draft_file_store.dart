@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
@@ -11,6 +10,7 @@ import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
 import '../models/inpaint/inpaint_draft.dart';
 import 'inpaint_draft_repository.dart';
+import 'metadata/hash_calculator.dart';
 
 /// Must decode every pixel: inspection relies on it to reject truncated images.
 typedef InpaintDraftImageSizeDecoder =
@@ -86,9 +86,10 @@ class InpaintDraftFileStore {
     await verifyBytes(await file.readAsBytes(), expected, label);
   }
 
-  bool hasChecksum(List<int> bytes, InpaintDraftAsset expected) {
+  Future<bool> hasChecksum(Uint8List bytes, InpaintDraftAsset expected) async {
     return bytes.length == expected.sizeBytes &&
-        sha256.convert(bytes).toString() == expected.sha256;
+        await FileHashCalculator().calculateFromBytesInBackground(bytes) ==
+            expected.sha256;
   }
 
   Future<void> verifyBytes(
@@ -96,10 +97,10 @@ class InpaintDraftFileStore {
     InpaintDraftAsset expected,
     String label,
   ) async {
-    if (!hasChecksum(bytes, expected)) {
+    final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
+    if (!await hasChecksum(data, expected)) {
       throw InpaintDraftIntegrityException('$label checksum or size mismatch');
     }
-    final data = bytes is Uint8List ? bytes : Uint8List.fromList(bytes);
     // Headers skip JPEG EXIF rotation; only a mismatch needs a full decode.
     if (_hasDimensions(NaiResolutionAdapter.readImageSize(data), expected) ||
         _hasDimensions(await _decodeImageSize(data), expected)) {
@@ -117,7 +118,7 @@ class InpaintDraftFileStore {
       throw InpaintDraftIntegrityException('$label is not a supported image');
     }
     return InpaintDraftAsset(
-      sha256: sha256.convert(bytes).toString(),
+      sha256: await FileHashCalculator().calculateFromBytesInBackground(bytes),
       sizeBytes: bytes.length,
       width: size.$1,
       height: size.$2,

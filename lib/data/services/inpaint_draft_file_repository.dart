@@ -588,7 +588,7 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
     final file = File(p.join(directory.path, byStatus));
     await _fileStore.recoverAtomicTarget(file);
     if (await file.exists() &&
-        _fileStore.hasChecksum(await file.readAsBytes(), draft.source)) {
+        await _fileStore.hasChecksum(await file.readAsBytes(), draft.source)) {
       return byStatus;
     }
     return _readySourceFileName;

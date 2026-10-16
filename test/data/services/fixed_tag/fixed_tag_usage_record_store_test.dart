@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -6,6 +7,9 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
+import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
+
+import '../../../helpers/shared_compute_gate.dart';
 
 const _hashA =
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -71,6 +75,31 @@ void main() {
 
     expect(store.lookup(_hashB)?.entries.single.fixedTagId, 'fixed-a');
     expect(store.lookup(_hashC.replaceFirst('c', 'd')), isNull);
+  });
+
+  test('derivative copies hash large images behind the compute gate', () async {
+    final hashes = FileHashCalculator();
+    Uint8List image(int seed) => Uint8List.fromList(
+      List.generate(
+        FileHashCalculator.backgroundHashMinBytes,
+        (index) => index * seed & 0xff,
+      ),
+    );
+    final source = image(3);
+    final output = image(5);
+    await store.record(
+      contentHash: hashes.calculateFromBytes(source),
+      snapshot: _snapshot,
+    );
+
+    await expectQueuedBehindSharedComputeGate(
+      () => store.copyForDerivative(sourceBytes: source, outputBytes: output),
+    );
+
+    expect(
+      store.lookup(hashes.calculateFromBytes(output))?.entries.single.fixedTagId,
+      'fixed-a',
+    );
   });
 
   test('rejects identifiers that are not lowercase sha-256 digests', () async {
