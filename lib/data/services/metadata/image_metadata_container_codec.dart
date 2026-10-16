@@ -850,6 +850,7 @@ class ImageMetadataContainerCodec {
   }
 
   /// 编码头像素数超出 stealth 解码上限时返回 null，不必整图解码再丢弃。
+  /// 返回的解码器已 startDecode，只能用 decodeFrame 取图：decode 会重复登记 PNG 的 IDAT。
   static img.Decoder? stealthDecoderFor(Uint8List imageBytes) {
     final decoder = img.findDecoderForData(imageBytes);
     final info = decoder?.startDecode(imageBytes);
@@ -865,7 +866,7 @@ class ImageMetadataContainerCodec {
   /// 从 NovelAI stealth_pngcomp alpha LSB 数据中读取元数据。
   static String? extractStealthMetadataText(Uint8List imageBytes) {
     try {
-      final image = stealthDecoderFor(imageBytes)?.decode(imageBytes);
+      final image = stealthDecoderFor(imageBytes)?.decodeFrame(0);
       if (image == null) return null;
 
       final magicBytes = utf8.encode(_magic);
