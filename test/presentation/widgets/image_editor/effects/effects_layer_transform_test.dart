@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/core/layer_role_policy.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/transform_geometry.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/effects/editor_effects.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/effects/image_editor_effects_controller.dart';
@@ -168,6 +169,33 @@ void main() {
         expect(layer.hasContent, isFalse);
 
         state.undo();
+        expect(layer.contentBounds, const Rect.fromLTWH(0, 0, 4, 4));
+      });
+    });
+
+    testWidgets('the source layer keeps its extent, even for an empty box', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final (effects, state, layer) = await _effectsWithLayer(
+          content: const Size(4, 4),
+        );
+        state.setRolePolicy(
+          LayerRolePolicy.inpaint(protectedLayerId: layer.id),
+        );
+
+        state.setSelection(Path()..addRect(const Rect.fromLTWH(1, 1, 2, 2)));
+        effects.applyInPlace(EditorEffectType.cropToSelection);
+        expect(layer.contentBounds, const Rect.fromLTWH(0, 0, 4, 4));
+        final pixels = await LayerPixels.of(
+          layer,
+          const Rect.fromLTWH(0, 0, 4, 4),
+        );
+        expect(pixels.alphaAt(1, 1), 255);
+        expect(pixels.alphaAt(0, 0), 0);
+
+        state.setSelection(Path()..addRect(const Rect.fromLTWH(5, 0, 2, 2)));
+        effects.applyInPlace(EditorEffectType.cropToSelection);
         expect(layer.contentBounds, const Rect.fromLTWH(0, 0, 4, 4));
       });
     });

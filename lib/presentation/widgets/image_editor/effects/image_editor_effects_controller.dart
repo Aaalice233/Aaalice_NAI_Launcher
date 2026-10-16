@@ -106,8 +106,14 @@ class ImageEditorEffectsController {
     final keep = _cropKeepRect();
     if (layer == null || keep == null) return null;
     // 选区内没有像素时裁剪结果是空图层，预览同样为空
-    return _framePreview(LayerPatchBaker.cropTo(layer, keep), maxDimension);
+    return _framePreview(_cropped(layer, keep), maxDimension);
   }
+
+  BakedLayerImage? _cropped(Layer layer, Rect keep) => LayerPatchBaker.cropTo(
+    layer,
+    keep,
+    extentLock: editorState.rolePolicy.extentLockFor(layer),
+  );
 
   /// 把烘焙结果在取景框里的部分缩到 [maxDimension] 以内并编码，接管 [baked] 的释放
   Future<Uint8List?> _framePreview(
@@ -245,7 +251,7 @@ class ImageEditorEffectsController {
 
   /// 旋转、翻转与裁剪在图层上原位写回，一步撤销。
   /// 旋转与翻转一次性结束变换，移动工具上已有变换会话时叠加在它的结果之上；
-  /// 裁剪只保留选区外接矩形内的像素，矩形内没有像素时图层清空
+  /// 裁剪只保留选区外接矩形内的像素，矩形内没有像素时图层清空，原图层则保持原图范围
   InPlaceEffectOutcome applyInPlace(EditorEffectType type) {
     assert(editorEffectWorksInPlace(type), '$type is not an in-place effect');
     final transform = layerTransformFor(type);
@@ -259,7 +265,7 @@ class ImageEditorEffectsController {
       if (layer == null) return InPlaceEffectOutcome.nothingToApply;
       final keep = _cropKeepRect();
       if (keep == null) return InPlaceEffectOutcome.needsSelection;
-      final baked = LayerPatchBaker.cropTo(layer, keep);
+      final baked = _cropped(layer, keep);
       editorState.historyManager.execute(
         baked == null
             ? ClearLayerAction(layerId: layer.id)
