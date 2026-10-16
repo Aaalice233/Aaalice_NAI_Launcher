@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -223,6 +224,49 @@ void main() {
       );
     });
 
+    test('oversized groups draw the text inside its shrunk bounds', () async {
+      final logo = await _logoImage();
+      addTearDown(logo.dispose);
+      const settings = WatermarkSettings(
+        textStyle: WatermarkTextStyle(
+          text: 'AaaliceWatermarkSignature',
+          strokeWidthRatio: 0,
+          shadowBlurRatio: 0,
+          shadowOffsetXRatio: 0,
+          shadowOffsetYRatio: 0,
+        ),
+        logoStyle: WatermarkLogoStyle(enabled: true, opacity: 0),
+        composition: WatermarkComposition(
+          arrangement: WatermarkLayerArrangement.horizontal,
+        ),
+      );
+
+      for (final mirror in [WatermarkMirror.none, WatermarkMirror.horizontal]) {
+        final recorder = ui.PictureRecorder();
+        final result = WatermarkScene.paint(
+          canvas: Canvas(recorder),
+          canvasSize: canvasSize,
+          settings: settings,
+          logo: logo,
+          decision: WatermarkAutoDecision(mirror: mirror),
+        );
+        final picture = recorder.endRecording();
+        // 光栅比画布宽，伸出画布的笔画才看得见
+        final image = await picture.toImage(
+          canvasSize.width.toInt() * 2,
+          canvasSize.height.toInt(),
+        );
+        picture.dispose();
+        final (left, right) = await _paintedColumns(image);
+        image.dispose();
+
+        final text = result.boundsFor(WatermarkLayerKind.text)!;
+        expect(left, greaterThanOrEqualTo(text.left - 1), reason: '$mirror');
+        expect(right, lessThanOrEqualTo(text.right + 1), reason: '$mirror');
+        expect(right, lessThanOrEqualTo(canvasSize.width), reason: '$mirror');
+      }
+    });
+
     test('text tone follows the background under the text', () {
       final dark = _analysis(20, 15, (x, y) => (20, 24, 30, 255));
       final light = _analysis(20, 15, (x, y) => (235, 232, 228, 255));
@@ -367,6 +411,21 @@ Future<ui.Image> _logoImage() async {
   final image = await picture.toImage(40, 40);
   picture.dispose();
   return image;
+}
+
+Future<(int, int)> _paintedColumns(ui.Image image) async {
+  final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  final rgba = data!.buffer.asUint8List();
+  var left = image.width;
+  var right = 0;
+  for (var y = 0; y < image.height; y++) {
+    for (var x = 0; x < image.width; x++) {
+      if (rgba[(y * image.width + x) * 4 + 3] == 0) continue;
+      left = math.min(left, x);
+      right = math.max(right, x + 1);
+    }
+  }
+  return (left, right);
 }
 
 WatermarkSourceAnalysis _analysis(
