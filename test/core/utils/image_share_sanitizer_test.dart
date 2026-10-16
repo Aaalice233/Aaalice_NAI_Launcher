@@ -9,6 +9,8 @@ import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
 import 'package:nai_launcher/core/utils/png_share_source.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/image_pixel_matchers.dart';
 import '../../helpers/shared_compute_gate.dart';
 
 void main() {
@@ -252,6 +254,30 @@ void main() {
         throwsA(isA<ImageSanitizeException>()),
       );
     });
+
+    test(
+      'sanitizeForShare keeps the webp orientation flutter displays',
+      () async {
+        for (final exifPrefix in [false, true]) {
+          final webp = orientedCameraWebp(
+            orientation: 6,
+            exifPrefix: exifPrefix,
+          );
+
+          final result = await ImageShareSanitizer.sanitizeForShare(
+            webp,
+            fileName: 'photo.webp',
+          );
+
+          // 带前缀的 EXIF 块 Flutter 不识别；去元数据会清掉 alpha 最低位
+          expectPixelsWithin(
+            img.decodePng(result.bytes)!,
+            exifPrefix ? img.decodeImage(webp)! : displayedWebp(webp, 6),
+            tolerance: 1,
+          );
+        }
+      },
+    );
 
     test(
       'unprotected unsupported normalization preserves legacy fallback',

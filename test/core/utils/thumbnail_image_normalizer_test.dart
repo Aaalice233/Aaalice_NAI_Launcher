@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/thumbnail_image_normalizer.dart';
 
+import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/image_pixel_matchers.dart';
 import '../../helpers/shared_compute_gate.dart';
 
 void main() {
@@ -36,6 +38,18 @@ void main() {
       expect(decoded, isNotNull);
       expect(decoded!.width, 1);
       expect(decoded.height, 1);
+    });
+
+    test('带方向的 WebP 按 Flutter 显示的方向输出', () {
+      for (final exifPrefix in [false, true]) {
+        final webp = orientedCameraWebp(orientation: 6, exifPrefix: exifPrefix);
+
+        // 带前缀的 EXIF 块 Flutter 不识别，原样输出
+        expectPixelsWithin(
+          img.decodePng(normalizeThumbnailImageToPng(webp))!,
+          exifPrefix ? img.decodeImage(webp)! : displayedWebp(webp, 6),
+        );
+      }
     });
 
     test('拒绝无法解码的数据', () {
