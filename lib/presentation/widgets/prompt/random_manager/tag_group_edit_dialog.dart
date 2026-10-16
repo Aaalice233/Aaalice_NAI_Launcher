@@ -665,10 +665,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
             title: l10n.randomManager_conditionalBranch,
             description: l10n.randomManager_conditionalBranchDesc,
             enabled: _editingTagGroup.hasConditionalBranch,
-            onAdd: () => _showConditionalBranchDialog(),
-            onEdit: _editingTagGroup.hasConditionalBranch
-                ? () => _showConditionalBranchDialog()
-                : null,
+            onOpen: _showConditionalBranchDialog,
           ),
           const SizedBox(height: 12),
           // 依赖配置
@@ -677,10 +674,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
             title: l10n.randomManager_dependencyConfig,
             description: l10n.randomManager_dependencyConfigDesc,
             enabled: _editingTagGroup.hasDependency,
-            onAdd: () => _showDependencyConfigDialog(),
-            onEdit: _editingTagGroup.hasDependency
-                ? () => _showDependencyConfigDialog()
-                : null,
+            onOpen: _showDependencyConfigDialog,
           ),
           const SizedBox(height: 12),
           // 可见性规则
@@ -689,10 +683,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
             title: l10n.randomManager_visibilityRules,
             description: l10n.randomManager_visibilityRulesDesc,
             enabled: _editingTagGroup.hasVisibilityRules,
-            onAdd: () => _showVisibilityRuleDialog(),
-            onEdit: _editingTagGroup.hasVisibilityRules
-                ? () => _showVisibilityRuleDialog()
-                : null,
+            onOpen: _showVisibilityRuleDialog,
           ),
           const SizedBox(height: 12),
           // 时间条件
@@ -701,10 +692,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
             title: l10n.randomManager_timeCondition,
             description: l10n.randomManager_timeConditionDesc,
             enabled: _editingTagGroup.hasTimeCondition,
-            onAdd: () => _showTimeConditionDialog(),
-            onEdit: _editingTagGroup.hasTimeCondition
-                ? () => _showTimeConditionDialog()
-                : null,
+            onOpen: _showTimeConditionDialog,
           ),
           const SizedBox(height: 12),
           // 后处理规则
@@ -713,10 +701,7 @@ class _TagGroupEditDialogState extends ConsumerState<TagGroupEditDialog>
             title: l10n.randomManager_postProcessRules,
             description: l10n.randomManager_postProcessRulesDesc,
             enabled: _editingTagGroup.hasPostProcessRules,
-            onAdd: () => _showPostProcessRuleDialog(),
-            onEdit: _editingTagGroup.hasPostProcessRules
-                ? () => _showPostProcessRuleDialog()
-                : null,
+            onOpen: _showPostProcessRuleDialog,
           ),
           const SizedBox(height: 16),
           // 强调概率
