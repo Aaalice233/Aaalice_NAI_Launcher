@@ -9,6 +9,7 @@ import 'package:nai_png_codec/nai_png_codec.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'exif_orientation.dart';
 import 'isolate_pool.dart';
 import 'png_share_source.dart';
 
@@ -549,7 +550,7 @@ class ImageShareSanitizer {
 
     final img.Image? decoded;
     try {
-      decoded = img.decodeImage(bytes);
+      decoded = ExifOrientation.decodeUpright(bytes);
     } on Object {
       throw const ImageSanitizeException('Image bytes could not be decoded');
     }
@@ -557,9 +558,8 @@ class ImageShareSanitizer {
       throw const ImageSanitizeException('Image bytes could not be decoded');
     }
 
-    final oriented = img.bakeOrientation(decoded);
     return SanitizedShareImage(
-      bytes: _encodePng(_clearStealthAlphaLsb(oriented)),
+      bytes: _encodePng(_clearStealthAlphaLsb(decoded)),
       fileName: p.setExtension(p.basename(fileName), '.png'),
       mimeType: 'image/png',
     );
@@ -695,7 +695,7 @@ class ImageShareSanitizer {
   }) async {
     img.Image? decoded;
     try {
-      decoded = img.decodeImage(bytes);
+      decoded = ExifOrientation.decodeUpright(bytes);
     } on Object {
       decoded = null;
     }
@@ -707,7 +707,7 @@ class ImageShareSanitizer {
       );
     }
     return SanitizedShareImage(
-      bytes: Uint8List.fromList(img.encodePng(img.bakeOrientation(decoded))),
+      bytes: Uint8List.fromList(img.encodePng(decoded)),
       fileName: p.setExtension(p.basename(fileName), '.png'),
       mimeType: 'image/png',
     );
