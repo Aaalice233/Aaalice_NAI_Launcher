@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/extensions/list_sort_extensions.dart';
 import 'vibe_reference.dart';
 
 part 'vibe_library_entry.freezed.dart';
@@ -362,12 +363,7 @@ extension VibeLibraryEntryListExtension on List<VibeLibraryEntry> {
 
   /// 按名称排序
   List<VibeLibraryEntry> sortedByName() {
-    // 小写键每项只算一次：放进比较器会在 n log n 次比较里反复分配字符串
-    final keyed = [
-      for (final entry in this)
-        (key: entry.displayName.toLowerCase(), entry: entry),
-    ]..sort((a, b) => a.key.compareTo(b.key));
-    return [for (final item in keyed) item.entry];
+    return [...this]..sortByKey((entry) => entry.displayName.toLowerCase());
   }
 
   /// 搜索

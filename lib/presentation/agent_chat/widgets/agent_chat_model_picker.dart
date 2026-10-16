@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/extensions/list_sort_extensions.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../../l10n/app_localizations.dart';
@@ -676,11 +677,7 @@ List<_AgentChatModelOption> _modelOptions(PromptAssistantConfigState config) =>
             ))
               if (!model.isPlaceholder)
                 _AgentChatModelOption(provider: provider, model: model),
-          ]..sort(
-            (a, b) => a.displayName.toLowerCase().compareTo(
-              b.displayName.toLowerCase(),
-            ),
-          ),
+          ]..sortByKey((option) => option.displayName.toLowerCase()),
     ];
 
 String thinkingLevelLabel(AppLocalizations l10n, ThinkingLevel level) =>

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../widgets/common/provider_icon.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/list_sort_extensions.dart';
 import '../../../../data/models/agent/agent_settings.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../prompt_assistant/models/assistant_model_capability.dart';
@@ -172,9 +173,7 @@ class _ModelCard extends ConsumerWidget {
         );
       }
       pickerOptions.addAll(
-        providerOptions..sort(
-          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-        ),
+        providerOptions..sortByKey((option) => option.title.toLowerCase()),
       );
     }
     final selected = settings.chat.modelReference;

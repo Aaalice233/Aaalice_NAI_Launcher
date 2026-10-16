@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/extensions/list_sort_extensions.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/system_font_service.dart';
 import '../../core/storage/local_storage_service.dart';
@@ -197,13 +198,7 @@ Future<List<FontConfig>> systemFontList(Ref ref) async {
     );
   }).toList();
 
-  // 按名称排序
-  fontConfigs.sort(
-    (a, b) =>
-        a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase()),
-  );
-
-  return fontConfigs;
+  return fontConfigs..sortByKey((font) => font.displayName.toLowerCase());
 }
 
 /// 所有可用字体列表 Provider

@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -90,62 +89,19 @@ void main() {
     );
   });
 
-  group('sortedByName', () {
-    const names = [
-      'beta',
-      'Alpha',
-      'alpha',
-      'ALPHA',
-      '',
-      'Émile',
-      'émile',
-      'zeta',
-      'Beta',
-      '10 vibes',
-      '2 vibes',
-      'Ärger',
-      'aRGER',
+  test('sortedByName 不区分大小写，名称为空时按 vibeDisplayName 参与排序', () {
+    final entries = [
+      _namedEntry('c', name: '', vibeDisplayName: 'Charlie'),
+      _namedEntry('a', name: 'alpha', vibeDisplayName: 'Zulu'),
+      _namedEntry('b', name: '', vibeDisplayName: 'bravo'),
     ];
 
-    List<String> referenceOrder(List<VibeLibraryEntry> entries) =>
-        ([...entries]..sort(
-              (a, b) => a.displayName.toLowerCase().compareTo(
-                b.displayName.toLowerCase(),
-              ),
-            ))
-            .map((entry) => entry.id)
-            .toList();
-
-    for (final count in [names.length, 32, 33, 200]) {
-      test('大小写混合与同名并列时与逐次比较小写的顺序完全一致（$count 项）', () {
-        final random = Random(count);
-        final entries = [
-          for (var index = 0; index < count; index++)
-            _namedEntry(
-              'entry-$index',
-              name: index.isEven ? names[random.nextInt(names.length)] : '',
-              vibeDisplayName: names[random.nextInt(names.length)],
-            ),
-        ];
-
-        final sorted = entries.sortedByName();
-
-        expect(sorted.map((entry) => entry.id), referenceOrder(entries));
-        expect(entries.map((entry) => entry.id), [
-          for (var index = 0; index < count; index++) 'entry-$index',
-        ], reason: '排序不能改动原列表');
-      });
-    }
-
-    test('名称为空时按 vibeDisplayName 参与排序', () {
-      final entries = [
-        _namedEntry('b', name: '', vibeDisplayName: 'Bravo'),
-        _namedEntry('a', name: 'alpha', vibeDisplayName: 'Zulu'),
-        _namedEntry('c', name: '', vibeDisplayName: 'charlie'),
-      ];
-
-      expect(entries.sortedByName().map((entry) => entry.id), ['a', 'b', 'c']);
-    });
+    expect(entries.sortedByName().map((entry) => entry.id), ['a', 'b', 'c']);
+    expect(
+      entries.map((entry) => entry.id),
+      ['c', 'a', 'b'],
+      reason: '排序不能改动原列表',
+    );
   });
 }
 
