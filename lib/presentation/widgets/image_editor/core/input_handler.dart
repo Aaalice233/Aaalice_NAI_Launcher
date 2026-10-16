@@ -379,7 +379,7 @@ class InputHandler {
         return;
       }
       if (_activeTouchPointers.length > 1) {
-        _cancelDrawingPointer();
+        _cancelDrawingPointer(handoffToMultiTouch: true);
         gesture.isPanning = true;
         gesture.lastPanPosition = null;
         gesture.initialScale = state.canvasController.scale;
@@ -614,7 +614,7 @@ class InputHandler {
   void handleScaleUpdate(ScaleUpdateDetails details) {
     // 有些平台不会在第二根手指落下时重新发送 scale start。
     if (!gesture.isPanning && details.pointerCount > 1) {
-      _cancelDrawingPointer();
+      _cancelDrawingPointer(handoffToMultiTouch: true);
       gesture.isPanning = true;
       gesture.lastPanPosition = null;
       gesture.initialScale = state.canvasController.scale;
@@ -723,13 +723,15 @@ class InputHandler {
   Offset _toCanvas(Offset localPosition) =>
       state.canvasController.screenToCanvas(localPosition, frame: state.frame);
 
-  void _cancelDrawingPointer() {
+  void _cancelDrawingPointer({bool handoffToMultiTouch = false}) {
     if (_drawingPointerId != null) {
       final tool = state.currentTool;
-      if (tool != null) {
-        tool.onPointerCancel(state);
-      } else {
+      if (tool == null) {
         state.cancelStroke();
+      } else if (handoffToMultiTouch) {
+        tool.onPointerHandoffToMultiTouch(state);
+      } else {
+        tool.onPointerCancel(state);
       }
     }
     _drawingPointerId = null;

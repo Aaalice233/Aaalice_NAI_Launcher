@@ -78,6 +78,10 @@ abstract class EditorTool {
     state.cancelStroke();
   }
 
+  /// 单指操作途中第二指落下，单指交给双指手势；默认与取消相同
+  void onPointerHandoffToMultiTouch(EditorState state) =>
+      onPointerCancel(state);
+
   /// 快速停用（同步，无异步操作）
   /// 仅清理内存中的临时状态，不触发任何异步操作
   /// 用于实现即时工具切换

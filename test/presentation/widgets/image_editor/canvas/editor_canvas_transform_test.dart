@@ -123,6 +123,34 @@ void main() {
     expect(layer.contentBounds.width, greaterThan(_layerRect.width));
     expect(state.layerTransformer.isActive, isTrue);
   });
+
+  testWidgets('a second finger continues a one-finger drag where it is', (
+    tester,
+  ) async {
+    final (state, layer) = await _pumpCanvas(tester);
+    expect(state.layerTransformer.begin(), isTrue);
+    final start = _screen(state, _layerRect.center);
+    final dragged = _screen(state, _layerRect.center + const Offset(40, 0));
+    final moved = _layerRect.shift(const Offset(40, 0));
+
+    final first = await tester.startGesture(start, pointer: 1);
+    await first.moveTo(Offset.lerp(start, dragged, 0.5)!);
+    await first.moveTo(dragged);
+    await tester.pump();
+    final second = await tester.startGesture(
+      dragged + const Offset(0, 60),
+      pointer: 2,
+    );
+    await second.moveTo(dragged + const Offset(0, 61));
+    await tester.pump();
+    expect(layer.contentBounds, moved);
+
+    await first.up();
+    await second.up();
+    await tester.pump();
+    expect(layer.contentBounds, moved);
+    expect(state.historyManager.undoStackSize, 1);
+  });
 }
 
 Future<(EditorState, Layer)> _pumpCanvas(WidgetTester tester) async {
