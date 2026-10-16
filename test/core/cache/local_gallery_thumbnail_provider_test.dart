@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/cache/local_gallery_thumbnail_provider.dart';
 
+import '../../helpers/image_stream_resolution.dart';
 import '../../helpers/webp_metadata_fixture.dart';
 
 void main() {
@@ -138,7 +139,7 @@ void main() {
       );
       addTearDown(() => provider.evict());
 
-      final info = await _resolve(provider);
+      final info = await resolveImageInfo(provider);
       addTearDown(info.dispose);
       expect((info.image.width, info.image.height), (128, 96));
       final pixels = await info.image.toByteData(
@@ -165,7 +166,7 @@ void main() {
         target: const LocalGalleryThumbnailTarget(width: 64, height: 64),
       );
 
-      final info = await _resolve(provider);
+      final info = await resolveImageInfo(provider);
       addTearDown(info.dispose);
       expect((info.image.width, info.image.height), (1, 1));
     });
@@ -190,7 +191,7 @@ void main() {
         fit: LocalGalleryThumbnailFit.contain,
       );
 
-      final info = await _resolve(provider);
+      final info = await resolveImageInfo(provider);
       addTearDown(info.dispose);
       expect((info.image.width, info.image.height), (60, 120));
     });
@@ -473,25 +474,7 @@ void main() {
         target: const LocalGalleryThumbnailTarget(width: 64, height: 64),
       );
 
-      await expectLater(_resolve(provider), throwsA(isA<StateError>()));
+      await expectLater(resolveImageInfo(provider), throwsA(isA<StateError>()));
     });
   });
-}
-
-Future<ImageInfo> _resolve(ImageProvider provider) {
-  final completer = Completer<ImageInfo>();
-  late ImageStreamListener listener;
-  final stream = provider.resolve(ImageConfiguration.empty);
-  listener = ImageStreamListener(
-    (info, _) {
-      stream.removeListener(listener);
-      if (!completer.isCompleted) completer.complete(info);
-    },
-    onError: (Object error, StackTrace? stackTrace) {
-      stream.removeListener(listener);
-      if (!completer.isCompleted) completer.completeError(error, stackTrace);
-    },
-  );
-  stream.addListener(listener);
-  return completer.future.timeout(const Duration(seconds: 5));
 }
