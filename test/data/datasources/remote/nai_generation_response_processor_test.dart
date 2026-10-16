@@ -168,6 +168,22 @@ void main() {
       );
     });
 
+    test(
+      'an incomplete trailing frame ends as a missing final image',
+      () async {
+        final expected = await parse([body]);
+
+        final parsed = await parse([
+          Uint8List.sublistView(body, 0, body.length - 1),
+        ]);
+
+        expect(parsed, [
+          ...expected.take(expected.length - 1),
+          'error:No final image received from stream',
+        ]);
+      },
+    );
+
     test('a multi-megabyte frame arrives intact from small chunks', () async {
       final large = bytesOf(6 * 1024 * 1024 + 17);
       final frame = _framed([
