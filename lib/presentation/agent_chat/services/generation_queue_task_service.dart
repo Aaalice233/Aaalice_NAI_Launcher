@@ -36,22 +36,6 @@ class GenerationQueueTaskService {
         'Parameter "count" must be between 1 and $kMaxQueueCapacity.',
       );
     }
-    final remaining = _ref
-        .read(replicationQueueNotifierProvider)
-        .remainingCapacity;
-    if (remaining <= 0) {
-      return agentToolError(
-        'queue_full',
-        'Queue is full (capacity $kMaxQueueCapacity). Clear or complete tasks first.',
-      );
-    }
-    if (remaining < requestedCount) {
-      return agentToolError(
-        'queue_capacity_insufficient',
-        'Queue has room for $remaining task(s), but this confirmed preparation '
-            'requires $requestedCount. Prepare again for the current capacity.',
-      );
-    }
     final count = requestedCount;
     final autoStart = prepared.autoStart;
     final negativePrompt = base.negativePrompt;
@@ -92,6 +76,23 @@ class GenerationQueueTaskService {
       0,
       (total, size) => total + size,
     );
+    // 编码与计量期间队列可能被其他入口填充；此处到 addAll 不能再有 await，否则会部分入队
+    final remaining = _ref
+        .read(replicationQueueNotifierProvider)
+        .remainingCapacity;
+    if (remaining <= 0) {
+      return agentToolError(
+        'queue_full',
+        'Queue is full (capacity $kMaxQueueCapacity). Clear or complete tasks first.',
+      );
+    }
+    if (remaining < requestedCount) {
+      return agentToolError(
+        'queue_capacity_insufficient',
+        'Queue has room for $remaining task(s), but this confirmed preparation '
+            'requires $requestedCount. Prepare again for the current capacity.',
+      );
+    }
     if (snapshotBytes > _maxQueueSnapshotBytes ||
         existingSnapshotBytes + snapshotBytes * count >
             _maxPersistedQueueSnapshotBytes) {

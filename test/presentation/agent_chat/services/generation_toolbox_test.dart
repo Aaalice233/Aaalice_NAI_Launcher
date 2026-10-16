@@ -25,6 +25,7 @@ import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/execution_toolbox.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/generation_queue_task_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_preparation_runtime.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
@@ -33,6 +34,7 @@ import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_model
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
@@ -381,6 +383,56 @@ void main() {
     expect(task.characterPrompts!.single.prompt, 'red hair');
     expect(task.characterPrompts!.single.negativePrompt, 'green hair');
   });
+
+  test(
+    'queue_image_task rejects the whole batch when the queue fills during encoding',
+    () async {
+      final execution = _CountingQueueExecutionNotifier();
+      final container = ProviderContainer(
+        overrides: [
+          replicationQueueNotifierProvider.overrideWith(
+            _TestReplicationQueueNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(() => execution),
+        ],
+      );
+      addTearDown(container.dispose);
+      final queue = container.read(replicationQueueNotifierProvider.notifier);
+      final service = GenerationQueueTaskService(
+        _makeRef(container),
+        maxQueueSnapshotBytes: GenerationToolbox.maxQueueSnapshotBytes,
+        maxPersistedQueueSnapshotBytes:
+            GenerationToolbox.maxPersistedQueueSnapshotBytes,
+      );
+
+      final pending = service.queueTask(
+        const {},
+        prepared: GenerationPreparation(
+          kind: GenerationPreparationKind.queue,
+          baseParams: const ImageParams(prompt: '1girl'),
+          params: const ImageParams(prompt: '1girl'),
+          batchSize: 1,
+          count: 2,
+          autoStart: true,
+          estimatedAnlas: 0,
+          arguments: const {'prompt': '1girl'},
+        ),
+      );
+      await queue.addAll([
+        for (var i = 0; i < kMaxQueueCapacity - 1; i++)
+          ReplicationTask.create(prompt: 'filler $i'),
+      ]);
+      final result = await pending;
+
+      expect(result.isError, isTrue);
+      expect(_json(result)['code'], 'queue_capacity_insufficient');
+      expect(
+        container.read(replicationQueueNotifierProvider).tasks,
+        hasLength(kMaxQueueCapacity - 1),
+      );
+      expect(execution.startCalls, 0);
+    },
+  );
 
   test(
     'queue_image_task persists a structured source reference snapshot',
@@ -1841,8 +1893,22 @@ class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
 
   @override
   Future<int> addAll(List<ReplicationTask> tasks) async {
-    state = state.copyWith(tasks: [...state.tasks, ...tasks]);
-    return tasks.length;
+    final toAdd = tasks.take(state.remainingCapacity).toList();
+    state = state.copyWith(tasks: [...state.tasks, ...toAdd]);
+    return toAdd.length;
+  }
+}
+
+class _CountingQueueExecutionNotifier extends QueueExecutionNotifier {
+  int startCalls = 0;
+
+  @override
+  QueueExecutionState build() => const QueueExecutionState();
+
+  @override
+  Future<QueueStartResult> startQueue() async {
+    startCalls++;
+    return QueueStartResult.started;
   }
 }
 
