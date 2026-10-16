@@ -1,14 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nai_launcher/data/datasources/local/pool_cache_service.dart';
-import 'package:nai_launcher/data/datasources/local/tag_group_cache_service.dart';
 import 'package:nai_launcher/data/models/prompt/algorithm_config.dart';
 import 'package:nai_launcher/data/models/prompt/character_count_config.dart';
 import 'package:nai_launcher/data/models/prompt/conditional_branch.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/data/models/prompt/diy_category_references.dart';
 import 'package:nai_launcher/data/models/prompt/post_process_rule.dart';
-import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
@@ -19,30 +16,25 @@ import 'package:nai_launcher/data/models/prompt/time_condition.dart';
 import 'package:nai_launcher/data/models/prompt/visibility_rule.dart';
 import 'package:nai_launcher/data/models/prompt/weighted_tag.dart';
 import 'package:nai_launcher/data/services/random_prompt_generator.dart';
-import 'package:nai_launcher/data/services/sequential_state_service.dart';
-import 'package:nai_launcher/data/services/tag_library_service.dart';
+
+import '../../helpers/random_preset_generator_fixture.dart';
 
 void main() {
   late RandomPromptGenerator generator;
-  late _MockTagLibraryService libraryService;
+  late MockTagLibraryService libraryService;
 
   setUp(() {
-    libraryService = _MockTagLibraryService();
-    generator = RandomPromptGenerator(
-      libraryService,
-      _MockSequentialStateService(),
-      _MockTagGroupCacheService(),
-      _MockPoolCacheService(),
-    );
+    libraryService = MockTagLibraryService();
+    generator = createTestGenerator(libraryService: libraryService);
   });
 
   test('generateFromPreset returns tags from the selected preset', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'scene',
         key: 'scene',
         groups: [
-          _group(id: 'scene_group', tags: ['city']),
+          testGroup(id: 'scene_group', tags: ['city']),
         ],
       ),
     ]);
@@ -53,13 +45,13 @@ void main() {
   });
 
   test('keeps the first occurrence when generated tags overlap', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'detail',
         key: 'detail',
         groups: [
-          _group(id: 'first', tags: ['city']),
-          _group(id: 'second', tags: ['city']),
+          testGroup(id: 'first', tags: ['city']),
+          testGroup(id: 'second', tags: ['city']),
         ],
       ),
     ]);
@@ -91,8 +83,8 @@ void main() {
         },
       ),
     );
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'detail',
         key: 'detail',
         groups: [
@@ -115,13 +107,13 @@ void main() {
 
   test('uses effective legacy character count config when new config is absent',
       () async {
-    final preset = _preset(
+    final preset = testPreset(
       [
-        _category(
+        testCategory(
           id: 'scene',
           key: 'scene',
           groups: [
-            _group(id: 'scene_group', tags: ['city']),
+            testGroup(id: 'scene_group', tags: ['city']),
           ],
         ),
       ],
@@ -145,25 +137,25 @@ void main() {
 
   test('applies global visibility rules using prior category context',
       () async {
-    final preset = _preset(
+    final preset = testPreset(
       [
-        _category(
+        testCategory(
           id: 'pose',
           key: 'pose',
           groups: [
-            _group(id: 'pose_group', tags: ['portrait']),
+            testGroup(id: 'pose_group', tags: ['portrait']),
           ],
         ),
-        _category(
+        testCategory(
           id: 'lower',
           key: 'lower',
           groups: [
-            _group(id: 'lower_group', tags: ['boots']),
+            testGroup(id: 'lower_group', tags: ['boots']),
           ],
         ),
       ],
       algorithmConfig: const AlgorithmConfig(
-        characterCountConfig: _noHumanConfig,
+        characterCountConfig: noHumanCountConfig,
         globalVisibilityRules: VisibilityRuleSet(
           rules: [
             VisibilityRule(
@@ -186,12 +178,12 @@ void main() {
   });
 
   test('skips groups outside their active time condition', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'seasonal',
         key: 'seasonal',
         groups: [
-          _group(
+          testGroup(
             id: 'christmas',
             tags: ['santa hat'],
             timeCondition: TimeCondition.christmas(),
@@ -210,17 +202,17 @@ void main() {
   });
 
   test('停用的时间条件不限制词组，关闭每年重复后只在所选年份生效', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'seasonal',
         key: 'seasonal',
         groups: [
-          _group(
+          testGroup(
             id: 'disabled',
             tags: ['santa hat'],
             timeCondition: TimeCondition.christmas().copyWith(enabled: false),
           ),
-          _group(
+          testGroup(
             id: 'only_2026',
             tags: ['snowman'],
             timeCondition: TimeCondition.christmas().copyWith(
@@ -248,28 +240,28 @@ void main() {
   });
 
   test('变量展开得到的标签同样受按类别与按标签的后处理规则约束', () async {
-    final preset = _preset(
+    final preset = testPreset(
       [
-        _category(
+        testCategory(
           id: 'palette-id',
           key: 'palette',
           groups: [
-            _group(id: 'eye_color', tags: ['blue eyes']),
+            testGroup(id: 'eye_color', tags: ['blue eyes']),
           ],
         ).copyWith(enabled: false),
-        _category(
+        testCategory(
           id: 'accents-id',
           key: 'accents',
           groups: [
-            _group(id: 'accent', tags: ['red ribbon', 'star earrings']),
+            testGroup(id: 'accent', tags: ['red ribbon', 'star earrings']),
           ],
         ).copyWith(enabled: false),
-        _category(
+        testCategory(
           id: 'look',
           key: 'look',
           groups: [
-            _group(id: 'look_group', tags: ['__palette__', '__accent__']),
-            _group(id: 'state_group', tags: ['sleeping']),
+            testGroup(id: 'look_group', tags: ['__palette__', '__accent__']),
+            testGroup(id: 'state_group', tags: ['sleeping']),
           ],
         ),
       ],
@@ -304,23 +296,23 @@ void main() {
   });
 
   test('变量在本轮生成的时间下展开', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'seasonal',
         key: 'seasonal',
         groups: [
-          _group(
+          testGroup(
             id: 'christmas',
             tags: ['santa hat'],
             timeCondition: TimeCondition.christmas(),
           ),
         ],
       ).copyWith(enabled: false),
-      _category(
+      testCategory(
         id: 'look',
         key: 'look',
         groups: [
-          _group(id: 'look_group', tags: ['__seasonal__', 'smile']),
+          testGroup(id: 'look_group', tags: ['__seasonal__', 'smile']),
         ],
       ),
     ]);
@@ -341,19 +333,19 @@ void main() {
   });
 
   test('dependencies resolve category ids distinct from keys', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'cat-pose-id',
         key: 'pose',
         groups: [
-          _group(id: 'pose_group', tags: ['portrait']),
+          testGroup(id: 'pose_group', tags: ['portrait']),
         ],
       ),
-      _category(
+      testCategory(
         id: 'cat-extra-id',
         key: 'extra',
         groups: [
-          _group(
+          testGroup(
             id: 'needs_pose',
             tags: ['hat'],
             dependencyConfig: const DependencyConfig(
@@ -361,7 +353,7 @@ void main() {
               sourceCategoryId: 'cat-pose-id',
             ),
           ),
-          _group(
+          testGroup(
             id: 'excluded_by_pose',
             tags: ['scarf'],
             dependencyConfig: const DependencyConfig(
@@ -380,12 +372,12 @@ void main() {
   });
 
   test('dependency config controls multiple selection count', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'accessory',
         key: 'accessory',
         groups: [
-          _group(
+          testGroup(
             id: 'accessory_group',
             tags: ['ribbon', 'hat', 'necklace'],
             selectionMode: SelectionMode.multipleNum,
@@ -409,8 +401,8 @@ void main() {
   });
 
   test('conditional branch selects configured child group', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'clothing',
         key: 'clothing',
         groups: [
@@ -430,8 +422,8 @@ void main() {
               ],
             ),
             children: [
-              _group(id: 'uniform_child', tags: ['school uniform']),
-              _group(id: 'casual_child', tags: ['hoodie']),
+              testGroup(id: 'uniform_child', tags: ['school uniform']),
+              testGroup(id: 'casual_child', tags: ['hoodie']),
             ],
           ),
         ],
@@ -445,12 +437,12 @@ void main() {
   });
 
   test('group post-process rules remove conflicting selected tags', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'face',
         key: 'face',
         groups: [
-          _group(
+          testGroup(
             id: 'face_group',
             tags: ['sleeping', 'blue eyes'],
             selectionMode: SelectionMode.all,
@@ -475,12 +467,12 @@ void main() {
   });
 
   test('group emphasis probability wraps selected tags', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'style',
         key: 'style',
         groups: [
-          _group(
+          testGroup(
             id: 'style_group',
             tags: ['sparkle'],
             emphasisProbability: 1,
@@ -496,18 +488,18 @@ void main() {
   });
 
   test('global emphasis probability wraps preset route tags', () async {
-    final preset = _preset(
+    final preset = testPreset(
       [
-        _category(
+        testCategory(
           id: 'style',
           key: 'style',
           groups: [
-            _group(id: 'style_group', tags: ['sparkle']),
+            testGroup(id: 'style_group', tags: ['sparkle']),
           ],
         ),
       ],
       algorithmConfig: const AlgorithmConfig(
-        characterCountConfig: _noHumanConfig,
+        characterCountConfig: noHumanCountConfig,
         globalEmphasisProbability: 1,
         globalEmphasisBracketCount: 1,
       ),
@@ -521,9 +513,9 @@ void main() {
 
   test('character contexts do not leak gender variables between slots',
       () async {
-    final preset = _preset(
+    final preset = testPreset(
       [
-        _category(
+        testCategory(
           id: 'character_detail',
           key: 'character_detail',
           scope: TagScope.character,
@@ -553,8 +545,8 @@ void main() {
                 ],
               ),
               children: [
-                _group(id: 'girl_child', tags: ['girl detail']),
-                _group(id: 'boy_child', tags: ['boy detail']),
+                testGroup(id: 'girl_child', tags: ['girl detail']),
+                testGroup(id: 'boy_child', tags: ['boy detail']),
               ],
             ),
           ],
@@ -576,15 +568,15 @@ void main() {
   });
 
   group('角色性别', () {
-    RandomTagGroup onlyFor(String gender, String id, String tag) => _group(
+    RandomTagGroup onlyFor(String gender, String id, String tag) => testGroup(
       id: id,
       tags: [tag],
     ).copyWith(genderRestrictionEnabled: true, applicableGenders: [gender]);
 
     test('无槽位配置的单角色按 girl 筛选类别与顶层词组', () async {
-      final preset = _preset(
+      final preset = testPreset(
         [
-          _category(
+          testCategory(
             id: 'looks',
             key: 'looks',
             scope: TagScope.character,
@@ -593,12 +585,12 @@ void main() {
               onlyFor('boy', 'boys', 'necktie'),
             ],
           ),
-          _category(
+          testCategory(
             id: 'beard',
             key: 'beard',
             scope: TagScope.character,
             groups: [
-              _group(id: 'beard_group', tags: ['beard']),
+              testGroup(id: 'beard_group', tags: ['beard']),
             ],
           ).copyWith(
             genderRestrictionEnabled: true,
@@ -631,9 +623,9 @@ void main() {
     });
 
     test('角色提示词里的变量按该角色性别展开', () async {
-      final preset = _preset(
+      final preset = testPreset(
         [
-          _category(
+          testCategory(
             id: 'accessories',
             key: 'accessories',
             scope: TagScope.character,
@@ -642,12 +634,12 @@ void main() {
               onlyFor('boy', 'boys', 'necktie'),
             ],
           ).copyWith(enabled: false),
-          _category(
+          testCategory(
             id: 'look',
             key: 'look',
             scope: TagScope.character,
             groups: [
-              _group(id: 'look_group', tags: ['__accessories__']),
+              testGroup(id: 'look_group', tags: ['__accessories__']),
             ],
           ),
         ],
@@ -670,21 +662,21 @@ void main() {
 
   test('global post-process removals stop triggering later visibility rules',
       () async {
-    final preset = _preset(
+    final preset = testPreset(
       [
-        _category(
+        testCategory(
           id: 'state',
           key: 'state',
           groups: [
-            _group(id: 'state_group', tags: ['sleeping']),
+            testGroup(id: 'state_group', tags: ['sleeping']),
           ],
         ),
-        _category(
+        testCategory(
           id: 'eyes',
           key: 'eyes',
           scope: TagScope.character,
           groups: [
-            _group(id: 'eyes_group', tags: ['blue eyes']),
+            testGroup(id: 'eyes_group', tags: ['blue eyes']),
           ],
         ),
       ],
@@ -724,30 +716,30 @@ void main() {
   });
 
   test('子词组与顶层词组一样求值时间、可见性、依赖与性别', () async {
-    final preset = _preset(
+    final preset = testPreset(
       [
-        _category(
+        testCategory(
           id: 'pose',
           key: 'pose',
           groups: [
-            _group(id: 'pose_group', tags: ['portrait']),
+            testGroup(id: 'pose_group', tags: ['portrait']),
           ],
         ),
-        _category(
+        testCategory(
           id: 'outfit',
           key: 'outfit',
           scope: TagScope.character,
           groups: [
-            _group(id: 'outfit_parent').copyWith(
+            testGroup(id: 'outfit_parent').copyWith(
               nodeType: TagGroupNodeType.config,
               children: [
-                _group(id: 'plain', tags: ['shirt']),
-                _group(
+                testGroup(id: 'plain', tags: ['shirt']),
+                testGroup(
                   id: 'seasonal',
                   tags: ['santa hat'],
                   timeCondition: TimeCondition.christmas(),
                 ),
-                _group(
+                testGroup(
                   id: 'hidden_in_portrait',
                   tags: ['boots'],
                   visibilityRules: const [
@@ -761,7 +753,7 @@ void main() {
                     ),
                   ],
                 ),
-                _group(
+                testGroup(
                   id: 'needs_missing',
                   tags: ['cape'],
                   dependencyConfig: const DependencyConfig(
@@ -769,11 +761,11 @@ void main() {
                     sourceCategoryId: 'missing',
                   ),
                 ),
-                _group(id: 'boys_only', tags: ['necktie']).copyWith(
+                testGroup(id: 'boys_only', tags: ['necktie']).copyWith(
                   genderRestrictionEnabled: true,
                   applicableGenders: const ['boy'],
                 ),
-                _group(
+                testGroup(
                   id: 'two_by_pose',
                   tags: ['gloves', 'scarf', 'belt'],
                   selectionMode: SelectionMode.multipleNum,
@@ -813,15 +805,15 @@ void main() {
   });
 
   test('子词组上以类别为目标的可见性规则作用于目标类别', () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'mood',
         key: 'mood',
         groups: [
-          _group(id: 'mood_parent').copyWith(
+          testGroup(id: 'mood_parent').copyWith(
             nodeType: TagGroupNodeType.config,
             children: [
-              _group(
+              testGroup(
                 id: 'sleepy',
                 tags: ['sleeping'],
                 visibilityRules: const [
@@ -839,11 +831,11 @@ void main() {
           ),
         ],
       ),
-      _category(
+      testCategory(
         id: 'eyes',
         key: 'eyes',
         groups: [
-          _group(id: 'eye_group', tags: ['blue eyes']),
+          testGroup(id: 'eye_group', tags: ['blue eyes']),
         ],
       ),
     ]);
@@ -855,12 +847,12 @@ void main() {
   });
 
   group('条件分支输出同类别词组', () {
-    RandomPreset outfitPreset({bool branchEnabled = true}) => _preset([
-      _category(
+    RandomPreset outfitPreset({bool branchEnabled = true}) => testPreset([
+      testCategory(
         id: 'outfit',
         key: 'outfit',
         groups: [
-          _group(id: 'type').copyWith(
+          testGroup(id: 'type').copyWith(
             conditionalBranchConfig: ConditionalBranchConfig(
               id: 'type_config',
               name: 'Type',
@@ -880,9 +872,9 @@ void main() {
               ],
             ),
           ),
-          _group(id: 'uniform', tags: ['school uniform']),
-          _group(id: 'casual', tags: ['t-shirt']),
-          _group(id: 'always', tags: ['hat']),
+          testGroup(id: 'uniform', tags: ['school uniform']),
+          testGroup(id: 'casual', tags: ['t-shirt']),
+          testGroup(id: 'always', tags: ['hat']),
         ],
       ),
     ]);
@@ -911,14 +903,14 @@ void main() {
     });
 
     test('输出的同类别词组按本轮作用域筛选，不会跨入主提示词或角色提示词', () async {
-      final preset = _preset(
+      final preset = testPreset(
         [
-          _category(
+          testCategory(
             id: 'outfit',
             key: 'outfit',
             scope: TagScope.all,
             groups: [
-              _group(id: 'type').copyWith(
+              testGroup(id: 'type').copyWith(
                 conditionalBranchConfig: const ConditionalBranchConfig(
                   id: 'type_config',
                   name: 'Type',
@@ -931,11 +923,11 @@ void main() {
                   ],
                 ),
               ),
-              _group(
+              testGroup(
                 id: 'uniform',
                 tags: ['school uniform'],
               ).copyWith(scope: TagScope.character),
-              _group(
+              testGroup(
                 id: 'backdrop',
                 tags: ['classroom'],
               ).copyWith(scope: TagScope.global),
@@ -973,16 +965,16 @@ void main() {
           ),
         ],
       );
-      final preset = _preset([
-        _category(
+      final preset = testPreset([
+        testCategory(
           id: 'loop',
           key: 'loop',
           groups: [
-            _group(id: 'root').copyWith(conditionalBranchConfig: to('a')),
-            _group(id: 'a', tags: ['a tag']).copyWith(
+            testGroup(id: 'root').copyWith(conditionalBranchConfig: to('a')),
+            testGroup(id: 'a', tags: ['a tag']).copyWith(
               conditionalBranchConfig: to('b'),
             ),
-            _group(id: 'b', tags: ['b tag']).copyWith(
+            testGroup(id: 'b', tags: ['b tag']).copyWith(
               conditionalBranchConfig: to('a'),
             ),
           ],
@@ -1001,20 +993,20 @@ void main() {
     RandomPreset chainedConditionPreset({
       String moodKey = 'mood-id',
       String typeKey = 'type',
-    }) => _preset([
-      _category(
+    }) => testPreset([
+      testCategory(
         id: 'mood-id',
         key: 'mood',
         name: '心情',
         groups: [
-          _group(id: 'mood_group', tags: ['{Sleeping}']),
+          testGroup(id: 'mood_group', tags: ['{Sleeping}']),
         ],
       ),
-      _category(
+      testCategory(
         id: 'outfit',
         key: 'outfit',
         groups: [
-          _group(id: 'type').copyWith(
+          testGroup(id: 'type').copyWith(
             name: '类型',
             conditionalBranchConfig: ConditionalBranchConfig(
               id: 'type_config',
@@ -1035,9 +1027,9 @@ void main() {
               ],
             ),
           ),
-          _group(id: 'pajamas', tags: ['pajamas']),
-          _group(id: 'casual', tags: ['t-shirt']),
-          _group(id: 'accessory').copyWith(
+          testGroup(id: 'pajamas', tags: ['pajamas']),
+          testGroup(id: 'casual', tags: ['t-shirt']),
+          testGroup(id: 'accessory').copyWith(
             conditionalBranchConfig: ConditionalBranchConfig(
               id: 'accessory_config',
               name: 'Accessory',
@@ -1050,7 +1042,7 @@ void main() {
               ],
             ),
           ),
-          _group(id: 'nightcap', tags: ['nightcap']),
+          testGroup(id: 'nightcap', tags: ['nightcap']),
         ],
       ),
     ]);
@@ -1084,8 +1076,8 @@ void main() {
 
   test('disabled conditional branch config falls back to normal group tags',
       () async {
-    final preset = _preset([
-      _category(
+    final preset = testPreset([
+      testCategory(
         id: 'clothing',
         key: 'clothing',
         groups: [
@@ -1110,7 +1102,7 @@ void main() {
               ],
             ),
             children: [
-              _group(id: 'uniform_child', tags: ['school uniform']),
+              testGroup(id: 'uniform_child', tags: ['school uniform']),
             ],
           ),
         ],
@@ -1142,29 +1134,29 @@ void main() {
       required List<VisibilityRule> ownerRules,
       bool ownerEnabled = true,
       List<VisibilityRule> shoesRules = const [],
-    }) => _preset([
-      _category(
+    }) => testPreset([
+      testCategory(
         id: 'cat-pose',
         key: 'pose',
         name: '姿势',
         groups: [
-          _group(id: 'pose_group', tags: [pose]),
+          testGroup(id: 'pose_group', tags: [pose]),
         ],
       ),
-      _category(
+      testCategory(
         id: 'cat-lower',
         key: 'lower',
         name: '下装',
         groups: [
-          _group(id: 'shoes', tags: ['boots'], visibilityRules: shoesRules),
-          _group(id: 'pants', tags: ['jeans']),
+          testGroup(id: 'shoes', tags: ['boots'], visibilityRules: shoesRules),
+          testGroup(id: 'pants', tags: ['jeans']),
         ],
       ),
-      _category(
+      testCategory(
         id: 'cat-extra',
         key: 'extra',
         groups: [
-          _group(
+          testGroup(
             id: 'owner',
             tags: ['smile'],
             enabled: ownerEnabled,
@@ -1190,30 +1182,30 @@ void main() {
     });
 
     test('条件标签被强调括号包裹、用户输入下划线时仍然命中', () async {
-      final preset = _preset([
-        _category(
+      final preset = testPreset([
+        testCategory(
           id: 'cat-pose',
           key: 'pose',
           groups: [
-            _group(
+            testGroup(
               id: 'pose_group',
               tags: ['full body'],
               emphasisProbability: 1,
             ),
           ],
         ),
-        _category(
+        testCategory(
           id: 'cat-lower',
           key: 'lower',
           groups: [
-            _group(id: 'shoes', tags: ['boots']),
+            testGroup(id: 'shoes', tags: ['boots']),
           ],
         ),
-        _category(
+        testCategory(
           id: 'cat-extra',
           key: 'extra',
           groups: [
-            _group(
+            testGroup(
               id: 'owner',
               tags: ['smile'],
               visibilityRules: [hideLowerWhen('Full_Body')],
@@ -1325,27 +1317,27 @@ void main() {
       required List<String> eyeFeatureTags,
       required PostProcessRule rule,
       bool ownerEnabled = true,
-    }) => _preset([
-      _category(
+    }) => testPreset([
+      testCategory(
         id: 'cat-eyes',
         key: 'eyeColor',
         name: '眼睛',
         groups: [
-          _group(id: 'eye_color', tags: ['blue eyes']),
-          _group(id: 'eye_feature', tags: eyeFeatureTags),
+          testGroup(id: 'eye_color', tags: ['blue eyes']),
+          testGroup(id: 'eye_feature', tags: eyeFeatureTags),
         ],
       ),
-      _category(
+      testCategory(
         id: 'cat-pose',
         key: 'pose',
         groups: [
-          _group(
+          testGroup(
             id: 'pose_group',
             tags: poseTags,
             enabled: ownerEnabled,
             postProcessRules: [rule],
           ),
-          _group(id: 'pose_extra', tags: ['arms up']),
+          testGroup(id: 'pose_extra', tags: ['arms up']),
         ],
       ),
     ]);
@@ -1426,12 +1418,12 @@ void main() {
     });
 
     test('美人鱼规则移除用户选定的腿部服装类别', () async {
-      final preset = _preset([
-        _category(
+      final preset = testPreset([
+        testCategory(
           id: 'cat-species',
           key: 'species',
           groups: [
-            _group(
+            testGroup(
               id: 'species_group',
               tags: ['mermaid'],
               postProcessRules: [
@@ -1440,18 +1432,18 @@ void main() {
             ),
           ],
         ),
-        _category(
+        testCategory(
           id: 'cat-legwear',
           key: 'custom3',
           groups: [
-            _group(id: 'legwear', tags: ['thighhighs']),
+            testGroup(id: 'legwear', tags: ['thighhighs']),
           ],
         ),
-        _category(
+        testCategory(
           id: 'cat-top',
           key: 'custom4',
           groups: [
-            _group(id: 'top', tags: ['seashell bra']),
+            testGroup(id: 'top', tags: ['seashell bra']),
           ],
         ),
       ]);
@@ -1469,13 +1461,13 @@ void main() {
 
   group('依赖配置', () {
     RandomPreset characterCountPreset(CharacterCountConfig countConfig) =>
-        _preset(
+        testPreset(
           [
-            _category(
+            testCategory(
               id: 'cat-scene',
               key: 'scene',
               groups: [
-                _group(
+                testGroup(
                   id: 'with_people',
                   tags: ['crowd'],
                   dependencyConfig: const DependencyConfig(
@@ -1483,7 +1475,7 @@ void main() {
                     sourceCategoryId: characterCountReference,
                   ),
                 ),
-                _group(
+                testGroup(
                   id: 'empty_scene',
                   tags: ['scenery'],
                   dependencyConfig: const DependencyConfig(
@@ -1504,7 +1496,7 @@ void main() {
         seed: 1,
       );
       final noHumans = await generator.generateFromPreset(
-        preset: characterCountPreset(_noHumanConfig),
+        preset: characterCountPreset(noHumanCountConfig),
         seed: 1,
       );
 
@@ -1515,19 +1507,19 @@ void main() {
     });
 
     test('存在依赖满足时保留词组自己的多选数量', () async {
-      final preset = _preset([
-        _category(
+      final preset = testPreset([
+        testCategory(
           id: 'cat-pose',
           key: 'pose',
           groups: [
-            _group(id: 'pose_group', tags: ['standing']),
+            testGroup(id: 'pose_group', tags: ['standing']),
           ],
         ),
-        _category(
+        testCategory(
           id: 'cat-accessory',
           key: 'accessory',
           groups: [
-            _group(
+            testGroup(
               id: 'accessories',
               tags: ['ribbon', 'hat', 'necklace'],
               selectionMode: SelectionMode.multipleNum,
@@ -1557,17 +1549,17 @@ void main() {
     RandomPreset dependentAccessoryPreset({
       required List<String> expressionTags,
       required DependencyConfig dependency,
-    }) => _preset([
-      _category(
+    }) => testPreset([
+      testCategory(
         id: 'cat-expression',
         key: 'expression',
-        groups: [_group(id: 'expression_group', tags: expressionTags)],
+        groups: [testGroup(id: 'expression_group', tags: expressionTags)],
       ),
-      _category(
+      testCategory(
         id: 'cat-accessory',
         key: 'accessory',
         groups: [
-          _group(
+          testGroup(
             id: 'accessories',
             tags: ['ribbon', 'hat', 'necklace'],
             selectionMode: SelectionMode.multipleNum,
@@ -1664,105 +1656,8 @@ void main() {
   });
 }
 
-class _MockTagLibraryService extends Mock implements TagLibraryService {}
-
-class _MockSequentialStateService extends Mock
-    implements SequentialStateService {
-  @override
-  Future<void> init() async {}
-}
-
-class _MockTagGroupCacheService extends Mock implements TagGroupCacheService {}
-
-class _MockPoolCacheService extends Mock implements PoolCacheService {}
-
-RandomPreset _preset(
-  List<RandomCategory> categories, {
-  AlgorithmConfig algorithmConfig = const AlgorithmConfig(),
-  bool forceNoHumanConfig = true,
-}) {
-  return RandomPreset(
-    id: 'preset',
-    name: 'Preset',
-    algorithmConfig:
-        forceNoHumanConfig && algorithmConfig.characterCountConfig == null
-            ? algorithmConfig.copyWith(characterCountConfig: _noHumanConfig)
-            : algorithmConfig,
-    categories: categories,
-  );
-}
-
-RandomCategory _category({
-  required String id,
-  required String key,
-  required List<RandomTagGroup> groups,
-  String? name,
-  TagScope scope = TagScope.global,
-}) {
-  return RandomCategory(
-    id: id,
-    key: key,
-    name: name ?? key,
-    groupSelectionMode: SelectionMode.all,
-    shuffle: false,
-    scope: scope,
-    groups: groups,
-  );
-}
-
-RandomTagGroup _group({
-  required String id,
-  List<String> tags = const [],
-  bool enabled = true,
-  SelectionMode selectionMode = SelectionMode.all,
-  int multipleNum = 1,
-  DependencyConfig? dependencyConfig,
-  TimeCondition? timeCondition,
-  List<VisibilityRule> visibilityRules = const [],
-  List<PostProcessRule> postProcessRules = const [],
-  double emphasisProbability = 0,
-  int emphasisBracketCount = 1,
-}) {
-  return RandomTagGroup(
-    id: id,
-    name: id,
-    enabled: enabled,
-    selectionMode: selectionMode,
-    multipleNum: multipleNum,
-    shuffle: false,
-    tags: tags
-        .map((tag) => WeightedTag.simple(tag, 10, TagSource.custom))
-        .toList(),
-    dependencyConfig: dependencyConfig,
-    timeCondition: timeCondition,
-    visibilityRules: visibilityRules,
-    postProcessRules: postProcessRules,
-    emphasisProbability: emphasisProbability,
-    emphasisBracketCount: emphasisBracketCount,
-  );
-}
-
 List<String> _promptTags(String prompt) =>
     prompt.split(',').map((tag) => tag.trim()).toList();
-
-const _noHumanConfig = CharacterCountConfig(
-  categories: [
-    CharacterCountCategory(
-      id: 'no_humans',
-      count: 0,
-      label: 'No humans',
-      weight: 100,
-      tagOptions: [
-        CharacterTagOption(
-          id: 'no_humans_scene',
-          label: 'No humans',
-          mainPromptTags: 'no humans',
-          weight: 100,
-        ),
-      ],
-    ),
-  ],
-);
 
 const _soloGirlConfig = CharacterCountConfig(
   categories: [

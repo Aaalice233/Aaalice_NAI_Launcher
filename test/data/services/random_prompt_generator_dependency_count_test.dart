@@ -3,35 +3,27 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/data/datasources/local/pool_cache_service.dart';
-import 'package:nai_launcher/data/datasources/local/tag_group_cache_service.dart';
 import 'package:nai_launcher/data/models/prompt/algorithm_config.dart';
-import 'package:nai_launcher/data/models/prompt/character_count_config.dart';
 import 'package:nai_launcher/data/models/prompt/dependency_config.dart';
 import 'package:nai_launcher/data/models/prompt/pool_post.dart';
-import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
 import 'package:nai_launcher/data/models/prompt/weighted_tag.dart';
 import 'package:nai_launcher/data/services/random_prompt_generator.dart';
-import 'package:nai_launcher/data/services/sequential_state_service.dart';
-import 'package:nai_launcher/data/services/tag_library_service.dart';
+
+import '../../helpers/random_preset_generator_fixture.dart';
 
 const _items = ['a', 'b', 'c', 'd', 'e'];
 
 void main() {
   late RandomPromptGenerator generator;
-  late _MockPoolCacheService pools;
+  late MockPoolCacheService pools;
 
   setUpAll(() => registerFallbackValue(_FakeRandom()));
 
   setUp(() {
-    pools = _MockPoolCacheService();
-    generator = RandomPromptGenerator(
-      _MockTagLibraryService(),
-      _CountingSequentialStateService(),
-      _MockTagGroupCacheService(),
-      pools,
-    );
+    pools = MockPoolCacheService();
+    generator = createTestGenerator(poolCacheService: pools);
   });
 
   Future<List<String>> generate(RandomTagGroup group, {int seed = 1}) async {
@@ -157,70 +149,15 @@ RandomTagGroup _dependentGroup(
   );
 }
 
-RandomPreset _preset(RandomTagGroup group) {
-  return RandomPreset(
-    id: 'preset',
-    name: 'Preset',
-    algorithmConfig: const AlgorithmConfig(
-      globalEmphasisProbability: 0,
-      characterCountConfig: CharacterCountConfig(
-        categories: [
-          CharacterCountCategory(
-            id: 'no_humans',
-            count: 0,
-            label: 'No humans',
-            weight: 100,
-          ),
-        ],
-      ),
-    ),
-    categories: [
-      RandomCategory(
-        id: 'pose',
-        key: 'pose',
-        name: 'pose',
-        groupSelectionMode: SelectionMode.all,
-        shuffle: false,
-        groups: [
-          RandomTagGroup(
-            id: 'pose_group',
-            name: 'pose_group',
-            selectionMode: SelectionMode.all,
-            tags: [WeightedTag.simple('portrait', 10, TagSource.custom)],
-          ),
-        ],
-      ),
-      RandomCategory(
-        id: 'detail',
-        key: 'detail',
-        name: 'detail',
-        groupSelectionMode: SelectionMode.all,
-        shuffle: false,
-        groups: [group],
-      ),
+RandomPreset _preset(RandomTagGroup group) => testPreset([
+  testCategory(
+    id: 'pose',
+    key: 'pose',
+    groups: [
+      testGroup(id: 'pose_group', tags: ['portrait']),
     ],
-  );
-}
-
-class _MockTagLibraryService extends Mock implements TagLibraryService {}
-
-class _MockTagGroupCacheService extends Mock implements TagGroupCacheService {}
-
-class _MockPoolCacheService extends Mock implements PoolCacheService {}
+  ),
+  testCategory(id: 'detail', key: 'detail', groups: [group]),
+], algorithmConfig: const AlgorithmConfig(globalEmphasisProbability: 0));
 
 class _FakeRandom extends Fake implements Random {}
-
-class _CountingSequentialStateService extends Mock
-    implements SequentialStateService {
-  final _cursors = <String, int>{};
-
-  @override
-  Future<void> init() async {}
-
-  @override
-  int getNextCursorSync(String key) {
-    final cursor = _cursors[key] ?? 0;
-    _cursors[key] = cursor + 1;
-    return cursor;
-  }
-}
