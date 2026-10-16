@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 
 import '../../../helpers/shared_compute_gate.dart';
@@ -152,17 +153,14 @@ void main() {
     );
 
     test('small byte arrays are hashed without the compute gate', () async {
-      final release = holdSharedComputeGate();
-      try {
-        expect(
-          await calculator.calculateFromBytesInBackground(
-            Uint8List.fromList([1, 2, 3]),
-          ),
-          hashOf([1, 2, 3]),
-        );
-      } finally {
-        await release();
-      }
+      final hash = await expectRunsWithoutComputeGate(
+        ComputeGate(),
+        () => calculator.calculateFromBytesInBackground(
+          Uint8List.fromList([1, 2, 3]),
+        ),
+      );
+
+      expect(hash, hashOf([1, 2, 3]));
     });
 
     test('large byte arrays match the sync hash behind the gate', () async {

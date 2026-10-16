@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -10,6 +9,7 @@ import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 
 import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/shared_compute_gate.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -170,8 +170,6 @@ void main() {
 
     test('returns other bytes untouched without leaving the caller', () async {
       final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
-      final release = Completer<void>();
-      final occupied = gate.run(() => release.future);
 
       for (final bytes in [
         Uint8List.fromList(img.encodeJpg(_image(6, 4))),
@@ -183,17 +181,12 @@ void main() {
         Uint8List.fromList(utf8.encode('not an image')),
       ]) {
         expect(identical(ExifOrientation.bakeToPng(bytes), bytes), isTrue);
-        expect(
-          identical(
-            await ExifOrientation.bakeToPngAsync(bytes, gate: gate),
-            bytes,
-          ),
-          isTrue,
+        final baked = await expectRunsWithoutComputeGate(
+          gate,
+          () => ExifOrientation.bakeToPngAsync(bytes, gate: gate),
         );
+        expect(identical(baked, bytes), isTrue);
       }
-
-      release.complete();
-      await occupied;
     });
 
     test('bakes on the compute gate', () async {
@@ -202,20 +195,13 @@ void main() {
         orientedCameraWebp(orientation: 6),
       ]) {
         final gate = ComputeGate.forTesting(maxConcurrentTasks: 1);
-        final release = Completer<void>();
-        final occupied = gate.run(() => release.future);
-        var resolved = false;
 
-        final baked = ExifOrientation.bakeToPngAsync(
-          bytes,
-          gate: gate,
-        ).whenComplete(() => resolved = true);
-        await Future<void>.delayed(Duration.zero);
-        expect(resolved, isFalse);
+        final baked = await expectQueuedBehindComputeGate(
+          gate,
+          () => ExifOrientation.bakeToPngAsync(bytes, gate: gate),
+        );
 
-        release.complete();
-        await occupied;
-        final png = img.decodePng(await baked)!;
+        final png = img.decodePng(baked)!;
         expect(png.width < png.height, isTrue);
       }
     });

@@ -32,6 +32,10 @@ class ComputeGate {
 
   int get maxConcurrentTasks => _semaphore.maxCount;
 
+  /// 正在等待许可的任务数。
+  @foundation.visibleForTesting
+  int get debugQueuedTasks => _semaphore.queuedCount;
+
   static int defaultMaxConcurrentTasks({int? processorCount}) {
     final processors = math.max(
       1,
@@ -41,33 +45,30 @@ class ComputeGate {
   }
 
   /// 在全局计算闸门内运行异步/同步任务。
-  Future<T> run<T>(FutureOr<T> Function() task) async {
+  ///
+  /// [timeLimit] 从取得许可后才开始计时，排队等待不计入。
+  /// 超时即归还许可：后台任务无法中止，占着许可等它跑完会让一个慢任务拖住整个闸门。
+  Future<T> run<T>(FutureOr<T> Function() task, {Duration? timeLimit}) async {
     await _semaphore.acquire();
     try {
-      return await task();
+      final result = Future.sync(task);
+      return await (timeLimit == null ? result : result.timeout(timeLimit));
     } finally {
       _semaphore.release();
     }
   }
 
-  /// 在全局计算闸门内运行 Flutter compute。
-  ///
-  /// [timeLimit] 从取得许可后才开始计时，排队等待不计入。
-  /// 超时即归还许可：compute 无法中止，占着许可等它跑完会让一个慢任务拖住整个闸门。
+  /// 在全局计算闸门内运行 Flutter compute，[timeLimit] 语义同 [run]。
   Future<R> runCompute<M, R>(
     foundation.ComputeCallback<M, R> callback,
     M message, {
     String? debugLabel,
     Duration? timeLimit,
   }) {
-    return run(() {
-      final result = foundation.compute(
-        callback,
-        message,
-        debugLabel: debugLabel,
-      );
-      return timeLimit == null ? result : result.timeout(timeLimit);
-    });
+    return run(
+      () => foundation.compute(callback, message, debugLabel: debugLabel),
+      timeLimit: timeLimit,
+    );
   }
 
   /// 在全局计算闸门内运行一次 Isolate.run。
@@ -85,6 +86,8 @@ class _Semaphore {
   final _waitQueue = <Completer<void>>[];
 
   _Semaphore(this.maxCount);
+
+  int get queuedCount => _waitQueue.length;
 
   /// 获取许可，如果已达到最大并发数则等待
   Future<void> acquire() async {
