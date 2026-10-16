@@ -72,6 +72,64 @@ void main() {
     }
   });
 
+  testWidgets('页脚在固定、随正文滚动与未托管标题三种排布下都占满表单宽度', (tester) async {
+    const formWidth = 400.0;
+    final footer = find.byKey(const ValueKey('footer'), skipOffstage: false);
+
+    Future<void> pumpAt(double height, {required bool hostsHeader}) {
+      final form = ContentSizedAdaptiveForm(
+        scrollController: null,
+        content: [
+          for (var i = 0; i < 30; i++)
+            SizedBox(height: 40, child: Text('Field $i')),
+        ],
+        // 不带宽度的页脚只会取父级给的最小宽度，能直接暴露宽松约束
+        footer: const ColoredBox(
+          key: ValueKey('footer'),
+          color: Colors.black,
+          child: SizedBox(height: 72),
+        ),
+      );
+      return tester.pumpWidget(
+        MaterialApp(
+          home: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: formWidth,
+                maxHeight: height,
+              ),
+              child: hostsHeader
+                  ? AdaptivePanelHeaderScope(
+                      header: const SizedBox(height: 56),
+                      child: form,
+                    )
+                  : form,
+            ),
+          ),
+        ),
+      );
+    }
+
+    for (final (height, hostsHeader, footerScrolls) in [
+      (600.0, true, false),
+      (200.0, true, true),
+      (600.0, false, false),
+    ]) {
+      await pumpAt(height, hostsHeader: hostsHeader);
+      final reason = 'height=$height hostsHeader=$hostsHeader';
+      expect(
+        find
+            .ancestor(of: footer, matching: find.byType(Scrollable))
+            .evaluate()
+            .isNotEmpty,
+        footerScrolls,
+        reason: reason,
+      );
+      expect(tester.getSize(footer).width, formWidth, reason: reason);
+    }
+  });
+
   for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     for (final scale in [1.0, 3.0]) {
       for (final fixedFooter in [false, true]) {
