@@ -72,7 +72,7 @@ class ImageSaveUtils {
       'n_samples': 1,
       // 记录实际发送的取值，从兜底元数据复现时才与原请求一致。
       'noise_schedule': request.effectiveNoiseSchedule,
-      'sampler': Samplers.resolveForModel(request.sampler, request.model),
+      'sampler': request.effectiveSampler,
       'sm': request.effectiveSmea,
       'sm_dyn': request.effectiveSmeaDyn,
       'model': request.model,

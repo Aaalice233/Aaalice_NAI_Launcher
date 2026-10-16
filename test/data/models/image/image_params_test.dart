@@ -15,6 +15,40 @@ void main() {
     expect(params.sampler, Samplers.kEulerAncestral);
   });
 
+  test('effectiveSampler reports the sampler the request sends', () {
+    const cases = {
+      'V4.5 drops DDIM': (
+        ImageParams(
+          model: ImageModels.animeDiffusionV45Full,
+          sampler: Samplers.ddim,
+        ),
+        Samplers.kEulerAncestral,
+      ),
+      'V3 sends ddim_v3': (
+        ImageParams(
+          model: ImageModels.animeDiffusionV3,
+          sampler: Samplers.ddim,
+        ),
+        Samplers.ddimV3,
+      ),
+      'fixed sampler wins': (
+        ImageParams(
+          model: ImageModels.animeDiffusionV5FullMedium,
+          sampler: Samplers.kDpmpp2m,
+        ),
+        Samplers.kEulerAncestral,
+      ),
+      'other samplers pass through': (
+        ImageParams(sampler: Samplers.kDpmpp2m),
+        Samplers.kDpmpp2m,
+      ),
+    };
+
+    for (final MapEntry(key: name, value: (params, sampler)) in cases.entries) {
+      expect(params.effectiveSampler, sampler, reason: name);
+    }
+  });
+
   group('ImageParams preciseReference getters', () {
     test('preciseReferenceCount should return 0 when no references', () {
       const params = ImageParams();

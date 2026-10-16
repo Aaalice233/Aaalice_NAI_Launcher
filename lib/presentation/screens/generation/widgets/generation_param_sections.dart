@@ -164,12 +164,7 @@ class SamplerSection extends ConsumerWidget {
         ),
       ),
     );
-    // V4 起官网不提供 DDIM；存量选择显示为实际会发送的 Euler Ancestral。
-    final isDdim =
-        data.sampler == Samplers.ddim || data.sampler == Samplers.ddimV3;
-    final displaySampler = data.isV4Model && isDdim
-        ? Samplers.kEulerAncestral
-        : data.sampler;
+    // V4 起官网不提供 DDIM，存量选择由 effectiveSampler 显示为实际会发送的采样器
     final availableSamplers = data.isV4Model
         ? Samplers.allSamplers
               .where(
@@ -184,7 +179,7 @@ class SamplerSection extends ConsumerWidget {
         ParamSectionTitle(context.l10n.generation_sampler),
         const SizedBox(height: 8),
         ThemedDropdown<String>(
-          value: displaySampler,
+          value: data.sampler,
           items: availableSamplers.map((sampler) {
             return DropdownMenuItem(
               value: sampler,

@@ -325,8 +325,11 @@ extension ImageParamsExtension on ImageParams {
   /// 实际发送的步数。
   int get effectiveSteps => capabilities.fixedSettings?.steps ?? steps;
 
-  /// 实际发送的采样器（V4 起的 DDIM 回退由请求服务处理）。
-  String get effectiveSampler => capabilities.fixedSettings?.sampler ?? sampler;
+  /// 实际发送的采样器：模型固定的采样器优先，DDIM 按模型换算。
+  String get effectiveSampler => Samplers.resolveForModel(
+    capabilities.fixedSettings?.sampler ?? sampler,
+    model,
+  );
 
   /// 实际发送的噪声调度：模型不开放选择时与网页端一样固定为 karras。
   String get effectiveNoiseSchedule => capabilities.supportsNoiseSchedule
