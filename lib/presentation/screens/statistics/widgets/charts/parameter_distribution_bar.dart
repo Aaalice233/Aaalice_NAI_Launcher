@@ -19,7 +19,6 @@ class ParameterBarItem {
 
 /// Parameter distribution bar chart widget
 class ParameterDistributionBar extends StatefulWidget {
-  final String? title;
   final List<ParameterBarItem> items;
 
   /// Vertical chart height; horizontal bars size to their rows.
@@ -29,7 +28,6 @@ class ParameterDistributionBar extends StatefulWidget {
 
   const ParameterDistributionBar({
     super.key,
-    this.title,
     required this.items,
     this.height = 200,
     this.horizontal = false,
@@ -60,28 +58,12 @@ class _ParameterDistributionBarState extends State<ParameterDistributionBar> {
         .map((e) => e.count.toDouble())
         .reduce((a, b) => a > b ? a : b);
 
-    final chart = widget.horizontal
+    return widget.horizontal
         ? _buildHorizontalBars(maxValue, colorScheme)
         : SizedBox(
             height: widget.height,
             child: _buildVerticalBars(maxValue, colorScheme, theme),
           );
-    final title = widget.title;
-    if (title == null) return chart;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-        chart,
-      ],
-    );
   }
 
   Widget _buildVerticalBars(
