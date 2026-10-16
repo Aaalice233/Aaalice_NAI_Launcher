@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import '../../core/utils/antialiased_bilinear_resampler.dart';
-import '../../core/utils/color_channel_normalizer.dart';
 import 'local_onnx_model_service.dart';
 import 'local_onnx_tagger_labels.dart';
 
@@ -144,11 +143,10 @@ class LocalOnnxTaggerPreprocessor {
   }
 
   static OnnxImageInput preprocess(
-    img.Image image,
+    img.Image source,
     LocalOnnxModelDescriptor model, {
     int? inputSize,
   }) {
-    final source = ColorChannelNormalizer.normalize(image);
     final profile = profileFor(model);
     final size = inputSize ?? profile.inputSize;
     switch (profile.preprocessing) {
