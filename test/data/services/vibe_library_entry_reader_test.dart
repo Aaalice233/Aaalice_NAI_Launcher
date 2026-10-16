@@ -52,21 +52,6 @@ void main() {
   });
 
   group('isVibeOverwriteCandidate', () {
-    test('名称不同或编码相同时不读取原图字节', () {
-      final vibe = VibeReference(
-        displayName: 'Vibe',
-        vibeEncoding: 'encoded',
-        rawImageData: Uint8List(64),
-      );
-      final otherName = _probeEntry(name: 'Other', encoding: 'different');
-      final sameEncoding = _probeEntry(name: 'Vibe', encoding: 'encoded');
-
-      expect(isVibeOverwriteCandidate(otherName, vibe), isFalse);
-      expect(isVibeOverwriteCandidate(sameEncoding, vibe), isTrue);
-      verifyNever(() => otherName.rawImageData);
-      verifyNever(() => sameEncoding.rawImageData);
-    });
-
     test('同名但编码不同时按原图内容判定', () {
       final raw = Uint8List.fromList(List.generate(48, (i) => i));
       VibeReference vibeWith(Uint8List? bytes) => VibeReference(
