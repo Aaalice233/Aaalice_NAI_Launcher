@@ -20,13 +20,11 @@ import 'nickname_edit_dialog.dart';
 class AccountProfileBottomSheet extends ConsumerStatefulWidget {
   /// 当前账号
   final SavedAccount account;
-  final bool presentationManaged;
   final ScrollController? scrollController;
 
   const AccountProfileBottomSheet({
     super.key,
     required this.account,
-    this.presentationManaged = false,
     this.scrollController,
   });
 
@@ -57,7 +55,6 @@ class AccountProfileBottomSheet extends ConsumerStatefulWidget {
       ),
       builder: (panelContext, scrollController) => AccountProfileBottomSheet(
         account: account,
-        presentationManaged: true,
         scrollController: scrollController,
       ),
     );
@@ -283,7 +280,6 @@ class _AccountProfileBottomSheetState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     // 使用 ref.watch 实现响应式更新
     final accounts = ref.watch(accountManagerNotifierProvider).accounts;
     final authState = ref.watch(authNotifierProvider);
@@ -296,24 +292,11 @@ class _AccountProfileBottomSheetState
     final isDefaultAccount = defaultAccount?.id == currentAccount.id;
     final hasMultipleAccounts = accounts.length > 1;
 
-    final content = ContentSizedAdaptiveForm(
+    return ContentSizedAdaptiveForm(
       scrollController: widget.scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       footer: isCurrentAccount ? _buildLogoutFooter(context) : null,
       content: [
-        if (!widget.presentationManaged)
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
         const SizedBox(height: 16),
         // 大头像
         _buildAvatarSection(context),
@@ -348,14 +331,6 @@ class _AccountProfileBottomSheetState
           const SizedBox(height: 16),
         ],
       ],
-    );
-    if (widget.presentationManaged) return content;
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: content,
     );
   }
 

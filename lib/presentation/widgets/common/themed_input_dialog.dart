@@ -4,26 +4,9 @@ import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
-import 'adaptive_dialog_frame.dart';
 
-/// 通用输入对话框
-///
-/// 用于需要用户输入单行文本的场景，如重命名、输入名称等。
-///
-/// 使用示例:
-/// ```dart
-/// final name = await ThemedInputDialog.show(
-///   context: context,
-///   title: '输入名称',
-///   hintText: '请输入预设名称',
-///   validator: (v) => v.isEmpty ? '名称不能为空' : null,
-/// );
-/// if (name != null) { ... }
-/// ```
+/// 通用输入对话框，用于重命名、输入名称等需要用户输入一段文本的场景
 class ThemedInputDialog extends StatefulWidget {
-  /// 对话框标题
-  final String title;
-
   /// 输入框标签
   final String? labelText;
 
@@ -48,12 +31,10 @@ class ThemedInputDialog extends StatefulWidget {
   /// 多行输入时的最大行数
   final int maxLines;
 
-  final bool presentationManaged;
   final ScrollController? scrollController;
 
   const ThemedInputDialog({
     super.key,
-    required this.title,
     this.labelText,
     this.hintText,
     this.initialValue,
@@ -62,7 +43,6 @@ class ThemedInputDialog extends StatefulWidget {
     this.cancelText,
     this.multiline = false,
     this.maxLines = 5,
-    this.presentationManaged = false,
     this.scrollController,
   });
 
@@ -87,7 +67,6 @@ class ThemedInputDialog extends StatefulWidget {
       dialogWidth: multiline ? 440 : 380,
       headerScrollsWithContent: true,
       builder: (context, scrollController) => ThemedInputDialog(
-        title: title,
         labelText: labelText,
         hintText: hintText,
         initialValue: initialValue,
@@ -96,7 +75,6 @@ class ThemedInputDialog extends StatefulWidget {
         cancelText: cancelText,
         multiline: multiline,
         maxLines: maxLines,
-        presentationManaged: true,
         scrollController: scrollController,
       ),
     );
@@ -167,7 +145,6 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
       decoration: InputDecoration(
         labelText: widget.labelText,
         hintText: widget.hintText,
-        border: const OutlineInputBorder(),
         errorText: _errorText,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
@@ -190,29 +167,6 @@ class _ThemedInputDialogState extends State<ThemedInputDialog> {
         child: Text(confirmText),
       ),
     ];
-
-    if (!widget.presentationManaged) {
-      return AlertDialog(
-        scrollable: true,
-        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        title: Text(
-          widget.title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        content: AdaptiveDialogFrame(
-          maxWidth: contentWidth,
-          maxHeight: widget.multiline ? 280 : 120,
-          reservedVerticalSpace: 120,
-          scaleReservedVerticalSpace: true,
-          child: SingleChildScrollView(child: input),
-        ),
-        actions: actions,
-      );
-    }
 
     return ContentSizedAdaptiveForm(
       scrollController: widget.scrollController,
