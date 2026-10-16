@@ -2,17 +2,19 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'exif_container.dart';
 import 'isolate_pool.dart';
 
 /// JPEG 与 WebP 的 EXIF 方向：Flutter 引擎显示时会把它转进像素，PNG 的 eXIf 不处理。
 abstract final class ExifOrientation {
-  /// 只读 JPEG 的 APP1 或 WebP 的 EXIF 块；其它格式、没有方向标签或 EXIF 损坏时返回 null。
+  /// 只读 JPEG 首个 EXIF APP1 段或 WebP 首个 EXIF 块；其它格式、没有方向标签或 EXIF 损坏时返回 null。
+  ///
+  /// WebP 块带 `Exif\0\0` 前缀时 Flutter 不识别方向，这里同样不剥前缀。
   static int? read(Uint8List bytes) {
     try {
-      if (_isJpeg(bytes)) {
-        return _orientationOf(img.decodeJpgExif(bytes));
-      }
-      final tiff = _webpExifPayload(bytes);
+      final tiff = ExifContainer.isJpeg(bytes)
+          ? ExifContainer.jpegExifPayloads(bytes).firstOrNull
+          : ExifContainer.webpExifChunks(bytes).firstOrNull;
       return tiff == null
           ? null
           : _orientationOf(img.ExifData.fromInputBuffer(img.InputBuffer(tiff)));
@@ -36,7 +38,7 @@ abstract final class ExifOrientation {
   /// 解码出与 Flutter 显示一致的像素：JPEG 解码器已按方向转正，WebP 在这里补转。
   static img.Image? decodeUpright(Uint8List bytes) {
     final decoded = img.decodeImage(bytes);
-    if (decoded == null || !_isWebp(bytes)) return decoded;
+    if (decoded == null || !ExifContainer.isWebp(bytes)) return decoded;
     final orientation = read(bytes);
     if (orientation == null || orientation < 2 || orientation > 8) {
       return decoded;
@@ -47,7 +49,7 @@ abstract final class ExifOrientation {
 
   /// `img.decodeImage` 结果转正后的宽高，只需尺寸时省去 [decodeUpright] 的整图旋转。
   static (int, int) uprightSize(Uint8List bytes, img.Image decoded) =>
-      _isWebp(bytes) && swapsAxes(bytes)
+      ExifContainer.isWebp(bytes) && swapsAxes(bytes)
       ? (decoded.height, decoded.width)
       : (decoded.width, decoded.height);
 
@@ -76,34 +78,4 @@ abstract final class ExifOrientation {
         ? imageIfd.orientation
         : null;
   }
-
-  static bool _isJpeg(Uint8List bytes) =>
-      bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
-
-  static bool _isWebp(Uint8List bytes) =>
-      bytes.length >= 12 &&
-      _fourCc(bytes, 0) == 'RIFF' &&
-      _fourCc(bytes, 8) == 'WEBP';
-
-  /// 只遍历 RIFF 块头找 EXIF 块，不触碰图像数据。
-  static Uint8List? _webpExifPayload(Uint8List bytes) {
-    if (!_isWebp(bytes)) return null;
-    final view = ByteData.sublistView(bytes);
-    var offset = 12;
-    while (offset + 8 <= bytes.length) {
-      final length = view.getUint32(offset + 4, Endian.little);
-      final start = offset + 8;
-      final end = start + length;
-      if (end > bytes.length) return null;
-      if (_fourCc(bytes, offset) == 'EXIF') {
-        // 带 `Exif\0\0` 前缀的非标准块 Flutter 不识别方向，这里同样不剥前缀。
-        return Uint8List.sublistView(bytes, start, end);
-      }
-      offset = end + (length.isOdd ? 1 : 0);
-    }
-    return null;
-  }
-
-  static String _fourCc(Uint8List bytes, int offset) =>
-      String.fromCharCodes(bytes, offset, offset + 4);
 }
