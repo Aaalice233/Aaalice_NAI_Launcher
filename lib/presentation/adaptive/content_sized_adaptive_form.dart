@@ -63,6 +63,9 @@ class ContentSizedAdaptiveForm extends StatelessWidget {
 /// Hands the panel header of [AdaptivePresenter.showForm] to the body below
 /// it, which places it first in its only scroll view; [ContentSizedAdaptiveForm]
 /// does so automatically.
+///
+/// In debug builds a body that never reads the header is reported after its
+/// first frame, since the panel title and close button would be missing.
 class AdaptivePanelHeaderScope extends InheritedWidget {
   const AdaptivePanelHeaderScope({
     super.key,
@@ -72,13 +75,72 @@ class AdaptivePanelHeaderScope extends InheritedWidget {
 
   final Widget header;
 
-  static Widget? maybeHeaderOf(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<AdaptivePanelHeaderScope>()
-      ?.header;
+  static Widget? maybeHeaderOf(BuildContext context) {
+    final element = context
+        .getElementForInheritedWidgetOfExactType<AdaptivePanelHeaderScope>();
+    if (element is! _AdaptivePanelHeaderScopeElement) return null;
+    context.dependOnInheritedElement(element);
+    element.debugMarkHosted();
+    return element.widget.header;
+  }
+
+  @override
+  InheritedElement createElement() => _AdaptivePanelHeaderScopeElement(this);
 
   @override
   bool updateShouldNotify(AdaptivePanelHeaderScope oldWidget) =>
       header != oldWidget.header;
+}
+
+class _AdaptivePanelHeaderScopeElement extends InheritedElement {
+  _AdaptivePanelHeaderScopeElement(AdaptivePanelHeaderScope super.widget);
+
+  bool _debugHosted = false;
+
+  @override
+  AdaptivePanelHeaderScope get widget =>
+      super.widget as AdaptivePanelHeaderScope;
+
+  void debugMarkHosted() {
+    assert(() {
+      _debugHosted = true;
+      return true;
+    }());
+  }
+
+  @override
+  void mount(Element? parent, Object? newSlot) {
+    super.mount(parent, newSlot);
+    assert(() {
+      // Bodies behind a LayoutBuilder only build during layout, so check after
+      // the first frame instead of right after this subtree builds.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _debugCheckHosted());
+      return true;
+    }());
+  }
+
+  void _debugCheckHosted() {
+    if (!mounted || _debugHosted) return;
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: FlutterError.fromParts([
+          ErrorSummary('The adaptive panel header was never hosted.'),
+          ErrorDescription(
+            'AdaptivePresenter.showForm(headerScrollsWithContent: true) hands '
+            'the title and close button to the body through '
+            'AdaptivePanelHeaderScope, and this body never read it, so the '
+            'panel shows neither.',
+          ),
+          ErrorHint(
+            'Build the body with ContentSizedAdaptiveForm, or put '
+            'AdaptivePanelHeaderScope.maybeHeaderOf(context) first in its '
+            'scroll view.',
+          ),
+        ]),
+        library: 'adaptive presenter',
+      ),
+    );
+  }
 }
 
 /// Pins the hosted header and keeps the footer below the scroll view while
