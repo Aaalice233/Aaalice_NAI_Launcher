@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/exif_orientation_fixture.dart';
 import '../../helpers/image_pixel_matchers.dart';
 
 void main() {
@@ -896,6 +897,39 @@ void main() {
         );
       },
     );
+
+    test('crops an EXIF-rotated webp source on its displayed axes', () {
+      for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
+        final (width, height) = orientation >= 5 ? (400, 600) : (600, 400);
+        final mask = img.Image(width: width, height: height);
+        img.fill(mask, color: img.ColorRgb8(0, 0, 0));
+        img.fillRect(
+          mask,
+          x1: 180,
+          y1: 180,
+          x2: 219,
+          y2: 219,
+          color: img.ColorRgb8(255, 255, 255),
+        );
+
+        final request = FocusedInpaintUtils.prepareRequest(
+          sourceImage: orientedMarkedWebp(
+            width: 600,
+            height: 400,
+            orientation: orientation,
+          ),
+          maskImage: Uint8List.fromList(img.encodePng(mask)),
+          minContextMegaPixels: 1,
+        );
+
+        expect(request, isNotNull, reason: '$orientation');
+        expect(
+          (request!.originalSourceWidth, request.originalSourceHeight),
+          (width, height),
+          reason: '$orientation',
+        );
+      }
+    });
   });
 }
 

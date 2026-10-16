@@ -1,14 +1,5 @@
 import 'dart:typed_data';
 
-/// 重新编码的像素由哪种解码器从源图得来；决定源图的 EXIF 方向是否已经转进像素。
-enum SourcePixelDecoder {
-  /// Flutter 引擎：JPEG 与 WebP 按 EXIF 方向转正，PNG 的 eXIf 不处理。
-  flutterEngine,
-
-  /// image 包的 decodeImage：只有 JPEG 按 EXIF 方向转正。
-  imagePackage,
-}
-
 /// 像素已按方向转正后，随像素复制的 EXIF 必须把方向改回 1，否则查看器会再转一次。
 abstract final class ExifOrientationMetadata {
   static const int _orientationTag = 0x0112;

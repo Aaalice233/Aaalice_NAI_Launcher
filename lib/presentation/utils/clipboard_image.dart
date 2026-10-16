@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/exif_orientation.dart';
 import '../../core/utils/isolate_pool.dart';
 import 'dropped_file_reader.dart';
 
@@ -88,7 +89,7 @@ Future<Uint8List> _ensurePngBytes(Uint8List bytes) async {
     return bytes;
   }
   return ComputeGate().runIsolate(() {
-    final decoded = img.decodeImage(bytes);
+    final decoded = ExifOrientation.decodeUpright(bytes);
     if (decoded == null) {
       throw const FormatException('无法解码图片用于复制到剪贴板');
     }

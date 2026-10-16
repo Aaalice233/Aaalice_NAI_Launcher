@@ -5,8 +5,8 @@ import 'package:image/image.dart' as img;
 
 import '../constants/api_constants.dart';
 import 'decoded_image_size.dart';
+import 'exif_orientation.dart';
 import 'isolate_pool.dart';
-import 'jpeg_exif_orientation.dart';
 import 'pica_lanczos_resizer.dart';
 
 /// NovelAI 分辨率适配器
@@ -261,7 +261,7 @@ class NaiResolutionAdapter {
     img.Image? decoded;
     final imageSize = readImageSize(imageBytes);
     if (imageSize == null) {
-      decoded = img.decodeImage(imageBytes);
+      decoded = ExifOrientation.decodeUpright(imageBytes);
       if (decoded == null) return null;
     }
 
@@ -286,7 +286,7 @@ class NaiResolutionAdapter {
       );
     }
 
-    decoded ??= img.decodeImage(imageBytes);
+    decoded ??= ExifOrientation.decodeUpright(imageBytes);
     if (decoded == null) return null;
     final resized = PicaLanczosResizer.resizeImage(
       decoded,
@@ -353,15 +353,15 @@ class NaiResolutionAdapter {
 
     final img.Image? decoded;
     try {
-      decoded = img.decodeImage(imageBytes);
+      decoded = ExifOrientation.decodeUpright(imageBytes);
     } catch (_) {
       return null;
     }
     if (decoded == null) return null;
 
     if (decoded.width == targetWidth && decoded.height == targetHeight) {
-      return JpegExifOrientation.transformsPixels(imageBytes)
-          ? JpegExifOrientation.encodeUpload(decoded)
+      return ExifOrientation.transformsPixels(imageBytes)
+          ? ExifOrientation.encodeUpload(decoded)
           : imageBytes;
     }
 
@@ -420,7 +420,7 @@ class NaiResolutionAdapter {
     img.Image? decoded;
     final imageSize = readImageSize(imageBytes);
     if (imageSize == null) {
-      decoded = img.decodeImage(imageBytes);
+      decoded = ExifOrientation.decodeUpright(imageBytes);
       if (decoded == null) return null;
     }
 
@@ -466,7 +466,7 @@ class NaiResolutionAdapter {
       );
     }
 
-    decoded ??= img.decodeImage(imageBytes);
+    decoded ??= ExifOrientation.decodeUpright(imageBytes);
     if (decoded == null) return null;
     final resized = PicaLanczosResizer.resizeImage(
       decoded,
@@ -577,14 +577,14 @@ class NaiResolutionAdapter {
         bytes[7] == 0x0A;
   }
 
-  // 官网只发经 canvas 转正的 PNG，带方向的 JPEG 不能原样直通
+  // 官网只发经 canvas 转正的 PNG，带方向的 JPEG 与 WebP 不能原样直通
   static bool _sendsUnchanged(Uint8List bytes, int width, int height) {
-    if (JpegExifOrientation.transformsPixels(bytes)) return false;
+    if (ExifOrientation.transformsPixels(bytes)) return false;
     final size = readImageSize(bytes);
     return size != null && size.$1 == width && size.$2 == height;
   }
 
-  /// 只解析编码头得到解码后的像素宽高：JPEG 计入 EXIF 方向，
+  /// 只解析编码头得到转正后的像素宽高：JPEG 与 WebP 计入 EXIF 方向，
   /// PNG/JPEG/WebP 以外的格式取编码头声明的画布尺寸。
   static (int, int)? readImageSize(Uint8List bytes) {
     return _tryReadPngSize(bytes) ??

@@ -10,7 +10,6 @@ import 'package:crypto/crypto.dart';
 import 'package:csv/csv.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image/image.dart' as img;
 import 'package:onnxruntime_v2/onnxruntime_v2.dart';
 import 'package:path/path.dart' as p;
 // ignore: implementation_imports
@@ -18,6 +17,7 @@ import 'package:onnxruntime_v2/src/bindings/onnxruntime_bindings_generated.dart'
     as bg;
 
 import '../../core/platform/platform_capabilities.dart';
+import '../../core/utils/exif_orientation.dart';
 import '../../core/utils/isolate_pool.dart';
 import 'local_onnx_model_service.dart';
 import 'local_onnx_tagger_preprocessor.dart';
@@ -166,7 +166,7 @@ class LocalOnnxTaggerService {
     }
 
     final imageBytes = imageData.materialize().asUint8List();
-    final decoded = img.decodeImage(imageBytes);
+    final decoded = ExifOrientation.decodeUpright(imageBytes);
     if (decoded == null) {
       throw StateError('无法解码图片');
     }

@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 
+import '../../helpers/exif_orientation_fixture.dart';
+
 void main() {
   group('NaiResolutionAdapter official import sizing', () {
     test('reads encoded image dimensions from the image header', () {
@@ -680,6 +682,233 @@ void main() {
 
         expect(identical(normalized, bytes), isTrue, reason: name);
         expect(identical(normalizedAsync, bytes), isTrue, reason: name);
+      }
+    });
+  });
+
+  group('NaiResolutionAdapter EXIF-oriented webp sources', () {
+    const orientations = [1, 2, 3, 4, 5, 6, 7, 8];
+
+    (int, int) upright(int width, int height, int orientation) =>
+        orientation >= 5 ? (height, width) : (width, height);
+
+    test('reads the upright size for every orientation', () {
+      for (final orientation in orientations) {
+        expect(
+          NaiResolutionAdapter.readImageSize(
+            orientedCameraWebp(orientation: orientation),
+          ),
+          upright(20, 14, orientation),
+          reason: 'orientation $orientation',
+        );
+      }
+    });
+
+    test('describes imports from the upright size, sync and async', () async {
+      for (final orientation in orientations) {
+        final webp = orientedMarkedWebp(
+          width: 128,
+          height: 64,
+          orientation: orientation,
+        );
+        final expected = upright(128, 64, orientation);
+        final infos = [
+          NaiResolutionAdapter.describeImageForImport(webp)!,
+          (await NaiResolutionAdapter.describeImageForImportAsync(webp))!,
+        ];
+
+        for (final info in infos) {
+          final reason = 'orientation $orientation';
+          expect(
+            (info.originalWidth, info.originalHeight),
+            expected,
+            reason: reason,
+          );
+          expect((info.width, info.height), expected, reason: reason);
+        }
+      }
+    });
+
+    test('adapts imports on the upright axes', () {
+      for (final orientation in orientations) {
+        final webp = orientedMarkedWebp(
+          width: 130,
+          height: 64,
+          orientation: orientation,
+        );
+        final expected = upright(128, 64, orientation);
+        final adapted = NaiResolutionAdapter.adaptImageForImport(webp)!;
+        final reason = 'orientation $orientation';
+
+        expect(
+          (adapted.originalWidth, adapted.originalHeight),
+          upright(130, 64, orientation),
+          reason: reason,
+        );
+        expect((adapted.width, adapted.height), expected, reason: reason);
+        expect(_decodedSize(adapted.bytes), expected, reason: reason);
+        expect(
+          markerCorners(img.decodeImage(adapted.bytes)!),
+          markerCorners(displayedWebp(webp, orientation)),
+          reason: reason,
+        );
+      }
+    });
+
+    test('scales large editor images on the upright axes', () async {
+      for (final orientation in orientations) {
+        final webp = orientedMarkedWebp(
+          width: 2600,
+          height: 40,
+          orientation: orientation,
+        );
+        final expected = upright(2560, 39, orientation);
+        final results = [
+          NaiResolutionAdapter.prepareImageForEditor(
+            webp,
+            alignForInpaint: false,
+          )!,
+          (await NaiResolutionAdapter.prepareImageForEditorAsync(
+            webp,
+            alignForInpaint: false,
+          ))!,
+        ];
+
+        for (final working in results) {
+          final reason = 'orientation $orientation';
+          expect(
+            (working.originalWidth, working.originalHeight),
+            upright(2600, 40, orientation),
+            reason: reason,
+          );
+          expect((working.width, working.height), expected, reason: reason);
+          expect(
+            working.resizeMode,
+            NaiEditorResizeMode.picaLanczos3,
+            reason: reason,
+          );
+          expect(_decodedSize(working.bytes), expected, reason: reason);
+          expect(
+            markerCorners(img.decodeImage(working.bytes)!),
+            markerCorners(displayedWebp(webp, orientation)),
+            reason: reason,
+          );
+        }
+      }
+    });
+
+    test('keeps small editor images on the upright axes', () {
+      for (final orientation in orientations) {
+        final webp = orientedMarkedWebp(
+          width: 96,
+          height: 40,
+          orientation: orientation,
+        );
+        final reason = 'orientation $orientation';
+        final edit = NaiResolutionAdapter.prepareImageForEditor(
+          webp,
+          alignForInpaint: false,
+        )!;
+        final inpaint = NaiResolutionAdapter.prepareImageForEditor(
+          webp,
+          alignForInpaint: true,
+        )!;
+
+        expect(
+          (edit.width, edit.height),
+          upright(96, 40, orientation),
+          reason: reason,
+        );
+        expect(
+          edit.resizeMode,
+          NaiEditorResizeMode.passthrough,
+          reason: reason,
+        );
+        expect(
+          (inpaint.width, inpaint.height),
+          upright(128, 64, orientation),
+          reason: reason,
+        );
+        expect(inpaint.resizeMode, NaiEditorResizeMode.medium, reason: reason);
+      }
+    });
+
+    test('sends oriented request sources as upright png', () async {
+      for (final orientation in orientations.skip(1)) {
+        final solid = orientedMarkedWebp(
+          width: 128,
+          height: 64,
+          orientation: orientation,
+        );
+        final solidSize = upright(128, 64, orientation);
+        final camera = orientedCameraWebp(orientation: orientation);
+        final cameraSize = upright(20, 14, orientation);
+        final cases = [
+          (solid, solidSize),
+          (solid, (solidSize.$2, solidSize.$1)),
+          (camera, cameraSize),
+        ];
+
+        for (final (source, (width, height)) in cases) {
+          final reason = 'orientation $orientation, ${width}x$height';
+          final results = [
+            NaiResolutionAdapter.normalizeImageForRequest(
+              source,
+              targetWidth: width,
+              targetHeight: height,
+            ),
+            await NaiResolutionAdapter.normalizeImageForRequestAsync(
+              source,
+              targetWidth: width,
+              targetHeight: height,
+            ),
+          ];
+
+          for (final normalized in results) {
+            final png = img.decodePng(normalized!);
+            expect(png, isNotNull, reason: reason);
+            expect((png!.width, png.height), (width, height), reason: reason);
+          }
+        }
+
+        final sent = img.decodePng(
+          NaiResolutionAdapter.normalizeImageForRequest(
+            camera,
+            targetWidth: cameraSize.$1,
+            targetHeight: cameraSize.$2,
+          )!,
+        )!;
+        for (final pixel in displayedWebp(camera, orientation)) {
+          final other = sent.getPixel(pixel.x, pixel.y);
+          expect(
+            (other.r, other.g, other.b),
+            (pixel.r, pixel.g, pixel.b),
+            reason: 'orientation $orientation at ${pixel.x},${pixel.y}',
+          );
+        }
+      }
+    });
+
+    test('passes orientation 1 webp through byte for byte', () async {
+      for (final webp in [
+        orientedCameraWebp(orientation: 1),
+        orientedMarkedWebp(width: 128, height: 64, orientation: 1),
+      ]) {
+        final (width, height) = _decodedSize(webp)!;
+        final normalized = NaiResolutionAdapter.normalizeImageForRequest(
+          webp,
+          targetWidth: width,
+          targetHeight: height,
+        );
+        final normalizedAsync =
+            await NaiResolutionAdapter.normalizeImageForRequestAsync(
+              webp,
+              targetWidth: width,
+              targetHeight: height,
+            );
+
+        expect(identical(normalized, webp), isTrue);
+        expect(identical(normalizedAsync, webp), isTrue);
       }
     });
   });

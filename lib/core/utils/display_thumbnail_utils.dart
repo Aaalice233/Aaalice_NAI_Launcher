@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'exif_orientation.dart';
 import 'isolate_pool.dart';
 
 /// 展示用缩略图压缩工具
@@ -27,7 +28,7 @@ class DisplayThumbnailUtils {
   static Uint8List? resizeSync(Uint8List sourceBytes) {
     final img.Image? source;
     try {
-      source = img.decodeImage(sourceBytes);
+      source = ExifOrientation.decodeUpright(sourceBytes);
     } catch (_) {
       return null;
     }

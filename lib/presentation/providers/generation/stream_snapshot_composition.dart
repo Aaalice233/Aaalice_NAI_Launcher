@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
+import '../../../core/utils/exif_orientation.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/pica_lanczos_resizer.dart';
@@ -39,7 +40,7 @@ FocusedStreamPreviewPlacement? streamSnapshotPlacement(
 Uint8List composeStreamSnapshot(StreamPreviewFrame frame) {
   final placement = streamSnapshotPlacement(frame);
   if (placement == null) return frame.bytes;
-  final source = img.decodeImage(placement.sourceImage);
+  final source = ExifOrientation.decodeUpright(placement.sourceImage);
   final generated = img.decodeImage(frame.bytes);
   final mask = placement.maskImage == null
       ? null

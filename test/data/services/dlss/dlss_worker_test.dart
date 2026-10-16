@@ -267,4 +267,27 @@ void main() {
     expect(ifd.orientation, 1);
     expect(ifd.make, 'Aaalice Camera');
   });
+
+  test('webp sources are restored on their displayed axes', () {
+    for (final orientation in [1, 2, 3, 4, 5, 6, 7, 8]) {
+      final source = orientedCameraWebp(orientation: orientation);
+      final size = orientation >= 5 ? (14, 20) : (20, 14);
+      final reason = 'orientation $orientation';
+      final stored = img.decodeImage(source)!
+        ..exif.imageIfd.orientation = orientation;
+
+      final result = preserveDlssImage(
+        source,
+        img.bakeOrientation(stored),
+        const DlssOptions(scale: 1),
+        'v1.3',
+      );
+
+      final output = img.decodePng(result)!;
+      expect((output.width, output.height), size, reason: reason);
+      final ifd = readImageIfd(pngExifPayload(result)!);
+      expect(ifd.orientation, 1, reason: reason);
+      expect(ifd.make, 'Aaalice Camera', reason: reason);
+    }
+  });
 }

@@ -6,11 +6,11 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../../core/utils/exif_orientation.dart';
 import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/portable_logger.dart';
 import 'dlss_options.dart';
 import 'dlss_float_frame.dart';
-import '../metadata/exif_orientation_metadata.dart';
 import '../metadata/image_metadata_container_codec.dart';
 
 class DlssWorker {
@@ -72,7 +72,7 @@ class DlssWorker {
       final prepared = await _encodeInIsolate(source);
       recordTiming('decode', prepared.decodeTime);
       recordTiming('marshal', prepared.marshalTime);
-      // decodeImage bakes JPEG EXIF orientation into the worker's input frame.
+      // The worker's input frame is decoded upright (JPEG and WebP EXIF).
       final target = options.targetSize(
         prepared.source.width,
         prepared.source.height,
@@ -201,7 +201,7 @@ typedef _PreparedInput = ({
 
 Future<_PreparedInput> _encodeInIsolate(Uint8List source) => ComputeGate().runIsolate(() {
   final timer = Stopwatch()..start();
-  final decoded = img.decodeImage(source);
+  final decoded = ExifOrientation.decodeUpright(source);
   if (decoded == null) throw const FormatException('Invalid DLSS source image');
   final decodeTime = timer.elapsed;
   timer.reset();
@@ -274,7 +274,7 @@ Uint8List preserveDlssImage(
   if (sourceBytes.isEmpty) {
     throw const FormatException('Invalid DLSS image: empty source');
   }
-  final source = decodedSource ?? img.decodeImage(sourceBytes);
+  final source = decodedSource ?? ExifOrientation.decodeUpright(sourceBytes);
   if (source == null) {
     throw const FormatException('Invalid DLSS image');
   }
@@ -308,7 +308,7 @@ Uint8List preserveDlssImage(
   final withMetadata = ImageMetadataContainerCodec.copySupportedMetadata(
     source: sourceBytes,
     targetPng: encoded,
-    decodedBy: SourcePixelDecoder.imagePackage,
+    orientationApplied: true,
   );
   final result = ImageMetadataContainerCodec.embedTextChunkOnly(
     withMetadata,

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../core/utils/exif_orientation.dart';
 import '../../core/utils/isolate_pool.dart';
 
 class ReversePromptImageLimits {
@@ -41,7 +42,7 @@ class ReversePromptImageNormalizer {
     ReversePromptImageLimits limits,
   ) {
     final bytes = imageData.materialize().asUint8List();
-    final decoded = img.decodeImage(bytes);
+    final decoded = ExifOrientation.decodeUpright(bytes);
     if (decoded == null) {
       return bytes;
     }

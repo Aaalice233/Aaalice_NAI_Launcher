@@ -1,11 +1,9 @@
 import 'dart:typed_data';
 
-import 'exif_orientation_metadata.dart';
 import 'image_metadata_container_codec.dart';
 import 'image_metadata_parser_service.dart';
 import 'metadata_parse_result.dart';
 
-export 'exif_orientation_metadata.dart' show SourcePixelDecoder;
 export 'metadata_parse_result.dart';
 export 'metadata_text_decoder.dart'
     show
@@ -95,11 +93,11 @@ class UnifiedMetadataParser {
   static Uint8List copySupportedMetadata({
     required Uint8List source,
     required Uint8List targetPng,
-    SourcePixelDecoder? decodedBy,
+    bool orientationApplied = false,
   }) => ImageMetadataContainerCodec.copySupportedMetadata(
     source: source,
     targetPng: targetPng,
-    decodedBy: decodedBy,
+    orientationApplied: orientationApplied,
   );
 
   static ParseStatistics get statistics => _service.statistics;

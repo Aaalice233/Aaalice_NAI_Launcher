@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../../utils/exif_orientation.dart';
 import '../../utils/isolate_pool.dart';
 import 'internal/image_resampler.dart';
 import 'pixel_snap_engine.dart';
@@ -186,7 +187,7 @@ class PixelSnapService {
     bool parallel = true,
     void Function(PixelSnapProgress)? onProgress,
   }) async {
-    final img.Image? decoded = img.decodeImage(pngBytes);
+    final img.Image? decoded = ExifOrientation.decodeUpright(pngBytes);
     if (decoded == null) throw const PixelSnapDecodeException();
 
     final img.Image source =

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../utils/exif_orientation.dart';
 import '../utils/isolate_pool.dart';
 
 class KritaOutboundImage {
@@ -24,7 +25,7 @@ class KritaOutboundImage {
 
     final img.Image? decoded;
     try {
-      decoded = img.decodeImage(imageBytes);
+      decoded = ExifOrientation.decodeUpright(imageBytes);
     } on Object {
       throw const FormatException('Unsupported image format for Krita send');
     }
