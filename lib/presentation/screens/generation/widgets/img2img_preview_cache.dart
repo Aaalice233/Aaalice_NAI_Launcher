@@ -1,30 +1,15 @@
 import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/inpaint_mask_utils.dart';
+import '../../../../core/utils/last_result_memo.dart';
 import '../../../../core/utils/nai_resolution_adapter.dart';
 
-typedef SelectionPreviewFrameResolver =
-    FocusedInpaintFrame? Function({
-      required int sourceWidth,
-      required int sourceHeight,
-      required Rect selectionRect,
-      required double minContextMegaPixels,
-    });
-
-typedef CropPreviewFrameResolver =
-    FocusedInpaintFrame? Function({
-      required int sourceWidth,
-      required int sourceHeight,
-      required Rect crop,
-    });
-
 typedef MaskOverlayBuilder = Future<Uint8List> Function(Uint8List maskImage);
-
-typedef MaskExtentResolver =
-    Future<FocusedInpaintMaskExtent?> Function(Uint8List maskImage);
 
 typedef SourcePreviewSizeReader = (int, int)? Function(Uint8List sourceImage);
 
@@ -69,43 +54,28 @@ class Img2ImgPreviewDerivedData {
 
 /// 缓存图生图预览区的重型派生数据，避免无关重建时反复解码大图。
 ///
-/// 蒙版叠加图与蒙版外接矩形在后台计算，完成后经 onUpdated 通知；
-/// 同一张源图上重算期间沿用上一次的结果，换了源图或清除过蒙版则先不显示。
+/// 蒙版叠加图在后台计算，完成后经 onUpdated 通知；蒙版外接矩形取自与费用预估共用的
+/// provider。同一张源图上重算期间沿用上一次的结果，换了源图或清除过蒙版则先不显示。
 class Img2ImgPreviewCache {
   Img2ImgPreviewCache({
     required VoidCallback onUpdated,
     MaskOverlayBuilder? maskOverlayBuilder,
-    MaskExtentResolver? maskExtentResolver,
-    SelectionPreviewFrameResolver? selectionPreviewFrameResolver,
-    CropPreviewFrameResolver? cropPreviewFrameResolver,
-  }) : _selectionPreviewFrameResolver =
-           selectionPreviewFrameResolver ??
-           FocusedInpaintUtils.resolvePreviewFrameForSelection,
-       _cropPreviewFrameResolver =
-           cropPreviewFrameResolver ??
-           FocusedInpaintUtils.resolveGeometryForCrop,
-       _maskOverlay = _BackgroundDerivation(
+  }) : _maskOverlay = _MaskOverlayDerivation(
          maskOverlayBuilder ?? InpaintMaskUtils.maskToEditorOverlayAsync,
-         onUpdated,
-       ),
-       _maskExtent = _BackgroundDerivation(
-         maskExtentResolver ?? FocusedInpaintUtils.resolveMaskExtentAsync,
          onUpdated,
        );
 
-  final SelectionPreviewFrameResolver _selectionPreviewFrameResolver;
-  final CropPreviewFrameResolver _cropPreviewFrameResolver;
-  final _BackgroundDerivation<Uint8List> _maskOverlay;
-  final _BackgroundDerivation<FocusedInpaintMaskExtent?> _maskExtent;
+  final _MaskOverlayDerivation _maskOverlay;
+  final _frames = LastResultMemo<Object, FocusedInpaintFrame?>();
 
   Uint8List? _lastSourceImage;
-  Object? _frameKey;
-  FocusedInpaintFrame? _cachedFrame;
   FocusedInpaintFrame? _lastFrame;
 
+  /// [maskExtent] 是 [maskImage] 的外接矩形，只在聚焦框取自蒙版时用到。
   Img2ImgPreviewDerivedData resolve({
     required Uint8List sourceImage,
     Uint8List? maskImage,
+    AsyncValue<FocusedInpaintMaskExtent?> maskExtent = const AsyncData(null),
     required bool focusedInpaintEnabled,
     Rect? focusedSelectionRect,
     Rect? focusedContextCrop,
@@ -128,42 +98,41 @@ class Img2ImgPreviewCache {
     if (!focusedInpaintEnabled) {
       focusedFrame = null;
     } else if (focusedContextCrop != null) {
-      focusedFrame = _memoizeFrame(
+      focusedFrame = _frames.resolve(
         (focusedContextCrop, sourceWidth, sourceHeight),
-        () => _cropPreviewFrameResolver(
+        (_) => FocusedInpaintUtils.resolveGeometryForCrop(
           sourceWidth: sourceWidth,
           sourceHeight: sourceHeight,
           crop: focusedContextCrop,
         ),
       );
     } else if (focusedSelectionRect != null) {
-      focusedFrame = _memoizeFrame(
+      focusedFrame = _frames.resolve(
         (focusedSelectionRect, minContextMegaPixels, sourceWidth, sourceHeight),
-        () => _selectionPreviewFrameResolver(
+        (_) => FocusedInpaintUtils.resolveGeometryForSelection(
           sourceWidth: sourceWidth,
           sourceHeight: sourceHeight,
           selectionRect: focusedSelectionRect,
           minContextMegaPixels: minContextMegaPixels,
         ),
       );
-    } else if (maskImage != null) {
-      final extent = _maskExtent.resolve(maskImage, keepStale: false);
-      if (!_maskExtent.isReadyFor(maskImage)) {
-        focusedFrame = keepStale ? _lastFrame : null;
-      } else if (extent == null) {
-        focusedFrame = null;
-      } else {
-        // 蒙版与源图同尺寸，几何与费用预估、请求裁剪取自同一外接矩形
-        focusedFrame = _memoizeFrame(
-          (extent, minContextMegaPixels),
-          () => FocusedInpaintUtils.resolveGeometryForMaskExtent(
-            extent,
-            minContextMegaPixels: minContextMegaPixels,
-          ),
-        );
-      }
-    } else {
+    } else if (maskImage == null || maskExtent.hasError) {
       focusedFrame = null;
+    } else if (maskExtent.isLoading) {
+      // provider 重算期间的旧值可能来自换图前，只沿用这张源图上显示过的框
+      focusedFrame = keepStale ? _lastFrame : null;
+    } else {
+      final extent = maskExtent.valueOrNull;
+      // 蒙版与源图同尺寸，几何与费用预估、请求裁剪取自同一外接矩形
+      focusedFrame = extent == null
+          ? null
+          : _frames.resolve(
+              (extent, minContextMegaPixels),
+              (_) => FocusedInpaintUtils.resolveGeometryForMaskExtent(
+                extent,
+                minContextMegaPixels: minContextMegaPixels,
+              ),
+            );
     }
     _lastFrame = focusedFrame;
 
@@ -174,40 +143,24 @@ class Img2ImgPreviewCache {
   }
 
   /// 丢弃尚未完成的后台结果，之后不再通知。
-  void dispose() {
-    _maskOverlay.dispose();
-    _maskExtent.dispose();
-  }
-
-  FocusedInpaintFrame? _memoizeFrame(
-    Object key,
-    FocusedInpaintFrame? Function() compute,
-  ) {
-    if (key != _frameKey) {
-      _frameKey = key;
-      _cachedFrame = compute();
-    }
-    return _cachedFrame;
-  }
+  void dispose() => _maskOverlay.dispose();
 }
 
-/// 以输入字节的引用为键记住一次后台计算；输入换了才重算，过期请求的结果丢弃。
-class _BackgroundDerivation<V> {
-  _BackgroundDerivation(this._compute, this._onUpdated);
+/// 以蒙版字节的引用为键记住一次后台计算；蒙版换了才重算，过期请求的结果丢弃。
+class _MaskOverlayDerivation {
+  _MaskOverlayDerivation(this._compute, this._onUpdated);
 
-  final Future<V> Function(Uint8List input) _compute;
+  final MaskOverlayBuilder _compute;
   final VoidCallback _onUpdated;
 
   Uint8List? _input;
   int _generation = 0;
   bool _ready = false;
   bool _disposed = false;
-  V? _value;
-
-  bool isReadyFor(Uint8List input) => _ready && identical(input, _input);
+  Uint8List? _value;
 
   /// 返回 [input] 的结果；仍在计算时按 [keepStale] 给出上一次的结果或 null。
-  V? resolve(Uint8List input, {required bool keepStale}) {
+  Uint8List? resolve(Uint8List input, {required bool keepStale}) {
     if (!identical(input, _input)) {
       _start(input);
     }
@@ -238,7 +191,7 @@ class _BackgroundDerivation<V> {
       (value) => _complete(generation, value),
       onError: (Object error, StackTrace stackTrace) {
         AppLogger.e(
-          'Img2Img preview derivation failed',
+          'Img2Img mask overlay failed',
           error,
           stackTrace,
           'Img2ImgPreview',
@@ -248,7 +201,7 @@ class _BackgroundDerivation<V> {
     );
   }
 
-  void _complete(int generation, V? value) {
+  void _complete(int generation, Uint8List? value) {
     if (_disposed || generation != _generation) {
       return;
     }

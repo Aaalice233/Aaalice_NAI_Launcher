@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/comfyui/workflow_template.dart';
+import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
+import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/image_picker_card/image_picker_card.dart';
@@ -93,6 +95,14 @@ class Img2ImgSourceSection extends ConsumerWidget {
       fallbackWidth: workflow.sourceWidth,
       fallbackHeight: workflow.sourceHeight,
     );
+    final focusedInpaintEnabled =
+        workflow.isInpaint && workflow.focusedInpaintEnabled;
+    final maskExtent =
+        focusedInpaintEnabled &&
+            workflow.focusesOnMaskExtent &&
+            data.maskImage != null
+        ? ref.watch(focusedInpaintMaskExtentProvider)
+        : const AsyncData<FocusedInpaintMaskExtent?>(null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -131,8 +141,8 @@ class Img2ImgSourceSection extends ConsumerWidget {
             child: Img2ImgSourcePreview(
               sourceBytes: source,
               maskBytes: data.maskImage,
-              focusedInpaintEnabled:
-                  workflow.isInpaint && workflow.focusedInpaintEnabled,
+              maskExtent: maskExtent,
+              focusedInpaintEnabled: focusedInpaintEnabled,
               focusedSelectionRect: workflow.focusedSelectionRect,
               focusedContextCrop: workflow.focusedContextCrop,
               minimumContextMegaPixels: workflow.minimumContextMegaPixels,
