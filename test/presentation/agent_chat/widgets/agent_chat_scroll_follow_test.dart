@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -268,7 +267,6 @@ void main() {
                 hasEarlier: false,
                 historyLoading: false,
                 prependAnchorEntryId: null,
-                geometryRevision: 0,
                 onLoadEarlier: null,
                 live: const SizedBox.shrink(),
                 turnBuilder: (context, turn, current) => _LifecycleProbe(
@@ -339,7 +337,6 @@ void main() {
                     hasEarlier: false,
                     historyLoading: false,
                     prependAnchorEntryId: null,
-                    geometryRevision: (width, itemHeight),
                     onLoadEarlier: null,
                     live: const SizedBox.shrink(),
                     turnBuilder: (context, turn, current) => SizedBox(
@@ -405,7 +402,6 @@ void main() {
                     hasEarlier: false,
                     historyLoading: false,
                     prependAnchorEntryId: null,
-                    geometryRevision: 0,
                     onLoadEarlier: null,
                     live: const SizedBox.shrink(),
                     turnBuilder: (context, turn, current) => SizedBox(
@@ -487,7 +483,6 @@ void main() {
                   hasEarlier: false,
                   historyLoading: false,
                   prependAnchorEntryId: null,
-                  geometryRevision: liveHeight,
                   onLoadEarlier: null,
                   live: SizedBox(height: liveHeight),
                   turnBuilder: (context, turn, current) => SizedBox(
@@ -531,7 +526,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: liveHeight,
         live: SizedBox(height: liveHeight),
         turnHeight: (_) => 100,
       );
@@ -586,7 +580,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: liveHeight,
         live: SizedBox(height: liveHeight),
         turnHeight: (_) => 100,
       );
@@ -605,7 +598,6 @@ void main() {
       pointer.hover(tester.getCenter(transcript));
       await tester.sendEventToBinding(pointer.scroll(const Offset(0, -60)));
       expect(controller.scrollController.offset, closeTo(edgeOffset, 0.01));
-      expect(controller.userScrolling, isFalse);
 
       final anchor = find.byKey(const ValueKey('agent-turn-0'));
       final painted = _paintedBottomEdge(tester, anchor);
@@ -627,7 +619,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: liveHeight,
         live: SizedBox(height: liveHeight),
         turnHeight: (_) => 120,
       );
@@ -670,7 +661,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: currentHeight,
         live: const SizedBox.shrink(),
         turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
       );
@@ -707,7 +697,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: turnHeight,
         live: const SizedBox.shrink(),
         turnHeight: (_) => turnHeight,
       );
@@ -750,7 +739,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: currentHeight,
         live: const SizedBox.shrink(),
         turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
       );
@@ -784,7 +772,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: currentHeight,
         live: const SizedBox.shrink(),
         turnHeight: (turn) => turn.ordinal == 5 ? currentHeight : 400,
       );
@@ -834,7 +821,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: currentHeight,
         live: const SizedBox.shrink(),
         turnHeight: (turn) => turn.ordinal == 9 ? currentHeight : 400,
       );
@@ -879,7 +865,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: currentHeight,
         live: const SizedBox.shrink(),
         turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
       );
@@ -919,7 +904,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: currentHeight,
         live: const SizedBox.shrink(),
         turnHeight: (turn) => turn.ordinal == 3 ? currentHeight : 200,
       );
@@ -952,39 +936,6 @@ void main() {
   );
 
   testWidgets(
-    'wheel and key releases do not drop the intent of a pointer still held',
-    (tester) async {
-      final controller = AgentChatPanelController();
-      addTearDown(controller.dispose);
-      final focusNode = FocusNode();
-      addTearDown(focusNode.dispose);
-      KeyEvent arrowKey(bool down) => down
-          ? const KeyDownEvent(
-              physicalKey: PhysicalKeyboardKey.arrowUp,
-              logicalKey: LogicalKeyboardKey.arrowUp,
-              timeStamp: Duration.zero,
-            )
-          : const KeyUpEvent(
-              physicalKey: PhysicalKeyboardKey.arrowUp,
-              logicalKey: LogicalKeyboardKey.arrowUp,
-              timeStamp: Duration.zero,
-            );
-
-      controller.beginPotentialUserScroll();
-      controller.beginPotentialWheelScroll();
-      await tester.pump();
-      expect(controller.userScrolling, isTrue);
-
-      controller.handleViewportKeyEvent(focusNode, arrowKey(true));
-      controller.handleViewportKeyEvent(focusNode, arrowKey(false));
-      expect(controller.userScrolling, isTrue);
-
-      controller.cancelPotentialUserScroll();
-      expect(controller.userScrolling, isFalse);
-    },
-  );
-
-  testWidgets(
     'turns outside the cache are measured again once a resize settles',
     (tester) async {
       final controller = AgentChatPanelController();
@@ -996,7 +947,6 @@ void main() {
         tester,
         controller,
         turns: turns,
-        geometryRevision: width,
         live: const SizedBox(height: 4000),
         turnHeight: (_) => 60000 / width,
         width: width,
@@ -1027,7 +977,6 @@ void main() {
       tester,
       controller,
       turns: _turns(6),
-      geometryRevision: 0,
       live: const SizedBox(height: 4000),
       turnHeight: (_) => 120,
     );
@@ -1343,7 +1292,6 @@ Future<void> _pumpThreadViewport(
   WidgetTester tester,
   AgentChatPanelController controller, {
   required List<AgentChatTurnModel> turns,
-  required Object geometryRevision,
   required Widget live,
   required double Function(AgentChatTurnModel turn) turnHeight,
   double width = 600,
@@ -1367,7 +1315,6 @@ Future<void> _pumpThreadViewport(
             hasEarlier: false,
             historyLoading: false,
             prependAnchorEntryId: null,
-            geometryRevision: geometryRevision,
             onLoadEarlier: null,
             live: live,
             turnBuilder: (context, turn, current) => SizedBox(

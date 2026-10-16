@@ -32,7 +32,6 @@ class AgentChatThreadViewport extends StatefulWidget {
     required this.hasEarlier,
     required this.historyLoading,
     required this.prependAnchorEntryId,
-    required this.geometryRevision,
     required this.onLoadEarlier,
     required this.live,
     required this.turnBuilder,
@@ -47,7 +46,6 @@ class AgentChatThreadViewport extends StatefulWidget {
   final bool hasEarlier;
   final bool historyLoading;
   final String? prependAnchorEntryId;
-  final Object geometryRevision;
   final Future<void> Function()? onLoadEarlier;
   final Widget live;
   final AgentChatTurnBuilder turnBuilder;
