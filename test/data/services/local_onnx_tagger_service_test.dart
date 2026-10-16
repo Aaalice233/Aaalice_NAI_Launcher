@@ -291,12 +291,9 @@ void main() {
       expect(profile.layout, OnnxTensorLayout.nchw);
       expect(profile.lowersOpsetImports, isFalse);
       expect(profile.recommendedThresholds, {
-        OnnxTaggerLabelCategory.general: 0.17,
-        OnnxTaggerLabelCategory.character: 0.27,
         OnnxTaggerLabelCategory.copyright: 0.24,
         OnnxTaggerLabelCategory.artist: 0.15,
         OnnxTaggerLabelCategory.meta: 0.17,
-        OnnxTaggerLabelCategory.rating: 0.41,
       });
       expect(
         LocalOnnxTaggerService.debugSessionLoadModeForTesting(_pixaiDescriptor),

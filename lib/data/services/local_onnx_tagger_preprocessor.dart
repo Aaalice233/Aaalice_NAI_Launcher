@@ -107,12 +107,9 @@ class LocalOnnxTaggerPreprocessor {
         inputSize: 1008,
         outputActivation: OnnxTaggerOutputActivation.auto,
         recommendedThresholds: {
-          OnnxTaggerLabelCategory.general: 0.17,
-          OnnxTaggerLabelCategory.character: 0.27,
           OnnxTaggerLabelCategory.copyright: 0.24,
           OnnxTaggerLabelCategory.artist: 0.15,
           OnnxTaggerLabelCategory.meta: 0.17,
-          OnnxTaggerLabelCategory.rating: 0.41,
         },
         // 社区导出用到 opset 20 的 Gelu，降 opset 会让图失效
         lowersOpsetImports: false,
