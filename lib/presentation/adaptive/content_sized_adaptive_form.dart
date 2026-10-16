@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'adaptive_chrome_placement.dart';
+import 'adaptive_form_footer.dart';
 import 'adaptive_pinned_header_sliver.dart';
 
 /// A form body that follows its content until the presenter-imposed height cap
@@ -22,6 +23,7 @@ class ContentSizedAdaptiveForm extends StatelessWidget {
   final ScrollController? scrollController;
   final List<Widget> content;
 
+  /// Usually an [AdaptiveFormFooter]; it always gets the full form width.
   /// Omit when actions should scroll together with the content on short screens.
   final Widget? footer;
   final Key? scrollViewKey;
@@ -42,6 +44,7 @@ class ContentSizedAdaptiveForm extends StatelessWidget {
     }
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Flexible(
           fit: FlexFit.loose,
@@ -184,8 +187,11 @@ class _HostedHeaderFormState extends State<_HostedHeaderForm> {
     final footer = widget.footer == null
         ? null
         : probes.footer(KeyedSubtree(key: _footerKey, child: widget.footer!));
+    // A scrolling footer gets the full width from its sliver, so a fixed one
+    // must too, or switching placements would move its content.
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Flexible(
           fit: FlexFit.loose,
