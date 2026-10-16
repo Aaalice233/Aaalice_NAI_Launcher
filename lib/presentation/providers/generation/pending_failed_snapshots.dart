@@ -35,16 +35,15 @@ class PendingFailedSnapshots {
   /// 取出 [id] 的预留位置；位置已被 [discardAll] 丢弃时返回 `null`。
   Set<String>? take(String id) => _floors.remove(id);
 
-  /// 丢弃全部预留位置，仍在合成的快照落地时直接舍弃。
+  /// 仍在合成的快照落地时取不到位置，会被直接舍弃。
   void discardAll() => _floors.clear();
 
-  /// 登记一次落地任务；任务自身的异常照常交给所在 zone。
+  /// 落地任务的异常不在这里吞掉，照常交给所在 zone。
   void track(Future<void> landing) {
     _landings.add(landing);
     unawaited(landing.whenComplete(() => _landings.remove(landing)));
   }
 
-  /// 等待当前已登记的落地任务全部结束。
   Future<void> settled() {
     return Future.wait<void>([
       // 失败已经由 track 交给 zone，这里只等结束。
