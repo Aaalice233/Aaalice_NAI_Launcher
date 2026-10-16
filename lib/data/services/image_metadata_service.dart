@@ -398,7 +398,7 @@ class ImageMetadataService {
 
   /// 从字节数组获取元数据
   Future<NaiImageMetadata?> getMetadataFromBytes(Uint8List bytes) async {
-    final hash = _hashCalculator.calculateFromBytes(bytes);
+    final hash = await _hashCalculator.calculateFromBytesInBackground(bytes);
     return _withRecordedFixedTags(
       hash,
       await _resolveMetadataFromBytes(bytes, hash: hash),
@@ -460,7 +460,7 @@ class ImageMetadataService {
   Future<MetadataParseResult> getMetadataParseResultFromBytes(
     Uint8List bytes,
   ) async {
-    final hash = _hashCalculator.calculateFromBytes(bytes);
+    final hash = await _hashCalculator.calculateFromBytesInBackground(bytes);
     final cached =
         _cacheManager.getFromMemory(hash) ??
         await _cacheManager.getFromPersistent(hash);
