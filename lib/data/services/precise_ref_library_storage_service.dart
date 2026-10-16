@@ -161,33 +161,6 @@ class PreciseRefLibraryStorageService {
   }
 
   /// Imports a portable record with stable identity and transactional rollback.
-  Future<PreciseRefLibraryEntry> importPortableEntry(
-    Uint8List bytes, {
-    required String id,
-    required String name,
-    required PreciseRefType type,
-    required double strength,
-    required double fidelity,
-    required bool isFavorite,
-    required int usedCount,
-    required DateTime? lastUsedAt,
-    required DateTime createdAt,
-  }) async {
-    return importPortableEntryStream(
-      Stream.value(bytes),
-      expectedLength: bytes.length,
-      id: id,
-      name: name,
-      type: type,
-      strength: strength,
-      fidelity: fidelity,
-      isFavorite: isFavorite,
-      usedCount: usedCount,
-      lastUsedAt: lastUsedAt,
-      createdAt: createdAt,
-    );
-  }
-
   Future<PreciseRefLibraryEntry> importPortableEntryStream(
     Stream<List<int>> bytes, {
     required int expectedLength,

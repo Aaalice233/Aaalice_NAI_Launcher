@@ -8,12 +8,17 @@ import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
 import '../../core/enums/precise_ref_type.dart';
+import '../../core/utils/app_logger.dart';
+import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/zip_archive_entry.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
 import 'precise_ref_library_storage_service.dart';
 
 class PreciseRefLibraryArchiveService {
-  const PreciseRefLibraryArchiveService(this._storage);
+  const PreciseRefLibraryArchiveService(
+    this._storage, {
+    String? stagingRootPath,
+  }) : _stagingRootPath = stagingRootPath;
 
   static const extension = 'naipreciseref';
   static const _format = 'nai-precise-reference-library';
@@ -24,6 +29,7 @@ class PreciseRefLibraryArchiveService {
   static const _maxImageBytes = 128 * 1024 * 1024;
 
   final PreciseRefLibraryStorageService _storage;
+  final String? _stagingRootPath;
 
   Future<void> exportToPath({
     required List<PreciseRefLibraryEntry> entries,
@@ -115,24 +121,32 @@ class PreciseRefLibraryArchiveService {
   Future<List<PreciseRefLibraryEntry>> importFromPath(
     String archivePath,
   ) async {
-    final manifest = await _preflight(archivePath);
-    final imported = <PreciseRefLibraryEntry>[];
-    final input = InputFileStream(archivePath);
-    late final Archive archive;
+    final staging = await _createStagingDirectory();
     try {
-      archive = ZipDecoder().decodeBuffer(input);
-      final byName = {for (final file in archive.files) file.name: file};
-      for (final record in manifest) {
-        final resource = record.resource;
-        final archiveFile = byName[resource];
-        if (archiveFile == null) {
-          throw FormatException(
-            'Missing precise reference resource: $resource',
-          );
-        }
-        final bytes = _bytes(archiveFile);
-        final entry = await _storage.importPortableEntry(
-          bytes,
+      final staged = await ComputeGate().runCompute(
+        _stageVerifiedResources,
+        _ArchiveStagingRequest(
+          archivePath: archivePath,
+          stagingPath: staging.path,
+        ),
+        debugLabel: 'precise-ref-archive-import',
+      );
+      return await _importStaged(staged);
+    } finally {
+      await _deleteStagingDirectory(staging);
+    }
+  }
+
+  Future<List<PreciseRefLibraryEntry>> _importStaged(
+    List<_StagedResource> staged,
+  ) async {
+    final imported = <PreciseRefLibraryEntry>[];
+    try {
+      for (final resource in staged) {
+        final record = resource.record;
+        final entry = await _storage.importPortableEntryStream(
+          File(resource.path).openRead(),
+          expectedLength: record.length,
           id: const Uuid().v4(),
           name: record.name,
           type: record.type,
@@ -144,7 +158,6 @@ class PreciseRefLibraryArchiveService {
           createdAt: record.createdAt,
         );
         imported.add(entry);
-        archiveFile.clear();
       }
       return imported;
     } catch (_) {
@@ -152,55 +165,41 @@ class PreciseRefLibraryArchiveService {
         await _storage.deleteEntry(entry.id);
       }
       rethrow;
-    } finally {
-      await input.close();
     }
   }
 
-  Future<List<_ArchiveRecord>> _preflight(String archivePath) async {
-    final input = InputFileStream(archivePath);
-    late final Archive archive;
+  Future<Directory> _createStagingDirectory() async {
+    final rootPath = _stagingRootPath;
+    final root = rootPath == null
+        ? Directory.systemTemp
+        : await Directory(rootPath).create(recursive: true);
+    return root.createTemp('precise_ref_import_');
+  }
+
+  static Future<void> _deleteStagingDirectory(Directory staging) async {
     try {
-      archive = ZipDecoder().decodeBuffer(input);
-      if (archive.files.isEmpty) {
-        throw const FormatException('Invalid precise reference archive size');
-      }
-      final names = <String>{};
-      for (final file in archive.files) {
-        if (file.isSymbolicLink || !_isSafePath(file.name)) {
-          throw FormatException(
-            'Unsafe precise reference archive path: ${file.name}',
-          );
-        }
-        if (isZipDirectoryEntry(file)) continue;
-        if (!names.add(file.name.toLowerCase())) {
-          throw FormatException(
-            'Duplicate precise reference archive path: ${file.name}',
-          );
-        }
-        // 目录项不占额度，上限只约束清单加资源文件
-        if (names.length > _maxEntries + 1) {
-          throw const FormatException('Invalid precise reference archive size');
-        }
-      }
-      final manifestFile = archive.findFile(_manifestPath);
-      if (manifestFile == null || manifestFile.size > _maxManifestBytes) {
-        throw const FormatException('Invalid precise reference manifest');
-      }
-      final decoded = jsonDecode(utf8.decode(_bytes(manifestFile)));
-      if (decoded is! Map<String, dynamic> ||
-          decoded['format'] != _format ||
-          decoded['version'] != _version ||
-          decoded['entries'] is! List) {
-        throw const FormatException('Unsupported precise reference archive');
-      }
-      final rawEntries = decoded['entries']! as List;
-      if (rawEntries.isEmpty || rawEntries.length > _maxEntries) {
-        throw const FormatException('Invalid precise reference entry count');
-      }
-      final records = rawEntries.map(_ArchiveRecord.parse).toList();
+      if (await staging.exists()) await staging.delete(recursive: true);
+    } on FileSystemException catch (error) {
+      // 暂存副本只是导入中转，清理失败不能改写已经确定的导入结果
+      AppLogger.w(
+        'Failed to delete precise reference import staging: $error',
+        'PreciseRefLibrary',
+      );
+    }
+  }
+
+  // 按路径在后台读取并落盘暂存，只回传清单与路径，整档字节不跨 isolate 复制
+  static Future<List<_StagedResource>> _stageVerifiedResources(
+    _ArchiveStagingRequest request,
+  ) async {
+    final input = InputFileStream(request.archivePath);
+    try {
+      final archive = ZipDecoder().decodeBuffer(input);
+      final fileCount = _countSafeFiles(archive);
+      final records = _manifestRecords(archive);
       final resources = <String>{};
       final byName = {for (final file in archive.files) file.name: file};
+      final staged = <_StagedResource>[];
       for (final record in records) {
         if (!resources.add(record.resource) ||
             !_isSafeResource(record.resource)) {
@@ -224,17 +223,64 @@ class PreciseRefLibraryArchiveService {
             'Precise reference checksum mismatch: ${record.resource}',
           );
         }
+        final path = p.join(request.stagingPath, '${staged.length}.resource');
+        await File(path).writeAsBytes(bytes);
+        staged.add(_StagedResource(record: record, path: path));
         file.clear();
       }
-      if (names.length != resources.length + 1) {
+      if (fileCount != resources.length + 1) {
         throw const FormatException(
           'Unexpected files in precise reference archive',
         );
       }
-      return records;
+      return staged;
     } finally {
       await input.close();
     }
+  }
+
+  static int _countSafeFiles(Archive archive) {
+    if (archive.files.isEmpty) {
+      throw const FormatException('Invalid precise reference archive size');
+    }
+    final names = <String>{};
+    for (final file in archive.files) {
+      if (file.isSymbolicLink || !_isSafePath(file.name)) {
+        throw FormatException(
+          'Unsafe precise reference archive path: ${file.name}',
+        );
+      }
+      if (isZipDirectoryEntry(file)) continue;
+      if (!names.add(file.name.toLowerCase())) {
+        throw FormatException(
+          'Duplicate precise reference archive path: ${file.name}',
+        );
+      }
+      // 目录项不占额度，上限只约束清单加资源文件
+      if (names.length > _maxEntries + 1) {
+        throw const FormatException('Invalid precise reference archive size');
+      }
+    }
+    return names.length;
+  }
+
+  static List<_ArchiveRecord> _manifestRecords(Archive archive) {
+    final manifestFile = archive.findFile(_manifestPath);
+    if (manifestFile == null || manifestFile.size > _maxManifestBytes) {
+      throw const FormatException('Invalid precise reference manifest');
+    }
+    final decoded = jsonDecode(utf8.decode(_bytes(manifestFile)));
+    if (decoded is! Map<String, dynamic> ||
+        decoded['format'] != _format ||
+        decoded['version'] != _version ||
+        decoded['entries'] is! List) {
+      throw const FormatException('Unsupported precise reference archive');
+    }
+    final rawEntries = decoded['entries']! as List;
+    if (rawEntries.isEmpty || rawEntries.length > _maxEntries) {
+      throw const FormatException('Invalid precise reference entry count');
+    }
+    return rawEntries.map(_ArchiveRecord.parse).toList();
   }
 
   static Uint8List _bytes(ArchiveFile file) {
@@ -266,6 +312,23 @@ class PreciseRefLibraryArchiveService {
         r'^images/[0-9a-f-]+\.(png|jpe?g|webp|gif|bmp)$',
         caseSensitive: false,
       ).hasMatch(value);
+}
+
+class _ArchiveStagingRequest {
+  const _ArchiveStagingRequest({
+    required this.archivePath,
+    required this.stagingPath,
+  });
+
+  final String archivePath;
+  final String stagingPath;
+}
+
+class _StagedResource {
+  const _StagedResource({required this.record, required this.path});
+
+  final _ArchiveRecord record;
+  final String path;
 }
 
 class _ArchiveRecord {
