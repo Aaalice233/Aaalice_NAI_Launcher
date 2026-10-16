@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:archive/archive_io.dart' hide ZLibDecoder;
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
+
+import '../../../core/utils/isolate_pool.dart';
 
 const dlssRuntimeFiles = {
   'nvngx_dlssnr.dll',
@@ -17,8 +18,9 @@ Future<Map<String, String>> extractDlssRuntimeIsolated(
   String destination,
   int expectedBytes,
   String expectedHash,
-) => Isolate.run(
+) => ComputeGate().runIsolate(
   () => extractDlssRuntime(zipPath, destination, expectedBytes, expectedHash),
+  debugName: 'dlss-runtime-extract',
 );
 
 /// Runs in an isolate: only allowlisted basenames ever become output paths.
