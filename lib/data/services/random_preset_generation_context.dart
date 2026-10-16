@@ -84,13 +84,6 @@ class RandomPresetGenerationContext {
     return value == null || value.isEmpty ? const [] : [value];
   }
 
-  String firstValueFor(String key) {
-    if (key == characterCountReference) return '$characterCount';
-    final values = categoryTags[key];
-    return variables[key] ??
-        (values == null || values.isEmpty ? '' : values.first);
-  }
-
   RandomPresetGenerationContext forCharacter(String gender) {
     return RandomPresetGenerationContext(
       generationTime: generationTime,

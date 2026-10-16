@@ -72,12 +72,6 @@ class DependencyConfig with _$DependencyConfig {
     return (min, max);
   }
 
-  /// 根据源值获取结果
-  ///
-  /// [sourceValue] 源类别的值（数量或标签名）
-  String? getResult(String sourceValue) =>
-      _matchMapping(sourceValue) ?? defaultValue;
-
   /// 按源的结果查映射，都没有匹配时使用默认值
   ///
   /// 数量依赖先按 [sourceCount] 匹配；随后与值依赖一样取第一个有映射的
@@ -134,13 +128,6 @@ class DependencyConfig with _$DependencyConfig {
 
     return null;
   }
-
-  /// 根据源值获取数量范围
-  ///
-  /// [sourceValue] 源类别的值
-  /// [randomInt] 随机数生成函数
-  int getCount(String sourceValue, int Function() randomInt) =>
-      getCountForResult(getResult(sourceValue), randomInt);
 
   /// 把映射结果（如 "0-3"）换算为选取数量，没有结果时为 0
   int getCountForResult(String? result, int Function() randomInt) {
