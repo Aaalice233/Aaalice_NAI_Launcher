@@ -101,6 +101,10 @@ class MetadataCacheManager {
     }
   }
 
+  /// 依次查 L1、L2，L2 命中会放入 L1
+  Future<NaiImageMetadata?> lookup(String hash) async =>
+      getFromMemory(hash) ?? await getFromPersistent(hash);
+
   /// 保存到两级缓存
   Future<void> save(String hash, NaiImageMetadata metadata) async {
     final raw = MetadataCacheEntryCodec.encode(

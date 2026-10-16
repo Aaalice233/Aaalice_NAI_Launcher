@@ -85,7 +85,7 @@ class FileImageDetailData implements ImageDetailData {
   ///
   /// 读取在途时重复调用共享同一次读取，等待方超时放弃后读取照常完成。
   Future<void> prefetchMetadata() {
-    if (_knownMetadata != null) return Future.value();
+    if (_resolvedMetadata != null) return Future.value();
     return _pendingPrefetch ??= _readPrefetch().whenComplete(
       () => _pendingPrefetch = null,
     );
@@ -105,10 +105,12 @@ class FileImageDetailData implements ImageDetailData {
     }
   }
 
+  // 不碰磁盘就已知的元数据；异步路径只看它，L1 留给异步读取去查，免得在 UI isolate 上同步 stat
+  NaiImageMetadata? get _resolvedMetadata =>
+      _initialMetadata ?? _prefetchedMetadata;
+
   NaiImageMetadata? get _knownMetadata =>
-      _initialMetadata ??
-      _prefetchedMetadata ??
-      ImageMetadataService().getCached(filePath);
+      _resolvedMetadata ?? ImageMetadataService().getCached(filePath);
 
   /// 同步获取元数据（初始传入、预取结果、L1 缓存依次兜底）
   @override
@@ -130,30 +132,20 @@ class FileImageDetailData implements ImageDetailData {
       'FileImageDetailData',
     );
 
-    // 1. 先检查初始元数据
-    if (_initialMetadata != null) {
+    final resolved = _resolvedMetadata;
+    if (resolved != null) {
       AppLogger.i(
-        '[MetadataFlow] Returning initial metadata',
+        '[MetadataFlow] Returning resolved metadata: hasData=${resolved.hasData}',
         'FileImageDetailData',
       );
-      return _initialMetadata;
+      return resolved;
     }
 
-    // 2. 检查预取结果与缓存
-    final cached = _knownMetadata;
-    if (cached != null) {
-      AppLogger.i(
-        '[MetadataFlow] Returning cached metadata: hasData=${cached.hasData}',
-        'FileImageDetailData',
-      );
-      return cached;
-    }
-
-    // 3. 预取还在读 L2 时接着等它，不并行再读一次
+    // 预取还在读缓存时接着等它，不并行再读一次
     final pending = _pendingPrefetch;
     if (pending != null) {
       await pending;
-      final prefetched = _knownMetadata;
+      final prefetched = _prefetchedMetadata;
       if (prefetched != null) {
         AppLogger.i(
           '[MetadataFlow] Returning prefetched metadata: hasData=${prefetched.hasData}',
@@ -163,9 +155,9 @@ class FileImageDetailData implements ImageDetailData {
       }
     }
 
-    // 4. 前台高优先级解析
+    // 按内容哈希先查 L1、L2，未命中再前台高优先级解析
     AppLogger.i(
-      '[MetadataFlow] No cache, calling getMetadataImmediate...',
+      '[MetadataFlow] Not resolved yet, calling getMetadataImmediate...',
       'FileImageDetailData',
     );
     final result = await ImageMetadataService().getMetadataImmediate(filePath);

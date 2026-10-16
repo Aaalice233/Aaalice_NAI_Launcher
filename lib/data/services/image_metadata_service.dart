@@ -199,22 +199,10 @@ class ImageMetadataService {
     ParseCancelToken? cancelToken,
   }) async {
     final hash = hashed.hash;
-    final stopwatch = Stopwatch()..start();
-
-    // 检查 L1 内存缓存
-    final memoryCached = _cacheManager.getFromMemory(hash);
-    if (memoryCached != null) {
-      stopwatch.stop();
+    final cached = await _cacheManager.lookup(hash);
+    if (cached != null) {
       _statistics.recordCacheHit();
-      return memoryCached;
-    }
-
-    // 检查 L2 持久化缓存
-    final persistentCached = await _cacheManager.getFromPersistent(hash);
-    if (persistentCached != null) {
-      stopwatch.stop();
-      _statistics.recordCacheHit();
-      return persistentCached;
+      return cached;
     }
 
     // 检查是否有正在进行的解析
@@ -247,15 +235,12 @@ class ImageMetadataService {
     _activeTimeouts[hash] = timeoutTimer;
 
     try {
-      // 执行解析
       final result = await _parseAndCache(
         path,
         hashed: hashed,
         cancelToken: cancelToken,
         isHighPriority: true,
       );
-
-      stopwatch.stop();
 
       if (!taskCompleter.isCompleted) {
         taskCompleter.complete(result);
@@ -317,18 +302,10 @@ class ImageMetadataService {
     final hash = hashed.hash;
     final stopwatch = Stopwatch()..start();
 
-    // 检查 L1 内存缓存
-    final memoryCached = _cacheManager.getFromMemory(hash);
-    if (memoryCached != null) {
+    final cached = await _cacheManager.lookup(hash);
+    if (cached != null) {
       _statistics.recordCacheHit();
-      return memoryCached;
-    }
-
-    // 检查 L2 持久化缓存
-    final persistentCached = await _cacheManager.getFromPersistent(hash);
-    if (persistentCached != null) {
-      _statistics.recordCacheHit();
-      return persistentCached;
+      return cached;
     }
 
     // 检查是否有正在进行的解析
@@ -411,15 +388,8 @@ class ImageMetadataService {
     Uint8List bytes, {
     required String hash,
   }) async {
-    // 检查 L1 内存缓存
-    final memoryCached = _cacheManager.getFromMemory(hash);
-    if (memoryCached != null) return memoryCached;
-
-    // 检查 L2 持久化缓存
-    final persistentCached = await _cacheManager.getFromPersistent(hash);
-    if (persistentCached != null) {
-      return persistentCached;
-    }
+    final cached = await _cacheManager.lookup(hash);
+    if (cached != null) return cached;
 
     // 检查是否有正在进行的解析
     final existingTask = _pendingTasks[hash];
@@ -463,9 +433,7 @@ class ImageMetadataService {
     Uint8List bytes,
   ) async {
     final hash = await _hashCalculator.calculateFromBytesInBackground(bytes);
-    final cached =
-        _cacheManager.getFromMemory(hash) ??
-        await _cacheManager.getFromPersistent(hash);
+    final cached = await _cacheManager.lookup(hash);
     if (cached != null) {
       return MetadataParseResult.success(
         _withRecordedFixedTags(hash, cached)!,
@@ -524,12 +492,9 @@ class ImageMetadataService {
 
   /// 依次查 L1、L2，不解析文件；L2 命中会放入 L1，之后 [getCached] 可同步取到
   Future<NaiImageMetadata?> getCachedAsync(String path) async {
-    final hash = _hashCalculator.verifiedHashForPathSync(path);
+    final hash = await _hashCalculator.verifiedHashForPath(path);
     if (hash == null) return null;
-    final metadata =
-        _cacheManager.getFromMemory(hash) ??
-        await _cacheManager.getFromPersistent(hash);
-    return _withRecordedFixedTags(hash, metadata);
+    return _withRecordedFixedTags(hash, await _cacheManager.lookup(hash));
   }
 
   /// 清除 L1 与路径哈希缓存；L2 保留
