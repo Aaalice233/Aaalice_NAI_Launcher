@@ -44,26 +44,21 @@ abstract final class ReplicationTaskGenerationSnapshot {
   // 低于此长度的 base64 转换不足 0.1ms，不值得启动 isolate 和排队等闸门
   static const int _inlinePayloadLimit = 64 * 1024;
 
-  static Future<Map<String, dynamic>> clone(
-    Map<String, dynamic> snapshot, {
-    ComputeGate? gate,
-  }) => _convert(
-    _storedPayloadLength(snapshot),
-    () => _clone(snapshot),
-    gate: gate,
-    debugName: 'ReplicationSnapshot.clone',
-  );
+  static Future<Map<String, dynamic>> clone(Map<String, dynamic> snapshot) =>
+      _convert(
+        _storedPayloadLength(snapshot),
+        () => _clone(snapshot),
+        debugName: 'ReplicationSnapshot.clone',
+      );
 
   static Future<Map<String, dynamic>> withTaskText(
     Map<String, dynamic> snapshot, {
     required String prompt,
     required String negativePrompt,
-    ComputeGate? gate,
   }) => _convert(
     _storedPayloadLength(snapshot),
     () =>
         _withTaskText(snapshot, prompt: prompt, negativePrompt: negativePrompt),
-    gate: gate,
     debugName: 'ReplicationSnapshot.withTaskText',
   );
 
@@ -80,21 +75,16 @@ abstract final class ReplicationTaskGenerationSnapshot {
     debugName: 'ReplicationSnapshot.encode',
   );
 
-  static Future<ImageParams> decode(
-    Map<String, dynamic> snapshot, {
-    ComputeGate? gate,
-  }) => _convert(
+  static Future<ImageParams> decode(Map<String, dynamic> snapshot) => _convert(
     _storedPayloadLength(snapshot),
     () => _decodeChecked(snapshot),
-    gate: gate,
     debugName: 'ReplicationSnapshot.decode',
   );
 
   /// 每个快照按 `utf8.encode(jsonEncode(snapshot)).length` 计的持久化字节数，顺序与入参一致
   static Future<List<int>> measurePersistedBytes(
-    List<Map<String, dynamic>> snapshots, {
-    ComputeGate? gate,
-  }) => (gate ?? ComputeGate()).runIsolate(
+    List<Map<String, dynamic>> snapshots,
+  ) => ComputeGate().runIsolate(
     () => [
       for (final snapshot in snapshots) JsonUtf8Stream.byteLength(snapshot),
     ],
@@ -104,8 +94,8 @@ abstract final class ReplicationTaskGenerationSnapshot {
   static Future<T> _convert<T>(
     int payloadLength,
     T Function() conversion, {
-    required ComputeGate? gate,
     required String debugName,
+    ComputeGate? gate,
   }) => payloadLength < _inlinePayloadLimit
       ? Future.sync(conversion)
       : (gate ?? ComputeGate()).runIsolate(conversion, debugName: debugName);
