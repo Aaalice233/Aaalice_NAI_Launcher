@@ -14,6 +14,7 @@ import 'package:nai_launcher/data/services/statistics_cache_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/screens/statistics/statistics_screen.dart';
 import 'package:nai_launcher/presentation/screens/statistics/statistics_state.dart';
+import 'package:nai_launcher/presentation/widgets/app_branch_visibility.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockDatabaseManager extends Mock implements DatabaseManager {}
@@ -79,7 +80,7 @@ void main() {
   testWidgets('gallery writes refresh the open page once per burst', (
     tester,
   ) async {
-    await _show(tester, container, open: true);
+    await _show(tester, container, visible: true);
     expect(queries, 1);
     expect(find.text('1234'), findsOneWidget);
 
@@ -99,7 +100,7 @@ void main() {
   testWidgets('a write landing mid-query leads to exactly one more reload', (
     tester,
   ) async {
-    await _show(tester, container, open: true);
+    await _show(tester, container, visible: true);
     final slowQuery = Completer<GalleryDashboardSnapshot>();
     heldQuery = slowQuery;
 
@@ -122,7 +123,7 @@ void main() {
   testWidgets('a reload due while a query runs waits for it, then reloads', (
     tester,
   ) async {
-    await _show(tester, container, open: true);
+    await _show(tester, container, visible: true);
     final slowQuery = Completer<GalleryDashboardSnapshot>();
     heldQuery = slowQuery;
 
@@ -139,10 +140,10 @@ void main() {
     expect(find.text('42'), findsOneWidget);
   });
 
-  testWidgets('closing the page while a due reload waits cancels that reload', (
+  testWidgets('hiding the page while a due reload waits cancels that reload', (
     tester,
   ) async {
-    await _show(tester, container, open: true);
+    await _show(tester, container, visible: true);
     final slowQuery = Completer<GalleryDashboardSnapshot>();
     heldQuery = slowQuery;
 
@@ -151,49 +152,50 @@ void main() {
     totalImages = 42;
     cacheManager.invalidateStatistics();
     await tester.pump(StatisticsNotifier.galleryChangeDebounce * 2);
-    await _show(tester, container, open: false);
+    await _show(tester, container, visible: false);
     slowQuery.complete(_snapshot(1234));
     await tester.pumpAndSettle();
-    expect(queries, 2, reason: 'no reload once the page is gone');
+    expect(queries, 2, reason: 'no reload once the page is hidden');
 
-    await _show(tester, container, open: true);
+    await _show(tester, container, visible: true);
     expect(queries, 3);
     expect(find.text('42'), findsOneWidget);
   });
 
-  testWidgets('an unmounted page neither reloads nor misses the change', (
+  testWidgets('a hidden page neither reloads nor misses the change', (
     tester,
   ) async {
-    await _show(tester, container, open: true);
+    await _show(tester, container, visible: true);
     expect(queries, 1);
 
     totalImages = 5678;
     cacheManager.invalidateStatistics();
-    await _show(tester, container, open: false);
+    await _show(tester, container, visible: false);
     await tester.pump(StatisticsNotifier.galleryChangeDebounce * 2);
     cacheManager.invalidateStatistics();
     await tester.pump(StatisticsNotifier.galleryChangeDebounce * 2);
 
-    expect(queries, 1, reason: 'no reload while the page is closed');
+    expect(queries, 1, reason: 'no reload while the page is hidden');
     expect(
       container.read(statisticsNotifierProvider).statistics!.totalImages,
       1234,
     );
 
-    await _show(tester, container, open: true);
-    expect(queries, 2, reason: 'reopening catches up once');
+    await _show(tester, container, visible: true);
+    expect(queries, 2, reason: 'showing it again catches up once');
     expect(find.text('5678'), findsOneWidget);
   });
 
-  testWidgets('the page opened after an unchanged gallery does not reload', (
-    tester,
-  ) async {
-    await _show(tester, container, open: true);
-    await _show(tester, container, open: false);
-    await _show(tester, container, open: true);
+  testWidgets(
+    'showing the page again after an unchanged gallery does not reload',
+    (tester) async {
+      await _show(tester, container, visible: true);
+      await _show(tester, container, visible: false);
+      await _show(tester, container, visible: true);
 
-    expect(queries, 1);
-  });
+      expect(queries, 1);
+    },
+  );
 
   test('the invalidation listener lives exactly as long as the notifier', () {
     final before = cacheManager.debugStatisticsListenerCount;
@@ -211,7 +213,7 @@ void main() {
 Future<void> _show(
   WidgetTester tester,
   ProviderContainer container, {
-  required bool open,
+  required bool visible,
 }) async {
   tester.view.physicalSize = const Size(1180, 900);
   tester.view.devicePixelRatio = 1;
@@ -222,9 +224,6 @@ Future<void> _show(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        // A fresh app per call really unmounts or remounts the page, while the
-        // container above keeps the notifier alive.
-        key: UniqueKey(),
         locale: const Locale('en'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
@@ -232,9 +231,11 @@ Future<void> _show(
           data: MediaQuery.of(context).copyWith(disableAnimations: true),
           child: child!,
         ),
-        home: open
-            ? const StatisticsScreen()
-            : const Scaffold(body: SizedBox.shrink()),
+        // Shell branches stay mounted while hidden and only flip visibility.
+        home: AppBranchVisibility(
+          isVisible: visible,
+          child: const StatisticsScreen(),
+        ),
       ),
     ),
   );

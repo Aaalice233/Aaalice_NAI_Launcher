@@ -98,13 +98,13 @@ void main() {
   // One test on purpose: ScanStateManager is a process-wide singleton whose
   // Hive box would outlive the per-test Hive.close() between two tests.
   test(
-    'scans refresh the open statistics and leave closed ones stale',
+    'scans refresh the visible statistics and leave hidden ones stale',
     () async {
       final notifier = container.read(statisticsNotifierProvider.notifier);
       await notifier.whenLoaded();
       expect(totalImages(), 0);
 
-      // Page closed: the scan is only remembered.
+      // Page hidden: the scan is only remembered.
       await _writePng(galleryDir, 'a.png', size: 2);
       await scanner.startScanning(galleryDir);
       await Future<void>.delayed(StatisticsNotifier.galleryChangeDebounce * 2);
@@ -112,9 +112,8 @@ void main() {
       await notifier.whenLoaded();
       expect(totalImages(), 1);
 
-      // Page open: the scan refreshes by itself after the debounce.
-      final page = container.listen(statisticsNotifierProvider, (_, _) {});
-      addTearDown(page.close);
+      // Page visible: the scan refreshes by itself after the debounce.
+      await notifier.setVisible(true);
       await _writePng(galleryDir, 'b.png', size: 3);
       await scanner.startScanning(galleryDir);
       expect(totalImages(), 1, reason: 'the reload waits out the debounce');
