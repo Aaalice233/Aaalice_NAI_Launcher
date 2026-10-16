@@ -67,7 +67,7 @@ class ImageSaveAsWorkflow {
         source,
         directory: directory,
         naming: naming,
-        index: positions[source],
+        index: positions[source]!,
       ),
     );
     for (final failure in result.failures.values) {

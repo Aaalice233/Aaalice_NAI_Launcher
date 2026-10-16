@@ -216,6 +216,25 @@ void main() {
       expect(picker.saveRequests.single.allowedExtensions, ['png']);
     });
 
+    test('numbers a single unsaved image as the first one', () async {
+      final picker = FakeSaveFilePicker(
+        savePath: p.join(exportDirectory.path, 'picked.png'),
+      );
+      useFakeFilePicker(picker);
+
+      await ImageSaveAsService.saveOne(
+        ImageSaveAsSource(
+          bytes: plainPng,
+          metadata: seededMetadata,
+          createdAt: now,
+        ),
+        dialogTitle: 'Save image as',
+        naming: const ImageSaveNaming(fileNameTemplate: '{date}_{index|pad:3}'),
+      );
+
+      expect(picker.saveRequests.single.fileName, '2026-09-26_001.png');
+    });
+
     test('suggests the gallery file name for saved images', () async {
       final galleryFile = await File(
         p.join(galleryDirectory.path, '06-00-00-6.png'),
