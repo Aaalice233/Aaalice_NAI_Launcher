@@ -149,8 +149,14 @@ void main() {
         ],
       );
 
-      expect(() => DibBitmapCodec.toBmpFile(rle), throwsFormatException);
-      expect(() => DibBitmapCodec.toBmpFile(twoBit), throwsFormatException);
+      expect(
+        () => DibBitmapCodec.toBmpFile(rle),
+        _throwsFormatMessage('Unsupported CF_DIB compression'),
+      );
+      expect(
+        () => DibBitmapCodec.toBmpFile(twoBit),
+        _throwsFormatMessage('Unsupported CF_DIB bit count'),
+      );
     });
 
     test('rejects geometry beyond the pixel budget before decoding', () {
@@ -166,7 +172,10 @@ void main() {
         ..setInt32(4, 1 << 16, Endian.little)
         ..setInt32(8, 1 << 16, Endian.little);
 
-      expect(() => DibBitmapCodec.toBmpFile(dib), throwsFormatException);
+      expect(
+        () => DibBitmapCodec.toBmpFile(dib),
+        _throwsFormatMessage('exceeds ${DibBitmapCodec.maxPixelCount} pixels'),
+      );
     });
 
     test('rejects data shorter than the header', () {
@@ -208,6 +217,11 @@ Uint8List _dib({
     ...pixels,
   ]);
 }
+
+// 后续校验也会因同一份数据抛 FormatException，按消息区分是哪一项拒绝。
+Matcher _throwsFormatMessage(String reason) => throwsA(
+  isA<FormatException>().having((e) => e.message, 'message', contains(reason)),
+);
 
 List<int> _bgrx(int r, int g, int b) => [b, g, r, 0];
 
