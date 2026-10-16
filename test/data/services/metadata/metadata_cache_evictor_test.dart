@@ -160,75 +160,43 @@ void main() {
     expect(box.reads, 0);
   });
 
-  test('evicts the same entries as the whole-box selection', () async {
+  test('reads one value at a time and breaks write-time ties by key', () async {
     final box = _CountingLazyBox(await openCache());
-    // 大小不一、写入时间有并列也有旧格式，覆盖排序的每个分支
-    final rawByKey = <String, String>{
-      for (var index = 0; index < 60; index++)
-        _hash(index): index % 7 == 0
-            ? jsonEncode({'prompt': 'legacy $index, ' * (20 + index)})
-            : MetadataCacheEntryCodec.encode(
-                jsonEncode({'prompt': 'entry $index, ' * (10 + index % 13)}),
-                writtenAtMillis: 1000 + index ~/ 3,
-              ),
+    // 条目等长，淘汰个数只取决于目标水位；水位切在写入时间并列的 2 与 8 之间
+    const writtenAtByIndex = {
+      0: 3000,
+      1: 1000,
+      2: 1500,
+      3: 9000,
+      4: 4000,
+      5: 1000,
+      6: 6000,
+      7: 7000,
+      8: 1500,
+      9: 9500,
+      10: 9800,
+      11: 9900,
     };
-    await box.putAll({...rawByKey, _versionKey: '8'});
+    await _seed(box, writtenAtByIndex);
     await box.compact();
     final live = await MetadataCacheEvictor.fileBytes(box);
-    final target = live * 2 ~/ 3;
-    final expectedVictims = _wholeBoxVictims(
-      rawByKey,
-      liveBytes: live,
-      targetBytes: target,
-    );
+    final total = writtenAtByIndex.length;
+    const victims = 3;
+    final target = (live * (1 - (victims - 0.5) / total)).floor();
 
     final result = await const MetadataCacheEvictor(
       batchSize: 7,
     ).evictToTarget(box, targetBytes: target);
 
-    final evictedKeys = {
-      for (final key in rawByKey.keys)
-        if (!box.containsKey(key)) key,
-    };
-    expect(evictedKeys, expectedVictims);
-    expect(result.evictedEntries, expectedVictims.length);
-    expect(result.scannedEntries, rawByKey.length);
+    final remaining = _remainingIndexes(box, writtenAtByIndex.keys);
+    expect(writtenAtByIndex.keys.toSet().difference(remaining), {1, 5, 2});
+    expect(result.evictedEntries, victims);
+    expect(result.scannedEntries, total);
     expect(result.bytesAfter, lessThanOrEqualTo(target));
-    // 值逐条读取、读完即弃：扫描每条读一次，删除前每个待删条目复核一次
-    expect(box.reads, rawByKey.length + expectedVictims.length);
+    // 扫描每条读一次，删除前每个待删条目复核一次
+    expect(box.reads, total + victims);
     expect(box.maxReadsInFlight, 1);
   });
-}
-
-/// 旧实现的选取规则：按写入时间（并列按键）从旧到新累计权重，直到释放量达标
-Set<String> _wholeBoxVictims(
-  Map<String, String> rawByKey, {
-  required int liveBytes,
-  required int targetBytes,
-}) {
-  const frameOverheadBytes = 15;
-  final entries = [
-    for (final entry in rawByKey.entries)
-      (
-        key: entry.key,
-        writtenAt: MetadataCacheEntryCodec.writtenAtMillisOf(entry.value),
-        weight: entry.key.length + entry.value.length + frameOverheadBytes,
-      ),
-  ];
-  final totalWeight = entries.fold<int>(0, (sum, entry) => sum + entry.weight);
-  final weightToFree = (liveBytes - targetBytes) * totalWeight / liveBytes;
-  entries.sort((a, b) {
-    final byTime = a.writtenAt.compareTo(b.writtenAt);
-    return byTime != 0 ? byTime : a.key.compareTo(b.key);
-  });
-  final victims = <String>{};
-  var freed = 0;
-  for (final entry in entries) {
-    if (freed >= weightToFree) break;
-    victims.add(entry.key);
-    freed += entry.weight;
-  }
-  return victims;
 }
 
 class _CountingLazyBox implements LazyBox<String> {
