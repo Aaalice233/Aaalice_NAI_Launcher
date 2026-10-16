@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
+import '../../../core/cache/gallery_cache_manager.dart';
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/exceptions/gallery_exceptions.dart';
 import '../../../core/utils/app_logger.dart';
@@ -182,6 +183,7 @@ class LocalGalleryRepository {
         createdAt: stat.changed,
         modifiedAt: stat.modified,
       );
+      GalleryCacheManager().invalidateStatistics();
     }
     return _dataSource.toggleFavorite(imageId);
   }

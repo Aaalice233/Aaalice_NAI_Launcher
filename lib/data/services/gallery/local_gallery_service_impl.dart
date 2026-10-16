@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../../../core/cache/gallery_cache_manager.dart';
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/exceptions/gallery_exceptions.dart';
 import '../../../core/utils/app_logger.dart';
@@ -270,6 +271,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     if (removed.isEmpty) return 0;
     try {
       await _repository.markAsDeleted(removed);
+      GalleryCacheManager().invalidateStatistics();
     } catch (error, stackTrace) {
       // 列表已按磁盘移除；残留的索引行由下一次扫描的一致性检查清掉。
       AppLogger.e(

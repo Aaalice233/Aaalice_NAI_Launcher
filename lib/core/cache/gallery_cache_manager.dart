@@ -96,8 +96,26 @@ class GalleryCacheManager {
   /// 统计信息缓存时间
   DateTime? _statisticsCacheTime;
 
+  /// 每次失效加一，计算期间发生失效的结果不写回缓存
+  int _statisticsGeneration = 0;
+
+  Future<CacheStatistics> Function()? _statisticsComputerOverride;
+
   /// 统计信息缓存有效期
   static const Duration _statisticsCacheValidity = Duration(seconds: 30);
+
+  /// 传 null 恢复真实统计，同时清空统计缓存
+  @visibleForTesting
+  void debugSetStatisticsComputerForTesting(
+    Future<CacheStatistics> Function()? computer,
+  ) {
+    _statisticsComputerOverride = computer;
+    _invalidateStatisticsCache();
+  }
+
+  @visibleForTesting
+  int get debugStatisticsListenerCount =>
+      _onStatisticsInvalidatedCallbacks.length;
 
   /// 注册统计信息刷新回调
   ///
@@ -135,14 +153,15 @@ class GalleryCacheManager {
 
   /// 使统计信息缓存失效（私有）
   void _invalidateStatisticsCache() {
+    _statisticsGeneration++;
     _cachedStatistics = null;
     _statisticsCacheTime = null;
   }
 
   /// 使统计信息缓存失效（公共接口）
   ///
-  /// 当外部操作（如扫描新文件）修改了数据库后，调用此方法使统计缓存失效，
-  /// 下次获取统计时将重新计算。
+  /// 图库索引的一轮写入（扫描、收录、删除）完成后调用一次，不要逐文件调用；
+  /// 设置页“立即刷新”也走这里，以绕过 30 秒缓存。
   /// 同时通知统计信息监听者（如设置页面的统计组件）立即刷新。
   void invalidateStatistics() {
     _invalidateStatisticsCache();
@@ -164,9 +183,12 @@ class GalleryCacheManager {
     }
 
     // 重新计算统计信息
-    final stats = await _computeStatistics();
-    _cachedStatistics = stats;
-    _statisticsCacheTime = DateTime.now();
+    final generation = _statisticsGeneration;
+    final stats = await (_statisticsComputerOverride ?? _computeStatistics)();
+    if (generation == _statisticsGeneration) {
+      _cachedStatistics = stats;
+      _statisticsCacheTime = DateTime.now();
+    }
     return stats;
   }
 
@@ -225,7 +247,7 @@ class GalleryCacheManager {
   /// 重置所有缓存统计计数器
   Future<void> resetStatistics() async {
     ImageMetadataService().resetStatistics();
-    _invalidateStatisticsCache();
+    invalidateStatistics();
     AppLogger.i('Cache statistics reset', 'GalleryCacheManager');
   }
 }

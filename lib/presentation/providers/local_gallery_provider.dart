@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../core/cache/gallery_cache_manager.dart';
 import '../../core/exceptions/gallery_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/gallery_index_admission.dart';
@@ -198,9 +199,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     final filePaths = _deferredAdmissions.values.toList(growable: false);
     _deferredAdmissions.clear();
 
+    var addedCount = 0;
     for (final filePath in filePaths) {
       try {
-        await service.addNewImageImmediately(filePath);
+        final result = await service.addNewImageImmediately(filePath);
+        if (result == GalleryIndexAdmission.added) addedCount++;
       } catch (e) {
         AppLogger.e(
           '[AddNewImages] Failed to admit deferred image: $filePath',
@@ -210,6 +213,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         );
       }
     }
+    if (addedCount > 0) GalleryCacheManager().invalidateStatistics();
   }
 
   /// 在途的初始化枚举可能早于删除，服务就绪后按磁盘现状再移除一次。
@@ -625,6 +629,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         'LocalGalleryNotifier',
       );
       return GalleryIndexAdmission.failed;
+    } finally {
+      if (addedCount > 0) GalleryCacheManager().invalidateStatistics();
     }
 
     return admission;

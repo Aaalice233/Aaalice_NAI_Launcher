@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:synchronized/synchronized.dart';
 
+import '../../../core/cache/gallery_cache_manager.dart';
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/local_image_record.dart';
@@ -143,6 +144,7 @@ class GalleryStreamScanner {
   // 状态
   bool _isRunning = false;
   bool _shouldCancel = false;
+  bool _indexWrittenThisRound = false;
 
   // 互斥锁，防止并发扫描
   final _scanLock = Lock();
@@ -204,6 +206,7 @@ class GalleryStreamScanner {
 
       _isRunning = true;
       _shouldCancel = false;
+      _indexWrittenThisRound = false;
 
       AppLogger.i(
         '[StreamScan] Starting stream scan: ${rootDir.path}',
@@ -340,6 +343,10 @@ class GalleryStreamScanner {
         _stateManager.errorScan(e.toString());
       } finally {
         _isRunning = false;
+        // 取消或中途失败前已写入的记录同样改变统计
+        if (_indexWrittenThisRound) {
+          GalleryCacheManager().invalidateStatistics();
+        }
         // 注意：不要在这里关闭 StreamController，因为它们是广播流
         // 在单例模式下需要保持开放以支持多次扫描
       }
@@ -439,6 +446,7 @@ class GalleryStreamScanner {
 
     if (orphanedPaths.isNotEmpty) {
       await _dataSource.batchMarkAsDeleted(orphanedPaths);
+      _indexWrittenThisRound = true;
       // 从本地缓存中移除
       for (final path in orphanedPaths) {
         _existingMap.remove(path);
@@ -563,6 +571,7 @@ class GalleryStreamScanner {
             path,
             newFileName: fileName,
           );
+          _indexWrittenThisRound = true;
 
           // 更新本地缓存
           final oldRecord = _existingMap.remove(movedFromPath);
@@ -630,6 +639,7 @@ class GalleryStreamScanner {
         lastScannedAt: DateTime.now(),
         metadataStatus: metadataStatus,
       );
+      _indexWrittenThisRound = true;
 
       if (metadata != null && metadata.hasData) {
         await _dataSource.upsertMetadata(imageId, metadata);

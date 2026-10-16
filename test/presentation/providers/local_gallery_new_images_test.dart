@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
@@ -117,11 +118,69 @@ void main() {
     expect(service.admitted, [r'G:\gallery\new.png']);
     expect(service.loadedPages, [0, 0]);
   });
+
+  group('缓存统计失效', () {
+    late int invalidations;
+
+    void countInvalidation() => invalidations++;
+
+    setUp(() {
+      invalidations = 0;
+      GalleryCacheManager().registerOnStatisticsInvalidated(countInvalidation);
+      addTearDown(
+        () => GalleryCacheManager().unregisterOnStatisticsInvalidated(
+          countInvalidation,
+        ),
+      );
+    });
+
+    test('一批新图即时收录完成后只失效一次', () async {
+      final container = createContainer();
+      final notifier = notifierOf(container);
+      await notifier.initialize();
+
+      await notifier.addNewlySavedImages([
+        r'G:\gallery\a.png',
+        r'G:\gallery\b.png',
+        r'G:\gallery\c.png',
+      ]);
+
+      expect(service.admitted, hasLength(3));
+      expect(invalidations, 1);
+    });
+
+    test('服务就绪后补收录一批新图只失效一次', () async {
+      final container = createContainer();
+      final notifier = notifierOf(container);
+      await notifier.addNewlySavedImages([
+        r'G:\gallery\a.png',
+        r'G:\gallery\b.png',
+      ]);
+      expect(invalidations, 0);
+
+      await notifier.initialize();
+
+      expect(service.admitted, hasLength(2));
+      expect(invalidations, 1);
+    });
+
+    test('全部已被收录时不失效', () async {
+      service.nextAdmission = GalleryIndexAdmission.alreadyIndexed;
+      final container = createContainer();
+      final notifier = notifierOf(container);
+      await notifier.initialize();
+
+      await notifier.addNewlySavedImages([r'G:\gallery\a.png']);
+
+      expect(invalidations, 0);
+    });
+  });
 }
 
 class _RecordingGalleryService extends Mock implements LocalGalleryService {
   final List<String> admitted = <String>[];
   final List<int> loadedPages = <int>[];
+  GalleryIndexAdmission nextAdmission = GalleryIndexAdmission.added;
   int _totalCount = 0;
 
   @override
@@ -142,8 +201,8 @@ class _RecordingGalleryService extends Mock implements LocalGalleryService {
     NaiImageMetadata? metadata,
   }) async {
     admitted.add(filePath);
-    _totalCount++;
-    return GalleryIndexAdmission.added;
+    if (nextAdmission == GalleryIndexAdmission.added) _totalCount++;
+    return nextAdmission;
   }
 
   @override
