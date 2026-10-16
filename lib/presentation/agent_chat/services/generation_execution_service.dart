@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
-import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../providers/image_generation_provider.dart';
 import 'defined_agent_tool.dart';
 import 'generation_image_read_contract.dart';
@@ -15,14 +14,11 @@ class GenerationExecutionService {
     this._ref, {
     required GenerationImageReadContract imageReadContract,
     required GenerationSavePathExporter exporter,
-    required int maxGenerateCount,
   }) : _imageReadContract = imageReadContract,
-       _exporter = exporter,
-       _maxGenerateCount = maxGenerateCount;
+       _exporter = exporter;
   final Ref _ref;
   final GenerationImageReadContract _imageReadContract;
   final GenerationSavePathExporter _exporter;
-  final int _maxGenerateCount;
 
   // preparation 不含聚焦参数，沿用生成页状态会套上另一张图残留的选区。
   static const _unfocused = GenerationFocusedSnapshot(
@@ -39,37 +35,7 @@ class GenerationExecutionService {
     // 确认时报给调用方的请求就是要发出的请求，原始参数里没有 prompt_refs 等解析结果。
     final prepared = args['_prepared_generation'] as GenerationPreparation;
     final params = prepared.params;
-    if (params.prompt.trim().isEmpty) {
-      return agentToolError(
-        'missing_prompt',
-        'Parameter "prompt" is required.',
-      );
-    }
-
     final count = prepared.count;
-    if (count < 1 || count > _maxGenerateCount) {
-      return agentToolError(
-        'invalid_count',
-        'Parameter "count" must be between 1 and $_maxGenerateCount.',
-      );
-    }
-    final width = params.width;
-    final height = params.height;
-    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
-      width,
-      height,
-    );
-    if (resolutionIssue != null) {
-      return agentToolError(
-        'invalid_resolution',
-        'Invalid generation resolution ${width}x$height. Width and height '
-            'must be multiples of 64, each side must be between 64 and '
-            '${NaiResolutionAdapter.generationMaxSide}, and total pixels must '
-            'not exceed ${NaiResolutionAdapter.officialMaxPixels}. Nearest valid '
-            'size: ${resolutionIssue.suggestedWidth}x'
-            '${resolutionIssue.suggestedHeight}.',
-      );
-    }
 
     // 用户停止时应连正在进行的 NAI 生成一起取消。
     void cancelRunningGeneration() {
