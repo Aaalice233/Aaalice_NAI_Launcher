@@ -161,6 +161,20 @@ void main() {
       expect(second.focusedFrame!.focusBounds.x, 300);
     });
 
+    test('a cleared mask does not resurface under the next mask', () async {
+      final source = Uint8List.fromList([1]);
+      final clearedMask = Uint8List.fromList([4]);
+      resolve(source, clearedMask);
+      pending.completeOverlay(clearedMask, Uint8List.fromList([7]));
+      await pumpEventQueue();
+      expect(resolve(source, clearedMask).maskOverlayBytes, [7]);
+
+      expect(resolve(source, null).maskOverlayBytes, isNull);
+      final redrawn = resolve(source, Uint8List.fromList([5]));
+
+      expect(redrawn.maskOverlayBytes, isNull);
+    });
+
     test('drops stale results when the source changes', () async {
       final firstMask = Uint8List.fromList([4]);
       resolve(Uint8List.fromList([1]), firstMask);
