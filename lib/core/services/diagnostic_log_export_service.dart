@@ -63,7 +63,6 @@ class DiagnosticLogExportService {
        _maxPerFileBytes = maxPerFileBytes,
        _maxTotalSourceBytes = maxTotalSourceBytes;
 
-  static const String _archivePrefix = 'nai-launcher-diagnostics-';
   static const int maxSourceFiles = 13;
   static const int defaultMaxPerFileBytes = 32 * 1024 * 1024;
   static const int defaultMaxTotalSourceBytes = 96 * 1024 * 1024;
@@ -79,39 +78,6 @@ class DiagnosticLogExportService {
   final String Function() _diagnosticsMetadata;
   final int _maxPerFileBytes;
   final int _maxTotalSourceBytes;
-
-  static Future<void> cleanupStaleTemporaryFiles({
-    Duration minimumAge = Duration.zero,
-    DateTime? now,
-  }) async {
-    final temporaryDirectory = await getTemporaryDirectory();
-    final exportDirectory = Directory(
-      p.join(temporaryDirectory.path, 'exports'),
-    );
-    if (!await exportDirectory.exists()) return;
-
-    final cutoff = (now ?? DateTime.now()).subtract(minimumAge);
-    await for (final entity in exportDirectory.list(followLinks: false)) {
-      try {
-        if (!await _isDiagnosticExport(entity)) continue;
-        final modified = await entity.stat().then((stat) => stat.modified);
-        if (modified.isAfter(cutoff)) continue;
-        await entity.delete(recursive: entity is Directory);
-      } on FileSystemException {
-        // A locked export is either still in use or will be retried next launch.
-      }
-    }
-  }
-
-  // Each export owns a work directory; older builds left a prefixed
-  // archive directly in the exports directory.
-  static Future<bool> _isDiagnosticExport(FileSystemEntity entity) async {
-    if (p.basename(entity.path).contains('_$_archivePrefix')) return true;
-    if (entity is! Directory) return false;
-    return entity
-        .list(followLinks: false)
-        .any((child) => p.basename(child.path).startsWith(_archivePrefix));
-  }
 
   Future<DiagnosticLogExportResult> export({
     required String dialogTitle,
@@ -130,7 +96,8 @@ class DiagnosticLogExportService {
     }
 
     final timestamp = _now();
-    final fileName = '$_archivePrefix${_fileTimestamp(timestamp)}.zip';
+    final fileName =
+        'nai-launcher-diagnostics-${_fileTimestamp(timestamp)}.zip';
     final exported = await FileExportService.withTemporaryOutput<bool>(
       fileName: fileName,
       action: (archivePath) async {
