@@ -1627,6 +1627,40 @@ void main() {
 
       expect(accessoryCount(result), 2);
     });
+
+    test('指定的变量源与类别源一样按标签比较键匹配映射', () async {
+      final result = await generator.generateFromPreset(
+        preset: dependentAccessoryPreset(
+          expressionTags: ['{Smile}'],
+          dependency: const DependencyConfig(
+            type: DependencyType.value,
+            sourceCategoryId: 'cat-missing',
+            sourceVariable: 'expression',
+            mappingRules: {'smile': '2'},
+          ),
+        ),
+        seed: 1,
+      );
+
+      expect(accessoryCount(result), 2);
+    });
+
+    test('指定的变量本轮没有取值时按源类别求值', () async {
+      final result = await generator.generateFromPreset(
+        preset: dependentAccessoryPreset(
+          expressionTags: ['smile'],
+          dependency: const DependencyConfig(
+            type: DependencyType.value,
+            sourceCategoryId: 'cat-expression',
+            sourceVariable: 'unset',
+            mappingRules: {'smile': '2'},
+          ),
+        ),
+        seed: 1,
+      );
+
+      expect(accessoryCount(result), 2);
+    });
   });
 }
 

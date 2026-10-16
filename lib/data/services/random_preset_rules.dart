@@ -124,15 +124,11 @@ class RandomPresetRules {
       return null;
     }
 
-    final source = dependency.sourceCategoryId;
+    // 指定的变量在本轮有取值时以它为源，否则按源类别求值
     final variable = dependency.sourceVariable;
-    if (variable != null) {
-      final value = context.firstValueFor(variable);
-      return dependency.getCount(
-        value.isEmpty ? '${context.countFor(source)}' : value,
-        randomInt,
-      );
-    }
+    final source = variable != null && context.valuesFor(variable).isNotEmpty
+        ? variable
+        : dependency.sourceCategoryId;
     return dependency.getCountForResult(
       dependency.getResultForSource(
         sourceCount: context.countFor(source),
