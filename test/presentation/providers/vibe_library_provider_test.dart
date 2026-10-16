@@ -227,7 +227,6 @@ void main() {
 
     expect(storage.processedIds, ['throws', 'updated', 'not-updated']);
     expect(result.successCount, 1);
-    expect(result.failedCount, 2);
     expect(result.errors, hasLength(2));
     expect(result.errors.first.itemName, 'throws');
     expect(result.errors.first.details, contains('encoding update failed'));

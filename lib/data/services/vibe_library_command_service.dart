@@ -18,27 +18,14 @@ class VibeLibraryCommandService {
         if (await _storage.updateEntryEncodingModel(id, model) != null) {
           successCount++;
         } else {
-          errors.add(
-            VibeBulkOperationError(
-              VibeBulkOperationErrorCode.processFileFailed,
-              itemName: id,
-            ),
-          );
+          errors.add(VibeBulkOperationError(itemName: id));
         }
       } catch (error) {
         errors.add(
-          VibeBulkOperationError(
-            VibeBulkOperationErrorCode.processFileFailed,
-            itemName: id,
-            details: error.toString(),
-          ),
+          VibeBulkOperationError(itemName: id, details: error.toString()),
         );
       }
     }
-    return VibeBulkOperationResult.fromResult(
-      success: successCount,
-      failed: errors.length,
-      errors: errors,
-    );
+    return VibeBulkOperationResult(successCount: successCount, errors: errors);
   }
 }
