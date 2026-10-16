@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/local_file_image.dart';
 import '../../../core/database/utils/lru_cache.dart';
+import '../../../core/utils/local_file_identity.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
