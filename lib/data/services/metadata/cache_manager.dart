@@ -11,7 +11,7 @@ import 'metadata_cache_entry_codec.dart';
 ///
 /// 管理两层缓存：
 /// - L1: 内存缓存 (LRU)
-/// - L2: Hive 持久化缓存
+/// - L2: Hive 持久化缓存，懒加载 box 只在内存中保留键
 class MetadataCacheManager {
   static final MetadataCacheManager _instance =
       MetadataCacheManager._internal();
@@ -22,9 +22,10 @@ class MetadataCacheManager {
   // Bump this whenever NaiImageMetadata parsing semantics change; cached values
   // are parsed snapshots, not raw PNG metadata.
   static const int _currentCacheVersion = 8;
+  static const String _versionKey = '_cacheVersion';
 
-  Box<String>? _persistentBox;
-  final _memoryCache = _LRUCache<String, NaiImageMetadata>(
+  LazyBox<String>? _persistentBox;
+  final _memoryCache = _LRUCache<String, _MemoryEntry>(
     capacity: _memoryCacheCapacity,
   );
 
@@ -40,8 +41,8 @@ class MetadataCacheManager {
 
     try {
       _persistentBox = Hive.isBoxOpen(StorageKeys.localMetadataCacheBox)
-          ? Hive.box<String>(StorageKeys.localMetadataCacheBox)
-          : await Hive.openBox<String>(StorageKeys.localMetadataCacheBox);
+          ? Hive.lazyBox<String>(StorageKeys.localMetadataCacheBox)
+          : await Hive.openLazyBox<String>(StorageKeys.localMetadataCacheBox);
 
       await _migrateCacheIfNeeded();
 
@@ -62,12 +63,13 @@ class MetadataCacheManager {
 
   /// 从 L1 内存缓存获取
   NaiImageMetadata? getFromMemory(String hash) {
-    final metadata = _memoryCache.get(hash);
-    if (metadata != null) {
+    final entry = _memoryCache.get(hash);
+    if (entry != null) {
       _memoryCacheHits++;
+      final metadata = entry.metadata;
       final upgraded = metadata.upgradeFromRawJsonIfNeeded();
       if (!identical(upgraded, metadata)) {
-        _memoryCache.put(hash, upgraded);
+        _memoryCache.put(hash, _MemoryEntry(upgraded, entry.serializedLength));
       }
       return upgraded;
     }
@@ -75,11 +77,10 @@ class MetadataCacheManager {
     return null;
   }
 
-  /// 从 L2 持久化缓存获取
-  NaiImageMetadata? getFromPersistent(String hash) {
+  /// 从 L2 持久化缓存获取，命中后放入 L1
+  Future<NaiImageMetadata?> getFromPersistent(String hash) async {
     try {
-      final box = _getBox();
-      final raw = box.get(hash);
+      final raw = await _getBox().get(hash);
       final jsonString = raw == null
           ? null
           : MetadataCacheEntryCodec.metadataJsonOf(raw);
@@ -92,7 +93,7 @@ class MetadataCacheManager {
       final metadata = NaiImageMetadata.fromJson(
         json,
       ).upgradeFromRawJsonIfNeeded();
-      _memoryCache.put(hash, metadata);
+      _memoryCache.put(hash, _MemoryEntry(metadata, raw!.length));
       return metadata;
     } catch (e) {
       _persistentCacheMisses++;
@@ -102,19 +103,16 @@ class MetadataCacheManager {
 
   /// 保存到两级缓存
   Future<void> save(String hash, NaiImageMetadata metadata) async {
+    final raw = MetadataCacheEntryCodec.encode(
+      jsonEncode(metadata.toJson()),
+      writtenAtMillis: DateTime.now().millisecondsSinceEpoch,
+    );
     // L1 内存缓存
-    _memoryCache.put(hash, metadata);
+    _memoryCache.put(hash, _MemoryEntry(metadata, raw.length));
 
     // L2 持久化缓存
     try {
-      final box = _getBox();
-      await box.put(
-        hash,
-        MetadataCacheEntryCodec.encode(
-          jsonEncode(metadata.toJson()),
-          writtenAtMillis: DateTime.now().millisecondsSinceEpoch,
-        ),
-      );
+      await _getBox().put(hash, raw);
     } catch (e) {
       AppLogger.w(
         'Failed to save to persistent cache: $e',
@@ -145,12 +143,9 @@ class MetadataCacheManager {
 
   /// 内存缓存估算字节数：按各条目序列化后的字符数计 UTF-16 宽度
   int get estimatedMemoryBytes {
-    final box = _persistentBox;
-    final openBox = box != null && box.isOpen ? box : null;
     var codeUnits = 0;
     for (final entry in _memoryCache.entries) {
-      final stored = openBox?.get(entry.key);
-      codeUnits += stored?.length ?? jsonEncode(entry.value.toJson()).length;
+      codeUnits += entry.value.serializedLength;
     }
     return codeUnits * 2;
   }
@@ -159,11 +154,11 @@ class MetadataCacheManager {
   int get persistentSize {
     final box = _persistentBox;
     if (box == null || !box.isOpen) return 0;
-    return box.length - (box.containsKey('_cacheVersion') ? 1 : 0);
+    return box.length - (box.containsKey(_versionKey) ? 1 : 0);
   }
 
   /// Hive Box 实例（供外部访问，如 L2CacheCleaner）
-  Box<String>? get box => _persistentBox;
+  LazyBox<String>? get box => _persistentBox;
 
   /// 重置统计
   void resetStatistics() {
@@ -187,7 +182,7 @@ class MetadataCacheManager {
 
   // ==================== 私有方法 ====================
 
-  Box<String> _getBox() {
+  LazyBox<String> _getBox() {
     if (_persistentBox == null || !_persistentBox!.isOpen) {
       throw StateError(
         'MetadataCacheManager not initialized. Call initialize() first.',
@@ -199,7 +194,8 @@ class MetadataCacheManager {
   Future<void> _migrateCacheIfNeeded() async {
     final box = _persistentBox!;
     try {
-      final storedVersion = int.tryParse(box.get('_cacheVersion') ?? '1') ?? 1;
+      final storedVersion =
+          int.tryParse(await box.get(_versionKey) ?? '1') ?? 1;
 
       if (storedVersion < _currentCacheVersion) {
         AppLogger.i(
@@ -207,7 +203,7 @@ class MetadataCacheManager {
           'MetadataCacheManager',
         );
         await _discardAll(box);
-        await box.put('_cacheVersion', _currentCacheVersion.toString());
+        await box.put(_versionKey, _currentCacheVersion.toString());
         AppLogger.i(
           'Cache migrated to version $_currentCacheVersion',
           'MetadataCacheManager',
@@ -223,7 +219,7 @@ class MetadataCacheManager {
   }
 
   /// 版本升级时旧解析快照整体作废
-  Future<void> _discardAll(Box<String> box) async {
+  Future<void> _discardAll(LazyBox<String> box) async {
     _memoryCache.clear();
     try {
       await box.clear();
@@ -236,6 +232,15 @@ class MetadataCacheManager {
       );
     }
   }
+}
+
+final class _MemoryEntry {
+  const _MemoryEntry(this.metadata, this.serializedLength);
+
+  final NaiImageMetadata metadata;
+
+  /// 序列化后的字符数，内存估算不必再编码一次
+  final int serializedLength;
 }
 
 /// LRU 内存缓存

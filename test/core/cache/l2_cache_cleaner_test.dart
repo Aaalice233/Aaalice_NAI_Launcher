@@ -14,7 +14,7 @@ String _hash(int index) => index.toRadixString(16).padLeft(64, '0');
 final _payload = jsonEncode({'prompt': 'best quality, ' * 150});
 
 /// 写入时间为 null 的条目按旧版本格式写入
-Future<void> _seed(Box<String> box, Map<int, int?> writtenAtByIndex) =>
+Future<void> _seed(BoxBase<String> box, Map<int, int?> writtenAtByIndex) =>
     box.putAll({
       for (final entry in writtenAtByIndex.entries)
         _hash(entry.key): entry.value == null
@@ -27,14 +27,14 @@ Future<void> _seed(Box<String> box, Map<int, int?> writtenAtByIndex) =>
 
 void main() {
   late Directory directory;
-  late Box<String> cache;
+  late LazyBox<String> cache;
   late Box<dynamic> settings;
   late DateTime now;
 
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('l2-cache-cleaner-');
     Hive.init(directory.path);
-    cache = await Hive.openBox<String>(_cacheBoxName);
+    cache = await Hive.openLazyBox<String>(_cacheBoxName);
     settings = await Hive.openBox<dynamic>('cleaner_settings');
     now = DateTime(2026, 9, 30, 12);
   });
@@ -61,7 +61,7 @@ void main() {
       for (var index = 10; index < 30; index++) index: 1000 + index,
     });
     await Hive.close();
-    cache = await Hive.openBox<String>(_cacheBoxName);
+    cache = await Hive.openLazyBox<String>(_cacheBoxName);
     settings = await Hive.openBox<dynamic>('cleaner_settings');
     final cleaner = cleanerWithThreshold(await cacheBytes() ~/ 2);
 

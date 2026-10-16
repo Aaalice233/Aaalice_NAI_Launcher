@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
+import 'package:nai_launcher/data/services/metadata/cache_manager.dart';
 
 import '../../helpers/fixed_tag_usage_fixture.dart';
 
@@ -47,6 +48,19 @@ void main() {
       expect(service.getCached(file.path)?.prompt, 'prompt-B');
     },
   );
+
+  test('the sync lookup answers only from memory', () async {
+    final file = File('${directory.path}/memory-only.png');
+    await file.writeAsBytes(await novelAiPngBytes('persisted'), flush: true);
+    final service = ImageMetadataService();
+    expect((await service.getMetadata(file.path))?.prompt, 'persisted');
+
+    MetadataCacheManager().clearMemory();
+
+    expect(service.getCached(file.path), isNull);
+    expect((await service.getCachedAsync(file.path))?.prompt, 'persisted');
+    expect(service.getCached(file.path)?.prompt, 'persisted');
+  });
 
   test('a deleted file no longer answers from the sync cache', () async {
     final file = File('${directory.path}/deleted.png');

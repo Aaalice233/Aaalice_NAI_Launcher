@@ -65,7 +65,7 @@ void main() {
 
       await manager.save(hash, const NaiImageMetadata(prompt: 'fresh'));
 
-      final raw = manager.box!.get(hash)!;
+      final raw = (await manager.box!.get(hash))!;
       expect(
         MetadataCacheEntryCodec.writtenAtMillisOf(raw),
         inInclusiveRange(before, DateTime.now().millisecondsSinceEpoch),
@@ -81,7 +81,7 @@ void main() {
         jsonEncode(const NaiImageMetadata(prompt: 'legacy').toJson()),
       );
 
-      expect(manager.getFromPersistent(hash)?.prompt, 'legacy');
+      expect((await manager.getFromPersistent(hash))?.prompt, 'legacy');
     });
 
     test('the box file size is measurable once entries are saved', () async {
@@ -99,7 +99,51 @@ void main() {
 
       await manager.save(hash, const NaiImageMetadata(prompt: 'estimated'));
 
-      expect(manager.estimatedMemoryBytes, manager.box!.get(hash)!.length * 2);
+      final raw = (await manager.box!.get(hash))!;
+      expect(manager.estimatedMemoryBytes, raw.length * 2);
+    });
+
+    test('files written by the eager box read back unchanged', () async {
+      const fresh = NaiImageMetadata(prompt: 'fresh era', seed: 7);
+      const legacy = NaiImageMetadata(prompt: 'legacy era', steps: 28);
+      await Hive.close();
+      final eager = await Hive.openBox<String>(_cacheBoxName);
+      await eager.putAll({
+        'e' * 64: MetadataCacheEntryCodec.encode(
+          jsonEncode(fresh.toJson()),
+          writtenAtMillis: 1234,
+        ),
+        'f' * 64: jsonEncode(legacy.toJson()),
+        '_cacheVersion': '8',
+      });
+      await Hive.close();
+
+      await manager.initialize();
+
+      expect(manager.box, isA<LazyBox<String>>());
+      expect(manager.persistentSize, 2);
+      expect(
+        (await manager.getFromPersistent('e' * 64))?.toJson(),
+        fresh.toJson(),
+      );
+      expect(
+        (await manager.getFromPersistent('f' * 64))?.toJson(),
+        legacy.toJson(),
+      );
+    });
+
+    test('persistent hits are read asynchronously into memory', () async {
+      final hash = '1' * 64;
+      await manager.save(hash, const NaiImageMetadata(prompt: 'on disk'));
+      manager.clearMemory();
+      expect(manager.getFromMemory(hash), isNull);
+
+      final pending = manager.getFromPersistent(hash);
+      expect(manager.getFromMemory(hash), isNull);
+
+      expect((await pending)?.prompt, 'on disk');
+      expect(manager.getFromMemory(hash)?.prompt, 'on disk');
+      expect(manager.persistentHitRate, greaterThan(0));
     });
 
     test('memory pressure drops the memory layer but keeps the disk', () async {
@@ -112,7 +156,10 @@ void main() {
       expect(manager.memorySize, 0);
       expect(manager.estimatedMemoryBytes, 0);
       expect(manager.persistentSize, 1);
-      expect(manager.getFromPersistent(hash)?.prompt, 'survivor');
+      expect(await manager.box!.get(hash), isNotNull);
+      expect((await manager.getFromPersistent(hash))?.prompt, 'survivor');
     });
   });
 }
+
+const _cacheBoxName = 'local_metadata_cache';
