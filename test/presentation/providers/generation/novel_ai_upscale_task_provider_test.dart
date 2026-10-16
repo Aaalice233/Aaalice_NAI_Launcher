@@ -47,14 +47,7 @@ void main() {
       final subscriptionNotifier =
           container.read(subscriptionNotifierProvider.notifier)
               as _TestSubscriptionNotifier;
-      expect(
-        outcome,
-        isA<NovelAiUpscaleCompleted>().having(
-          (completed) => completed.bytes,
-          'bytes',
-          Uint8List.fromList([9, 8, 7]),
-        ),
-      );
+      expect(outcome, isA<NovelAiUpscaleCompleted>());
       expect(adopted, Uint8List.fromList([9, 8, 7]));
       expect(runningWhileAdopting, isTrue);
       expect(

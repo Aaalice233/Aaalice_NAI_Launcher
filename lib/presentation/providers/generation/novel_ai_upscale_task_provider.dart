@@ -25,10 +25,9 @@ sealed class NovelAiUpscaleOutcome {
   const NovelAiUpscaleOutcome();
 }
 
+/// 结果已在运行态内交给 adopt 登记。
 final class NovelAiUpscaleCompleted extends NovelAiUpscaleOutcome {
-  const NovelAiUpscaleCompleted(this.bytes);
-
-  final Uint8List bytes;
+  const NovelAiUpscaleCompleted();
 }
 
 enum NovelAiUpscaleSkipReason { busy, unauthenticated }
@@ -91,7 +90,7 @@ class NovelAiUpscaleTaskNotifier extends Notifier<NovelAiUpscaleTaskState> {
         status: NovelAiUpscaleTaskStatus.completed,
       );
       AppLogger.i('Upscale result registered', _tag);
-      return NovelAiUpscaleCompleted(result);
+      return const NovelAiUpscaleCompleted();
     } catch (error, stackTrace) {
       final message = error.toString();
       state = NovelAiUpscaleTaskState(

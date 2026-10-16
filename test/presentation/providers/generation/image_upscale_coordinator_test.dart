@@ -236,7 +236,7 @@ void main() {
 
     test('a completed upscale reports and registers the output size', () async {
       final (result, harness) = await runNovelAi(
-        NovelAiUpscaleCompleted(_png(640, 400)),
+        const NovelAiUpscaleCompleted(),
       );
 
       expect(
@@ -293,7 +293,7 @@ void main() {
         scale: 1.0,
         results: null,
         backend: UpscaleBackend.novelai,
-        novelAiOutcome: NovelAiUpscaleCompleted(_png(640, 400)),
+        novelAiOutcome: const NovelAiUpscaleCompleted(),
       );
       final seedVr2 = _Harness(
         source: png,
@@ -513,7 +513,7 @@ final class _StubNovelAiUpscaleTask extends NovelAiUpscaleTaskNotifier {
     required Future<void> Function(Uint8List result) adopt,
   }) async {
     final outcome = _outcome!;
-    if (outcome case NovelAiUpscaleCompleted(:final bytes)) await adopt(bytes);
+    if (outcome is NovelAiUpscaleCompleted) await adopt(_novelAiUpscaled);
     return outcome;
   }
 }
@@ -566,6 +566,8 @@ final class _StubImageSaveSettings extends ImageSaveSettingsNotifier {
   @override
   ImageSaveSettings build() => const ImageSaveSettings();
 }
+
+final _novelAiUpscaled = _png(640, 400);
 
 Uint8List _png(int width, int height) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
