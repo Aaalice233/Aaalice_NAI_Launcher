@@ -207,7 +207,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
   /// 统一转换为 PNG，避免 TIFF、TGA 等格式无法由 Flutter 直接预览。
   Future<void> _saveImageBytesToTemp(Uint8List bytes) async {
     final importRevision = ++_thumbnailImportRevision;
-    final normalizedBytes = await compute(normalizeThumbnailImageToPng, bytes);
+    final normalizedBytes = await normalizeThumbnailImageToPngInBackground(
+      bytes,
+    );
     final tempDir = await getTemporaryDirectory();
     final fileName = 'temp_${const Uuid().v4()}.png';
     final file = File(path.join(tempDir.path, fileName));

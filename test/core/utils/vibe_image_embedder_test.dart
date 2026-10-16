@@ -6,6 +6,8 @@ import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/utils/vibe_image_embedder.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
+import '../../helpers/shared_compute_gate.dart';
+
 void main() {
   group('VibeImageEmbedder', () {
     test('embedVibeToImage should produce extractable vibe metadata', () async {
@@ -90,6 +92,34 @@ void main() {
       expect(
         extracted.vibes.single.encodingModel,
         ImageModels.animeDiffusionV45Full,
+      );
+    });
+
+    test('embedding and extraction wait for the shared compute gate', () async {
+      const reference = VibeReference(
+        displayName: 'Gated Vibe',
+        vibeEncoding: 'Z2F0ZWRfZW5jb2Rpbmc=',
+        strength: 0.4,
+        infoExtracted: 0.6,
+        sourceType: VibeSourceType.naiv4vibe,
+      );
+
+      final embedded = await expectQueuedBehindSharedComputeGate(
+        () => VibeImageEmbedder.embedVibeToImage(
+          _createInMemoryPngBytes(),
+          reference,
+        ),
+      );
+      final extracted = await expectQueuedBehindSharedComputeGate(
+        () => VibeImageEmbedder.extractVibeFromImage(embedded),
+      );
+
+      expect(
+        extracted.vibes.single,
+        reference.copyWith(
+          encodingModel: ImageModels.animeDiffusionV45Full,
+          sourceType: VibeSourceType.png,
+        ),
       );
     });
 
