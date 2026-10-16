@@ -472,8 +472,6 @@ class GenerationPreparationService {
         arguments: canonicalArgs,
         savePath: savePathResult.valueOrNull?.path,
         savePathSource: savePathResult.valueOrNull?.source,
-        sourceImage: sourceBytes,
-        maskImage: maskBytes,
         enhance: enhance,
         enhanceDefaults: enhanceDefaults,
       ),
