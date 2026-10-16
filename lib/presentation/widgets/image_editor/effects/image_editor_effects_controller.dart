@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../../../core/utils/localization_extension.dart';
+import '../../../../core/utils/picture_png_encoder.dart';
 import '../../common/app_toast.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
@@ -116,12 +117,10 @@ class ImageEditorEffectsController {
   );
 
   /// 把烘焙结果在取景框里的部分缩到 [maxDimension] 以内并编码，接管 [baked] 的释放
-  Future<Uint8List?> _framePreview(
+  Future<Uint8List> _framePreview(
     BakedLayerImage? baked,
     int maxDimension,
   ) async {
-    ui.Picture? picture;
-    ui.Image? image;
     try {
       final frame = editorState.frame;
       final scale = math.min(
@@ -141,13 +140,8 @@ class ImageEditorEffectsController {
           Paint()..filterQuality = FilterQuality.medium,
         );
       }
-      picture = recorder.endRecording();
-      image = await picture.toImage(width, height);
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      return data?.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      return await encodePictureAsPng(recorder.endRecording(), width, height);
     } finally {
-      image?.dispose();
-      picture?.dispose();
       baked?.dispose();
     }
   }
