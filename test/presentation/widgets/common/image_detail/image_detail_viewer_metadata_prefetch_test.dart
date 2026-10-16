@@ -28,6 +28,8 @@ const _tag = 'rabbit ears';
 const _model = 'nai-diffusion-4-5-full';
 const _metadata = NaiImageMetadata(prompt: '1girl, $_tag', model: _model);
 const _waitLimit = ImageDetailViewer.metadataPrefetchWaitLimit;
+// 真实读盘只验证结果在首帧前到位，时限远超读盘耗时；超时行为由 Completer 用例覆盖
+const _realReadWaitLimit = Duration(seconds: 20);
 // 非 Windows 平台路由有淡入淡出，等过它再断言
 const _routeTransition = Duration(milliseconds: 300);
 
@@ -71,11 +73,10 @@ void main() {
           ImageDetailViewer.show(
             context,
             images: [FileImageDetailData(filePath: path)],
+            prefetchWaitLimit: _realReadWaitLimit,
           ),
         );
-        for (var attempt = 0; attempt < 100 && !observer.pushed; attempt++) {
-          await Future<void>.delayed(const Duration(milliseconds: 5));
-        }
+        await observer.firstPush;
       });
       expect(observer.pushed, isTrue);
 
@@ -297,13 +298,19 @@ Widget _app({
 }
 
 class _DetailRouteObserver extends NavigatorObserver {
+  // 等待方在 runAsync 的真实 zone；异步 Completer 生于 fake zone，通知会卡在永不冲刷的微任务队列
+  final _firstPush = Completer<void>.sync();
   int pushes = 0;
 
   bool get pushed => pushes > 0;
 
+  Future<void> get firstPush => _firstPush.future;
+
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    if (route is PageRouteBuilder) pushes++;
+    if (route is! PageRouteBuilder) return;
+    pushes++;
+    if (!_firstPush.isCompleted) _firstPush.complete();
   }
 }
 

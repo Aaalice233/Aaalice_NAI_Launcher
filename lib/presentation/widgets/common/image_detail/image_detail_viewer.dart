@@ -97,6 +97,9 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
   /// Hero 标签前缀
   final String? heroTagPrefix;
 
+  /// 跳页前等待元数据预取的上限
+  final Duration prefetchWaitLimit;
+
   const ImageDetailViewer({
     super.key,
     required this.images,
@@ -105,9 +108,10 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     this.showThumbnails = true,
     this.callbacks,
     this.heroTagPrefix,
+    this.prefetchWaitLimit = metadataPrefetchWaitLimit,
   });
 
-  /// 打开或跳页前等待元数据预取的上限；超时照常显示加载态，读完再回填
+  /// 打开或跳页前等待元数据预取的默认上限；超时照常显示加载态，读完再回填
   @visibleForTesting
   static const Duration metadataPrefetchWaitLimit = Duration(milliseconds: 250);
 
@@ -120,10 +124,12 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     bool showThumbnails = true,
     ImageDetailCallbacks? callbacks,
     String? heroTagPrefix,
+    Duration prefetchWaitLimit = metadataPrefetchWaitLimit,
   }) async {
     if (images.isNotEmpty) {
       await _prefetchWithinLimit(
         images[initialIndex.clamp(0, images.length - 1)],
+        prefetchWaitLimit,
       );
       if (!context.mounted) return;
     }
@@ -152,6 +158,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
             showThumbnails: showThumbnails,
             callbacks: callbacks,
             heroTagPrefix: heroTagPrefix,
+            prefetchWaitLimit: prefetchWaitLimit,
           );
           if (isWindows) {
             return viewer;
@@ -292,7 +299,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   // 缩略图可跳到任意页，立即切页前先等预取；等待期间又切了页则放弃这次跳转
   Future<void> _jumpAfterPrefetch(int index, int request) async {
-    await _prefetchWithinLimit(widget.images[index]);
+    await _prefetchWithinLimit(widget.images[index], widget.prefetchWaitLimit);
     if (!mounted ||
         request != _navigationRequest ||
         !_pageController.hasClients) {
@@ -898,8 +905,5 @@ Future<void> _prefetchMetadata(ImageDetailData image) async {
 }
 
 // 磁盘阻塞时打开与跳页不能一直等；超时只是不再等，读取照常继续
-Future<void> _prefetchWithinLimit(ImageDetailData image) =>
-    _prefetchMetadata(image).timeout(
-      ImageDetailViewer.metadataPrefetchWaitLimit,
-      onTimeout: () {},
-    );
+Future<void> _prefetchWithinLimit(ImageDetailData image, Duration limit) =>
+    _prefetchMetadata(image).timeout(limit, onTimeout: () {});
