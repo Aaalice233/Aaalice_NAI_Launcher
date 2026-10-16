@@ -4,6 +4,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
 import '../../themes/core/layered_surface_style.dart';
+import '../common/themed_input.dart';
 
 /// 预设创建模式
 enum PresetCreationMode {
@@ -67,23 +68,12 @@ class NewPresetDialog extends StatefulWidget {
 
 class _NewPresetDialogState extends State<NewPresetDialog> {
   final _nameController = TextEditingController();
-  final _nameFocusNode = FocusNode();
   PresetCreationMode _selectedMode = PresetCreationMode.template;
   String? _nameError;
 
   @override
-  void initState() {
-    super.initState();
-    // 自动聚焦到名称输入框
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _nameFocusNode.requestFocus();
-    });
-  }
-
-  @override
   void dispose() {
     _nameController.dispose();
-    _nameFocusNode.dispose();
     super.dispose();
   }
 
@@ -107,15 +97,13 @@ class _NewPresetDialogState extends State<NewPresetDialog> {
       scrollController: widget.scrollController,
       scrollViewKey: const ValueKey('new-preset-dialog-scroll'),
       content: [
-        // 名称输入
-        TextField(
+        ThemedInput(
           controller: _nameController,
-          focusNode: _nameFocusNode,
+          autofocus: true,
+          hintText: l10n.newPresetDialog_nameHint,
           decoration: InputDecoration(
             labelText: l10n.newPresetDialog_nameLabel,
-            hintText: l10n.newPresetDialog_nameHint,
             errorText: _nameError,
-            border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.edit_outlined),
           ),
           onChanged: (_) {

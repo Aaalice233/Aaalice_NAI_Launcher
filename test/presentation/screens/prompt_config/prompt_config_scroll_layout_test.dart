@@ -408,6 +408,32 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('搜索框输入后过滤类别，清空按钮恢复全部类别', (tester) async {
+    await _pumpScreen(tester, size: _portrait);
+    final first = _key(
+      'random-manager-category-${_preset.categories.first.id}',
+    );
+    expect(first, findsOneWidget);
+
+    await tester.enterText(_searchField(), 'no-such-category');
+    await tester.pumpAndSettle();
+    expect(first, findsNothing);
+
+    final clear = find.ancestor(
+      of: find.descendant(
+        of: _key('random-manager-overview-card'),
+        matching: find.byIcon(Icons.close),
+      ),
+      matching: find.byType(IconButton),
+    );
+    expectReachable(tester, clear, reason: '清空按钮', minExtent: 44);
+    await tester.tap(clear);
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(_searchField()).controller!.text, isEmpty);
+    expect(first, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('软键盘弹出使总览改为随列表滚动时，搜索内容、焦点与类别展开状态保留', (tester) async {
     await _pumpScreen(tester, size: _portrait);
     final target = _preset.categories.first;

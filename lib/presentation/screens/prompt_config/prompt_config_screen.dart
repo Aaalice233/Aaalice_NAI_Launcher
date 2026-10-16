@@ -173,7 +173,6 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
       query: _query,
       leadingSlivers: leadingSlivers,
       overviewHeader: PromptConfigRecipeHeader(
-        query: _query,
         searchController: _searchController,
         searchFocusNode: _searchFocusNode,
         onQueryChanged: _updateQuery,

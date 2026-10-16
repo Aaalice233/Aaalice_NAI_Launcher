@@ -10,6 +10,7 @@ import 'package:nai_launcher/data/models/prompt/random_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/adaptive_dialog_frame.dart';
+import 'package:nai_launcher/presentation/widgets/common/tab_swipe_detector.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/random_manager/add_tag_group_dialog.dart';
 
 import '../../../../helpers/flutter_error_collector.dart';
@@ -34,9 +35,13 @@ Finder _sourceTab(String label) => find.ancestor(
   matching: find.byType(Tab, skipOffstage: false),
 );
 
+// 选中条目会把名称填进名称框，只在来源内容里找条目文字
 Finder _tile(String label) => find
     .ancestor(
-      of: find.text(label, skipOffstage: false),
+      of: find.descendant(
+        of: find.byType(TabSwipeDetector, skipOffstage: false),
+        matching: find.text(label, skipOffstage: false),
+      ),
       matching: find.byType(AnimatedContainer, skipOffstage: false),
     )
     .first;
@@ -121,8 +126,8 @@ void main() {
           (
             'Custom',
             [
-              find.byType(TextFormField, skipOffstage: false).first,
-              find.byType(TextFormField, skipOffstage: false).last,
+              find.byType(TextField, skipOffstage: false).first,
+              find.byType(TextField, skipOffstage: false).last,
             ],
           ),
           ('Tag Group', [_tile('Hair Color'), _tile('Body Types')]),
@@ -292,7 +297,7 @@ void main() {
       expect(find.text('Tag Group'), findsOneWidget);
       expect(find.text('Danbooru Pool'), findsOneWidget);
       expect(tester.widget<TabBar>(find.byType(TabBar)).isScrollable, isTrue);
-      expect(find.byType(TextFormField), findsNWidgets(2));
+      expect(find.byType(TextField), findsNWidgets(2));
       final formScrollable = find
           .descendant(
             of: find.byKey(const ValueKey('add-tag-group-form-scroll')),
@@ -311,11 +316,11 @@ void main() {
       );
       expect(tester.widget<FilledButton>(addButton).onPressed, isNull);
       await tester.scrollUntilVisible(
-        find.byType(TextFormField).first,
+        find.byType(TextField).first,
         -200,
         scrollable: formScrollable,
       );
-      await tester.enterText(find.byType(TextFormField).first, 'My group');
+      await tester.enterText(find.byType(TextField).first, 'My group');
       await tester.pump();
       await tester.scrollUntilVisible(
         find.text('Add'),

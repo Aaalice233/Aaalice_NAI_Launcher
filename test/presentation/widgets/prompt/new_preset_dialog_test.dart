@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/new_preset_dialog.dart';
 
 import '../../../helpers/reachability_expectations.dart';
@@ -134,6 +135,21 @@ void main() {
     expect(
       find.byKey(const ValueKey('adaptive-panel-header-divider')),
       findsNothing,
+    );
+    final nameField = find.descendant(
+      of: find.byType(NewPresetDialog),
+      matching: find.byType(ThemedInput),
+    );
+    expect(nameField, findsOneWidget, reason: '名称框复用共享输入色面，不另画整圈描边');
+    expect(
+      tester
+          .widget<EditableText>(
+            find.descendant(of: nameField, matching: find.byType(EditableText)),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+      reason: '打开后名称框获得焦点',
     );
     final headerSurface = tester.widget<ColoredBox>(
       find.byKey(const ValueKey('adaptive-panel-header-surface')),
