@@ -28,6 +28,8 @@ const _backendWireNames = {
   'comfyui': UpscaleBackend.comfyui,
 };
 
+typedef ImageUpscaleQuote = ({String key, int cost});
+
 /// 智能体与 MCP 的放大：后端与倍率只按本次参数覆盖，不写回生成页设置；
 /// 结果按衍生图登记进生成历史，携带原图自身的元数据。
 final class ImageUpscaleService {
@@ -57,32 +59,25 @@ final class ImageUpscaleService {
   final GenerationImageReadContract _readContract;
   final bool _referencesGalleryOriginal;
 
-  /// 审批时报出的价格；工具串行执行，同一时刻最多一笔待执行的报价。
-  ({String key, int cost})? _quote;
-
-  /// 审批前估价。参数或原图本身不成立时这次调用不会发出请求，记为 0；
-  /// 原图超出计费分档返回 [AnlasCalculator.invalidCost]，由审批直接拦下。
-  Future<int?> estimateAnlas(Map<String, dynamic> args) async {
-    _quote = null;
+  /// 只有会发出 NovelAI 请求的调用才有报价。
+  Future<ImageUpscaleQuote?> quote(Map<String, dynamic> args) async {
     final settings = _resolveSettings(args).valueOrNull;
     if (settings == null || settings.backend == UpscaleBackend.comfyui) {
-      return 0;
+      return null;
     }
     final bytes = (await _sourceLoader.load(args)).bytes;
-    if (bytes == null) return 0;
-    final cost = _novelAiCost(bytes);
-    _quote = (key: _quoteKey(args), cost: cost);
-    return cost;
+    if (bytes == null) return null;
+    return (key: _quoteKey(args), cost: _novelAiCost(bytes));
   }
 
+  /// [quote] 是审批时报出的价格，付费请求只按它执行。
   Future<AgentToolResult> upscale(
     String toolCallId,
-    Map<String, dynamic> args, [
+    Map<String, dynamic> args,
+    ImageUpscaleQuote? quote, [
     AbortSignal? signal,
     AgentToolUpdateCallback? onUpdate,
   ]) async {
-    final quote = _quote;
-    _quote = null;
     final settingsResult = _resolveSettings(args);
     if (settingsResult.errorOrNull case final rejection?) return rejection;
     final settings = settingsResult.valueOrNull!;
@@ -241,7 +236,7 @@ final class ImageUpscaleService {
   AgentToolResult? _rejectUnapprovedCost(
     Uint8List source,
     Map<String, dynamic> args,
-    ({String key, int cost})? quote,
+    ImageUpscaleQuote? quote,
   ) {
     final cost = _novelAiCost(source);
     if (cost == AnlasCalculator.invalidCost) {

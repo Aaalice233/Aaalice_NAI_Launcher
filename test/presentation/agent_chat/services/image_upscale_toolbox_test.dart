@@ -127,6 +127,19 @@ void main() {
     expect(harness.registrar.restoreCalls, 1);
   });
 
+  test('an approved price survives reconfiguring the toolbox', () async {
+    final harness = await _Harness.create(source: _png(832, 1216));
+    addTearDown(harness.dispose);
+    final args = {'resource_ref': _sourceRef};
+
+    await harness.estimate(args);
+    harness.reconfigure();
+    final result = await harness.upscale(args);
+
+    expect(result.isError, isFalse, reason: '${_json(result)}');
+    expect(harness.coordinator.requests, hasLength(1));
+  });
+
   test('an approval for another source does not authorize this one', () async {
     final harness = await _Harness.create(source: _png(832, 1216));
     addTearDown(harness.dispose);
@@ -276,6 +289,7 @@ final class _Harness {
     required this.registrar,
     required this.models,
     required this.workspace,
+    required this.reconfigure,
   });
 
   static Future<_Harness> create({
@@ -321,20 +335,21 @@ final class _Harness {
       workspaceDir: workspace.path,
     );
     final writer = GeneratedImageExportWriter(env: pathResolver.env);
-    final toolbox = ImageUpscaleToolbox(ref)
-      ..configure(
-        sourceLoader: AgentImageSourceLoader(
-          resolver: _BytesResolver(ref, _withComment(source)),
-          pathResolver: pathResolver,
-        ),
-        savePathValidator: GenerationSavePathValidator(
-          pathResolver: pathResolver,
-          exportWriter: writer,
-        ),
-        exporter: GenerationSavePathExporter(writer: writer),
-        readContract: GenerationImageReadContract(pathResolver),
-        referencesGalleryOriginal: false,
-      );
+    final toolbox = ImageUpscaleToolbox(ref);
+    void configure() => toolbox.configure(
+      sourceLoader: AgentImageSourceLoader(
+        resolver: _BytesResolver(ref, _withComment(source)),
+        pathResolver: pathResolver,
+      ),
+      savePathValidator: GenerationSavePathValidator(
+        pathResolver: pathResolver,
+        exportWriter: writer,
+      ),
+      exporter: GenerationSavePathExporter(writer: writer),
+      readContract: GenerationImageReadContract(pathResolver),
+      referencesGalleryOriginal: false,
+    );
+    configure();
     return _Harness._(
       container: container,
       toolbox: toolbox,
@@ -342,6 +357,7 @@ final class _Harness {
       registrar: registrar,
       models: models,
       workspace: workspace,
+      reconfigure: configure,
     );
   }
 
@@ -351,6 +367,9 @@ final class _Harness {
   final _Registrar registrar;
   final _StubModels models;
   final Directory workspace;
+
+  /// 权限档切换重建注册表时会重新配置同一个工具箱。
+  final void Function() reconfigure;
 
   Future<int?> estimate(Map<String, dynamic> args) =>
       toolbox.estimateAnlas(args);
