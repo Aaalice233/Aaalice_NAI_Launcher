@@ -110,6 +110,31 @@ void main() {
       });
     });
 
+    testWidgets('cancel brings back the redo history it replaced', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        final (state, layer) = await _stateWithLayer();
+        final transformer = state.layerTransformer;
+        transformer
+          ..nudge(const Offset(1, 0))
+          ..apply()
+          ..nudge(const Offset(2, 0))
+          ..apply();
+        state.undo();
+        expect(layer.contentBounds.left, 1);
+
+        transformer.nudge(const Offset(5, 0));
+        expect(state.historyManager.canRedo, isFalse);
+        transformer.cancel();
+        expect(layer.contentBounds.left, 1);
+        expect(state.historyManager.redoStackSize, 1);
+
+        state.redo();
+        expect(layer.contentBounds.left, 3);
+      });
+    });
+
     testWidgets('every step resamples from the captured pixels only once', (
       tester,
     ) async {
