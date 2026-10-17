@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -15,6 +16,9 @@ import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart
 
 import '../../helpers/content_hash.dart';
 import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/novelai_exif_fixture.dart';
+import '../../helpers/novelai_jpeg_layout_fixture.dart';
+import '../../helpers/novelai_webp_layout_fixture.dart';
 import '../../helpers/stealth_png_fixture.dart';
 
 void main() {
@@ -183,6 +187,44 @@ void main() {
     final metadata = UnifiedMetadataParser.extractPngTextData(result.bytes);
     expect(metadata['Comment'], contains('stealth prompt'));
     expect(result.metadataPreserved, isTrue);
+  });
+
+  test('envelope sources keep the generation JSON as the Comment', () async {
+    final sources = {
+      'jpeg exif': (
+        bytes: novelAiLayoutJpeg(
+          exifTiffs: [
+            novelAiExif(
+              userComment: asciiUserComment(
+                novelAiEnvelopeJson(prompt: 'envelope prompt', seed: 21),
+              ),
+            ),
+          ],
+        ),
+        prompt: 'envelope prompt',
+      ),
+      'webp stealth': (
+        bytes: novelAiLayoutWebp(),
+        prompt: novelAiStealthPrompt,
+      ),
+    };
+
+    for (final MapEntry(key: name, value: source) in sources.entries) {
+      final result = await MosaicRenderService.render(
+        MosaicRenderRequest(
+          sourceBytes: source.bytes,
+          settings: solid,
+          regions: const [full],
+          preserveMetadata: true,
+        ),
+      );
+
+      final text = UnifiedMetadataParser.extractPngTextData(result.bytes);
+      final comment = jsonDecode(text['Comment']!) as Map<String, dynamic>;
+      expect(comment['prompt'], source.prompt, reason: name);
+      expect(comment, isNot(contains('Comment')), reason: name);
+      expect(text['Source'], novelAiV45FullSource, reason: name);
+    }
   });
 
   test('a damaged source comment still fails the export', () async {

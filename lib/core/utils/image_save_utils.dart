@@ -549,10 +549,10 @@ class ImageSaveUtils {
       return rawComment;
     }
     if (rawComment is String && rawComment.isNotEmpty) {
-      final decoded = _tryDecodeJsonMap(rawComment);
-      if (decoded != null) {
-        return _unwrapCommentIfWrapped(decoded);
-      }
+      final decoded = _tryDecodeJsonMap(
+        NaiImageMetadata.unwrapEnvelopeComment(rawComment),
+      );
+      if (decoded != null) return decoded;
     }
 
     if (metadata.containsKey('prompt')) {
@@ -798,14 +798,13 @@ class ImageSaveUtils {
     source: metadata.source ?? 'NovelAI Diffusion',
   );
 
-  // rawJson 是完整 Comment；字段投影会丢掉 v4_prompt、预设与 tag_hint 等。
+  // rawJson 是完整 Comment 或其外层信封；字段投影会丢掉 v4_prompt、预设与 tag_hint 等。
   static Map<String, dynamic> _commentJsonOf(NaiImageMetadata metadata) {
     final raw = metadata.rawJson;
-    final decoded = raw == null ? null : _tryDecodeJsonMap(raw);
-    if (decoded != null) {
-      final comment = _unwrapCommentIfWrapped(decoded);
-      if (comment.containsKey('prompt')) return comment;
-    }
+    final comment = raw == null
+        ? null
+        : _tryDecodeJsonMap(NaiImageMetadata.unwrapEnvelopeComment(raw));
+    if (comment != null && comment.containsKey('prompt')) return comment;
     return _commentJsonFromFields(metadata);
   }
 
@@ -843,23 +842,6 @@ class ImageSaveUtils {
           .toList();
     }
     return commentJson;
-  }
-
-  /// 兼容历史“外层包装”结构：{Description, Software, Source, Comment:"{...}"}
-  static Map<String, dynamic> _unwrapCommentIfWrapped(
-    Map<String, dynamic> map,
-  ) {
-    final nested = map['Comment'];
-    if (map.containsKey('prompt')) {
-      return map;
-    }
-    if (nested is Map<String, dynamic>) {
-      return nested;
-    }
-    if (nested is String && nested.isNotEmpty) {
-      return _tryDecodeJsonMap(nested) ?? map;
-    }
-    return map;
   }
 }
 

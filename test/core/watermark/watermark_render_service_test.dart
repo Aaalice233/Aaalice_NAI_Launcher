@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -10,6 +11,9 @@ import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/novelai_exif_fixture.dart';
+import '../../helpers/novelai_jpeg_layout_fixture.dart';
+import '../../helpers/novelai_webp_layout_fixture.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +98,48 @@ void main() {
       expect(preserved.metadataPreserved, isTrue);
     },
   );
+
+  test('envelope sources keep the generation JSON as the Comment', () async {
+    final sources = {
+      'jpeg exif': (
+        bytes: novelAiLayoutJpeg(
+          exifTiffs: [
+            novelAiExif(
+              userComment: asciiUserComment(
+                novelAiEnvelopeJson(prompt: 'envelope prompt', seed: 21),
+              ),
+            ),
+          ],
+        ),
+        prompt: 'envelope prompt',
+      ),
+      'webp stealth': (
+        bytes: novelAiLayoutWebp(),
+        prompt: novelAiStealthPrompt,
+      ),
+    };
+
+    for (final MapEntry(key: name, value: source) in sources.entries) {
+      final result = await WatermarkRenderService.render(
+        WatermarkRenderRequest(
+          sourceBytes: source.bytes,
+          settings: const WatermarkSettings(),
+          preserveMetadata: true,
+        ),
+      );
+
+      final text = UnifiedMetadataParser.extractPngTextData(result.bytes);
+      final comment = jsonDecode(text['Comment']!) as Map<String, dynamic>;
+      expect(comment['prompt'], source.prompt, reason: name);
+      expect(comment, isNot(contains('Comment')), reason: name);
+      expect(text['Source'], novelAiV45FullSource, reason: name);
+      expect(
+        UnifiedMetadataParser.parseFromImage(result.bytes).metadata?.prompt,
+        source.prompt,
+        reason: name,
+      );
+    }
+  });
 
   test('ordinary images do not gain fabricated generation metadata', () async {
     final source = await _solidPng(64, 64, const Color(0xFF123456));
