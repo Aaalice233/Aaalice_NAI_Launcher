@@ -209,8 +209,13 @@ class NaiImageMetadata with _$NaiImageMetadata {
   String? get sourceModel =>
       NaiImageMetadataRawDecoder.modelIdFromSource(source);
 
-  /// 用于导入/展示的模型 ID。Source 是官方图片的模型来源，优先级高于旧缓存中的 model。
-  String? get effectiveModel => sourceModel ?? model;
+  /// 官网对认不出指纹的 Source 的家族归类。
+  String? get sourceDefaultModel =>
+      NaiImageMetadataRawDecoder.defaultModelIdFromSource(source);
+
+  /// 用于导入/展示的模型 ID。Source 是官方图片的模型来源，优先级高于旧缓存中的 model；
+  /// 旧版本缓存的 model 不含家族归类，最后再补。
+  String? get effectiveModel => sourceModel ?? model ?? sourceDefaultModel;
 
   /// 生成时使用的 Anime / Furry 模式，模型没有该模式或无法判断时为 null。
   ImageModelMode? get modelMode {
@@ -229,7 +234,10 @@ class NaiImageMetadata with _$NaiImageMetadata {
         ? copyWith(model: sourceResolvedModel)
         : this;
     final raw = base.rawJson;
-    if (raw == null || raw.isEmpty || !_rawJsonMayContainUpgrade(raw)) {
+    if (raw == null ||
+        raw.isEmpty ||
+        !(_rawJsonMayContainUpgrade(raw) ||
+            (base.model == null && _rawJsonMayNameModel(raw)))) {
       return base;
     }
 
@@ -480,6 +488,10 @@ bool _rawJsonMayContainUpgrade(String raw) {
   ];
   return markers.any(text.contains);
 }
+
+// 旧版本缓存只从 Source 取 model，Comment 里记录的 model 要重解析才能补上；信封里的 Comment 是转义过的字符串
+bool _rawJsonMayNameModel(String raw) =>
+    raw.contains('"model"') || raw.contains(r'\"model\"');
 
 NaiImageMetadata? _decodeRawMetadata(
   String raw, {

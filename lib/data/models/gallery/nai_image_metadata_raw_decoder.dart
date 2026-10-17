@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
+import '../../../core/constants/nai_model_source_fingerprints.dart';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../core/utils/novelai_auto_text.dart';
@@ -110,10 +111,13 @@ class NaiImageMetadataRawDecoder {
       );
     }
 
-    final sourceModel = modelIdFromSource(source);
+    final resolvedModel =
+        modelIdFromSource(source) ??
+        modelIdFromComment(commentData['model']) ??
+        defaultModelIdFromSource(source);
     final promptWithoutAutoText =
-        sourceModel != null &&
-            ModelCapabilityRegistry.of(sourceModel).supportsAutoText
+        resolvedModel != null &&
+            ModelCapabilityRegistry.of(resolvedModel).supportsAutoText
         ? NovelAiAutoText.stripGeneratedBlock(
             rawPrompt,
             characters: List<NovelAiAutoTextCharacter>.generate(
@@ -133,12 +137,11 @@ class NaiImageMetadataRawDecoder {
             useCoords: characterUseCoords == true,
           )
         : rawPrompt;
-    final datasetModel = sourceModel ?? _safeGetString(commentData, 'model');
-    final prompt = datasetModel == null
+    final prompt = resolvedModel == null
         ? promptWithoutAutoText
         : NovelAiDatasetPrefix.strip(
             promptWithoutAutoText,
-            capabilities: ModelCapabilityRegistry.of(datasetModel),
+            capabilities: ModelCapabilityRegistry.of(resolvedModel),
           ).prompt;
     final importedUcPreset = _toInt(commentData['uc_preset']);
     final importedQualityToggle =
@@ -156,7 +159,7 @@ class NaiImageMetadataRawDecoder {
       // 关键词推断认不出 "no text" 这类不含质量语义的词。
       parts['qualityTags'] = _extractRegisteredQualitySuffix(
         prompt,
-        sourceModel,
+        resolvedModel,
       );
     }
 
@@ -171,7 +174,7 @@ class NaiImageMetadataRawDecoder {
         scale: _extractScale(commentData),
         width: _toInt(commentData['width']),
         height: _toInt(commentData['height']),
-        model: sourceModel,
+        model: resolvedModel,
         smea: _safeGetBool(commentData, 'sm'),
         smeaDyn: _safeGetBool(commentData, 'sm_dyn'),
         varietyPlus: _extractVarietyPlus(commentData),
@@ -930,34 +933,43 @@ class NaiImageMetadataRawDecoder {
     return null;
   }
 
+  /// Source 能确定的模型：官网指纹，或启动器旧版本写入的文字名。
   static String? modelIdFromSource(String? source) {
     final value = source?.trim();
-    if (value == null || value.isEmpty) {
-      return null;
+    if (value == null || value.isEmpty) return null;
+    return NaiModelSourceFingerprints.modelOf(value) ??
+        _modelIdFromSourceText(value.toLowerCase());
+  }
+
+  /// 官网对认不出指纹的 Source 按家族归类，只在没有更确切的模型来源时使用。
+  static String? defaultModelIdFromSource(String? source) {
+    final value = source?.trim();
+    if (value == null || value.isEmpty) return null;
+    return NaiModelSourceFingerprints.familyDefaultOf(value);
+  }
+
+  /// 第三方客户端写在 Comment 里的 model：只认已登记的模型 ID，重绘权重归到底模。
+  static String? modelIdFromComment(Object? value) {
+    if (value is! String || value.trim().isEmpty) return null;
+    final model = ImageModels.resolveBaseModel(
+      ImageModels.migrateLegacyModel(value.trim()),
+    );
+    return ModelCapabilityRegistry.tryOf(model) == null ? null : model;
+  }
+
+  // 启动器旧版本写入的 `NovelAI Diffusion V4.5 Full` 等文字名，以及测试站的 `DiffusionModelMetaName.NAIv5 <hash>`
+  static String? _modelIdFromSourceText(String normalized) {
+    if (normalized.contains('naiv5')) {
+      return ImageModels.animeDiffusionV5Curated;
     }
-
-    final normalized = value.toLowerCase();
-
-    // Official PNG Source fingerprints are exact model identifiers. Do not
-    // fall back to prompt/UC inference when the Source text is ambiguous.
-    // Production writes `NovelAI Diffusion V5 <hash>`; the known Full hashes
-    // (657484A5 / 0ADF9AB7) and Full Medium hashes (93F4BD30 / 70AB5786) come
-    // from the web client, everything else in the V5 family resolves to
-    // Curated, mirroring the official parser. Staging used the enum name form
-    // (`DiffusionModelMetaName.NAIv5 DE206BDA`).
-    if (normalized.contains('naiv5') || normalized.contains('diffusion v5')) {
-      if (normalized.contains('93f4bd30') || normalized.contains('70ab5786')) {
-        return ImageModels.animeDiffusionV5FullMedium;
-      }
-      return normalized.contains('657484a5') ||
-              normalized.contains('0adf9ab7') ||
-              normalized.contains('full')
-          ? ImageModels.animeDiffusionV5Full
-          : ImageModels.animeDiffusionV5Curated;
+    if (normalized.contains('diffusion v5')) {
+      if (!normalized.contains('full')) return null;
+      return normalized.contains('medium')
+          ? ImageModels.animeDiffusionV5FullMedium
+          : ImageModels.animeDiffusionV5Full;
     }
-
     if (normalized.contains('v4.5')) {
-      if (normalized.contains('4bde2a90') || normalized.contains('v4.5 full')) {
+      if (normalized.contains('v4.5 full')) {
         return ImageModels.animeDiffusionV45Full;
       }
       if (normalized.contains('v4.5 curated')) {
@@ -965,7 +977,6 @@ class NaiImageMetadataRawDecoder {
       }
       return null;
     }
-
     if (normalized.contains('v4')) {
       if (normalized.contains('v4 full')) {
         return ImageModels.animeDiffusionV4Full;
@@ -975,17 +986,18 @@ class NaiImageMetadataRawDecoder {
       }
       return null;
     }
-
     if (normalized.contains('furry') && normalized.contains('v3')) {
       return ImageModels.furryDiffusionV3;
     }
     if (normalized.contains('v3')) {
       return ImageModels.animeDiffusionV3;
     }
+    if (normalized.contains('diffusion v2')) {
+      return ImageModels.animeV2;
+    }
     if (normalized.contains('furry')) {
       return ImageModels.furryDiffusion;
     }
-
     return null;
   }
 }
