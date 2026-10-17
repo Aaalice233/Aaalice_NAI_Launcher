@@ -5,11 +5,11 @@ import 'package:image/image.dart' as img;
 
 import '../../../core/utils/exif_container.dart';
 import '../../../core/utils/portable_logger.dart';
+import 'exif_metadata_extractor.dart';
 import 'image_metadata_container_codec.dart';
 import 'metadata_file_repository.dart';
 import 'metadata_parse_result.dart';
 import 'metadata_text_decoder.dart';
-import 'webp_exif_metadata_extractor.dart';
 
 /// Coordinates container decoding, text interpretation, files and stats.
 class ImageMetadataParserService {
@@ -20,7 +20,9 @@ class ImageMetadataParserService {
        _fileRepository = fileRepository ?? const MetadataFileRepository();
 
   static const String _tag = 'UnifiedMetadataParser';
+  static const String _pngExifParser = 'PNG EXIF';
   static const String _webpExifParser = 'WebP EXIF';
+  static const String _jpegExifParser = 'JPEG EXIF';
   static const String _stealthParser = 'NovelAI stealth_pngcomp';
 
   final MetadataTextDecoder _textDecoder;
@@ -88,6 +90,9 @@ class ImageMetadataParserService {
     if (ExifContainer.isWebp(bytes)) {
       return parseFromWebp(bytes, filePathForLog: filePathForLog);
     }
+    if (ExifContainer.isJpeg(bytes)) {
+      return parseFromJpeg(bytes, filePathForLog: filePathForLog);
+    }
 
     final stopwatch = Stopwatch()..start();
     statistics.totalAttempts++;
@@ -97,6 +102,7 @@ class ImageMetadataParserService {
       'Unsupported image container, ${fileInfo}bytes length=${bytes.length}',
       parseTime: stopwatch.elapsed,
       bytesRead: bytes.length,
+      conclusive: true,
     );
     _updateStatistics(result, stopwatch.elapsed);
     return result;
@@ -115,11 +121,13 @@ class ImageMetadataParserService {
     return result;
   }
 
-  /// Containers whose [parseFromImage] result already covers the stealth
-  /// payload, so callers need no separate pixel decode for them.
+  /// Containers whose [parseFromImage] result already settles the stealth
+  /// payload, so callers need no separate pixel decode for them. JPEG has no
+  /// alpha channel and therefore never carries one.
   static bool readsStealthPayload(Uint8List bytes) =>
       ImageMetadataContainerCodec.isPngHeader(bytes) ||
-      ExifContainer.isWebp(bytes);
+      ExifContainer.isWebp(bytes) ||
+      ExifContainer.isJpeg(bytes);
 
   /// Returns the same result as [parseFromImage] without any pixel decode, or
   /// null when that result depends on the stealth payload in the pixels.
@@ -163,6 +171,9 @@ class ImageMetadataParserService {
     return result;
   }
 
+  /// Text chunks, then the eXIf UserComment, then the stealth payload. Text
+  /// chunks without generation data do not stop the search, and neither chunk
+  /// source needs the image structure to be complete; the pixels do.
   MetadataParseResult? _parsePng(
     Uint8List bytes,
     Stopwatch stopwatch, {
@@ -170,49 +181,63 @@ class ImageMetadataParserService {
     required bool includeStealth,
   }) {
     final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
-    try {
-      if (!ImageMetadataContainerCodec.isPngHeader(bytes)) {
-        return MetadataParseResult.failed(
-          const [],
-          'Not a valid PNG file header, ${fileInfo}bytes length=${bytes.length}',
-          parseTime: stopwatch.elapsed,
-          bytesRead: bytes.length,
-        );
-      }
+    return _guarded(
+      'PNG',
+      bytes,
+      stopwatch,
+      filePathForLog: filePathForLog,
+      parse: () {
+        if (!ImageMetadataContainerCodec.isPngHeader(bytes)) {
+          return MetadataParseResult.failed(
+            const [],
+            'Not a valid PNG file header, ${fileInfo}bytes length=${bytes.length}',
+            parseTime: stopwatch.elapsed,
+            bytesRead: bytes.length,
+          );
+        }
 
-      final info = img.PngDecoder().startDecode(bytes);
-      if (info == null) {
-        return MetadataParseResult.failed(
-          const [],
-          bytes.length < 1024 * 1024
-              ? 'Failed to decode PNG (incomplete data?)'
-              : 'Failed to decode PNG',
-          parseTime: stopwatch.elapsed,
-          bytesRead: bytes.length,
+        // Null for anything that stops before IEND, so every PNG prefix lands here
+        final info = img.PngDecoder().startDecode(bytes) as img.PngInfo?;
+        final text = _parseTextData(
+          ImageMetadataContainerCodec.extractPngTextData(
+            bytes,
+            decoderTextData: info?.textData ?? const {},
+          ),
         );
-      }
-
-      final pngInfo = info as img.PngInfo;
-      final result = _parseTextData(
-        ImageMetadataContainerCodec.extractPngTextData(
+        if (text.success) return text;
+        final exif = _parseExif(
+          ExifMetadataExtractor.fromPng(bytes),
           bytes,
-          decoderTextData: pngInfo.textData,
-        ),
-      );
-      if (result.success) return result;
-      if (!includeStealth) return null;
-      return _preferStealth(bytes, stopwatch, fallback: result);
-    } catch (error, stackTrace) {
-      final message =
-          'Error parsing metadata from PNG (${fileInfo}bytes=${bytes.length}): $error';
-      PortableLogger.e(message, error, stackTrace, _tag);
-      return MetadataParseResult.failed(
-        const [],
-        message,
-        parseTime: stopwatch.elapsed,
-        bytesRead: bytes.length,
-      );
-    }
+          stopwatch,
+          parser: _pngExifParser,
+          container: 'PNG',
+        );
+        if (exif.success) return exif;
+        final triedParsers = [...text.triedParsers, ...exif.triedParsers];
+        if (info == null) {
+          return MetadataParseResult.failed(
+            triedParsers,
+            bytes.length < 1024 * 1024
+                ? 'Failed to decode PNG (incomplete data?)'
+                : 'Failed to decode PNG',
+            parseTime: stopwatch.elapsed,
+            bytesRead: bytes.length,
+          );
+        }
+        if (!includeStealth) return null;
+        // The text diagnosis stays: callers tell a damaged Comment from none by it
+        return _preferStealth(
+          bytes,
+          stopwatch,
+          fallback: MetadataParseResult.failed(
+            triedParsers,
+            text.errorMessage!,
+            parseTime: stopwatch.elapsed,
+            bytesRead: bytes.length,
+          ),
+        );
+      },
+    );
   }
 
   MetadataParseResult parseFromWebp(Uint8List bytes, {String? filePathForLog}) {
@@ -235,38 +260,65 @@ class ImageMetadataParserService {
     Stopwatch stopwatch, {
     String? filePathForLog,
     required bool includeStealth,
-  }) {
-    try {
-      final extraction = WebpExifMetadataExtractor.extract(bytes);
-      final result = _parseWebpExif(extraction, bytes, stopwatch);
+  }) => _guarded(
+    'WebP',
+    bytes,
+    stopwatch,
+    filePathForLog: filePathForLog,
+    triedParsers: const [_webpExifParser],
+    parse: () {
+      final extraction = ExifMetadataExtractor.fromWebp(bytes);
+      final result = _parseExif(
+        extraction,
+        bytes,
+        stopwatch,
+        parser: _webpExifParser,
+        container: 'WebP',
+      );
       if (result.success || extraction.containerDamaged) return result;
       if (!includeStealth) return null;
       return _preferStealth(bytes, stopwatch, fallback: result);
-    } catch (error, stackTrace) {
-      final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
-      final message =
-          'Error parsing metadata from WebP (${fileInfo}bytes=${bytes.length}): $error';
-      PortableLogger.e(message, error, stackTrace, _tag);
-      return MetadataParseResult.failed(
-        const [_webpExifParser],
-        message,
-        parseTime: stopwatch.elapsed,
-        bytesRead: bytes.length,
-      );
-    }
+    },
+  );
+
+  MetadataParseResult parseFromJpeg(Uint8List bytes, {String? filePathForLog}) {
+    final stopwatch = Stopwatch()..start();
+    statistics.totalAttempts++;
+    final result = _guarded(
+      'JPEG',
+      bytes,
+      stopwatch,
+      filePathForLog: filePathForLog,
+      triedParsers: const [_jpegExifParser],
+      // Without an alpha channel the web reader's stealth step always fails,
+      // so the EXIF answer is final and needs no pixel decode.
+      parse: () => _parseExif(
+        ExifMetadataExtractor.fromJpeg(bytes),
+        bytes,
+        stopwatch,
+        parser: _jpegExifParser,
+        container: 'JPEG',
+      ),
+    )!;
+    _updateStatistics(result, stopwatch.elapsed);
+    return result;
   }
 
-  MetadataParseResult _parseWebpExif(
-    WebpExifMetadataExtraction extraction,
+  MetadataParseResult _parseExif(
+    ExifMetadataExtraction extraction,
     Uint8List bytes,
-    Stopwatch stopwatch,
-  ) {
+    Stopwatch stopwatch, {
+    required String parser,
+    required String container,
+  }) {
     if (extraction.errorMessage != null || !extraction.hasMetadata) {
       return MetadataParseResult.failed(
-        const [_webpExifParser],
-        extraction.errorMessage ?? 'No EXIF UserComment metadata found in WebP',
+        [parser],
+        extraction.errorMessage ??
+            'No EXIF UserComment metadata found in $container',
         parseTime: stopwatch.elapsed,
         bytesRead: bytes.length,
+        conclusive: extraction.complete,
       );
     }
 
@@ -274,18 +326,44 @@ class ImageMetadataParserService {
     return parsed.success && parsed.metadata != null
         ? MetadataParseResult.success(
             parsed.metadata!,
-            '${parsed.sourceFormat} $_webpExifParser',
+            '${parsed.sourceFormat} $parser',
             extraction.textData['Comment']!,
-            [_webpExifParser, ...parsed.triedParsers],
+            [parser, ...parsed.triedParsers],
             parseTime: stopwatch.elapsed,
             bytesRead: bytes.length,
           )
         : MetadataParseResult.failed(
-            [_webpExifParser, ...parsed.triedParsers],
-            parsed.errorMessage ?? 'Invalid WebP EXIF metadata',
+            [parser, ...parsed.triedParsers],
+            parsed.errorMessage ?? 'Invalid $container EXIF metadata',
             parseTime: stopwatch.elapsed,
             bytesRead: bytes.length,
+            conclusive: extraction.complete,
           );
+  }
+
+  /// Turns an unexpected throw while reading [container] into a failed result.
+  MetadataParseResult? _guarded(
+    String container,
+    Uint8List bytes,
+    Stopwatch stopwatch, {
+    String? filePathForLog,
+    List<String> triedParsers = const [],
+    required MetadataParseResult? Function() parse,
+  }) {
+    try {
+      return parse();
+    } catch (error, stackTrace) {
+      final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
+      final message =
+          'Error parsing metadata from $container (${fileInfo}bytes=${bytes.length}): $error';
+      PortableLogger.e(message, error, stackTrace, _tag);
+      return MetadataParseResult.failed(
+        triedParsers,
+        message,
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+    }
   }
 
   MetadataParseResult parseFromTextData(Map<String, String> textData) {

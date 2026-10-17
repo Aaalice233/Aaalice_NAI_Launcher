@@ -17,7 +17,7 @@ class MetadataParseExecutor {
     );
   }
 
-  /// 与 [UnifiedMetadataParser.parseFromImage] 结果一致；文本块与 WebP EXIF 在调用方
+  /// 与 [UnifiedMetadataParser.parseFromImage] 结果一致；文本块与 EXIF 在调用方
   /// isolate 直接解析，只有 stealth 整图解码经 [ComputeGate] 交给后台。
   Future<MetadataParseResult> parseBytes(Uint8List bytes) async {
     return UnifiedMetadataParser.parseFromImageWithoutPixelDecode(bytes) ??

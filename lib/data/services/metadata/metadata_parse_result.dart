@@ -10,6 +10,10 @@ class MetadataParseResult {
   final Duration? parseTime;
   final int? bytesRead;
 
+  /// A failure that more bytes of the same file cannot overturn, so a gradual
+  /// reader can stop at this prefix.
+  final bool conclusive;
+
   const MetadataParseResult({
     this.success = false,
     this.metadata,
@@ -19,6 +23,7 @@ class MetadataParseResult {
     this.errorMessage,
     this.parseTime,
     this.bytesRead,
+    this.conclusive = false,
   });
 
   factory MetadataParseResult.failed(
@@ -26,11 +31,13 @@ class MetadataParseResult {
     String error, {
     Duration? parseTime,
     int? bytesRead,
+    bool conclusive = false,
   }) => MetadataParseResult(
     triedParsers: triedParsers,
     errorMessage: error,
     parseTime: parseTime,
     bytesRead: bytesRead,
+    conclusive: conclusive,
   );
 
   factory MetadataParseResult.success(
