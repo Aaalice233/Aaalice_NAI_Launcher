@@ -360,7 +360,9 @@ class WatermarkRenderService {
 
   static String _commentFor(NaiImageMetadata metadata) {
     final raw = metadata.rawJson;
-    if (raw != null && raw.trim().isNotEmpty) return raw;
+    if (raw != null && raw.trim().isNotEmpty) {
+      return NaiImageMetadata.unwrapEnvelopeComment(raw);
+    }
     return jsonEncode({
       if (metadata.prompt.isNotEmpty) 'prompt': metadata.prompt,
       if (metadata.negativePrompt.isNotEmpty) 'uc': metadata.negativePrompt,
