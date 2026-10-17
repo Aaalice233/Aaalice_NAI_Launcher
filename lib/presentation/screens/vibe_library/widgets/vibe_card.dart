@@ -239,9 +239,6 @@ class _VibeCardState extends ConsumerState<VibeCard>
     final previewSize = computeVibeHoverPreviewBounds(viewport);
     if (previewSize.isEmpty) return;
 
-    _hoverDetailFuture ??= ref
-        .read(vibeLibraryStorageServiceProvider)
-        .getDetailData(widget.entry.id);
     final targetRect =
         renderObject.localToGlobal(Offset.zero) & renderObject.size;
     _hoverController.schedule(
@@ -251,6 +248,9 @@ class _VibeCardState extends ConsumerState<VibeCard>
       targetRect: targetRect,
       previewSize: previewSize,
       verticalAlignment: ImageHoverPreviewVerticalAlignment.targetTop,
+      // 滚动时卡片不断从静止的指针下经过，加载必须等预览真正弹出
+      onIntent: _loadHoverDetail,
+      onDismissIntent: _releaseHoverDetail,
       builder: (_) => VibeHoverPreview(
         displayEntry: widget.entry,
         detailFuture: _hoverDetailFuture!,
@@ -260,6 +260,15 @@ class _VibeCardState extends ConsumerState<VibeCard>
       ),
     );
   }
+
+  void _loadHoverDetail() {
+    _hoverDetailFuture ??= ref
+        .read(vibeLibraryStorageServiceProvider)
+        .getDetailData(widget.entry.id);
+  }
+
+  // 详情含整张原图，预览关闭后不再随卡片常驻
+  void _releaseHoverDetail() => _hoverDetailFuture = null;
 
   Uint8List? get _thumbnailData {
     final thumbnail = widget.entry.thumbnail;

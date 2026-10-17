@@ -22,6 +22,7 @@ class _FakeStorage extends PreciseRefLibraryStorageService {
   _FakeStorage({this.imageBytes});
 
   final Uint8List? imageBytes;
+  int imageReads = 0;
 
   @override
   Future<Uint8List?> getDisplayThumbnail(
@@ -30,7 +31,10 @@ class _FakeStorage extends PreciseRefLibraryStorageService {
   }) async => imageBytes;
 
   @override
-  Future<Uint8List?> readImageBytes(String id) async => imageBytes;
+  Future<Uint8List?> readImageBytes(String id) async {
+    imageReads++;
+    return imageBytes;
+  }
 }
 
 void main() {
@@ -207,6 +211,66 @@ void main() {
     final resized = image.image as BoxFitResizeImage;
     expect((resized.imageProvider as MemoryImage).bytes, same(imageBytes));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('指针短暂经过不读原图，预览弹出才读取且关闭后不再常驻', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final storage = _FakeStorage(imageBytes: Uint8List.fromList(_onePixelPng));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          preciseRefLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 160,
+                height: 200,
+                child: PreciseRefCard(entry: entry),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    const outside = Offset(850, 650);
+    final center = tester.getCenter(find.byType(PreciseRefCard));
+    final preview = find.byKey(const ValueKey('precise-ref-hover-preview'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: outside);
+
+    await mouse.moveTo(center);
+    await tester.pump(const Duration(milliseconds: 200));
+    await mouse.moveTo(outside);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(preview, findsNothing);
+    expect(storage.imageReads, 0);
+
+    await mouse.moveTo(center);
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+    expect(preview, findsOneWidget);
+    expect(storage.imageReads, 1);
+
+    await mouse.moveTo(outside);
+    await tester.pump();
+    expect(preview, findsNothing);
+    await mouse.moveTo(center);
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+    expect(storage.imageReads, 2);
   });
 
   test('悬浮预览按比例适配且有最大尺寸', () {

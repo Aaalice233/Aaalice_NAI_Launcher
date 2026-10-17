@@ -120,7 +120,11 @@ class NovelAiVibeCodec {
     return const JsonEncoder.withIndent('  ').convert(value);
   }
 
-  static bool validateSingleMap(Map<String, dynamic> value) {
+  /// [verifyContentHash] 为 false 时只检查结构，不对整段原图或编码做 SHA-256 核对 id。
+  static bool validateSingleMap(
+    Map<String, dynamic> value, {
+    bool verifyContentHash = true,
+  }) {
     if (value['identifier'] != singleIdentifier ||
         value['version'] != version) {
       return false;
@@ -134,12 +138,15 @@ class NovelAiVibeCodec {
     final type = value['type'];
     if (type == 'image') {
       final image = value['image'];
-      if (image is! String || image.isEmpty || hashString(image) != id) {
+      if (image is! String ||
+          image.isEmpty ||
+          (verifyContentHash && hashString(image) != id)) {
         return false;
       }
     } else if (type == 'encoding') {
       final encoding = firstEncoding(value['encodings']);
-      if (encoding == null || hashString(encoding) != id) {
+      if (encoding == null ||
+          (verifyContentHash && hashString(encoding) != id)) {
         return false;
       }
     } else {
