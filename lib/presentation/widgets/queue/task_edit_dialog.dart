@@ -196,6 +196,9 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
             controller: _promptController,
             focusNode: _promptFocusNode,
             enableAutoFormat: ref.watch(autoFormatPromptSettingsProvider),
+            separateNumericWeightClosing: ref.watch(
+              separateNumericWeightClosingSettingsProvider,
+            ),
             child: AutocompleteWrapper(
               controller: _promptController,
               focusNode: _promptFocusNode,

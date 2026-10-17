@@ -6,6 +6,7 @@ import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../../presentation/providers/generation/generation_settings_notifiers.dart';
 import '../../../../presentation/providers/pending_prompt_provider.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
@@ -99,7 +100,12 @@ class _SendToHomeDialogState extends ConsumerState<SendToHomeDialog> {
       return '<${widget.entry.name}>';
     }
     // 应用 SD→NAI 转换和格式化
-    return SdToNaiConverter.convert(_promptParts.positivePrompt);
+    return SdToNaiConverter.convert(
+      _promptParts.positivePrompt,
+      separateNumericWeightClosing: ref.read(
+        separateNumericWeightClosingSettingsProvider,
+      ),
+    );
   }
 
   /// 解析竖线格式结果

@@ -2172,6 +2172,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Convert SD weight syntax to NAI format on blur';
 
   @override
+  String get prompt_separateNumericWeightClosing => 'Space After Numeric Tags';
+
+  @override
+  String get prompt_separateNumericWeightClosingSubtitle =>
+      'Add a space before :: so year_2025:: is not read as a new weight';
+
+  @override
   String get prompt_resolveAliasOnCopy => 'Expand Library On Copy';
 
   @override
@@ -2287,6 +2294,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prompt_formatted => 'Formatted';
+
+  @override
+  String get prompt_numericWeightClosingSeparated => 'Weight closings spaced';
 
   @override
   String get image_save => 'Save';

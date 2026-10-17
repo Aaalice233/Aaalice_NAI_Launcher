@@ -826,6 +826,8 @@
   "prompt_highlightEmphasisSubtitle": "括号和权重语法高亮显示",
   "prompt_sdSyntaxAutoConvert": "SD语法自动转换",
   "prompt_sdSyntaxAutoConvertSubtitle": "失焦时将SD权重语法转换为NAI格式",
+  "prompt_separateNumericWeightClosing": "数字结尾标签补空格",
+  "prompt_separateNumericWeightClosingSubtitle": "在 :: 前补空格，避免 year_2025:: 被读成新权重",
   "prompt_resolveAliasOnCopy": "复制时展开词库",
   "prompt_resolveAliasOnCopySubtitle": "复制或剪切时把 <词库名> 替换为词库内容",
   "prompt_detectMultiCharacterOnPaste": "粘贴时识别多角色",
@@ -887,6 +889,7 @@
   "regexRules_testNoChange": "无变化",
   "regexRules_testNoRules": "没有启用中的规则",
   "prompt_formatted": "已格式化",
+  "prompt_numericWeightClosingSeparated": "已补权重空格",
   "prompt_cooccurrenceRecommendation": "共现标签推荐",
   "prompt_cooccurrenceRecommendationSubtitle": "选中标签后自动推荐，也可按 Ctrl+Shift+Space 或 Ctrl+单击",
 

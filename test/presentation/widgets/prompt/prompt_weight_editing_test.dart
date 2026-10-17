@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/presentation/widgets/prompt/nai_syntax_controller.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/prompt_weight_editing.dart';
 
 TextEditingController _select(String text, String part) {
@@ -165,5 +166,55 @@ void main() {
   test('written weights use the shared format and drop the wrapper at 1', () {
     expect(PromptWeightEditing.withWeight('iu', 0.5), '0.5::iu::');
     expect(PromptWeightEditing.withWeight('1.5::iu::', 1), 'iu');
+  });
+
+  group('numeric closings after numbers', () {
+    test('written weights separate number endings only when enabled', () {
+      expect(
+        PromptWeightEditing.withWeight('year_2025', 1.05),
+        '1.05::year_2025::',
+      );
+      expect(
+        PromptWeightEditing.withWeight(
+          'year_2025',
+          1.05,
+          separateNumericWeightClosing: true,
+        ),
+        '1.05::year_2025 ::',
+      );
+      expect(
+        PromptWeightEditing.withWeight(
+          'cat',
+          1.05,
+          separateNumericWeightClosing: true,
+        ),
+        '1.05::cat::',
+      );
+    });
+
+    test('rewriting keeps a space the user already added', () {
+      expect(
+        PromptWeightEditing.withWeight('1.05::year_2025 ::', 1.1),
+        '1.1::year_2025 ::',
+      );
+      expect(
+        PromptWeightEditing.withWeight('1.05::year_2025 ::', 1),
+        'year_2025',
+      );
+    });
+
+    test('toolbar steps follow the controller preference', () {
+      const text = 'year_2025, other_tags';
+      final controller = NaiSyntaxController(
+        text: text,
+        separateNumericWeightClosing: true,
+      )..selection = const TextSelection(baseOffset: 0, extentOffset: 9);
+      addTearDown(controller.dispose);
+
+      expect(PromptWeightEditing.stepWeight(controller, 0.05), isTrue);
+      expect(controller.text, '1.05::year_2025 ::, other_tags');
+      expect(PromptWeightEditing.stepWeight(controller, 0.05), isTrue);
+      expect(controller.text, '1.1::year_2025 ::, other_tags');
+    });
   });
 }

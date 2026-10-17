@@ -41,6 +41,9 @@ class PromptInputEditor extends ConsumerWidget {
     final detectMultiCharacterOnPaste = ref.watch(
       detectMultiCharacterOnPasteSettingsProvider,
     );
+    final separateNumericWeightClosing = ref.watch(
+      separateNumericWeightClosingSettingsProvider,
+    );
     final storage = ref.watch(localStorageServiceProvider);
     final negative = controller.isNegativeMode;
     // 模型固定 UC 预设时负向提示词不会发送，只读保留给切回后的模型使用。
@@ -104,6 +107,7 @@ class PromptInputEditor extends ConsumerWidget {
                   enableSdSyntaxAutoConvert: compact
                       ? false
                       : enableSdSyntaxAutoConvert,
+                  separateNumericWeightClosing: separateNumericWeightClosing,
                   enableComfyuiImport: !negative && detectMultiCharacterOnPaste,
                   enableTagMode: true,
                   autocompleteConfig: AutocompleteConfig(

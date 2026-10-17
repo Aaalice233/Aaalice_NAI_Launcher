@@ -222,6 +222,9 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
     final enableSdSyntaxAutoConvert = ref.watch(
       sdSyntaxAutoConvertSettingsProvider,
     );
+    final separateNumericWeightClosing = ref.watch(
+      separateNumericWeightClosingSettingsProvider,
+    );
 
     final isNegative = _tabIndex == 1;
     // 模型固定生成参数时角色负向提示词不会发送，只读保留。
@@ -239,6 +242,7 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
       enableAutoFormat: enableAutoFormat,
       enableSyntaxHighlight: enableHighlight,
       enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
+      separateNumericWeightClosing: separateNumericWeightClosing,
       showClearButton: false,
       clearNeedsConfirm: false,
     );

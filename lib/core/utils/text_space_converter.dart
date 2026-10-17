@@ -6,7 +6,7 @@ class TextSpaceConverter {
   /// 保护字符集预设：仅逗号
   static const Set<String> commaOnly = {',', '，'};
 
-  /// 保护字符集预设：逗号 + 括号 + 竖线 + 尖括号（用于 NAI 格式化）
+  /// 保护字符集预设：逗号 + 括号 + 竖线 + 尖括号 + 数值权重边界（用于 NAI 格式化）
   static const Set<String> naiFormat = {
     ',',
     '，', // 中文逗号
@@ -19,16 +19,17 @@ class TextSpaceConverter {
     '|',
     '<', // 别名语法
     '>', // 别名语法
+    '::', // `1.5:: rain`、`year_2025 ::` 的空格是权重边界
   };
 
   /// 将空格转换为下划线
   ///
   /// [text] 要转换的文本
-  /// [protectChars] 在这些字符附近的空格会被保留
+  /// [protectChars] 在这些字符或记号附近的空格会被保留
   ///
   /// 规则：
-  /// - 如果空格的前一个非空格字符在 protectChars 中，保留空格
-  /// - 如果空格的后一个非空格字符在 protectChars 中，保留空格
+  /// - 如果空格前的非空格内容以 protectChars 中的项结尾，保留空格
+  /// - 如果空格后的非空格内容以 protectChars 中的项开头，保留空格
   /// - 如果空格在尖括号 <> 内部，保留空格
   /// - 其他情况，将空格转换为下划线
   static String convert(String text, {Set<String> protectChars = commaOnly}) {
@@ -87,23 +88,29 @@ class TextSpaceConverter {
       final prevIdx = prevNonSpaceIdx[i];
       final nextIdx = nextNonSpaceIdx[i];
 
-      final prevChar = prevIdx >= 0 ? chars[prevIdx] : null;
-      final nextChar = nextIdx >= 0 ? chars[nextIdx] : null;
-
       // 如果在尖括号内部，保留空格
       if (inAngleBracket[i]) {
         result.write(' ');
         continue;
       }
 
-      // 如果前后非空格字符在保护集中，保留空格
+      // 如果前后非空格内容紧邻保护项，保留空格
       final shouldPreserve =
-          (prevChar != null && protectChars.contains(prevChar)) ||
-              (nextChar != null && protectChars.contains(nextChar));
+          (prevIdx >= 0 && _endsWithAny(text, prevIdx + 1, protectChars)) ||
+          (nextIdx >= 0 && _startsWithAny(text, nextIdx, protectChars));
 
       result.write(shouldPreserve ? ' ' : '_');
     }
 
     return result.toString();
   }
+
+  static bool _endsWithAny(String text, int end, Set<String> tokens) =>
+      tokens.any(
+        (token) =>
+            end >= token.length && text.startsWith(token, end - token.length),
+      );
+
+  static bool _startsWithAny(String text, int start, Set<String> tokens) =>
+      tokens.any((token) => text.startsWith(token, start));
 }
