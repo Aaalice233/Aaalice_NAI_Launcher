@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/derivatives/derivative_registry.dart';
@@ -16,7 +14,6 @@ import '../../../data/repositories/gallery_folder_repository.dart';
 import '../../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../providers/local_gallery_provider.dart';
-import '../../widgets/common/app_toast.dart';
 
 typedef DerivativeGalleryWriter =
     Future<String> Function({
@@ -240,34 +237,4 @@ class DerivativeCopyFollowUp {
     systemGallery,
     galleryIndexed,
   ]);
-}
-
-/// 编辑器可能早已关闭，提示文案与根 Overlay 必须在第一个 await 之前取好。
-class DerivativeCopyFollowUpNotices {
-  DerivativeCopyFollowUpNotices.capture(
-    BuildContext context, {
-    required String systemGalleryFailed,
-    required String galleryIndexFailed,
-  }) : _overlay = Overlay.maybeOf(context, rootOverlay: true),
-       _systemGalleryFailed = systemGalleryFailed,
-       _galleryIndexFailed = galleryIndexFailed;
-
-  final OverlayState? _overlay;
-  final String _systemGalleryFailed;
-  final String _galleryIndexFailed;
-
-  void watch(DerivativeCopyFollowUp followUp) {
-    unawaited(
-      followUp.systemGallery.then((outcome) {
-        if (outcome is SystemGalleryPublishFailed) {
-          AppToast.warningOnOverlay(_overlay, _systemGalleryFailed);
-        }
-      }),
-    );
-    unawaited(
-      followUp.galleryIndexed.then((indexed) {
-        if (!indexed) AppToast.warningOnOverlay(_overlay, _galleryIndexFailed);
-      }),
-    );
-  }
 }

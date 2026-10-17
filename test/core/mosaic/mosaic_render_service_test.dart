@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/derivatives/derivative_render.dart';
 import 'package:nai_launcher/core/mosaic/mosaic_render_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
@@ -227,9 +228,9 @@ void main() {
             regions: const [full],
             preserveMetadata: false,
           ),
-          cancellationToken: MosaicCancellationToken()..cancel(),
+          cancellationToken: DerivativeRenderCancellationToken()..cancel(),
         ),
-        throwsA(isA<MosaicCancelledException>()),
+        throwsA(isA<DerivativeRenderCancelledException>()),
       );
     },
   );

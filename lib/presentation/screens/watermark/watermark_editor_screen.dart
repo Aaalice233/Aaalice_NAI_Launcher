@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/derivatives/derivative_registry.dart';
+import '../../../core/derivatives/derivative_render.dart';
 import '../../../core/services/native_share_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
@@ -23,6 +24,7 @@ import '../../adaptive/adaptive_layout.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../router/app_routes.dart';
+import '../derivatives/derivative_copy_save_run.dart';
 import '../derivatives/derivative_copy_saver.dart';
 import 'watermark_editor_controls.dart';
 import 'watermark_editor_preview.dart';
@@ -77,7 +79,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
   final _previewFocusNode = FocusNode(debugLabel: 'watermark preview');
   final _undo = <WatermarkSettings>[];
   final _redo = <WatermarkSettings>[];
-  WatermarkCancellationToken? _renderToken;
+  DerivativeCopySaveRun? _saveRun;
   late WatermarkSettings _settings;
   late WatermarkSettings _initialSettings;
   WatermarkEditableLayer _selectedLayer = WatermarkEditableLayer.text;
@@ -97,8 +99,9 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
   String? _initialLogoPath;
   String? _draftImportedLogoPath;
   bool _loading = true;
-  bool _saving = false;
   Object? _loadError;
+
+  bool get _saving => _saveRun != null;
 
   @override
   void initState() {
@@ -248,7 +251,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
 
   @override
   void dispose() {
-    _renderToken?.cancel();
+    _saveRun?.close();
     _previewFocusNode.dispose();
     _sourceImage?.dispose();
     _logoImage?.dispose();
@@ -434,85 +437,63 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
       _showError(context.l10n.watermark_logoMissing);
       return;
     }
-    final saver = ref.read(
-      derivativeCopySaverProvider(DerivativeKind.watermark),
+    final l10n = context.l10n;
+    final run = DerivativeCopySaveRun(
+      saver: ref.read(derivativeCopySaverProvider(DerivativeKind.watermark)),
+      notices: DerivativeCopySaveNotices.capture(
+        context,
+        saved: l10n.watermark_saved,
+        failed: l10n.watermark_failedGeneric,
+        systemGalleryFailed: l10n.watermark_systemGalleryExportFailed,
+        galleryIndexFailed: l10n.watermark_galleryRefreshFailed,
+      ),
     );
-    final notices = DerivativeCopyFollowUpNotices.capture(
-      context,
-      systemGalleryFailed: context.l10n.watermark_systemGalleryExportFailed,
-      galleryIndexFailed: context.l10n.watermark_galleryRefreshFailed,
+    final request = WatermarkRenderRequest(
+      sourceBytes: _sourceBytes,
+      logoBytes: _logoBytes,
+      settings: _settings,
+      preserveMetadata: ref
+          .read(watermarkSettingsProvider)
+          .configuration
+          .preserveMetadata,
+      sourceFileName: _sourceFileName,
     );
-    final sourceBytes = _sourceBytes;
-    final sourcePath = _sourcePath;
-    final token = WatermarkCancellationToken();
-    _renderToken = token;
-    setState(() => _saving = true);
-    try {
-      final result = await widget.renderCopy(
-        WatermarkRenderRequest(
-          sourceBytes: sourceBytes,
-          logoBytes: _logoBytes,
-          settings: _settings,
-          preserveMetadata: ref
-              .read(watermarkSettingsProvider)
-              .configuration
-              .preserveMetadata,
-          sourceFileName: _sourceFileName,
-        ),
-        cancellationToken: token,
-      );
-      if (!mounted || token.isCancelled) return;
-      final galleryRoot = await saver.resolveGalleryRoot();
-      if (!mounted || token.isCancelled) return;
-      if (galleryRoot == null) {
-        throw StateError(context.l10n.localGallery_saveDirectoryNotSet);
-      }
-      final output = await saver.write(
-        rootPath: galleryRoot,
-        bytes: result.bytes,
-        fileName: result.fileName,
-      );
-      // 文件已落盘，之后的登记与收录不能再把编辑器卡在保存态
-      notices.watch(
-        saver.followUp(
-          outputPath: output,
-          outputBytes: result.bytes,
-          fileName: result.fileName,
-          sourceBytes: sourceBytes,
-          sourcePath: sourcePath,
-        ),
-      );
-      if (!mounted) return;
-      await _showSaved(result, output);
-      if (mounted) Navigator.of(context).pop(output);
-    } on WatermarkCancelledException {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.watermark_cancelled)),
-        );
-      }
-    } on Object catch (error, stackTrace) {
+    setState(() => _saveRun = run);
+    final outcome = await run.save(
+      render: (cancellationToken) =>
+          widget.renderCopy(request, cancellationToken: cancellationToken),
+      sourceBytes: request.sourceBytes,
+      sourcePath: _sourcePath,
+    );
+    if (outcome case DerivativeCopyFailed(:final error, :final stackTrace)) {
       AppLogger.e(
         'Failed to create watermarked copy',
         error,
         stackTrace,
         'WatermarkEditor',
       );
-      if (mounted) {
+    }
+    if (run.isClosed || !mounted) return;
+    setState(() => _saveRun = null);
+    switch (outcome) {
+      case DerivativeCopySaved(:final copy, :final outputPath):
+        await _showSaved(copy, outputPath);
+        if (mounted) Navigator.of(context).pop(outputPath);
+      case DerivativeCopyCancelled():
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.watermark_cancelled)),
+        );
+      case DerivativeCopyFailed():
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(context.l10n.watermark_failedGeneric),
             behavior: SnackBarBehavior.floating,
           ),
         );
-      }
-    } finally {
-      _renderToken = null;
-      if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<void> _showSaved(WatermarkRenderResult result, String output) async {
+  Future<void> _showSaved(DerivativeRenderedCopy result, String output) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -543,7 +524,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
     );
   }
 
-  Future<void> _share(WatermarkRenderResult result) async {
+  Future<void> _share(DerivativeRenderedCopy result) async {
     final stripMetadata = ref
         .read(shareImageSettingsProvider)
         .effectiveStripMetadataForCopyAndDrag;
@@ -623,9 +604,8 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     return PopScope(
-      canPop: !_saving,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _saving) _renderToken?.cancel();
+        if (didPop) _saveRun?.close();
       },
       child: Material(
         color: Theme.of(context).colorScheme.surface,
@@ -654,7 +634,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
         ),
         IconButton(
           tooltip: context.l10n.common_close,
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.close),
         ),
       ],

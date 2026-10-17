@@ -7,12 +7,9 @@ import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/mosaic/mosaic_settings.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../derivatives/derivative_registry.dart';
+import '../derivatives/derivative_render.dart';
 import '../utils/image_share_sanitizer.dart';
 import '../utils/isolate_pool.dart';
-
-class MosaicCancelledException implements Exception {
-  const MosaicCancelledException();
-}
 
 class MosaicRenderException implements Exception {
   const MosaicRenderException(this.message, [this.cause]);
@@ -22,18 +19,6 @@ class MosaicRenderException implements Exception {
 
   @override
   String toString() => message;
-}
-
-class MosaicCancellationToken {
-  bool _cancelled = false;
-
-  bool get isCancelled => _cancelled;
-
-  void cancel() => _cancelled = true;
-
-  void throwIfCancelled() {
-    if (_cancelled) throw const MosaicCancelledException();
-  }
 }
 
 class MosaicRenderRequest {
@@ -52,7 +37,7 @@ class MosaicRenderRequest {
   final String sourceFileName;
 }
 
-class MosaicRenderResult {
+class MosaicRenderResult implements DerivativeRenderedCopy {
   const MosaicRenderResult({
     required this.bytes,
     required this.fileName,
@@ -61,7 +46,9 @@ class MosaicRenderResult {
     required this.metadataPreserved,
   });
 
+  @override
   final Uint8List bytes;
+  @override
   final String fileName;
   final int width;
   final int height;
@@ -71,7 +58,7 @@ class MosaicRenderResult {
 typedef MosaicRenderOperation =
     Future<MosaicRenderResult> Function(
       MosaicRenderRequest request, {
-      MosaicCancellationToken? cancellationToken,
+      DerivativeRenderCancellationToken? cancellationToken,
     });
 
 /// Full-resolution redaction renderer shared by the editor and export flow.
@@ -259,9 +246,9 @@ class MosaicRenderService {
 
   static Future<MosaicRenderResult> render(
     MosaicRenderRequest request, {
-    MosaicCancellationToken? cancellationToken,
+    DerivativeRenderCancellationToken? cancellationToken,
   }) async {
-    final token = cancellationToken ?? MosaicCancellationToken();
+    final token = cancellationToken ?? DerivativeRenderCancellationToken();
     token.throwIfCancelled();
     if (!request.regions.any((region) => region.isUsable)) {
       throw const MosaicRenderException(
@@ -298,6 +285,8 @@ class MosaicRenderService {
       if (byteData == null) {
         throw const MosaicRenderException('PNG encoding failed.');
       }
+      // 下一步要排 ComputeGate，已取消就不再占槽位
+      token.throwIfCancelled();
       final sanitized =
           await ImageShareSanitizer.prepareForCopyOrDragInBackground(
             byteData.buffer.asUint8List(),
@@ -325,7 +314,7 @@ class MosaicRenderService {
         height: height,
         metadataPreserved: metadataPreserved,
       );
-    } on MosaicCancelledException {
+    } on DerivativeRenderCancelledException {
       rethrow;
     } on MosaicRenderException {
       rethrow;

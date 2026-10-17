@@ -22,6 +22,7 @@ import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_lau
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_screen.dart';
 
 import '../../../helpers/adaptive_panel_expectations.dart';
+import '../../../helpers/editor_exit.dart';
 import '../../../helpers/labeled_rows_expectations.dart';
 import '../../../helpers/pending_derivative_copy_saver.dart';
 
@@ -664,16 +665,99 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
+
+    for (final exit in EditorExit.values) {
+      testWidgets('${exit.name} during a stalled render leaves and writes '
+          'nothing', (tester) async {
+        final pending = PendingDerivativeCopySaver(DerivativeKind.watermark);
+        addTearDown(pending.releaseAll);
+        final rendering = Completer<WatermarkRenderResult>();
+        final closed = await _openForSave(
+          tester,
+          storage,
+          pending,
+          preview,
+          renderCopy: (request, {cancellationToken}) => rendering.future,
+        );
+
+        await tester.tap(find.text('Save copy'));
+        await tester.pump();
+        expect(find.text('Rendering full-resolution image…'), findsOneWidget);
+
+        await exit.perform(tester);
+        await tester.pump();
+        expect(closed.isCompleted, isTrue);
+        await settleWithin(tester, const Duration(seconds: 2));
+        expect(find.byType(WatermarkEditorScreen), findsNothing);
+        expect(await closed.future, isNull);
+
+        rendering.complete(_renderResult(Uint8List.fromList([1, 2, 3])));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(pending.writes, isEmpty);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('${exit.name} once writing started leaves and still saves', (
+        tester,
+      ) async {
+        final pending = PendingDerivativeCopySaver(
+          DerivativeKind.watermark,
+          holdWrites: true,
+        );
+        addTearDown(pending.releaseAll);
+        final closed = await _openForSave(tester, storage, pending, preview);
+        final output = pending.outputPathFor('source_watermarked.png');
+
+        await tester.tap(find.text('Save copy'));
+        await tester.pump();
+        expect(pending.writeRequests, [output]);
+
+        await exit.perform(tester);
+        await tester.pump();
+        expect(closed.isCompleted, isTrue);
+        await settleWithin(tester, const Duration(seconds: 2));
+        expect(find.byType(WatermarkEditorScreen), findsNothing);
+        expect(await closed.future, isNull);
+
+        pending.writing.complete();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(pending.writes, [output]);
+        expect(pending.admissions, [
+          [output],
+        ]);
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(
+          find.text('Watermarked copy saved\nsource_watermarked.png'),
+          findsOneWidget,
+        );
+
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
+
+WatermarkRenderResult _renderResult(Uint8List bytes) => WatermarkRenderResult(
+  bytes: bytes,
+  fileName: 'source_watermarked.png',
+  width: 48,
+  height: 32,
+  metadataPreserved: false,
+);
 
 /// 推入编辑器路由并等原图载入；返回的 Completer 在编辑器关闭时带上返回值完成。
 Future<Completer<String?>> _openForSave(
   WidgetTester tester,
   LocalStorageService storage,
   PendingDerivativeCopySaver pending,
-  ui.Image preview,
-) async {
+  ui.Image preview, {
+  WatermarkRenderOperation? renderCopy,
+}) async {
   await tester.binding.setSurfaceSize(const Size(1180, 760));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final closed = Completer<String?>();
@@ -702,14 +786,10 @@ Future<Completer<String?>> _openForSave(
                         defaultsOnly: false,
                         decodePreview: (_, {requireStatic = false}) async =>
                             preview.clone(),
-                        renderCopy: (request, {cancellationToken}) async =>
-                            WatermarkRenderResult(
-                              bytes: request.sourceBytes,
-                              fileName: 'source_watermarked.png',
-                              width: 48,
-                              height: 32,
-                              metadataPreserved: false,
-                            ),
+                        renderCopy:
+                            renderCopy ??
+                            (request, {cancellationToken}) async =>
+                                _renderResult(request.sourceBytes),
                       ),
                     ),
                   )
