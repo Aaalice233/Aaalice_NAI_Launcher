@@ -2087,6 +2087,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_resolveAliasOnCopySubtitle => '复制或剪切时把 <词库名> 替换为词库内容';
 
   @override
+  String get prompt_detectMultiCharacterOnPaste => '粘贴时识别多角色';
+
+  @override
+  String get prompt_detectMultiCharacterOnPasteSubtitle =>
+      '粘贴含 | 或 COUPLE 等多角色语法时提示导入角色';
+
+  @override
   String get prompt_cooccurrenceRecommendation => '共现标签推荐';
 
   @override
@@ -17582,6 +17589,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get prompt_resolveAliasOnCopySubtitle => '複製或剪下時把 <詞庫名> 替換為詞庫內容';
+
+  @override
+  String get prompt_detectMultiCharacterOnPaste => '貼上時識別多角色';
+
+  @override
+  String get prompt_detectMultiCharacterOnPasteSubtitle =>
+      '貼上含 | 或 COUPLE 等多角色語法時提示匯入角色';
 
   @override
   String get prompt_cooccurrenceRecommendation => '共現標籤推薦';

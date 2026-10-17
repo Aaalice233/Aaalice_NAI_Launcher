@@ -828,6 +828,8 @@
   "prompt_sdSyntaxAutoConvertSubtitle": "失焦时将SD权重语法转换为NAI格式",
   "prompt_resolveAliasOnCopy": "复制时展开词库",
   "prompt_resolveAliasOnCopySubtitle": "复制或剪切时把 <词库名> 替换为词库内容",
+  "prompt_detectMultiCharacterOnPaste": "粘贴时识别多角色",
+  "prompt_detectMultiCharacterOnPasteSubtitle": "粘贴含 | 或 COUPLE 等多角色语法时提示导入角色",
   "prompt_regexRulesManage": "正则替换规则…",
   "prompt_regexRulesCount": "已配置 {count} 条规则",
   "@prompt_regexRulesCount": {

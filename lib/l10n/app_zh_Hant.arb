@@ -823,6 +823,8 @@
   "prompt_sdSyntaxAutoConvertSubtitle": "失焦時將SD權重語法轉換為NAI格式",
   "prompt_resolveAliasOnCopy": "複製時展開詞庫",
   "prompt_resolveAliasOnCopySubtitle": "複製或剪下時把 <詞庫名> 替換為詞庫內容",
+  "prompt_detectMultiCharacterOnPaste": "貼上時識別多角色",
+  "prompt_detectMultiCharacterOnPasteSubtitle": "貼上含 | 或 COUPLE 等多角色語法時提示匯入角色",
   "prompt_regexRulesManage": "正則替換規則…",
   "prompt_regexRulesCount": "已配置 {count} 條規則",
   "@prompt_regexRulesCount": {

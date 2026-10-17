@@ -1101,11 +1101,11 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     if (widget.config.enableTagMode) ref.watch(promptTagModeProvider(_modeId));
     Widget result = _buildTextField();
 
-    // 如果启用 ComfyUI 导入，包装 ComfyuiImportWrapper
-    if (widget.config.enableComfyuiImport && widget.onComfyuiImport != null) {
+    // 开关只切 enabled、不增删包装层：树形变化会重建 TextField 并丢失撤销历史
+    if (widget.onComfyuiImport != null) {
       result = ComfyuiImportWrapper(
         controller: _effectiveController,
-        enabled: !widget.config.readOnly,
+        enabled: widget.config.enableComfyuiImport && !widget.config.readOnly,
         onImport: widget.onComfyuiImport,
         child: result,
       );

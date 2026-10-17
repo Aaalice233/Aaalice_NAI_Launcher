@@ -246,6 +246,7 @@ const portableSettingKeys = <String>{
   StorageKeys.highlightEmphasis,
   StorageKeys.sdSyntaxAutoConvert,
   StorageKeys.resolveAliasOnCopy,
+  StorageKeys.detectMultiCharacterOnPaste,
   StorageKeys.enablePromptWeightScroll,
   StorageKeys.promptRegexRules,
   StorageKeys.discordShareIncludeMetadata,

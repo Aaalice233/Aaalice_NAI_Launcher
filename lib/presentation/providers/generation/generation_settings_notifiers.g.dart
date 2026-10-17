@@ -101,6 +101,25 @@ final resolveAliasOnCopySettingsProvider =
 );
 
 typedef _$ResolveAliasOnCopySettings = Notifier<bool>;
+String _$detectMultiCharacterOnPasteSettingsHash() =>
+    r'855c1635e6f66fb746925c8e08c912f236a2268d';
+
+/// 粘贴时识别多角色提示词设置 Notifier
+///
+/// Copied from [DetectMultiCharacterOnPasteSettings].
+@ProviderFor(DetectMultiCharacterOnPasteSettings)
+final detectMultiCharacterOnPasteSettingsProvider =
+    NotifierProvider<DetectMultiCharacterOnPasteSettings, bool>.internal(
+  DetectMultiCharacterOnPasteSettings.new,
+  name: r'detectMultiCharacterOnPasteSettingsProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$detectMultiCharacterOnPasteSettingsHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$DetectMultiCharacterOnPasteSettings = Notifier<bool>;
 String _$promptWeightScrollSettingsHash() =>
     r'7d2c67313f9d3910f8dc228f990eab720f4bc084';
 
