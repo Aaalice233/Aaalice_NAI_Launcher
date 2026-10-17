@@ -44,13 +44,13 @@ class DroppedImageInspector {
       fileName,
       bytes,
       metadataBytes: fileData.metadataBytes,
-      inspectNonPngStealth: isDiscordAttachment,
+      inspectOtherContainerStealth: isDiscordAttachment,
     );
     if (metadataDetection.metadata == null &&
         fileData.metadataBytes == null &&
         isDiscordAttachment) {
       final metadataBytes =
-          await DroppedFileReader.downloadRemoteMetadataPrefix(
+          await DroppedFileReader.downloadRemoteMetadataSource(
             fileData.sourceUri!,
             logTag: 'DropHandler',
           );
@@ -139,7 +139,7 @@ Future<DroppedImageMetadataDetection> detectDroppedImageMetadata(
   String fileName,
   Uint8List bytes, {
   Uint8List? metadataBytes,
-  bool inspectNonPngStealth = false,
+  bool inspectOtherContainerStealth = false,
 }) async {
   try {
     String? parseError;
@@ -152,10 +152,14 @@ Future<DroppedImageMetadataDetection> detectDroppedImageMetadata(
       }
     }
 
-    if (metadataBytes != null &&
-        UnifiedMetadataParser.isPngHeader(metadataBytes)) {
-      final textData = UnifiedMetadataParser.extractPngTextData(metadataBytes);
-      final result = UnifiedMetadataParser.parseFromTextData(textData);
+    if (metadataBytes != null) {
+      final result = UnifiedMetadataParser.isPngHeader(metadataBytes)
+          ? UnifiedMetadataParser.parseFromTextData(
+              UnifiedMetadataParser.extractPngTextData(metadataBytes),
+            )
+          : await ImageMetadataService().getMetadataParseResultFromBytes(
+              metadataBytes,
+            );
       metadata = result.success ? result.metadata : null;
       if (metadata == null || !metadata.hasData) {
         recordParseFailure(result, metadataBytes);
@@ -171,7 +175,9 @@ Future<DroppedImageMetadataDetection> detectDroppedImageMetadata(
       }
     }
 
-    if ((metadata == null || !metadata.hasData) && inspectNonPngStealth) {
+    if ((metadata == null || !metadata.hasData) &&
+        inspectOtherContainerStealth &&
+        !UnifiedMetadataParser.readsStealthPayload(bytes)) {
       metadata = await ComputeGate().runCompute(
         _parseStealthMetadataFromImageBytes,
         bytes,
@@ -196,13 +202,13 @@ Future<NaiImageMetadata?> detectImportableDroppedImageMetadata(
   String fileName,
   Uint8List bytes, {
   Uint8List? metadataBytes,
-  bool inspectNonPngStealth = false,
+  bool inspectOtherContainerStealth = false,
 }) async {
   return (await detectDroppedImageMetadata(
     fileName,
     bytes,
     metadataBytes: metadataBytes,
-    inspectNonPngStealth: inspectNonPngStealth,
+    inspectOtherContainerStealth: inspectOtherContainerStealth,
   )).metadata;
 }
 

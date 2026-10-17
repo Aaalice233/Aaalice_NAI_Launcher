@@ -336,6 +336,11 @@ class NovelAiParser implements MetadataParser {
         // 嵌套格式
         if (json.containsKey('Comment')) {
           final comment = json['Comment'];
+          final attribution = NaiImageMetadata.envelopeAttribution(
+            json,
+            software: textData['Software'],
+            source: textData['Source'],
+          );
           // PortableLogger.d(
           //   'NovelAiParser: Found nested Comment field, type=${comment.runtimeType}',
           //   'UnifiedMetadataParser',
@@ -351,8 +356,8 @@ class NovelAiParser implements MetadataParser {
 
               final wrappedResult = NaiImageMetadata.fromNaiComment({
                 'Comment': jsonEncode(commentJson),
-                'Software': textData['Software'],
-                'Source': textData['Source'],
+                'Software': attribution.software,
+                'Source': attribution.source,
               }, rawJson: text);
               // PortableLogger.d('NovelAiParser: Metadata created from nested Comment', 'UnifiedMetadataParser');
               return wrappedResult;
@@ -369,8 +374,8 @@ class NovelAiParser implements MetadataParser {
             try {
               final result = NaiImageMetadata.fromNaiComment({
                 'Comment': jsonEncode(comment),
-                'Software': textData['Software'],
-                'Source': textData['Source'],
+                'Software': attribution.software,
+                'Source': attribution.source,
               }, rawJson: text);
               PortableLogger.d(
                 'NovelAiParser: Metadata created from nested Comment Map',

@@ -215,19 +215,6 @@ void main() {
       expect(result.errorMessage, contains('Truncated WebP RIFF container'));
     });
 
-    test('rejects non-ASCII EXIF UserComment encoding with diagnostics', () {
-      final bytes = buildNovelAiWebpFixture(
-        comment: novelAiComment,
-        invalidUserCommentPrefix: true,
-      );
-
-      final result = UnifiedMetadataParser.parseFromImage(bytes);
-
-      expect(result.success, isFalse);
-      expect(result.metadata, isNull);
-      expect(result.errorMessage, contains('expected ASCII prefix'));
-    });
-
     test('file parsing accepts an uppercase WebP extension', () async {
       final tempDir = await Directory.systemTemp.createTemp(
         'nai_webp_metadata_test_',

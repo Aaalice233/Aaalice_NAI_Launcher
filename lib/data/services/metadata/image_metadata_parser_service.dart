@@ -20,6 +20,8 @@ class ImageMetadataParserService {
        _fileRepository = fileRepository ?? const MetadataFileRepository();
 
   static const String _tag = 'UnifiedMetadataParser';
+  static const String _webpExifParser = 'WebP EXIF';
+  static const String _stealthParser = 'NovelAI stealth_pngcomp';
 
   final MetadataTextDecoder _textDecoder;
   final MetadataFileRepository _fileRepository;
@@ -113,11 +115,20 @@ class ImageMetadataParserService {
     return result;
   }
 
+  /// Containers whose [parseFromImage] result already covers the stealth
+  /// payload, so callers need no separate pixel decode for them.
+  static bool readsStealthPayload(Uint8List bytes) =>
+      ImageMetadataContainerCodec.isPngHeader(bytes) ||
+      ExifContainer.isWebp(bytes);
+
   /// Returns the same result as [parseFromImage] without any pixel decode, or
-  /// null when that result depends on the stealth payload in the PNG pixels.
+  /// null when that result depends on the stealth payload in the pixels.
   MetadataParseResult? parseFromImageWithoutPixelDecode(Uint8List bytes) {
     if (ImageMetadataContainerCodec.isPngHeader(bytes)) {
       return parseFromPngWithoutPixelDecode(bytes);
+    }
+    if (ExifContainer.isWebp(bytes)) {
+      return parseFromWebpWithoutPixelDecode(bytes);
     }
     return parseFromImage(bytes);
   }
@@ -125,7 +136,26 @@ class ImageMetadataParserService {
   /// PNG-only counterpart of [parseFromImageWithoutPixelDecode].
   MetadataParseResult? parseFromPngWithoutPixelDecode(Uint8List bytes) {
     final stopwatch = Stopwatch()..start();
-    final result = _parsePng(bytes, stopwatch, includeStealth: false);
+    return _recordDeferrable(
+      _parsePng(bytes, stopwatch, includeStealth: false),
+      stopwatch,
+    );
+  }
+
+  /// WebP-only counterpart of [parseFromImageWithoutPixelDecode].
+  MetadataParseResult? parseFromWebpWithoutPixelDecode(Uint8List bytes) {
+    final stopwatch = Stopwatch()..start();
+    return _recordDeferrable(
+      _parseWebp(bytes, stopwatch, includeStealth: false),
+      stopwatch,
+    );
+  }
+
+  /// A deferred (null) result is recorded later by the full parse instead.
+  MetadataParseResult? _recordDeferrable(
+    MetadataParseResult? result,
+    Stopwatch stopwatch,
+  ) {
     if (result != null) {
       statistics.totalAttempts++;
       _updateStatistics(result, stopwatch.elapsed);
@@ -171,24 +201,7 @@ class ImageMetadataParserService {
       );
       if (result.success) return result;
       if (!includeStealth) return null;
-
-      final stealthText = ImageMetadataContainerCodec.extractStealthMetadataText(
-        bytes,
-      );
-      if (stealthText != null) {
-        final stealthResult = _parseTextData({'Comment': stealthText});
-        if (stealthResult.success && stealthResult.metadata != null) {
-          return MetadataParseResult.success(
-            stealthResult.metadata!,
-            'NovelAI stealth_pngcomp',
-            stealthText,
-            [...result.triedParsers, 'NovelAI stealth_pngcomp'],
-            parseTime: stopwatch.elapsed,
-            bytesRead: bytes.length,
-          );
-        }
-      }
-      return result;
+      return _preferStealth(bytes, stopwatch, fallback: result);
     } catch (error, stackTrace) {
       final message =
           'Error parsing metadata from PNG (${fileInfo}bytes=${bytes.length}): $error';
@@ -205,52 +218,74 @@ class ImageMetadataParserService {
   MetadataParseResult parseFromWebp(Uint8List bytes, {String? filePathForLog}) {
     final stopwatch = Stopwatch()..start();
     statistics.totalAttempts++;
+    final result = _parseWebp(
+      bytes,
+      stopwatch,
+      filePathForLog: filePathForLog,
+      includeStealth: true,
+    )!;
+    _updateStatistics(result, stopwatch.elapsed);
+    return result;
+  }
+
+  /// Follows NovelAI's web reader: EXIF UserComment first, then the stealth
+  /// payload. A damaged container stops before the pixel decode.
+  MetadataParseResult? _parseWebp(
+    Uint8List bytes,
+    Stopwatch stopwatch, {
+    String? filePathForLog,
+    required bool includeStealth,
+  }) {
     try {
       final extraction = WebpExifMetadataExtractor.extract(bytes);
-      if (extraction.errorMessage != null || !extraction.hasMetadata) {
-        final result = MetadataParseResult.failed(
-          const ['WebP EXIF'],
-          extraction.errorMessage ??
-              'No EXIF UserComment metadata found in WebP',
-          parseTime: stopwatch.elapsed,
-          bytesRead: bytes.length,
-        );
-        _updateStatistics(result, stopwatch.elapsed);
-        return result;
-      }
-
-      final parsed = _parseTextData(extraction.textData);
-      final result = parsed.success && parsed.metadata != null
-          ? MetadataParseResult.success(
-              parsed.metadata!,
-              '${parsed.sourceFormat} WebP EXIF',
-              extraction.textData['Comment']!,
-              ['WebP EXIF', ...parsed.triedParsers],
-              parseTime: stopwatch.elapsed,
-              bytesRead: bytes.length,
-            )
-          : MetadataParseResult.failed(
-              ['WebP EXIF', ...parsed.triedParsers],
-              parsed.errorMessage ?? 'Invalid WebP EXIF metadata',
-              parseTime: stopwatch.elapsed,
-              bytesRead: bytes.length,
-            );
-      _updateStatistics(result, stopwatch.elapsed);
-      return result;
+      final result = _parseWebpExif(extraction, bytes, stopwatch);
+      if (result.success || extraction.containerDamaged) return result;
+      if (!includeStealth) return null;
+      return _preferStealth(bytes, stopwatch, fallback: result);
     } catch (error, stackTrace) {
       final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
       final message =
           'Error parsing metadata from WebP (${fileInfo}bytes=${bytes.length}): $error';
       PortableLogger.e(message, error, stackTrace, _tag);
-      final result = MetadataParseResult.failed(
-        const ['WebP EXIF'],
+      return MetadataParseResult.failed(
+        const [_webpExifParser],
         message,
         parseTime: stopwatch.elapsed,
         bytesRead: bytes.length,
       );
-      _updateStatistics(result, stopwatch.elapsed);
-      return result;
     }
+  }
+
+  MetadataParseResult _parseWebpExif(
+    WebpExifMetadataExtraction extraction,
+    Uint8List bytes,
+    Stopwatch stopwatch,
+  ) {
+    if (extraction.errorMessage != null || !extraction.hasMetadata) {
+      return MetadataParseResult.failed(
+        const [_webpExifParser],
+        extraction.errorMessage ?? 'No EXIF UserComment metadata found in WebP',
+        parseTime: stopwatch.elapsed,
+        bytesRead: bytes.length,
+      );
+    }
+
+    final parsed = _parseTextData(extraction.textData);
+    return parsed.success && parsed.metadata != null
+        ? MetadataParseResult.success(
+            parsed.metadata!,
+            '${parsed.sourceFormat} $_webpExifParser',
+            extraction.textData['Comment']!,
+            [_webpExifParser, ...parsed.triedParsers],
+            parseTime: stopwatch.elapsed,
+            bytesRead: bytes.length,
+          )
+        : MetadataParseResult.failed(
+            [_webpExifParser, ...parsed.triedParsers],
+            parsed.errorMessage ?? 'Invalid WebP EXIF metadata',
+            parseTime: stopwatch.elapsed,
+            bytesRead: bytes.length,
+          );
   }
 
   MetadataParseResult parseFromTextData(Map<String, String> textData) {
@@ -273,42 +308,65 @@ class ImageMetadataParserService {
   MetadataParseResult parseStealthFromImageBytes(Uint8List bytes) {
     final stopwatch = Stopwatch()..start();
     statistics.totalAttempts++;
+    final result = _parseStealth(bytes, stopwatch);
+    _updateStatistics(result, stopwatch.elapsed);
+    return result;
+  }
+
+  /// The stealth result when it yields metadata, otherwise [fallback] so the
+  /// container-level diagnosis is what callers see.
+  MetadataParseResult _preferStealth(
+    Uint8List bytes,
+    Stopwatch stopwatch, {
+    required MetadataParseResult fallback,
+  }) {
+    final stealth = _parseStealth(
+      bytes,
+      stopwatch,
+      precedingParsers: fallback.triedParsers,
+    );
+    return stealth.success ? stealth : fallback;
+  }
+
+  MetadataParseResult _parseStealth(
+    Uint8List bytes,
+    Stopwatch stopwatch, {
+    List<String> precedingParsers = const [],
+  }) {
     final stealthText = ImageMetadataContainerCodec.extractStealthMetadataText(
       bytes,
     );
     if (stealthText == null) {
-      final result = MetadataParseResult.failed(
-        const ['NovelAI stealth_pngcomp'],
+      return MetadataParseResult.failed(
+        [...precedingParsers, _stealthParser],
         'No NovelAI stealth_pngcomp metadata found',
         parseTime: stopwatch.elapsed,
         bytesRead: bytes.length,
       );
-      _updateStatistics(result, stopwatch.elapsed);
-      return result;
     }
 
     final parsed = _parseTextData({'Comment': stealthText});
+    final triedParsers = [
+      ...precedingParsers,
+      ...parsed.triedParsers,
+      _stealthParser,
+    ];
     if (!parsed.success || parsed.metadata == null) {
-      final result = MetadataParseResult.failed(
-        [...parsed.triedParsers, 'NovelAI stealth_pngcomp'],
+      return MetadataParseResult.failed(
+        triedParsers,
         parsed.errorMessage ?? 'Failed to parse NovelAI stealth metadata',
         parseTime: stopwatch.elapsed,
         bytesRead: bytes.length,
       );
-      _updateStatistics(result, stopwatch.elapsed);
-      return result;
     }
-
-    final result = MetadataParseResult.success(
+    return MetadataParseResult.success(
       parsed.metadata!,
-      'NovelAI stealth_pngcomp',
+      _stealthParser,
       stealthText,
-      [...parsed.triedParsers, 'NovelAI stealth_pngcomp'],
+      triedParsers,
       parseTime: stopwatch.elapsed,
       bytesRead: bytes.length,
     );
-    _updateStatistics(result, stopwatch.elapsed);
-    return result;
   }
 
   void resetStatistics() => statistics.reset();
