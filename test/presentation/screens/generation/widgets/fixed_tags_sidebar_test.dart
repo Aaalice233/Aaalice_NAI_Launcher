@@ -1193,11 +1193,12 @@ void main() {
   testWidgets('folder groups support per-category and bulk collapse', (
     tester,
   ) async {
+    // 序号相同时按随机 id 排列，与真实新建分类一样给出递增序号
     final categories = [
-      TagLibraryCategory.create(name: '质量词'),
-      TagLibraryCategory.create(name: '画风'),
-      TagLibraryCategory.create(name: '角色'),
-      TagLibraryCategory.create(name: '构图'),
+      TagLibraryCategory.create(name: '质量词', sortOrder: 0),
+      TagLibraryCategory.create(name: '画风', sortOrder: 1),
+      TagLibraryCategory.create(name: '角色', sortOrder: 2),
+      TagLibraryCategory.create(name: '构图', sortOrder: 3),
     ];
     final entries = [
       for (final category in categories)
