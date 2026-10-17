@@ -10,6 +10,7 @@ import '../../core/utils/last_result_memo.dart';
 import '../../data/models/tag_library/import_plan.dart';
 import '../../data/models/tag_library/tag_library_category.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
+import '../../data/models/tag_library/tag_library_entry_order.dart';
 import 'fixed_tags_provider.dart';
 import '../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../data/models/gallery/library_tree_order.dart';
@@ -150,14 +151,8 @@ class TagLibraryPageState {
         sorted = result.sortedByUpdatedAt();
     }
 
-    // 收藏条目始终排在前面（收藏夹视图除外，因为全部都是收藏）
-    if (selectedCategoryId != 'favorites') {
-      final favorites = sorted.where((e) => e.isFavorite).toList();
-      final nonFavorites = sorted.where((e) => !e.isFavorite).toList();
-      return List.unmodifiable([...favorites, ...nonFavorites]);
-    }
-
-    return List.unmodifiable(sorted);
+    // 收藏条目始终排在前面，自定义排序的拖拽重排依赖同一规则
+    return List.unmodifiable(sorted.favoritesFirst());
   }
 
   /// 获取指定分类的条目数量
@@ -173,6 +168,7 @@ class TagLibraryPageState {
 @Riverpod(keepAlive: true)
 class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   final _categoryMoveLock = Lock();
+  final _entryMoveLock = Lock();
   late LocalStorageService _storage;
 
   @override
@@ -296,7 +292,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       thumbnailScale: thumbnailScale,
       tags: tags,
       categoryId: categoryId,
-      sortOrder: state.entries.length,
+      sortOrder: state.entries.nextSortOrder,
       isFavorite: isFavorite,
       preserveContentWhitespace: preserveContentWhitespace,
     );
@@ -411,6 +407,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     final newEntries = previousEntries
         .where((entry) => entry.id != entryId)
         .toList()
+        .sortedByOrder()
         .reindex();
     state = state.copyWith(entries: newEntries);
     try {
@@ -462,6 +459,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     final newEntries = state.entries
         .where((e) => !entryIds.contains(e.id))
         .toList()
+        .sortedByOrder()
         .reindex();
     state = state.copyWith(entries: newEntries);
     await _saveEntries();
@@ -504,7 +502,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     final category = TagLibraryCategory.create(
       name: name,
       parentId: parentId,
-      sortOrder: state.categories.where((c) => c.parentId == parentId).length,
+      sortOrder: state.categories.nextSortOrderUnder(parentId),
     );
 
     final newCategories = [...state.categories, category];
@@ -539,11 +537,10 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       ...state.categories.getDescendantIds(categoryId),
     };
 
-    // 删除分类
+    // 序号只是兄弟间的相对键，删除后不重新编号，否则会打乱拖拽排好的顺序
     final newCategories = state.categories
         .where((c) => !categoryIds.contains(c.id))
-        .toList()
-        .reindex();
+        .toList();
 
     // 将受影响的条目移到根级
     final newEntries = state.entries
@@ -636,54 +633,49 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     return true;
   });
 
-  /// 词条重排序（在当前筛选视图内）
-  Future<void> reorderEntries(int oldIndex, int newIndex) async {
-    final filteredEntries = state.filteredEntries;
-    if (oldIndex < 0 ||
-        oldIndex >= filteredEntries.length ||
-        newIndex < 0 ||
-        newIndex >= filteredEntries.length) {
-      return;
+  /// 自定义排序下把条目整块插到锚点前后，返回顺序或分类是否有变化
+  /// [groupedByCategory] 对应分组视图：在锚点所在分类组内排列，并移入该分类
+  Future<bool> moveEntries(
+    List<String> entryIds, {
+    required TagLibraryEntryAnchor anchor,
+    bool groupedByCategory = false,
+  }) => _entryMoveLock.synchronized(() async {
+    if (state.sortBy != TagLibrarySortBy.order) return false;
+    final missing = [
+      for (final id in {...entryIds, anchor.entryId})
+        if (getEntry(id) == null) id,
+    ];
+    if (missing.isNotEmpty) {
+      throw StateError('Tag library entries are unavailable: $missing');
     }
+    final anchorEntry = getEntry(anchor.entryId)!;
 
-    // 获取要移动的词条
-    final movedEntry = filteredEntries[oldIndex];
-    final targetEntry = filteredEntries[newIndex];
-
-    // 计算新的排序值
-    final minSortOrder = movedEntry.sortOrder < targetEntry.sortOrder
-        ? movedEntry.sortOrder
-        : targetEntry.sortOrder;
-    final maxSortOrder = movedEntry.sortOrder > targetEntry.sortOrder
-        ? movedEntry.sortOrder
-        : targetEntry.sortOrder;
-
-    // 更新受影响的条目
-    final newEntries = state.entries.map((entry) {
-      if (entry.id == movedEntry.id) {
-        return entry.copyWith(sortOrder: targetEntry.sortOrder);
-      } else if (entry.sortOrder >= minSortOrder &&
-          entry.sortOrder <= maxSortOrder) {
-        // 调整中间条目的顺序
-        if (movedEntry.sortOrder < targetEntry.sortOrder) {
-          // 向后移动：中间的词条前移
-          return entry.copyWith(sortOrder: entry.sortOrder - 1);
-        } else {
-          // 向前移动：中间的词条后移
-          return entry.copyWith(sortOrder: entry.sortOrder + 1);
-        }
-      }
-      return entry;
-    }).toList();
-
-    state = state.copyWith(entries: newEntries);
-    await _saveEntries();
-
-    AppLogger.d(
-      'Reordered entries: $oldIndex -> $newIndex',
-      'TagLibraryPageProvider',
+    final groupCategoryId = anchorEntry.categoryId;
+    final updated = moveTagLibraryEntries(
+      state.entries,
+      visibleIds: [
+        for (final entry in state.filteredEntries)
+          if (!groupedByCategory || entry.categoryId == groupCategoryId)
+            entry.id,
+      ],
+      movedIds: entryIds,
+      anchor: anchor,
+      category: groupedByCategory ? (id: groupCategoryId) : null,
     );
-  }
+    if (updated == null) return false;
+
+    final previousEntries = state.entries;
+    state = state.copyWith(entries: updated);
+    try {
+      await _saveEntries(rethrowError: true);
+    } catch (_) {
+      if (identical(state.entries, updated)) {
+        state = state.copyWith(entries: previousEntries);
+      }
+      rethrow;
+    }
+    return true;
+  });
 
   // ==================== 界面状态 ====================
 
@@ -790,10 +782,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
   List<TagLibraryCategory> _categoriesWithout(Set<String> removedIds) =>
       removedIds.isEmpty
       ? state.categories
-      : state.categories
-            .where((c) => !removedIds.contains(c.id))
-            .toList()
-            .reindex();
+      : state.categories.where((c) => !removedIds.contains(c.id)).toList();
 
   List<TagLibraryEntry> _entriesWithout(
     Set<String> removedIds,
@@ -807,7 +796,11 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         )
         .toList();
     if (removedIds.isEmpty) return orphaned;
-    return orphaned.where((e) => !removedIds.contains(e.id)).toList().reindex();
+    return orphaned
+        .where((e) => !removedIds.contains(e.id))
+        .toList()
+        .sortedByOrder()
+        .reindex();
   }
 
   _CategoryInserts _importedCategories(
@@ -817,7 +810,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     final takenIds = kept.map((c) => c.id).toSet();
     final rejected = <TagLibraryImportRejection>[];
     final inserted = <TagLibraryCategory>[];
-    var sortOrder = kept.length;
+    var sortOrder = kept.nextSortOrder;
 
     for (final item in plan.categories) {
       final targetId = item.targetId;
@@ -863,7 +856,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     final takenIds = kept.map((e) => e.id).toSet();
     final rejected = <TagLibraryImportRejection>[];
     final inserted = <TagLibraryEntry>[];
-    var sortOrder = kept.length;
+    var sortOrder = kept.nextSortOrder;
 
     for (final item in plan.entries) {
       final targetId = item.targetId;

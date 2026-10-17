@@ -100,11 +100,24 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pump();
 
-        await tester.longPress(find.byKey(const ValueKey('target-entry')));
-        await tester.pump();
+        // 自定义排序下触屏长按交给拖动排序，多选从卡片的更多菜单进入
+        final target = find.byKey(const ValueKey('target-entry'));
         final container = ProviderScope.containerOf(
           tester.element(find.byType(TagLibraryPageScreen)),
         );
+        await tester.longPress(target);
+        await tester.pumpAndSettle();
+        expect(
+          container.read(tagLibrarySelectionNotifierProvider).selectedIds,
+          isEmpty,
+        );
+
+        await tester.tap(
+          find.descendant(of: target, matching: find.byTooltip('更多操作')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('选择').last);
+        await tester.pumpAndSettle();
         expect(
           container.read(tagLibrarySelectionNotifierProvider).selectedIds,
           contains('target-entry'),

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -75,12 +77,19 @@ extension TagLibraryCategoryListExtension on List<TagLibraryCategory> {
   List<TagLibraryCategory> getChildren(String parentId) =>
       where((c) => c.parentId == parentId).toList();
 
-  /// 按排序顺序排列
-  List<TagLibraryCategory> sortedByOrder() {
-    final sorted = [...this];
-    sorted.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return sorted;
-  }
+  /// 按排序顺序排列，序号相同按 id，与侧栏树一致
+  List<TagLibraryCategory> sortedByOrder() => [...this]..sort((a, b) {
+    final byOrder = a.sortOrder.compareTo(b.sortOrder);
+    return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+  });
+
+  /// 排到现有分类之后的序号
+  int get nextSortOrder =>
+      fold(-1, (latest, c) => max(latest, c.sortOrder)) + 1;
+
+  /// 排到 [parentId] 现有子分类之后的序号
+  int nextSortOrderUnder(String? parentId) =>
+      where((c) => c.parentId == parentId).toList().nextSortOrder;
 
   /// 按名称排序
   List<TagLibraryCategory> sortedByName() {
@@ -157,14 +166,6 @@ extension TagLibraryCategoryListExtension on List<TagLibraryCategory> {
     }
 
     return descendants;
-  }
-
-  /// 更新排序顺序
-  List<TagLibraryCategory> reindex() {
-    return asMap()
-        .entries
-        .map((e) => e.value.copyWith(sortOrder: e.key))
-        .toList();
   }
 
   /// 搜索分类
