@@ -244,7 +244,13 @@ void main() {
           preserveMetadata: true,
         ),
       ),
-      throwsA(isA<MosaicRenderException>()),
+      throwsA(
+        isA<MosaicRenderException>().having(
+          (error) => error.message,
+          'message',
+          startsWith('The source metadata is damaged or cannot be parsed: '),
+        ),
+      ),
     );
   });
 
