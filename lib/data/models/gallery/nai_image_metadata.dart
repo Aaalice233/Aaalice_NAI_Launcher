@@ -312,6 +312,21 @@ class NaiImageMetadata with _$NaiImageMetadata {
     NaiImageMetadataRawDecoder.decode(json, rawJson: rawJson),
   );
 
+  /// 信封自带的 Software/Source 优先于容器旁路字段：旧版 WebP 的 EXIF Software 只写了 "NovelAI"。
+  static ({String? software, String? source}) envelopeAttribution(
+    Map<String, dynamic> envelope, {
+    String? software,
+    String? source,
+  }) => (
+    software: _textField(envelope, 'Software') ?? software,
+    source: _textField(envelope, 'Source') ?? source,
+  );
+
+  static String? _textField(Map<String, dynamic> json, String key) {
+    final value = json[key] ?? json[key.toLowerCase()];
+    return value is String && value.isNotEmpty ? value : null;
+  }
+
   bool get hasData => NaiMetadataPromptProjection(this).hasData;
 
   bool get hasRecordedTransparentBackgroundTag =>
@@ -458,19 +473,25 @@ NaiImageMetadata? _decodeRawMetadata(
   if (decoded is! Map) return null;
   final data = Map<String, dynamic>.from(decoded);
   final nestedComment = data['Comment'] ?? data['comment'];
-  final resolvedSoftware =
-      software ?? data['Software'] as String? ?? data['software'] as String?;
-  final resolvedSource =
-      source ?? data['Source'] as String? ?? data['source'] as String?;
-  final comment = nestedComment is String && nestedComment.isNotEmpty
+  final envelopeComment = nestedComment is String && nestedComment.isNotEmpty
       ? nestedComment
       : nestedComment is Map
       ? jsonEncode(nestedComment)
-      : raw;
+      : null;
+  final attribution = envelopeComment == null
+      ? (
+          software: software ?? NaiImageMetadata._textField(data, 'Software'),
+          source: source ?? NaiImageMetadata._textField(data, 'Source'),
+        )
+      : NaiImageMetadata.envelopeAttribution(
+          data,
+          software: software,
+          source: source,
+        );
   return NaiImageMetadata.fromNaiComment({
-    'Comment': comment,
-    'Software': resolvedSoftware,
-    'Source': resolvedSource,
+    'Comment': envelopeComment ?? raw,
+    'Software': attribution.software,
+    'Source': attribution.source,
   }, rawJson: raw);
 }
 

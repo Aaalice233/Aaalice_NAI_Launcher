@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../helpers/novelai_webp_layout_fixture.dart';
+import '../../helpers/riff_webp_builder.dart';
 import '../../helpers/shared_compute_gate.dart';
 import '../../helpers/webp_metadata_fixture.dart';
 
@@ -204,6 +207,63 @@ void main() {
       );
     });
 
+    test(
+      'metadata source downloads the whole WebP when EXIF lies past the prefix',
+      () async {
+        final original = riffWebp([
+          ...novelAiStealthWebp.sublist(12),
+          ...riffChunk('JUNK', Uint8List(80 * 1024)),
+          ...riffChunk(
+            'EXIF',
+            novelAiExif(
+              userComment: asciiUserComment(
+                novelAiEnvelopeJson(prompt: 'tail exif prompt', seed: 5),
+              ),
+            ),
+          ),
+        ]);
+        final server = await _RangeImageServer.start(original, 'webp');
+        addTearDown(server.close);
+
+        final result = await DroppedFileReader.downloadRemoteMetadataSource(
+          server.uri,
+        );
+
+        expect(result, orderedEquals(original));
+        expect(server.requestedRanges, [
+          'bytes=0-${DroppedFileReader.discordMetadataProbeBytes - 1}',
+          null,
+        ]);
+      },
+    );
+
+    test('metadata source keeps only the prefix of a PNG', () async {
+      final original = Uint8List(96 * 1024)
+        ..setAll(0, const [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      final server = await _RangeImageServer.start(original, 'png');
+      addTearDown(server.close);
+
+      final result = await DroppedFileReader.downloadRemoteMetadataSource(
+        server.uri,
+      );
+
+      expect(result, hasLength(DroppedFileReader.discordMetadataProbeBytes));
+      expect(server.requestedRanges, hasLength(1));
+    });
+
+    test('metadata source returns a WebP that fits in the prefix', () async {
+      final original = novelAiLayoutWebp(exif: rewrittenCameraExif());
+      final server = await _RangeImageServer.start(original, 'webp');
+      addTearDown(server.close);
+
+      final result = await DroppedFileReader.downloadRemoteMetadataSource(
+        server.uri,
+      );
+
+      expect(result, orderedEquals(original));
+      expect(server.requestedRanges, hasLength(1));
+    });
+
     test('reads direct clipboard WebP bytes without a file URI', () async {
       final bytes = buildNovelAiWebpFixture(
         comment: const {'prompt': 'clipboard fixture'},
@@ -295,6 +355,56 @@ class _TemporaryPathProvider extends PathProviderPlatform {
 
   @override
   Future<String?> getTemporaryPath() async => temporaryPath;
+}
+
+/// 按 Range 头返回 206 片段，没有 Range 时返回整个文件，并记录每次请求的 Range。
+class _RangeImageServer {
+  _RangeImageServer._(this._server, this._bytes, this._subtype) {
+    _server.listen(_handle);
+  }
+
+  static Future<_RangeImageServer> start(
+    Uint8List bytes,
+    String subtype,
+  ) async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    return _RangeImageServer._(server, bytes, subtype);
+  }
+
+  static final RegExp _rangePattern = RegExp(r'^bytes=(\d+)-(\d+)$');
+
+  final HttpServer _server;
+  final Uint8List _bytes;
+  final String _subtype;
+  final List<String?> requestedRanges = [];
+
+  Uri get uri => Uri.parse(
+    'http://${_server.address.address}:${_server.port}/original.$_subtype',
+  );
+
+  Future<void> close() => _server.close(force: true);
+
+  Future<void> _handle(HttpRequest request) async {
+    final range = request.headers.value(HttpHeaders.rangeHeader);
+    requestedRanges.add(range);
+    final response = request.response
+      ..headers.contentType = ContentType('image', _subtype);
+    final match = range == null ? null : _rangePattern.firstMatch(range);
+    if (match == null) {
+      response.add(_bytes);
+    } else {
+      final start = int.parse(match.group(1)!);
+      final end = math.min(int.parse(match.group(2)!), _bytes.length - 1);
+      response
+        ..statusCode = HttpStatus.partialContent
+        ..headers.set(
+          HttpHeaders.contentRangeHeader,
+          'bytes $start-$end/${_bytes.length}',
+        )
+        ..add(Uint8List.sublistView(_bytes, start, end + 1));
+    }
+    await response.close();
+  }
 }
 
 Future<HttpServer> _startImageServer(Uint8List bytes) async {

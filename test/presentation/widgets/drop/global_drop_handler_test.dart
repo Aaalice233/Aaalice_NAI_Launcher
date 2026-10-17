@@ -21,6 +21,7 @@ import 'package:nai_launcher/presentation/widgets/drop/image_destination_dialog.
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../helpers/adaptive_panel_expectations.dart';
+import '../../../helpers/novelai_webp_layout_fixture.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
 void main() {
@@ -226,13 +227,49 @@ void main() {
         final metadata = await detectImportableDroppedImageMetadata(
           'discord_image.webp',
           base64Decode(_losslessStealthWebpBase64),
-          inspectNonPngStealth: true,
+          inspectOtherContainerStealth: true,
         );
 
         expect(metadata, isNotNull);
         expect(metadata!.prompt, 'discord stealth prompt');
         expect(metadata.negativePrompt, 'bad hands');
         expect(metadata.seed, 987654321);
+      },
+    );
+
+    test(
+      'a local WebP whose EXIF was rewritten falls back to the stealth payload',
+      () async {
+        final detection = await detectDroppedImageMetadata(
+          'local_original.webp',
+          novelAiLayoutWebp(exif: rewrittenCameraExif()),
+        );
+
+        expect(detection.parseError, isNull);
+        expect(detection.metadata?.prompt, novelAiStealthPrompt);
+        expect(detection.metadata?.source, novelAiV45FullSource);
+      },
+    );
+
+    test(
+      'a complete remote WebP original is parsed beside preview bytes',
+      () async {
+        final original = novelAiLayoutWebp(
+          exif: novelAiExif(
+            userComment: asciiUserComment(
+              novelAiEnvelopeJson(prompt: 'remote exif prompt', seed: 31),
+            ),
+          ),
+        );
+
+        final metadata = await detectImportableDroppedImageMetadata(
+          'discord_original.webp',
+          buildNovelAiWebpFixture(),
+          metadataBytes: original,
+        );
+
+        expect(metadata?.prompt, 'remote exif prompt');
+        expect(metadata?.seed, 31);
       },
     );
 

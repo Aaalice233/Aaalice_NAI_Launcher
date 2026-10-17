@@ -7,6 +7,7 @@ import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart
 
 import '../../../helpers/fixed_tag_usage_fixture.dart';
 import '../../../helpers/metadata_parse_result_expectations.dart';
+import '../../../helpers/novelai_webp_layout_fixture.dart';
 import '../../../helpers/shared_compute_gate.dart';
 import '../../../helpers/stealth_png_fixture.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
@@ -65,14 +66,24 @@ void main() {
   });
 
   test('hands only the stealth pixel decode to the compute gate', () async {
-    final bytes = await stealthOnlyNovelAiPng('bytes-prompt');
+    final sources = {
+      'stealth-only png': await stealthOnlyNovelAiPng(novelAiStealthPrompt),
+      'webp with rewritten exif': novelAiLayoutWebp(
+        exif: rewrittenCameraExif(),
+      ),
+    };
 
-    final result = await expectQueuedBehindSharedComputeGate(
-      () => const MetadataParseExecutor().parseBytes(bytes),
-    );
+    for (final MapEntry(key: name, value: bytes) in sources.entries) {
+      final result = await expectQueuedBehindSharedComputeGate(
+        () => const MetadataParseExecutor().parseBytes(bytes),
+      );
 
-    expect(result.sourceFormat, 'NovelAI stealth_pngcomp');
-    expect(result.metadata?.prompt, 'bytes-prompt');
-    expectSameParseResult(result, UnifiedMetadataParser.parseFromImage(bytes));
+      expect(result.sourceFormat, 'NovelAI stealth_pngcomp', reason: name);
+      expect(result.metadata?.prompt, novelAiStealthPrompt, reason: name);
+      expectSameParseResult(
+        result,
+        UnifiedMetadataParser.parseFromImage(bytes),
+      );
+    }
   });
 }
