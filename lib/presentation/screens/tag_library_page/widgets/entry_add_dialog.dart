@@ -152,7 +152,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
   bool get _isEditing => widget.entry != null;
 
-  void _syncSyntaxHighlightSettings() {
+  void _syncSyntaxSettings() {
     _contentController.highlightEnabled = ref.watch(
       highlightEmphasisSettingsProvider,
     );
@@ -160,6 +160,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
       ref.watch(
         generationParamsNotifierProvider.select((params) => params.model),
       ),
+    );
+    _contentController.separateNumericWeightClosing = ref.watch(
+      separateNumericWeightClosingSettingsProvider,
     );
   }
 
@@ -277,7 +280,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
 
   @override
   Widget build(BuildContext context) {
-    _syncSyntaxHighlightSettings();
+    _syncSyntaxSettings();
     return _buildContent(Theme.of(context));
   }
 
@@ -363,6 +366,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                         focusNode: _contentFocusNode,
                         enableAutoFormat: ref.watch(
                           autoFormatPromptSettingsProvider,
+                        ),
+                        separateNumericWeightClosing: ref.watch(
+                          separateNumericWeightClosingSettingsProvider,
                         ),
                         child: AutocompleteWrapper.withAlias(
                           controller: _contentController.displayController,

@@ -415,4 +415,69 @@ void main() {
     session.select(session.leaves.last.id);
     expect(session.selected, hasLength(2));
   });
+
+  group('numeric closings after numbers', () {
+    late NaiSyntaxController controller;
+    late TagEditorSession editor;
+    void createSyntax(String text, {bool separate = true}) {
+      controller = NaiSyntaxController(
+        text: text,
+        separateNumericWeightClosing: separate,
+      );
+      editor = TagEditorSession(controller);
+      final createdEditor = editor;
+      final createdController = controller;
+      addTearDown(() {
+        createdEditor.dispose();
+        createdController.dispose();
+      });
+    }
+
+    test('single tag weights close with a space and reset cleanly', () {
+      createSyntax('year_2025, other_tags');
+      editor.setSelection([editor.leaves.first.id]);
+      TagEditorCommands(editor).adjustWeight(step: 0.05);
+      expect(controller.text, '1.05::year_2025 ::, other_tags');
+      TagEditorCommands(editor).adjustWeight(step: 0.05);
+      expect(controller.text, '1.1::year_2025 ::, other_tags');
+      TagEditorCommands(editor).adjustWeight(value: 1);
+      expect(controller.text, 'year_2025, other_tags');
+    });
+
+    test('a group rewrap closes after its last tag', () {
+      createSyntax('1.2::cat, year_2025::, bird');
+      editor.selectGroup(editor.tags.first);
+      TagEditorCommands(editor).adjustWeight(step: 0.05);
+      expect(controller.text, '1.25::cat, year_2025 ::, bird');
+    });
+
+    test('a new multi-selection group closes after its last tag', () {
+      createSyntax('year_2025, cat, a1');
+      editor.setSelection(editor.leaves.skip(1).map((tag) => tag.id));
+      TagEditorCommands(editor).adjustWeight(step: 0.05);
+      expect(controller.text, 'year_2025, 1.05::cat, a1 ::');
+    });
+
+    test('splitting a numeric group re-closes the part left behind', () {
+      createSyntax('1.2::cat, year_2025, dog::, bird');
+      final leaves = editor.leaves.toList();
+      editor.setSelection([leaves[2].id, leaves[3].id]);
+      TagEditorCommands(editor).adjustWeight(step: 0.05);
+      expect(controller.text, '{1.2::dog::, bird}, 1.2::cat, year_2025 ::');
+    });
+
+    test('a space the user already added survives with the option off', () {
+      createSyntax('1.05::year_2025 ::, cat', separate: false);
+      editor.setSelection([editor.leaves.first.id]);
+      TagEditorCommands(editor).adjustWeight(step: 0.05);
+      expect(controller.text, '1.1::year_2025 ::, cat');
+    });
+
+    test('the option off keeps the previous output', () {
+      createSyntax('year_2025, cat', separate: false);
+      editor.setSelection([editor.leaves.first.id]);
+      TagEditorCommands(editor).adjustWeight(step: 0.05);
+      expect(controller.text, '1.05::year_2025::, cat');
+    });
+  });
 }

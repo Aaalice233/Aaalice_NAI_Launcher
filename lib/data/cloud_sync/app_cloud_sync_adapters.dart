@@ -245,6 +245,7 @@ const portableSettingKeys = <String>{
   StorageKeys.autoFormatPrompt,
   StorageKeys.highlightEmphasis,
   StorageKeys.sdSyntaxAutoConvert,
+  StorageKeys.separateNumericWeightClosing,
   StorageKeys.resolveAliasOnCopy,
   StorageKeys.enablePromptWeightScroll,
   StorageKeys.promptRegexRules,

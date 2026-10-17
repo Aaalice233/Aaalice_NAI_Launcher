@@ -2081,6 +2081,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_sdSyntaxAutoConvertSubtitle => '失焦时将SD权重语法转换为NAI格式';
 
   @override
+  String get prompt_separateNumericWeightClosing => '数字结尾标签补空格';
+
+  @override
+  String get prompt_separateNumericWeightClosingSubtitle =>
+      '在 :: 前补空格，避免 year_2025:: 被读成新权重';
+
+  @override
   String get prompt_resolveAliasOnCopy => '复制时展开词库';
 
   @override
@@ -2187,6 +2194,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get prompt_formatted => '已格式化';
+
+  @override
+  String get prompt_numericWeightClosingSeparated => '已补权重空格';
 
   @override
   String get image_save => '保存';
@@ -17578,6 +17588,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get prompt_sdSyntaxAutoConvertSubtitle => '失焦時將SD權重語法轉換為NAI格式';
 
   @override
+  String get prompt_separateNumericWeightClosing => '數字結尾標籤補空格';
+
+  @override
+  String get prompt_separateNumericWeightClosingSubtitle =>
+      '在 :: 前補空格，避免 year_2025:: 被讀成新權重';
+
+  @override
   String get prompt_resolveAliasOnCopy => '複製時展開詞庫';
 
   @override
@@ -17684,6 +17701,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get prompt_formatted => '已格式化';
+
+  @override
+  String get prompt_numericWeightClosingSeparated => '已補權重空格';
 
   @override
   String get image_save => '儲存';

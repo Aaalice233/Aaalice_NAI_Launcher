@@ -1,3 +1,4 @@
+import '../../../core/utils/numeric_weight_closing.dart';
 import '../../../core/utils/prompt_edit_document.dart';
 import 'prompt_weight_editing.dart';
 
@@ -20,8 +21,9 @@ class PromptSelectionGrouping {
 
   static PromptSelectionGrouping create(
     List<PromptEditSpan> roots,
-    Set<int> selectedStarts,
-  ) {
+    Set<int> selectedStarts, {
+    bool separateNumericWeightClosing = false,
+  }) {
     var siblings = roots;
     var weightedParent = false;
     while (true) {
@@ -57,11 +59,15 @@ class PromptSelectionGrouping {
           for (final leaf in leaves) leaf.start: leaf.start - span.start,
         });
       }
-      return PromptGroupFragment.join(
+      final content = PromptGroupFragment.join(
         span.children
             .map((child) => split(child, keepSelected))
             .whereType<PromptGroupFragment>(),
-      ).wrap(span.prefix, span.suffix);
+      );
+      return content.wrap(
+        span.prefix,
+        _suffixFor(span, content.text, separateNumericWeightClosing),
+      );
     }
 
     final selected = PromptGroupFragment.join(
@@ -83,6 +89,19 @@ class PromptSelectionGrouping {
       ),
     );
   }
+
+  // A split numeric group keeps its wrapper but closes after different content.
+  static String _suffixFor(
+    PromptEditSpan span,
+    String content,
+    bool separate,
+  ) => span.suffix.trimLeft() == NumericWeightClosing.plain
+      ? NumericWeightClosing.closingFor(
+          content,
+          separate:
+              separate || NumericWeightClosing.hasSeparatedClosing(span.raw),
+        )
+      : span.suffix;
 
   PromptGroupFragment wrap(String prefix, String suffix) =>
       PromptGroupFragment.join([selected.wrap(prefix, suffix), remaining]);
