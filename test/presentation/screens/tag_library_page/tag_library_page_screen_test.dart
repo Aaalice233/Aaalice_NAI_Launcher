@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -459,6 +461,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(_categoryRenameField(), findsNothing);
   });
+
+  testWidgets('重命名分类回车不被页面“发送到首页”截走，新名称写入存储', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _StoredTagLibraryPageNotifier.new);
+    await _openCategoryRename(tester, '测试类别');
+
+    tester.testTextInput.enterText('新类别');
+    await tester.pump();
+    // 桌面引擎只在框架未处理时把回车交给输入法，由输入法触发提交
+    final handled = await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(handled, isFalse);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TagLibraryPageScreen)),
+    );
+    expect(_categoryRenameField(), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(CategoryTreeView),
+        matching: find.text('新类别'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      container.read(tagLibraryPageNotifierProvider).categories.single.name,
+      '新类别',
+    );
+    expect(
+      container.read(localStorageServiceProvider).getTagLibraryCategoriesJson(),
+      contains('新类别'),
+    );
+  });
 }
 
 Finder _categoryRenameField() => find.descendant(
@@ -600,6 +636,25 @@ class _TestTagLibraryPageNotifier extends TagLibraryPageNotifier {
       ),
     ],
   );
+}
+
+/// 经存储加载，重命名的保存走真实持久化路径
+class _StoredTagLibraryPageNotifier extends TagLibraryPageNotifier {
+  @override
+  TagLibraryPageState build() {
+    ref
+        .read(localStorageServiceProvider)
+        .setTagLibraryCategoriesJson(
+          jsonEncode([
+            TagLibraryCategory(
+              id: 'test-category',
+              name: '测试类别',
+              createdAt: DateTime(2026),
+            ).toJson(),
+          ]),
+        );
+    return super.build();
+  }
 }
 
 class _SortingTagLibraryPageNotifier extends TagLibraryPageNotifier {
