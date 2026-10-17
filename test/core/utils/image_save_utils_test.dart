@@ -261,27 +261,17 @@ void main() {
           rawSource,
         );
 
-        final tempDir = await Directory.systemTemp.createTemp(
-          'image_save_utils_test_',
-        );
-        addTearDown(() async {
-          if (await tempDir.exists()) {
-            await tempDir.delete(recursive: true);
-          }
-        });
-
-        final savedFile = await ImageSaveUtils.saveImageWithMetadata(
+        final savedBytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
           imageBytes: bytes,
-          filePath: '${tempDir.path}/saved.png',
           params: const ImageParams(
             prompt: 'different prompt',
             negativePrompt: 'different negative',
             model: ImageModels.animeDiffusionV45Full,
           ),
           actualSeed: 456,
+          preserveExistingNovelAiMetadata: true,
         );
 
-        final savedBytes = await savedFile.readAsBytes();
         expect(savedBytes, orderedEquals(bytes));
         final result = UnifiedMetadataParser.parseFromPng(savedBytes);
 
@@ -325,18 +315,8 @@ void main() {
           rawSource,
         );
 
-        final tempDir = await Directory.systemTemp.createTemp(
-          'image_save_utils_test_',
-        );
-        addTearDown(() async {
-          if (await tempDir.exists()) {
-            await tempDir.delete(recursive: true);
-          }
-        });
-
-        final savedFile = await ImageSaveUtils.saveImageWithMetadata(
+        final savedBytes = await ImageSaveUtils.rebuildImageBytesWithMetadata(
           imageBytes: bytes,
-          filePath: '${tempDir.path}/saved_with_characters.png',
           params: const ImageParams(
             prompt: 'different prompt',
             negativePrompt: 'different negative',
@@ -371,11 +351,10 @@ void main() {
               ],
             },
           ],
+          preserveExistingNovelAiMetadata: true,
         );
 
-        final result = UnifiedMetadataParser.parseFromPng(
-          await savedFile.readAsBytes(),
-        );
+        final result = UnifiedMetadataParser.parseFromPng(savedBytes);
 
         expect(result.success, isTrue);
         expect(result.metadata, isNotNull);
@@ -785,32 +764,97 @@ void main() {
     });
   });
 
-  test(
-    'background metadata failure does not overwrite the destination',
-    () async {
-      final parent = Directory('tool/.tmp/single-pass-save-tests');
-      await parent.create(recursive: true);
-      final root = await parent.createTemp('damaged-');
-      addTearDown(() => root.delete(recursive: true));
-      final file = File(p.join(root.path, 'existing.png'));
-      final original = Uint8List.fromList(
-        img.encodePng(img.Image(width: 8, height: 8)),
-      );
-      await file.writeAsBytes(original);
-      final damaged = Uint8List.fromList(original)..[original.length - 1] ^= 1;
-      await expectLater(
-        ImageSaveUtils.saveImageWithMetadata(
-          imageBytes: damaged,
-          filePath: file.path,
-          params: const ImageParams(seed: 123),
-          actualSeed: 123,
-          preserveExistingNovelAiMetadata: false,
+  test('damaged bytes fail before anything is saved', () async {
+    final original = Uint8List.fromList(
+      img.encodePng(img.Image(width: 8, height: 8)),
+    );
+    final damaged = Uint8List.fromList(original)..[original.length - 1] ^= 1;
+
+    await expectLater(
+      ImageSaveUtils.rebuildImageBytesWithMetadata(
+        imageBytes: damaged,
+        params: const ImageParams(seed: 123),
+        actualSeed: 123,
+      ),
+      throwsFormatException,
+    );
+    await expectLater(
+      ImageSaveUtils.prepareResultBytes(
+        imageBytes: damaged,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(prompt: 'p', seed: 123),
+      ),
+      throwsFormatException,
+    );
+  });
+
+  group('prepareResultBytes writes the shared NovelAI text fields', () {
+    final plainPng = Uint8List.fromList(
+      img.encodePng(img.Image(width: 24, height: 40)),
+    );
+
+    test('fields-only metadata keeps known values and pixel size', () async {
+      final prepared = await ImageSaveUtils.prepareResultBytes(
+        imageBytes: plainPng,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(
+          prompt: 'fields prompt',
+          seed: 11,
+          model: ImageModels.animeDiffusionV45Full,
         ),
-        throwsFormatException,
       );
-      expect(await file.readAsBytes(), orderedEquals(original));
-    },
-  );
+
+      final text = UnifiedMetadataParser.extractPngTextData(prepared.bytes);
+      expect(jsonDecode(text['Comment']!), {
+        'prompt': 'fields prompt',
+        'seed': 11,
+        'width': 24,
+        'height': 40,
+        'model': ImageModels.animeDiffusionV45Full,
+      });
+      expect(text['Description'], 'fields prompt');
+      expect(text['Software'], 'NovelAI');
+      expect(text['Source'], 'NovelAI Diffusion V4.5 4BDE2A90');
+    });
+
+    test('a recorded Comment is written byte for byte', () async {
+      const raw = '{"prompt": "recorded", "seed": 5, "scale": 5.0}';
+
+      final prepared = await ImageSaveUtils.prepareResultBytes(
+        imageBytes: plainPng,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(prompt: 'recorded', rawJson: raw),
+      );
+
+      expect(
+        UnifiedMetadataParser.extractPngTextData(prepared.bytes)['Comment'],
+        raw,
+      );
+    });
+
+    test('unknown fields drop stale chunks instead of mixing', () async {
+      final stale = UnifiedMetadataParser.embedTextChunks(plainPng, {
+        'Source': 'Some Other Tool',
+        'Description': 'stale description',
+      });
+
+      final prepared = await ImageSaveUtils.prepareResultBytes(
+        imageBytes: stale,
+        preserveOriginalBytes: false,
+        metadata: const NaiImageMetadata(seed: 1),
+      );
+
+      final text = UnifiedMetadataParser.extractPngTextData(prepared.bytes);
+      expect(text, isNot(contains('Source')));
+      expect(text, isNot(contains('Description')));
+      expect(jsonDecode(text['Comment']!), {
+        'prompt': '',
+        'seed': 1,
+        'width': 24,
+        'height': 40,
+      });
+    });
+  });
 
   test('background batch writer preserves the optional stealth mode', () async {
     final source = Uint8List.fromList(

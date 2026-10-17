@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/derivatives/derivative_metadata_transfer.dart';
-import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../helpers/novelai_exif_fixture.dart';
@@ -84,6 +83,24 @@ void main() {
       expect(result.preserved, isTrue);
     });
 
+    test('a comment without Source gets the fingerprint of its model', () {
+      final source = _withText(_plainPng(), {
+        'Comment': jsonEncode({
+          'prompt': 'tool prompt',
+          'model': 'nai-diffusion-4-5-full',
+        }),
+      });
+
+      final result = DerivativeMetadataTransfer.preserve(
+        source: source,
+        targetPng: target,
+      );
+
+      final text = UnifiedMetadataParser.extractPngTextData(result.bytes);
+      expect(text['Source'], 'NovelAI Diffusion V4.5 4BDE2A90');
+      expect(text['Software'], 'NovelAI');
+    });
+
     test('a damaged source comment fails instead of being dropped', () {
       final source = _withText(_plainPng(), {'Comment': '{"prompt":'});
 
@@ -161,67 +178,6 @@ void main() {
             startsWith('The source metadata is damaged or cannot be parsed: '),
           ),
         ),
-      );
-    });
-  });
-
-  group('commentFor', () {
-    test('unwraps the official envelope to its inner Comment', () {
-      final envelope = novelAiEnvelopeJson(prompt: 'wrapped', seed: 5);
-
-      expect(
-        DerivativeMetadataTransfer.commentFor(
-          NaiImageMetadata(rawJson: envelope),
-        ),
-        (jsonDecode(envelope) as Map<String, dynamic>)['Comment'],
-      );
-    });
-
-    test('keeps a plain generation JSON verbatim', () {
-      const raw = '{"prompt":"plain","seed":1}';
-
-      expect(
-        DerivativeMetadataTransfer.commentFor(
-          const NaiImageMetadata(rawJson: raw),
-        ),
-        raw,
-      );
-    });
-
-    test('projects parsed fields when no raw JSON is available', () {
-      const metadata = NaiImageMetadata(
-        prompt: 'fields prompt',
-        negativePrompt: 'lowres',
-        seed: 3,
-        steps: 28,
-        width: 64,
-        height: 96,
-        scale: 5.0,
-        sampler: 'k_euler',
-        model: 'nai-diffusion-4-5-full',
-        noiseSchedule: 'karras',
-        rawJson: '  ',
-      );
-
-      expect(jsonDecode(DerivativeMetadataTransfer.commentFor(metadata)), {
-        'prompt': 'fields prompt',
-        'uc': 'lowres',
-        'seed': 3,
-        'steps': 28,
-        'width': 64,
-        'height': 96,
-        'scale': 5.0,
-        'sampler': 'k_euler',
-        'model': 'nai-diffusion-4-5-full',
-        'noise_schedule': 'karras',
-      });
-      expect(
-        jsonDecode(
-          DerivativeMetadataTransfer.commentFor(
-            const NaiImageMetadata(prompt: 'only prompt'),
-          ),
-        ),
-        {'prompt': 'only prompt'},
       );
     });
   });
