@@ -548,6 +548,51 @@ void main() {
       );
     });
 
+    test('envelope attribution wins over the passed-in fallback values', () {
+      expect(
+        NaiImageMetadata.envelopeAttribution(
+          {'Software': 'NovelAI', 'source': 'NovelAI Diffusion V4.5 4BDE2A90'},
+          software: 'Other',
+          source: 'NovelAI',
+        ),
+        (software: 'NovelAI', source: 'NovelAI Diffusion V4.5 4BDE2A90'),
+      );
+      expect(
+        NaiImageMetadata.envelopeAttribution(
+          {'Software': '', 'Source': 42},
+          software: 'NovelAI',
+          source: 'fallback',
+        ),
+        (software: 'NovelAI', source: 'fallback'),
+      );
+    });
+
+    test('cached envelope rawJson resolves the model a stale Source hid', () {
+      final rawJson = jsonEncode({
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
+        'Comment': jsonEncode({
+          'prompt': '1girl',
+          'uc': '',
+          'v4_prompt': {
+            'caption': {'base_caption': '1girl', 'char_captions': []},
+          },
+        }),
+      });
+      final stale = NaiImageMetadata(
+        prompt: '1girl',
+        rawJson: rawJson,
+        software: 'NovelAI',
+        source: 'NovelAI',
+      );
+
+      expect(stale.model, isNull);
+      expect(
+        stale.upgradeFromRawJsonIfNeeded().model,
+        ImageModels.animeDiffusionV45Full,
+      );
+    });
+
     test('source-only metadata should resolve model for import', () {
       const metadata = NaiImageMetadata(
         source: 'NovelAI Diffusion V4.5 4BDE2A90',

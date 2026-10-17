@@ -14,7 +14,6 @@ import 'riff_webp_builder.dart';
 Uint8List buildNovelAiWebpFixture({
   Map<String, dynamic>? comment,
   bool includeUnknownChunk = true,
-  bool invalidUserCommentPrefix = false,
 }) {
   final chunks = <int>[
     ...riffChunk('VP8X', [
@@ -30,14 +29,6 @@ Uint8List buildNovelAiWebpFixture({
       0, // canvas height - 1.
     ]),
     if (includeUnknownChunk) ...riffChunk('JUNK', [1, 2, 3]),
-    if (comment != null)
-      ...riffChunk(
-        'EXIF',
-        _buildExif(
-          jsonEncode(comment),
-          invalidUserCommentPrefix: invalidUserCommentPrefix,
-        ),
-      ),
     // VP8L payload from a lossless transparent 1×1 WebP encoded by Pillow.
     ...riffChunk('VP8L', [
       0x2f,
@@ -54,20 +45,20 @@ Uint8List buildNovelAiWebpFixture({
       0xfe,
       0x07,
     ]),
+    // The WebP container spec, and NovelAI, place EXIF after the image data.
+    if (comment != null) ...riffChunk('EXIF', _buildExif(jsonEncode(comment))),
   ];
 
   return riffWebp(chunks);
 }
 
-List<int> _buildExif(String comment, {required bool invalidUserCommentPrefix}) {
+List<int> _buildExif(String comment) {
   final exif = img.ExifData();
   exif.imageIfd['DocumentName'] = 'NovelAI image';
   exif.imageIfd['ImageDescription'] = 'NovelAI generated image';
   exif.imageIfd['Software'] = 'NovelAI Diffusion V4.5';
   exif.exifIfd['UserComment'] = [
-    ...ascii.encode(
-      invalidUserCommentPrefix ? 'UNICODE\x00' : 'ASCII\x00\x00\x00',
-    ),
+    ...ascii.encode('ASCII\x00\x00\x00'),
     ...ascii.encode(comment),
     0,
   ];

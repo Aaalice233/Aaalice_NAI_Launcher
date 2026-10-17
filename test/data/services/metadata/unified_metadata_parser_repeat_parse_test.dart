@@ -37,6 +37,8 @@ const Map<String, _BytesParse> _webpEntries = {
   'parseFromWebp': UnifiedMetadataParser.parseFromWebp,
   'parseFromImageWithoutPixelDecode':
       UnifiedMetadataParser.parseFromImageWithoutPixelDecode,
+  'parseFromWebpWithoutPixelDecode':
+      UnifiedMetadataParser.parseFromWebpWithoutPixelDecode,
 };
 
 void _expectFollowsInPlaceRewrite(
