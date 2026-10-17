@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,15 +10,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/derivatives/derivative_registry.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/watermark/watermark_render_service.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/screens/derivatives/derivative_copy_saver.dart';
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_controls.dart';
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_launcher.dart';
 import 'package:nai_launcher/presentation/screens/watermark/watermark_editor_screen.dart';
 
 import '../../../helpers/adaptive_panel_expectations.dart';
 import '../../../helpers/labeled_rows_expectations.dart';
+import '../../../helpers/pending_derivative_copy_saver.dart';
 
 void main() {
   late Directory directory;
@@ -587,6 +594,137 @@ void main() {
       }
     }
   }
+
+  group('save copy', () {
+    late ui.Image preview;
+
+    setUpAll(() async {
+      preview = await WatermarkRenderService.decodePreview(
+        _pngBytes(48, 32),
+        requireStatic: true,
+      );
+    });
+    tearDownAll(() => preview.dispose());
+
+    testWidgets('stalled follow-up steps never hold the editor once written', (
+      tester,
+    ) async {
+      final pending = PendingDerivativeCopySaver(DerivativeKind.watermark);
+      addTearDown(pending.releaseAll);
+      final closed = await _openForSave(tester, storage, pending, preview);
+      final output = pending.outputPathFor('source_watermarked.png');
+
+      await tester.tap(find.text('Save copy'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Watermarked copy saved'), findsOneWidget);
+      expect(pending.writes, [output]);
+      expect(pending.admissions, [
+        [output],
+      ]);
+      expect(pending.indexing.isCompleted, isFalse);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(WatermarkEditorScreen), findsNothing);
+      expect(closed.isCompleted, isTrue);
+      expect(await closed.future, output);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('follow-up failures still surface after the editor closed', (
+      tester,
+    ) async {
+      final pending = PendingDerivativeCopySaver(DerivativeKind.watermark);
+      addTearDown(pending.releaseAll);
+      await _openForSave(tester, storage, pending, preview);
+      await tester.tap(find.text('Save copy'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.widgetWithText(FilledButton, 'Close'));
+      await tester.pumpAndSettle();
+      expect(find.byType(WatermarkEditorScreen), findsNothing);
+
+      pending.indexing.complete(GalleryIndexAdmission.failed);
+      pending.rescanning.complete('refreshFailed');
+      pending.publishing.completeError(StateError('media store'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final l10n = lookupAppLocalizations(const Locale('en'));
+      expect(find.text(l10n.watermark_galleryRefreshFailed), findsOneWidget);
+      expect(
+        find.text(l10n.watermark_systemGalleryExportFailed),
+        findsOneWidget,
+      );
+
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+}
+
+/// 推入编辑器路由并等原图载入；返回的 Completer 在编辑器关闭时带上返回值完成。
+Future<Completer<String?>> _openForSave(
+  WidgetTester tester,
+  LocalStorageService storage,
+  PendingDerivativeCopySaver pending,
+  ui.Image preview,
+) async {
+  await tester.binding.setSurfaceSize(const Size(1180, 760));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  final closed = Completer<String?>();
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(storage),
+        derivativeCopySaverProvider(
+          DerivativeKind.watermark,
+        ).overrideWithValue(pending.saver),
+      ],
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => Navigator.of(context)
+                  .push<String>(
+                    MaterialPageRoute(
+                      builder: (_) => WatermarkEditorScreen(
+                        sourceBytes: _pngBytes(48, 32),
+                        sourceFileName: 'source.png',
+                        sourcePath: 'source.png',
+                        defaultsOnly: false,
+                        decodePreview: (_, {requireStatic = false}) async =>
+                            preview.clone(),
+                        renderCopy: (request, {cancellationToken}) async =>
+                            WatermarkRenderResult(
+                              bytes: request.sourceBytes,
+                              fileName: 'source_watermarked.png',
+                              width: 48,
+                              height: 32,
+                              metadataPreserved: false,
+                            ),
+                      ),
+                    ),
+                  )
+                  .then(closed.complete),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('Open'));
+  await tester.pumpAndSettle();
+  expect(find.text('Save copy'), findsOneWidget);
+  return closed;
 }
 
 Widget _controlsApp({
