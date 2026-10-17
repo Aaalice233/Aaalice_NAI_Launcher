@@ -8,15 +8,12 @@ import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/watermark/watermark_settings.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../derivatives/derivative_registry.dart';
+import '../derivatives/derivative_render.dart';
 import '../utils/image_share_sanitizer.dart';
 import '../utils/isolate_pool.dart';
 import 'watermark_scene.dart';
 import 'watermark_source_analysis.dart';
 import 'watermark_tone.dart';
-
-class WatermarkCancelledException implements Exception {
-  const WatermarkCancelledException();
-}
 
 class WatermarkRenderException implements Exception {
   const WatermarkRenderException(this.message, [this.cause]);
@@ -26,18 +23,6 @@ class WatermarkRenderException implements Exception {
 
   @override
   String toString() => message;
-}
-
-class WatermarkCancellationToken {
-  bool _cancelled = false;
-
-  bool get isCancelled => _cancelled;
-
-  void cancel() => _cancelled = true;
-
-  void throwIfCancelled() {
-    if (_cancelled) throw const WatermarkCancelledException();
-  }
 }
 
 class WatermarkRenderRequest {
@@ -56,7 +41,7 @@ class WatermarkRenderRequest {
   final String sourceFileName;
 }
 
-class WatermarkRenderResult {
+class WatermarkRenderResult implements DerivativeRenderedCopy {
   const WatermarkRenderResult({
     required this.bytes,
     required this.fileName,
@@ -65,7 +50,9 @@ class WatermarkRenderResult {
     required this.metadataPreserved,
   });
 
+  @override
   final Uint8List bytes;
+  @override
   final String fileName;
   final int width;
   final int height;
@@ -75,7 +62,7 @@ class WatermarkRenderResult {
 typedef WatermarkRenderOperation =
     Future<WatermarkRenderResult> Function(
       WatermarkRenderRequest request, {
-      WatermarkCancellationToken? cancellationToken,
+      DerivativeRenderCancellationToken? cancellationToken,
     });
 
 typedef WatermarkPreviewDecoder =
@@ -122,9 +109,9 @@ class WatermarkRenderService {
 
   static Future<WatermarkRenderResult> render(
     WatermarkRenderRequest request, {
-    WatermarkCancellationToken? cancellationToken,
+    DerivativeRenderCancellationToken? cancellationToken,
   }) async {
-    final token = cancellationToken ?? WatermarkCancellationToken();
+    final token = cancellationToken ?? DerivativeRenderCancellationToken();
     token.throwIfCancelled();
     if (!request.settings.textStyle.enabled &&
         !request.settings.logoStyle.enabled) {
@@ -229,6 +216,8 @@ class WatermarkRenderService {
       if (byteData == null) {
         throw const WatermarkRenderException('PNG encoding failed.');
       }
+      // 下一步要排 ComputeGate，已取消就不再占槽位
+      token.throwIfCancelled();
       final sanitized =
           await ImageShareSanitizer.prepareForCopyOrDragInBackground(
             byteData.buffer.asUint8List(),
@@ -258,7 +247,7 @@ class WatermarkRenderService {
         height: height,
         metadataPreserved: metadataPreserved,
       );
-    } on WatermarkCancelledException {
+    } on DerivativeRenderCancelledException {
       rethrow;
     } on WatermarkRenderException {
       rethrow;

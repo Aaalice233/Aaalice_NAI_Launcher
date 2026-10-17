@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/derivatives/derivative_render.dart';
 import 'package:nai_launcher/core/watermark/watermark_render_service.dart';
 import 'package:nai_launcher/core/watermark/watermark_scene.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
@@ -109,7 +110,7 @@ void main() {
   });
 
   test('cancellation is explicit before decoding starts', () async {
-    final token = WatermarkCancellationToken()..cancel();
+    final token = DerivativeRenderCancellationToken()..cancel();
     await expectLater(
       WatermarkRenderService.render(
         WatermarkRenderRequest(
@@ -119,13 +120,13 @@ void main() {
         ),
         cancellationToken: token,
       ),
-      throwsA(isA<WatermarkCancelledException>()),
+      throwsA(isA<DerivativeRenderCancelledException>()),
     );
   });
 
   test('cancellation during rendering completes with a typed error', () async {
     final source = await _solidPng(1200, 800, const Color(0xFF334455));
-    final token = WatermarkCancellationToken();
+    final token = DerivativeRenderCancellationToken();
     final rendering = WatermarkRenderService.render(
       WatermarkRenderRequest(
         sourceBytes: source,
@@ -137,7 +138,10 @@ void main() {
 
     token.cancel();
 
-    await expectLater(rendering, throwsA(isA<WatermarkCancelledException>()));
+    await expectLater(
+      rendering,
+      throwsA(isA<DerivativeRenderCancelledException>()),
+    );
   });
 
   test('extreme aspect ratios keep every resolved layer on canvas', () async {

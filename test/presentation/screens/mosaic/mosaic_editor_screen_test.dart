@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/derivatives/derivative_registry.dart';
+import 'package:nai_launcher/core/derivatives/derivative_render.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/mosaic/mosaic_settings.dart';
 import 'package:nai_launcher/core/mosaic/mosaic_render_service.dart';
@@ -17,6 +18,7 @@ import 'package:nai_launcher/presentation/screens/derivatives/derivative_copy_sa
 import 'package:nai_launcher/presentation/screens/mosaic/mosaic_editor_canvas.dart';
 import 'package:nai_launcher/presentation/screens/mosaic/mosaic_editor_screen.dart';
 
+import '../../../helpers/editor_exit.dart';
 import '../../../helpers/labeled_rows_expectations.dart';
 import '../../../helpers/pending_derivative_copy_saver.dart';
 
@@ -165,7 +167,7 @@ void main() {
         );
         expect(canvasAfter.regions, same(canvasBefore.regions));
         expect(canvasAfter.regions, same(request!.regions));
-        pending.completeError(const MosaicCancelledException());
+        pending.completeError(const DerivativeRenderCancelledException());
         await tester.pumpAndSettle();
         expect(
           tester
@@ -183,7 +185,7 @@ void main() {
         expect(tester.takeException(), isNull);
       } finally {
         if (!pending.isCompleted) {
-          pending.completeError(const MosaicCancelledException());
+          pending.completeError(const DerivativeRenderCancelledException());
         }
         await tester.pump();
         await tester.pumpWidget(const SizedBox.shrink());
@@ -413,8 +415,94 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
+
+    for (final exit in EditorExit.values) {
+      testWidgets('${exit.name} during a stalled render leaves and writes '
+          'nothing', (tester) async {
+        final pending = PendingDerivativeCopySaver(DerivativeKind.mosaic);
+        addTearDown(pending.releaseAll);
+        final settings = _RecordingSettings();
+        final rendering = Completer<MosaicRenderResult>();
+        final closed = await _openForSave(
+          tester,
+          bytes,
+          pending,
+          settings,
+          renderCopy: (request, {cancellationToken}) => rendering.future,
+        );
+
+        await tester.tap(find.widgetWithIcon(FilledButton, Icons.save_alt));
+        await tester.pump();
+        expect(find.text('Saving…'), findsOneWidget);
+
+        await exit.perform(tester);
+        await tester.pump();
+        expect(closed.isCompleted, isTrue);
+        await settleWithin(tester, const Duration(seconds: 2));
+        expect(find.byType(MosaicEditorScreen), findsNothing);
+        expect(await closed.future, isNull);
+
+        rendering.complete(_renderResult(bytes));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(pending.writes, isEmpty);
+        expect(settings.remembered, isEmpty);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('${exit.name} once writing started leaves and still saves', (
+        tester,
+      ) async {
+        final pending = PendingDerivativeCopySaver(
+          DerivativeKind.mosaic,
+          holdWrites: true,
+        );
+        addTearDown(pending.releaseAll);
+        final settings = _RecordingSettings();
+        final closed = await _openForSave(tester, bytes, pending, settings);
+        final output = pending.outputPathFor('source_redacted.png');
+
+        await tester.tap(find.widgetWithIcon(FilledButton, Icons.save_alt));
+        await tester.pump();
+        expect(pending.writeRequests, [output]);
+
+        await exit.perform(tester);
+        await tester.pump();
+        expect(closed.isCompleted, isTrue);
+        await settleWithin(tester, const Duration(seconds: 2));
+        expect(find.byType(MosaicEditorScreen), findsNothing);
+        expect(await closed.future, isNull);
+
+        pending.writing.complete();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(pending.writes, [output]);
+        expect(pending.admissions, [
+          [output],
+        ]);
+        expect(settings.remembered, hasLength(1));
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(
+          find.text('Redacted copy saved\nsource_redacted.png'),
+          findsOneWidget,
+        );
+
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
+
+MosaicRenderResult _renderResult(Uint8List bytes) => MosaicRenderResult(
+  bytes: bytes,
+  fileName: 'source_redacted.png',
+  width: 80,
+  height: 60,
+  metadataPreserved: false,
+);
 
 class _RecordingSettings extends _Settings {
   final remembered = <MosaicSettings>[];
@@ -430,8 +518,9 @@ Future<Completer<String?>> _openForSave(
   WidgetTester tester,
   Uint8List bytes,
   PendingDerivativeCopySaver pending,
-  _RecordingSettings settings,
-) async {
+  _RecordingSettings settings, {
+  MosaicRenderOperation? renderCopy,
+}) async {
   await tester.binding.setSurfaceSize(const Size(1180, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final closed = Completer<String?>();
@@ -459,14 +548,10 @@ Future<Completer<String?>> _openForSave(
                         sourcePath: 'source.png',
                         defaultsOnly: false,
                         decodePreview: (_) async => _preview.clone(),
-                        renderCopy: (request, {cancellationToken}) async =>
-                            MosaicRenderResult(
-                              bytes: request.sourceBytes,
-                              fileName: 'source_redacted.png',
-                              width: 80,
-                              height: 60,
-                              metadataPreserved: false,
-                            ),
+                        renderCopy:
+                            renderCopy ??
+                            (request, {cancellationToken}) async =>
+                                _renderResult(request.sourceBytes),
                       ),
                     ),
                   )

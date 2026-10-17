@@ -10,24 +10,39 @@ import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/presentation/screens/derivatives/derivative_copy_saver.dart';
 import 'package:path/path.dart' as p;
 
-/// 写入立即成功、写入之后的每一步都挂起，直到用例逐一放行。
+/// 写入之后的每一步都挂起，直到用例逐一放行；
+/// [holdGalleryRoot]、[holdWrites] 时取图库目录与写入本身也要等 [resolvingRoot]、[writing] 放行。
 class PendingDerivativeCopySaver {
-  PendingDerivativeCopySaver(this.kind);
+  PendingDerivativeCopySaver(
+    this.kind, {
+    this.holdGalleryRoot = false,
+    this.holdWrites = false,
+    this.galleryRootPath = galleryRoot,
+  });
 
   static const galleryRoot = 'gallery-root';
 
   final DerivativeKind kind;
+  final bool holdGalleryRoot;
+  final bool holdWrites;
+  final String? galleryRootPath;
+  final resolvingRoot = Completer<void>();
+  final writing = Completer<void>();
   final registering = Completer<void>();
   final copyingUsage = Completer<void>();
   final publishing = Completer<void>();
   final indexing = Completer<GalleryIndexAdmission>();
   final rescanning = Completer<Object?>();
+  final writeRequests = <String>[];
   final writes = <String>[];
   final admissions = <List<String>>[];
 
   late final DerivativeCopySaver saver = DerivativeCopySaver(
     kind: kind,
-    resolveGalleryRootPath: () async => galleryRoot,
+    resolveGalleryRootPath: () async {
+      if (holdGalleryRoot) await resolvingRoot.future;
+      return galleryRootPath;
+    },
     resolveNaming: () => ImageSaveNaming.standard,
     resolveSystemGallery: () => SystemGalleryPublisher(
       syncEnabled: true,
@@ -50,6 +65,8 @@ class PendingDerivativeCopySaver {
 
   /// 用例结束前把仍未放行的步骤按成功收尾，不留下挂起的 Future。
   void releaseAll() {
+    if (!resolvingRoot.isCompleted) resolvingRoot.complete();
+    if (!writing.isCompleted) writing.complete();
     if (!registering.isCompleted) registering.complete();
     if (!copyingUsage.isCompleted) copyingUsage.complete();
     if (!publishing.isCompleted) publishing.complete();
@@ -66,6 +83,8 @@ class PendingDerivativeCopySaver {
     String protectedSuffix = '',
   }) async {
     final path = p.join(rootPath, preferredFileName ?? 'copy$protectedSuffix');
+    writeRequests.add(path);
+    if (holdWrites) await writing.future;
     writes.add(path);
     return path;
   }
