@@ -48,6 +48,31 @@ class ImageMetadataContainerCodec {
     );
   }
 
+  /// 前缀里是否已经出现 IDAT 块头，即它之前的块都已完整读到。
+  static bool pngReachesImageData(Uint8List bytes) =>
+      _firstPngChunkOffset(bytes, 'IDAT') != null;
+
+  /// 数据是否完整包含 IEND 块。
+  static bool pngReachesEnd(Uint8List bytes) {
+    final offset = _firstPngChunkOffset(bytes, 'IEND');
+    return offset != null && offset + 12 <= bytes.length;
+  }
+
+  // 只读块头逐块跳过，块数据越过末尾也能继续判断
+  static int? _firstPngChunkOffset(Uint8List bytes, String type) {
+    if (!isPngHeader(bytes)) return null;
+    final view = ByteData.sublistView(bytes);
+    var offset = 8;
+    while (offset + 8 <= bytes.length) {
+      final chunkType = latin1.decode(
+        Uint8List.sublistView(bytes, offset + 4, offset + 8),
+      );
+      if (chunkType == type) return offset;
+      offset += 12 + view.getUint32(offset);
+    }
+    return null;
+  }
+
   /// 读取 PNG 文本元数据，同时支持 Latin-1 `tEXt` 和 UTF-8 `iTXt`。
   ///
   /// `package:image` 4.3.0 只暴露 `tEXt`，因此 Unicode 提示词需要在这里
