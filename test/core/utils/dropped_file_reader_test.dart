@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../helpers/novelai_exif_fixture.dart';
+import '../../helpers/novelai_jpeg_layout_fixture.dart';
 import '../../helpers/novelai_webp_layout_fixture.dart';
 import '../../helpers/riff_webp_builder.dart';
 import '../../helpers/shared_compute_gate.dart';
@@ -263,6 +265,59 @@ void main() {
       expect(result, orderedEquals(original));
       expect(server.requestedRanges, hasLength(1));
     });
+
+    test(
+      'metadata source downloads the whole JPEG when its header outgrows the prefix',
+      () async {
+        final jpeg = novelAiLayoutJpeg(
+          exifTiffs: [
+            novelAiExif(
+              userComment: asciiUserComment(
+                novelAiEnvelopeJson(prompt: 'late exif prompt', seed: 9),
+              ),
+            ),
+          ],
+        );
+        final original = Uint8List.fromList([
+          ...jpeg.sublist(0, 2),
+          0xFF,
+          0xE2,
+          0xFF,
+          0xFF,
+          ...Uint8List(0xFFFF - 2),
+          ...jpeg.sublist(2),
+        ]);
+        final server = await _RangeImageServer.start(original, 'jpeg');
+        addTearDown(server.close);
+
+        final result = await DroppedFileReader.downloadRemoteMetadataSource(
+          server.uri,
+        );
+
+        expect(result, orderedEquals(original));
+        expect(server.requestedRanges, [
+          'bytes=0-${DroppedFileReader.discordMetadataProbeBytes - 1}',
+          null,
+        ]);
+      },
+    );
+
+    test(
+      'metadata source keeps the prefix of a JPEG whose header fits',
+      () async {
+        final jpeg = novelAiLayoutJpeg(exifTiffs: [cameraExifTiff()]);
+        final original = Uint8List.fromList([...jpeg, ...Uint8List(96 * 1024)]);
+        final server = await _RangeImageServer.start(original, 'jpeg');
+        addTearDown(server.close);
+
+        final result = await DroppedFileReader.downloadRemoteMetadataSource(
+          server.uri,
+        );
+
+        expect(result, hasLength(DroppedFileReader.discordMetadataProbeBytes));
+        expect(server.requestedRanges, hasLength(1));
+      },
+    );
 
     test('reads direct clipboard WebP bytes without a file URI', () async {
       final bytes = buildNovelAiWebpFixture(

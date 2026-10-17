@@ -276,8 +276,8 @@ void _handleMetadataParseRequest(
 
   try {
     // File IO and container decoding both remain in the worker isolate. The
-    // generic dispatcher is required so PNG and WebP metadata share the same
-    // scanner path.
+    // generic dispatcher is required so every supported container shares the
+    // same scanner path.
     final bytes = File(request.filePath).readAsBytesSync();
     final result = UnifiedMetadataParser.parseFromImage(
       bytes,

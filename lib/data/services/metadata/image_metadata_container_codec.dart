@@ -33,6 +33,21 @@ class ImageMetadataContainerCodec {
     return true;
   }
 
+  /// 按文件顺序给出每个 eXIf 块的 TIFF 载荷；块越过数据末尾即停止，[reachedEnd] 表示读到了 IEND。
+  static ({List<Uint8List> payloads, bool reachedEnd}) scanPngExif(
+    Uint8List bytes,
+  ) {
+    if (!isPngHeader(bytes)) return (payloads: const [], reachedEnd: false);
+    final chunks = _parsePngChunks(bytes);
+    return (
+      payloads: [
+        for (final chunk in chunks)
+          if (chunk.type == 'eXIf') chunk.data,
+      ],
+      reachedEnd: chunks.any((chunk) => chunk.type == 'IEND'),
+    );
+  }
+
   /// 读取 PNG 文本元数据，同时支持 Latin-1 `tEXt` 和 UTF-8 `iTXt`。
   ///
   /// `package:image` 4.3.0 只暴露 `tEXt`，因此 Unicode 提示词需要在这里

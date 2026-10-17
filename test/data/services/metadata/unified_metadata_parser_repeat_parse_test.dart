@@ -7,10 +7,28 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../../helpers/metadata_parse_result_expectations.dart';
+import '../../../helpers/novelai_exif_fixture.dart';
+import '../../../helpers/novelai_jpeg_layout_fixture.dart';
 import '../../../helpers/stealth_png_fixture.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
 typedef _BytesParse = MetadataParseResult? Function(Uint8List bytes);
+
+Uint8List _jpeg(String prompt) => novelAiLayoutJpeg(
+  exifTiffs: [
+    novelAiExif(
+      userComment: asciiUserComment(
+        novelAiEnvelopeJson(prompt: prompt, seed: 11),
+      ),
+    ),
+  ],
+);
+
+const Map<String, _BytesParse> _jpegEntries = {
+  'parseFromImage': UnifiedMetadataParser.parseFromImage,
+  'parseFromImageWithoutPixelDecode':
+      UnifiedMetadataParser.parseFromImageWithoutPixelDecode,
+};
 
 Uint8List _textChunkPng(String prompt) =>
     UnifiedMetadataParser.embedTextChunkOnly(
@@ -81,6 +99,7 @@ void main() {
       'parseFromFile whole': _parseViaFile(file, useGradualRead: false),
     }, _textChunkPng);
     _expectFollowsInPlaceRewrite(_webpEntries, _webp);
+    _expectFollowsInPlaceRewrite(_jpegEntries, _jpeg);
   });
 
   test('identical bytes go through the full parse on every call', () async {
@@ -88,6 +107,7 @@ void main() {
       'text chunk png': _textChunkPng('repeat'),
       'stealth-only png': await stealthOnlyNovelAiPng('repeat'),
       'webp exif': _webp('repeat'),
+      'jpeg exif': _jpeg('repeat'),
     };
 
     for (final MapEntry(key: name, value: bytes) in fixtures.entries) {
