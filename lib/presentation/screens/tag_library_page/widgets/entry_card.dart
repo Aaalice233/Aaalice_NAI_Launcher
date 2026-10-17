@@ -43,6 +43,9 @@ class EntryCard extends StatefulWidget {
   /// 切换选择状态回调
   final VoidCallback? onToggleSelection;
 
+  /// 长按进入选择模式；长按交给拖动排序时关闭
+  final bool longPressSelects;
+
   const EntryCard({
     super.key,
     required this.entry,
@@ -56,6 +59,7 @@ class EntryCard extends StatefulWidget {
     this.isSelectionMode = false,
     this.isSelected = false,
     this.onToggleSelection,
+    this.longPressSelects = true,
   });
 
   @override
@@ -90,7 +94,7 @@ class _EntryCardState extends State<EntryCard> {
         (widget.isSelectionMode ? widget.onToggleSelection : widget.onTap)
             ?.call();
       },
-      onLongPress: widget.isSelectionMode
+      onLongPress: widget.isSelectionMode || !widget.longPressSelects
           ? null
           : () {
               HapticFeedback.mediumImpact();

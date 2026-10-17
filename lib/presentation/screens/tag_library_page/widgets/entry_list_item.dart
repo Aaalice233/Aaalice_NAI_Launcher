@@ -34,6 +34,9 @@ class EntryListItem extends StatefulWidget {
   /// 切换选择状态回调
   final VoidCallback? onToggleSelection;
 
+  /// 长按进入选择模式；长按交给拖动排序时关闭
+  final bool longPressSelects;
+
   const EntryListItem({
     super.key,
     required this.entry,
@@ -46,6 +49,7 @@ class EntryListItem extends StatefulWidget {
     this.isSelectionMode = false,
     this.isSelected = false,
     this.onToggleSelection,
+    this.longPressSelects = true,
   });
 
   @override
@@ -89,7 +93,7 @@ class _EntryListItemState extends State<EntryListItem> {
               ?.call();
         },
         // 长按进入选择模式并选中
-        onLongPress: widget.isSelectionMode
+        onLongPress: widget.isSelectionMode || !widget.longPressSelects
             ? null
             : () {
                 HapticFeedback.mediumImpact();

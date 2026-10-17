@@ -9,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
-import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
 import '../../../core/utils/character_prompt_block_parser.dart';
@@ -25,7 +24,6 @@ import '../../providers/tag_library_page_provider.dart';
 import '../../providers/tag_library_selection_provider.dart';
 import '../../router/app_routes.dart';
 
-import '../../agent_chat/widgets/agent_resource_drop_region.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/library_classification_drag.dart';
 import '../../widgets/common/context_menu_anchor.dart';
@@ -43,9 +41,9 @@ import '../../../data/models/tag_library/tag_library_category.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../widgets/shortcuts/shortcut_aware_widget.dart';
 import 'widgets/category_tree_view.dart';
-import 'widgets/entry_card.dart';
+import 'widgets/entry_reorder/entry_reorder_scope.dart';
 import 'widgets/entry_create_card.dart';
-import 'widgets/entry_list_item.dart';
+import 'widgets/entry_tile.dart';
 import 'widgets/entry_add_dialog.dart';
 import 'widgets/send_to_home_dialog.dart';
 import 'widgets/tag_library_toolbar.dart';
@@ -481,17 +479,31 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
       return _buildEmptyState(theme, state);
     }
 
+    final reorderable = state.sortBy == TagLibrarySortBy.order;
     final content = switch (state.viewMode) {
       TagLibraryViewMode.card => _buildCardGrid(
         theme,
         entries,
         showCreateCard: !isSelectionMode,
+        reorderable: reorderable,
       ),
-      TagLibraryViewMode.list => _buildListView(theme, entries),
-      TagLibraryViewMode.grouped => GroupedEntriesView(
-        scrollController: _groupedScrollController,
-        entryBuilder: (entry) =>
-            _buildEntryItem(entry, true, showCategory: false),
+      TagLibraryViewMode.list => _buildListView(
+        theme,
+        entries,
+        reorderable: reorderable,
+      ),
+      TagLibraryViewMode.grouped => EntryReorderScope(
+        enabled: reorderable,
+        groupedByCategory: true,
+        controller: _groupedScrollController,
+        child: GroupedEntriesView(
+          scrollController: _groupedScrollController,
+          entryBuilder: (entry) => _buildEntryItem(
+            entry,
+            TagLibraryEntryTileLayout.card,
+            showCategory: false,
+          ),
+        ),
       ),
     };
 
@@ -550,6 +562,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     ThemeData theme,
     List<TagLibraryEntry> entries, {
     required bool showCreateCard,
+    required bool reorderable,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -558,36 +571,54 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
           constraints.maxWidth,
           textScale,
         );
-        return GridView.builder(
+        return EntryReorderScope(
+          enabled: reorderable,
           controller: _cardScrollController,
-          padding: EdgeInsets.all(layout.padding),
-          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: layout.maxCrossAxisExtent,
-            mainAxisExtent: layout.mainAxisExtent,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+          child: GridView.builder(
+            controller: _cardScrollController,
+            padding: EdgeInsets.all(layout.padding),
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: layout.maxCrossAxisExtent,
+              mainAxisExtent: layout.mainAxisExtent,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+            ),
+            itemCount: entries.length + (showCreateCard ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index < entries.length) {
+                return _buildEntryItem(
+                  entries[index],
+                  TagLibraryEntryTileLayout.card,
+                );
+              }
+              return EntryCreateCard(onPressed: _showAddEntryDialog);
+            },
           ),
-          itemCount: entries.length + (showCreateCard ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index < entries.length) {
-              return _buildEntryItem(entries[index], true);
-            }
-            return EntryCreateCard(onPressed: _showAddEntryDialog);
-          },
         );
       },
     );
   }
 
   /// 构建列表视图
-  Widget _buildListView(ThemeData theme, List<TagLibraryEntry> entries) {
-    return ListView.builder(
+  Widget _buildListView(
+    ThemeData theme,
+    List<TagLibraryEntry> entries, {
+    required bool reorderable,
+  }) {
+    return EntryReorderScope(
+      enabled: reorderable,
       controller: _listScrollController,
-      padding: const EdgeInsets.all(16),
-      itemCount: entries.length,
-      itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: _buildEntryItem(entries[index], false),
+      child: ListView.builder(
+        controller: _listScrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: entries.length,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _buildEntryItem(
+            entries[index],
+            TagLibraryEntryTileLayout.list,
+          ),
+        ),
       ),
     );
   }
@@ -595,86 +626,18 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
   /// 构建条目组件（卡片或列表项）
   Widget _buildEntryItem(
     TagLibraryEntry entry,
-    bool isCard, {
+    TagLibraryEntryTileLayout layout, {
     bool showCategory = true,
-  }) {
-    final state = ref.read(tagLibraryPageNotifierProvider);
-    final selectionState = ref.watch(tagLibrarySelectionNotifierProvider);
-    final categoryName = _getCategoryName(state.categories, entry.categoryId);
-    final isSelected = selectionState.isSelected(entry.id);
-
-    void toggleSelection() {
-      final notifier = ref.read(tagLibrarySelectionNotifierProvider.notifier);
-      if (HardwareKeyboard.instance.isShiftPressed) {
-        final allIds = state.filteredEntries.map((e) => e.id).toList();
-        notifier.selectRange(entry.id, allIds);
-      } else if (!selectionState.isActive) {
-        notifier.enterAndSelect(entry.id);
-      } else {
-        notifier.toggle(entry.id);
-      }
-    }
-
-    final commonProps = (
-      isSelectionMode: selectionState.isActive,
-      isSelected: isSelected,
-      onToggleSelection: toggleSelection,
-      onDelete: () => _showDeleteEntryConfirmation(entry.id),
-      onEdit: () => _showEditDialog(entry),
-      onToggleFavorite: () => ref
-          .read(tagLibraryPageNotifierProvider.notifier)
-          .toggleFavorite(entry.id),
-    );
-
-    if (isCard) {
-      return _agentResourceDrag(
-        entry,
-        EntryCard(
-          key: ValueKey(entry.id),
-          entry: entry,
-          categoryName: showCategory ? categoryName : null,
-          isSelectionMode: commonProps.isSelectionMode,
-          isSelected: commonProps.isSelected,
-          onToggleSelection: commonProps.onToggleSelection,
-          onTap: commonProps.onEdit,
-          onDelete: commonProps.onDelete,
-          onEdit: commonProps.onEdit,
-          onSend: () => _showEntryDetail(entry),
-          onClassify: () => _classifyEntry(entry),
-          onToggleFavorite: commonProps.onToggleFavorite,
-        ),
-      );
-    }
-
-    return _agentResourceDrag(
-      entry,
-      EntryListItem(
-        key: ValueKey(entry.id),
-        entry: entry,
-        categoryName: showCategory ? categoryName : null,
-        isSelectionMode: commonProps.isSelectionMode,
-        isSelected: commonProps.isSelected,
-        onToggleSelection: commonProps.onToggleSelection,
-        onTap: () => _showEntryDetail(entry),
-        onDelete: commonProps.onDelete,
-        onEdit: commonProps.onEdit,
-        onClassify: () => _classifyEntry(entry),
-        onToggleFavorite: commonProps.onToggleFavorite,
-      ),
-    );
-  }
-
-  Widget _agentResourceDrag(TagLibraryEntry entry, Widget child) {
-    return AgentResourceDragSource(
-      reference: AgentChatResourceReference(
-        kind: AgentChatResourceKind.tagLibraryEntry,
-        source: 'tag_library',
-        resourceId: entry.id,
-        display: {'name': entry.displayName},
-      ),
-      child: child,
-    );
-  }
+  }) => TagLibraryEntryTile(
+    key: ValueKey(entry.id),
+    entry: entry,
+    layout: layout,
+    showCategory: showCategory,
+    onEdit: () => _showEditDialog(entry),
+    onDelete: () => _showDeleteEntryConfirmation(entry.id),
+    onSend: () => _showEntryDetail(entry),
+    onClassify: () => _classifyEntry(entry),
+  );
 
   Future<void> _classifyEntry(TagLibraryEntry entry) async {
     final state = ref.read(tagLibraryPageNotifierProvider);
@@ -687,16 +650,6 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     await ref
         .read(tagLibraryPageNotifierProvider.notifier)
         .moveEntryToCategory(entry.id, target.isEmpty ? null : target);
-  }
-
-  /// 获取分类名称
-  String _getCategoryName(List categories, String? categoryId) {
-    if (categoryId == null) return '';
-    final category = categories.cast().firstWhere(
-      (c) => c?.id == categoryId,
-      orElse: () => null,
-    );
-    return category?.displayName ?? '';
   }
 
   // ==================== 批量操作处理 ====================
