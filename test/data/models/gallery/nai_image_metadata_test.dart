@@ -518,7 +518,7 @@ void main() {
     });
 
     test(
-      'fromNaiComment should not infer model from ambiguous V4.5 source',
+      'fromNaiComment should fall back to the official family default for an ambiguous V4.5 source',
       () {
         final metadata = NaiImageMetadata.fromNaiComment({
           'Comment': jsonEncode({'prompt': '1girl', 'uc': 'bad hands'}),
@@ -527,7 +527,8 @@ void main() {
         });
 
         expect(metadata.source, equals('NovelAI Diffusion V4.5'));
-        expect(metadata.model, isNull);
+        expect(metadata.sourceModel, isNull);
+        expect(metadata.model, equals(ImageModels.animeDiffusionV45Curated));
       },
     );
 
@@ -1477,6 +1478,126 @@ void main() {
       );
 
       expect(appliedMode, isNull);
+    });
+  });
+
+  group('NaiImageMetadata model resolution order', () {
+    NaiImageMetadata parse({String? source, String? model}) =>
+        NaiImageMetadata.fromNaiComment({
+          'Comment': jsonEncode({
+            'prompt': '1girl',
+            'uc': '',
+            if (model != null) 'model': model,
+          }),
+          'Software': 'NovelAI',
+          if (source != null) 'Source': source,
+        });
+
+    test('a known fingerprint wins over the Comment model', () {
+      final metadata = parse(
+        source: 'NovelAI Diffusion V4.5 1229B44F',
+        model: ImageModels.animeDiffusionV45Curated,
+      );
+
+      expect(metadata.model, ImageModels.animeDiffusionV45Full);
+      expect(metadata.effectiveModel, ImageModels.animeDiffusionV45Full);
+    });
+
+    test('the Comment model wins over the family default', () {
+      final metadata = parse(
+        source: 'NovelAI Diffusion V4.5',
+        model: ImageModels.animeDiffusionV45Full,
+      );
+
+      expect(metadata.sourceModel, isNull);
+      expect(metadata.model, ImageModels.animeDiffusionV45Full);
+      expect(metadata.effectiveModel, ImageModels.animeDiffusionV45Full);
+      expect(
+        MetadataImportApplier.resolveImportableModel(metadata),
+        ImageModels.animeDiffusionV45Full,
+      );
+    });
+
+    test('an inpainting Comment model resolves to its base model', () {
+      final metadata = parse(
+        source: 'NovelAI Diffusion V4.5',
+        model: ImageModels.animeDiffusionV45FullInpainting,
+      );
+
+      expect(metadata.effectiveModel, ImageModels.animeDiffusionV45Full);
+    });
+
+    test('an unregistered Comment model is ignored', () {
+      final metadata = parse(
+        source: 'NovelAI Diffusion V4.5',
+        model: 'someone-elses-model',
+      );
+
+      expect(metadata.model, ImageModels.animeDiffusionV45Curated);
+      expect(metadata.effectiveModel, ImageModels.animeDiffusionV45Curated);
+    });
+
+    test('without a better source the family default applies', () {
+      final metadata = parse(source: 'NovelAI Diffusion V4.5 00000000');
+
+      expect(metadata.sourceModel, isNull);
+      expect(metadata.model, ImageModels.animeDiffusionV45Curated);
+      expect(metadata.sourceDefaultModel, ImageModels.animeDiffusionV45Curated);
+      expect(metadata.effectiveModel, ImageModels.animeDiffusionV45Curated);
+      expect(
+        MetadataImportApplier.resolveImportableModel(metadata),
+        ImageModels.animeDiffusionV45Curated,
+      );
+    });
+
+    test('Stable Diffusion XL fingerprints resolve to the V3 models', () {
+      expect(
+        parse(source: 'Stable Diffusion XL C1E1DE52').effectiveModel,
+        ImageModels.animeDiffusionV3,
+      );
+      expect(
+        parse(source: 'Stable Diffusion XL 9CC2F394').effectiveModel,
+        ImageModels.furryDiffusionV3,
+      );
+    });
+
+    test('text sources written by earlier launcher versions still resolve', () {
+      const expected = {
+        'NovelAI Diffusion V4.5 Full': ImageModels.animeDiffusionV45Full,
+        'NovelAI Diffusion V4.5 Curated': ImageModels.animeDiffusionV45Curated,
+        'NovelAI Diffusion V4 Full': ImageModels.animeDiffusionV4Full,
+        'NovelAI Diffusion V4 Curated': ImageModels.animeDiffusionV4Curated,
+        'NovelAI Furry Diffusion V3': ImageModels.furryDiffusionV3,
+        'NovelAI Diffusion V3': ImageModels.animeDiffusionV3,
+        'NovelAI Diffusion V2': ImageModels.animeV2,
+        'NovelAI Furry Diffusion': ImageModels.furryDiffusion,
+        'DiffusionModelMetaName.NAIv5 DE206BDA':
+            ImageModels.animeDiffusionV5Curated,
+      };
+
+      for (final entry in expected.entries) {
+        expect(parse(source: entry.key).model, entry.value, reason: entry.key);
+      }
+    });
+
+    test('cached records pick up the Comment model on read', () {
+      final comment = jsonEncode({
+        'prompt': '1girl',
+        'model': ImageModels.animeDiffusionV45Full,
+      });
+      final cached = NaiImageMetadata(
+        prompt: '1girl',
+        source: 'NovelAI Diffusion V4.5',
+        rawJson: jsonEncode({
+          'Comment': comment,
+          'Source': 'NovelAI Diffusion V4.5',
+        }),
+      );
+
+      expect(cached.effectiveModel, ImageModels.animeDiffusionV45Curated);
+      final upgraded = cached.upgradeFromRawJsonIfNeeded();
+      expect(upgraded.model, ImageModels.animeDiffusionV45Full);
+      expect(upgraded.effectiveModel, ImageModels.animeDiffusionV45Full);
     });
   });
 }

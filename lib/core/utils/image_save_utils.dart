@@ -15,6 +15,7 @@ import '../../data/services/metadata/hash_calculator.dart';
 import '../../data/services/metadata/metadata_parse_executor.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
+import '../constants/nai_model_source_fingerprints.dart';
 import '../enums/image_model_mode.dart';
 import '../enums/precise_ref_type.dart';
 import '../save_naming/image_save_naming.dart';
@@ -408,42 +409,9 @@ class ImageSaveUtils {
     }
   }
 
-  /// 获取模型显示名称
-  static String getModelSourceName(String model) {
-    if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
-      // 与服务端实写一致：底模与重绘权重各有指纹，官方解析两者都认，
-      // 不带已知指纹的 V5 一律归 Curated。
-      final inpainting = ImageModels.isInpaintingModel(model);
-      if (model.contains('diffusion-5-full-medium')) {
-        return inpainting
-            ? 'NovelAI Diffusion V5 93F4BD30'
-            : 'NovelAI Diffusion V5 70AB5786';
-      }
-      if (model.contains('diffusion-5-full')) {
-        return inpainting
-            ? 'NovelAI Diffusion V5 657484A5'
-            : 'NovelAI Diffusion V5 0ADF9AB7';
-      }
-      return 'NovelAI Diffusion V5';
-    } else if (model.contains('diffusion-4-5')) {
-      return model.contains('curated')
-          ? 'NovelAI Diffusion V4.5 Curated'
-          : 'NovelAI Diffusion V4.5 Full';
-    } else if (model.contains('diffusion-4')) {
-      return model.contains('curated')
-          ? 'NovelAI Diffusion V4 Curated'
-          : 'NovelAI Diffusion V4 Full';
-    } else if (model.contains('furry') && model.contains('-3')) {
-      return 'NovelAI Furry Diffusion V3';
-    } else if (model.contains('diffusion-3')) {
-      return 'NovelAI Diffusion V3';
-    } else if (model.contains('diffusion-2')) {
-      return 'NovelAI Diffusion V2';
-    } else if (model.contains('furry')) {
-      return 'NovelAI Furry Diffusion';
-    }
-    return 'NovelAI';
-  }
+  /// 写入 PNG Source 的模型指纹，官网与启动器都能据此认回模型。
+  static String getModelSourceName(String model) =>
+      NaiModelSourceFingerprints.sourceOf(model) ?? 'NovelAI';
 
   static _EmbeddedPngMetadata? _extractEmbeddedPngMetadata(Uint8List bytes) {
     if (!UnifiedMetadataParser.isPngHeader(bytes)) {
