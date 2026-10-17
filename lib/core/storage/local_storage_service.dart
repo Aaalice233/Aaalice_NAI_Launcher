@@ -510,6 +510,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.sdSyntaxAutoConvert, value);
   }
 
+  // ==================== Separate Numeric Weight Closing ====================
+
+  /// 获取数字结尾的数值权重是否在闭合 :: 前补空格 (默认关闭)
+  bool getSeparateNumericWeightClosing() {
+    return getSetting<bool>(
+          StorageKeys.separateNumericWeightClosing,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存数字结尾的数值权重是否在闭合 :: 前补空格
+  Future<void> setSeparateNumericWeightClosing(bool value) async {
+    await setSetting(StorageKeys.separateNumericWeightClosing, value);
+  }
+
   // ==================== Resolve Alias On Copy ====================
 
   /// 获取复制时是否展开词库别名 (默认关闭)

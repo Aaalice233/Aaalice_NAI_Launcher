@@ -3956,6 +3956,18 @@ abstract class AppLocalizations {
   /// **'Convert SD weight syntax to NAI format on blur'**
   String get prompt_sdSyntaxAutoConvertSubtitle;
 
+  /// No description provided for @prompt_separateNumericWeightClosing.
+  ///
+  /// In en, this message translates to:
+  /// **'Space After Numeric Tags'**
+  String get prompt_separateNumericWeightClosing;
+
+  /// No description provided for @prompt_separateNumericWeightClosingSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a space before :: so year_2025:: is not read as a new weight'**
+  String get prompt_separateNumericWeightClosingSubtitle;
+
   /// No description provided for @prompt_resolveAliasOnCopy.
   ///
   /// In en, this message translates to:
@@ -4159,6 +4171,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Formatted'**
   String get prompt_formatted;
+
+  /// No description provided for @prompt_numericWeightClosingSeparated.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight closings spaced'**
+  String get prompt_numericWeightClosingSeparated;
 
   /// No description provided for @image_save.
   ///

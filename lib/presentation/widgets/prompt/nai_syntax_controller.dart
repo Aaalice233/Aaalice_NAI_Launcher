@@ -46,6 +46,13 @@ class NaiSyntaxController extends TextEditingController {
     clearCache();
   }
 
+  /// 写入数值权重时，以数字结尾的内容是否在闭合 `::` 前补空格。
+  bool separateNumericWeightClosing;
+
+  static bool separatesNumericWeightClosing(TextEditingController controller) =>
+      controller is NaiSyntaxController &&
+      controller.separateNumericWeightClosing;
+
   // 缓存：避免每次光标移动都重新解析
   String? _cachedText;
   int? _cachedColorSignature;
@@ -96,6 +103,7 @@ class NaiSyntaxController extends TextEditingController {
     super.text,
     bool highlightEnabled = true,
     bool numericEmphasisEnabled = true,
+    this.separateNumericWeightClosing = false,
   }) : _highlightEnabled = highlightEnabled,
        _numericEmphasisEnabled = numericEmphasisEnabled;
 

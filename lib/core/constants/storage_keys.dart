@@ -188,6 +188,8 @@ class StorageKeys {
   static const String autoFormatPrompt = 'auto_format_prompt';
   static const String highlightEmphasis = 'highlight_emphasis';
   static const String sdSyntaxAutoConvert = 'sd_syntax_auto_convert';
+  static const String separateNumericWeightClosing =
+      'separate_numeric_weight_closing';
   static const String resolveAliasOnCopy = 'resolve_alias_on_copy';
   static const String detectMultiCharacterOnPaste =
       'detect_multi_character_on_paste';

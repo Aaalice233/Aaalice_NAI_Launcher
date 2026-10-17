@@ -225,6 +225,9 @@ class PromptInputToolbar extends ConsumerWidget {
     final autoFormat = ref.read(autoFormatPromptSettingsProvider);
     final highlight = ref.read(highlightEmphasisSettingsProvider);
     final sdConvert = ref.read(sdSyntaxAutoConvertSettingsProvider);
+    final separateClosing = ref.read(
+      separateNumericWeightClosingSettingsProvider,
+    );
     final resolveAlias = ref.read(resolveAliasOnCopySettingsProvider);
     final detectMultiCharacter = ref.read(
       detectMultiCharacterOnPasteSettingsProvider,
@@ -270,6 +273,14 @@ class PromptInputToolbar extends ConsumerWidget {
           context.l10n.prompt_sdSyntaxAutoConvert,
           context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
         ),
+        _toggleItem(
+          context,
+          theme,
+          'separate_numeric_weight_closing',
+          separateClosing,
+          context.l10n.prompt_separateNumericWeightClosing,
+          context.l10n.prompt_separateNumericWeightClosingSubtitle,
+        ),
         _actionItem(
           theme,
           'regex_rules',
@@ -313,6 +324,10 @@ class PromptInputToolbar extends ConsumerWidget {
         ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
       case 'sd_syntax_convert':
         ref.read(sdSyntaxAutoConvertSettingsProvider.notifier).toggle();
+      case 'separate_numeric_weight_closing':
+        ref
+            .read(separateNumericWeightClosingSettingsProvider.notifier)
+            .toggle();
       case 'regex_rules':
         RegexRulesDialog.show(context);
       case 'resolve_alias_on_copy':

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../core/utils/nai_prompt_formatter.dart';
-import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../utils/text_selection_utils.dart';
 import '../common/app_toast.dart';
+import 'prompt_blur_formatting.dart';
 import 'tag_editor_scope.dart';
 
 /// 提示词格式化包装器
 /// 为任意输入组件提供失焦时自动格式化功能
 ///
-/// 职责单一：只负责格式化和SD语法转换
+/// 职责单一：只负责格式化、SD语法转换和数值权重闭合补空格
 /// 与 AutocompleteWrapper 分离，可独立使用或组合使用
 class PromptFormatterWrapper extends StatefulWidget {
   /// 被包装的输入组件
@@ -28,6 +27,9 @@ class PromptFormatterWrapper extends StatefulWidget {
   /// 是否启用 SD 语法自动转换（失焦时将 SD 权重语法转换为 NAI 格式）
   final bool enableSdSyntaxAutoConvert;
 
+  /// 是否在失焦时给以数字结尾的数值权重内容在闭合 :: 前补空格
+  final bool separateNumericWeightClosing;
+
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
@@ -38,6 +40,7 @@ class PromptFormatterWrapper extends StatefulWidget {
     this.focusNode,
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
+    this.separateNumericWeightClosing = false,
     this.onChanged,
   });
 
@@ -99,56 +102,42 @@ class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
   /// 失焦时格式化提示词
   void _formatOnBlur() {
     final originalValue = widget.controller.value;
-    var text = originalValue.text;
-    if (text.isEmpty) return;
+    if (originalValue.text.isEmpty) return;
 
-    var changed = false;
-    final messages = <String>[];
+    final result = PromptBlurFormatting.apply(
+      originalValue.text,
+      context.l10n,
+      sdSyntaxAutoConvert: widget.enableSdSyntaxAutoConvert,
+      autoFormat: widget.enableAutoFormat,
+      separateNumericWeightClosing: widget.separateNumericWeightClosing,
+    );
+    final text = result.text;
+    if (text == originalValue.text) return;
 
-    // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
-    if (widget.enableSdSyntaxAutoConvert) {
-      final converted = SdToNaiConverter.convert(text);
-      if (converted != text) {
-        text = converted;
-        changed = true;
-        messages.add('SD→NAI');
-      }
-    }
-
-    // 自动格式化
-    if (widget.enableAutoFormat) {
-      final formatted = NaiPromptFormatter.format(text);
-      if (formatted != text) {
-        text = formatted;
-        changed = true;
-        if (!messages.contains('SD→NAI')) {
-          messages.add(context.l10n.prompt_formatted);
-        }
-      }
-    }
-
-    if (changed) {
-      final selection = TextSelectionUtils.preserveLineAndColumnSelection(
-        oldText: originalValue.text,
-        newText: text,
-        selection: originalValue.selection,
-      );
-      widget.controller.value = originalValue.copyWith(
-        text: text,
-        selection: selection,
-        composing: TextRange.empty,
-      );
-      widget.onChanged?.call(text);
-      if (mounted && messages.isNotEmpty) {
-        AppToast.info(context, messages.join(' + '));
-      }
+    final selection = TextSelectionUtils.preserveLineAndColumnSelection(
+      oldText: originalValue.text,
+      newText: text,
+      selection: originalValue.selection,
+    );
+    widget.controller.value = originalValue.copyWith(
+      text: text,
+      selection: selection,
+      composing: TextRange.empty,
+    );
+    widget.onChanged?.call(text);
+    if (mounted && result.messages.isNotEmpty) {
+      AppToast.info(context, result.messages.join(' + '));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 如果两个功能都未启用，直接返回子组件
-    if (!widget.enableAutoFormat && !widget.enableSdSyntaxAutoConvert) {
+    // 如果没有任何失焦改写，直接返回子组件
+    if (!PromptBlurFormatting.enabled(
+      sdSyntaxAutoConvert: widget.enableSdSyntaxAutoConvert,
+      autoFormat: widget.enableAutoFormat,
+      separateNumericWeightClosing: widget.separateNumericWeightClosing,
+    )) {
       return widget.child;
     }
 

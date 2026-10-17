@@ -82,6 +82,25 @@ final sdSyntaxAutoConvertSettingsProvider =
 );
 
 typedef _$SdSyntaxAutoConvertSettings = Notifier<bool>;
+String _$separateNumericWeightClosingSettingsHash() =>
+    r'8011a1cd92481fd78e5ca6dc6af0767008121769';
+
+/// 数字结尾的数值权重闭合补空格设置 Notifier
+///
+/// Copied from [SeparateNumericWeightClosingSettings].
+@ProviderFor(SeparateNumericWeightClosingSettings)
+final separateNumericWeightClosingSettingsProvider =
+    NotifierProvider<SeparateNumericWeightClosingSettings, bool>.internal(
+  SeparateNumericWeightClosingSettings.new,
+  name: r'separateNumericWeightClosingSettingsProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$separateNumericWeightClosingSettingsHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$SeparateNumericWeightClosingSettings = Notifier<bool>;
 String _$resolveAliasOnCopySettingsHash() =>
     r'9c8654b27b0c93ece1a13c7e67b9d7c5f3707142';
 

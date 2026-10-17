@@ -876,6 +876,8 @@
   "prompt_highlightEmphasisSubtitle": "Highlight brackets and weight syntax",
   "prompt_sdSyntaxAutoConvert": "SD Syntax Auto Convert",
   "prompt_sdSyntaxAutoConvertSubtitle": "Convert SD weight syntax to NAI format on blur",
+  "prompt_separateNumericWeightClosing": "Space After Numeric Tags",
+  "prompt_separateNumericWeightClosingSubtitle": "Add a space before :: so year_2025:: is not read as a new weight",
   "prompt_resolveAliasOnCopy": "Expand Library On Copy",
   "prompt_resolveAliasOnCopySubtitle": "Replace <library name> with its content when copying or cutting",
   "prompt_detectMultiCharacterOnPaste": "Detect Characters On Paste",
@@ -939,6 +941,7 @@
   "regexRules_testNoChange": "No change",
   "regexRules_testNoRules": "No enabled rules",
   "prompt_formatted": "Formatted",
+  "prompt_numericWeightClosingSeparated": "Weight closings spaced",
 
   "image_save": "Save",
   "image_copy": "Copy",

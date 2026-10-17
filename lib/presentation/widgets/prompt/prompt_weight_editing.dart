@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/utils/character_prompt_block_parser.dart';
 import '../../../core/utils/emphasis_weight_format.dart';
+import '../../../core/utils/numeric_weight_closing.dart';
 import '../../../core/utils/prompt_edit_document.dart';
 import 'nai_syntax_controller.dart';
 
@@ -178,6 +179,7 @@ class PromptWeightEditing {
     PromptEditSpan span,
     double weight, {
     required bool numericEmphasisEnabled,
+    bool separateNumericWeightClosing = false,
   }) {
     final shell = withWeight(
       '${span.prefix}x${span.suffix}',
@@ -185,7 +187,18 @@ class PromptWeightEditing {
       numericEmphasisEnabled: numericEmphasisEnabled,
     );
     final split = shell.indexOf('x');
-    return (shell.substring(0, split), shell.substring(split + 1));
+    final suffix = shell.substring(split + 1);
+    return (
+      shell.substring(0, split),
+      suffix == NumericWeightClosing.plain
+          ? NumericWeightClosing.closingFor(
+              span.label,
+              separate:
+                  separateNumericWeightClosing ||
+                  NumericWeightClosing.hasSeparatedClosing(span.raw),
+            )
+          : suffix,
+    );
   }
 
   static bool _isSeparator(String char) => char == ',' || char.trim().isEmpty;
@@ -348,6 +361,9 @@ class PromptWeightEditing {
         target.numericAllowed &&
         (controller is! NaiSyntaxController ||
             controller.numericEmphasisEnabled);
+    final separate = NaiSyntaxController.separatesNumericWeightClosing(
+      controller,
+    );
     final group = target.group;
     final String replacement;
     if (group == null) {
@@ -355,12 +371,14 @@ class PromptWeightEditing {
         text.substring(target.start, target.end),
         newWeight,
         numericEmphasisEnabled: numeric,
+        separateNumericWeightClosing: separate,
       );
     } else {
       final (prefix, suffix) = rewrap(
         group,
         newWeight,
         numericEmphasisEnabled: numeric,
+        separateNumericWeightClosing: separate,
       );
       replacement =
           '$prefix${text.substring(group.editStart, group.editEnd)}$suffix';
@@ -382,6 +400,7 @@ class PromptWeightEditing {
     String source,
     double weight, {
     bool numericEmphasisEnabled = true,
+    bool separateNumericWeightClosing = false,
   }) {
     final spans = PromptEditDocument.parse(source);
     final disabled = spans.length == 1 && spans.single.disabled;
@@ -391,7 +410,13 @@ class PromptWeightEditing {
     if ((value - 1).abs() < 0.00001) {
       text = parsed.baseText;
     } else if (numericEmphasisEnabled) {
-      text = '${formatEmphasisWeight(value)}::${parsed.baseText}::';
+      final closing = NumericWeightClosing.closingFor(
+        parsed.baseText,
+        separate:
+            separateNumericWeightClosing ||
+            NumericWeightClosing.hasSeparatedClosing(source),
+      );
+      text = '${formatEmphasisWeight(value)}::${parsed.baseText}$closing';
     } else {
       final depth = (math.log(value).abs() / math.log(1.05)).round();
       final opening = value > 1 ? '{' : '[';

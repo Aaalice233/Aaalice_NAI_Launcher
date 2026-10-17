@@ -44,6 +44,7 @@ class PromptEditDocument {
   const PromptEditDocument._();
   static const disabledPrefix = '/*disabled:';
   static final _numericOpening = RegExp(r'-?(?:\d+(?:\.\d*)?|\.\d+)::');
+  static final _stackedWeight = RegExp(r'^-?(?:\d+(?:\.\d*)?|\.\d+)$');
   static final _bracketShell = RegExp(r'^[\{\[]+$');
 
   static String disable(String text) =>
@@ -278,6 +279,39 @@ class PromptEditDocument {
       }
     }
     return ranges;
+  }
+
+  /// `(contentStart, closing)` for each `::` that ends a numeric weight. A bare
+  /// number right after an opening is a stacked opening, not weighted content.
+  static List<(int, int)> numericClosings(String source) {
+    final closings = <(int, int)>[];
+    final skipper = _StructureSkipper(source, source.length);
+    int? contentStart;
+    for (var i = 0; i < source.length; i++) {
+      final resume = skipper.skip(i);
+      if (resume == _StructureSkipper.unterminated) break;
+      if (resume != null) {
+        i = resume - 1;
+        continue;
+      }
+      final opening = _numericOpeningAt(source, i, 0);
+      if (opening != null) {
+        contentStart = opening.end;
+        i = opening.end - 1;
+        continue;
+      }
+      if (!source.startsWith('::', i)) continue;
+      final start = contentStart;
+      if (start != null &&
+          _stackedWeight.hasMatch(source.substring(start, i))) {
+        contentStart = i + 2;
+      } else {
+        if (start != null) closings.add((start, i));
+        contentStart = null;
+      }
+      i++;
+    }
+    return closings;
   }
 
   static Match? _numericOpeningAt(String source, int index, int lower) {
