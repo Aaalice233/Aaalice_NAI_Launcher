@@ -154,6 +154,31 @@ void main() {
     expect(result.metadataPreserved, isFalse);
   });
 
+  test('a damaged source comment fails with the metadata error', () async {
+    final source = UnifiedMetadataParser.embedTextChunkOnly(
+      await _solidPng(64, 64, const Color(0xFF654321)),
+      'Comment',
+      '{"prompt":',
+    );
+
+    await expectLater(
+      WatermarkRenderService.render(
+        WatermarkRenderRequest(
+          sourceBytes: source,
+          settings: const WatermarkSettings(),
+          preserveMetadata: true,
+        ),
+      ),
+      throwsA(
+        isA<WatermarkRenderException>().having(
+          (error) => error.message,
+          'message',
+          startsWith('The source metadata is damaged or cannot be parsed: '),
+        ),
+      ),
+    );
+  });
+
   test('cancellation is explicit before decoding starts', () async {
     final token = WatermarkCancellationToken()..cancel();
     await expectLater(
