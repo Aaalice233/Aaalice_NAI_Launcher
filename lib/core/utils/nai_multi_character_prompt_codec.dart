@@ -2,10 +2,12 @@
 ///
 /// NovelAI defines a single `|` as a prompt-chunk separator: the first chunk
 /// is the base prompt and each following chunk is one character prompt.
+/// Pipes inside a `||a|b||` random-choice block are options, not separators.
 class NaiMultiCharacterPromptCodec {
   const NaiMultiCharacterPromptCodec._();
 
   static const int maxCharacterCount = 6;
+  static const int _pipe = 0x7c;
 
   static NaiMultiCharacterPrompt? tryDecode(String source) {
     var text = source.trim();
@@ -69,24 +71,28 @@ class NaiMultiCharacterPromptCodec {
     return '$base$separator${characters.join(separator)}';
   }
 
+  // Mirrors the web client: `||` fences pair up left to right like
+  // `split('||')`, so an unclosed fence protects the rest of the text.
   static List<String> _splitSinglePipes(String text) {
     final chunks = <String>[];
     var start = 0;
     var index = 0;
+    var inRandomBlock = false;
     while (index < text.length) {
-      if (text.codeUnitAt(index) != 0x7c) {
+      if (text.codeUnitAt(index) != _pipe) {
         index++;
         continue;
       }
-      var end = index + 1;
-      while (end < text.length && text.codeUnitAt(end) == 0x7c) {
-        end++;
+      if (index + 1 < text.length && text.codeUnitAt(index + 1) == _pipe) {
+        inRandomBlock = !inRandomBlock;
+        index += 2;
+        continue;
       }
-      if (end - index == 1) {
+      if (!inRandomBlock) {
         chunks.add(text.substring(start, index));
-        start = end;
+        start = index + 1;
       }
-      index = end;
+      index++;
     }
     chunks.add(text.substring(start));
     return chunks;
