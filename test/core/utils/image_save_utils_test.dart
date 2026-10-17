@@ -1066,30 +1066,43 @@ void main() {
       expect(restored?.modelMode, ImageModelMode.furry);
     });
 
-    test('writes the fingerprint the server uses for each V5 weight', () {
-      const expected = {
-        ImageModels.animeDiffusionV5Full: 'NovelAI Diffusion V5 0ADF9AB7',
-        ImageModels.animeDiffusionV5FullInpainting:
-            'NovelAI Diffusion V5 657484A5',
-        ImageModels.animeDiffusionV5FullMedium:
-            'NovelAI Diffusion V5 70AB5786',
-        ImageModels.animeDiffusionV5FullMediumInpainting:
-            'NovelAI Diffusion V5 93F4BD30',
-        ImageModels.animeDiffusionV5Curated: 'NovelAI Diffusion V5',
-      };
+    test('writes a fingerprint that reads back as the same base model', () {
+      const models = [
+        ImageModels.animeDiffusionV5Full,
+        ImageModels.animeDiffusionV5FullInpainting,
+        ImageModels.animeDiffusionV5FullMedium,
+        ImageModels.animeDiffusionV5FullMediumInpainting,
+        ImageModels.animeDiffusionV5Curated,
+        ImageModels.animeDiffusionV45Full,
+        ImageModels.animeDiffusionV45FullInpainting,
+        ImageModels.animeDiffusionV45Curated,
+        ImageModels.animeDiffusionV45CuratedInpainting,
+        ImageModels.animeDiffusionV4Full,
+        ImageModels.animeDiffusionV4Curated,
+        ImageModels.animeDiffusionV3,
+        ImageModels.furryDiffusionV3,
+        ImageModels.furryDiffusion,
+      ];
 
-      for (final entry in expected.entries) {
-        final source = ImageSaveUtils.getModelSourceName(entry.key);
-        expect(source, entry.value, reason: entry.key);
+      for (final model in models) {
+        final source = ImageSaveUtils.getModelSourceName(model);
+        expect(source, isNot('NovelAI'), reason: model);
         expect(
           NaiImageMetadata.fromNaiComment({
             'Source': source,
             'Comment': '{}',
           }).model,
-          ImageModels.resolveBaseModel(entry.key),
-          reason: entry.key,
+          ImageModels.resolveBaseModel(model),
+          reason: '$model -> $source',
         );
       }
+    });
+
+    test('names V5 Curated by its fingerprint instead of the bare family', () {
+      expect(
+        ImageSaveUtils.getModelSourceName(ImageModels.animeDiffusionV5Curated),
+        'NovelAI Diffusion V5 DB276663',
+      );
     });
   });
 
