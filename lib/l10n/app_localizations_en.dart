@@ -2155,7 +2155,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prompt_autoFormatSubtitle =>
-      'Convert Chinese commas and tag spaces while preserving line breaks';
+      'Normalize commas and tag spacing using your preference; preserve line breaks and quoted text';
 
   @override
   String get prompt_highlightEmphasis => 'Highlight Emphasis';
@@ -13575,7 +13575,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autocomplete_replaceUnderscores =>
-      'Replace underscores with spaces on insertion';
+      'Replace underscores with spaces on insertion and auto-format';
 
   @override
   String get autocomplete_dataSourcesTitle => 'Data Sources & Cache';

@@ -1,3 +1,4 @@
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'dart:convert';
 
@@ -35,12 +36,16 @@ void main() {
     bool enableSdSyntaxAutoConvert = false,
     bool enableAutoFormat = false,
     bool enableTagMode = false,
+    bool replaceUnderscores = false,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           localStorageServiceProvider.overrideWith(
-            (ref) => _TestLocalStorageService(rules: rules),
+            (ref) => _TestLocalStorageService(
+              rules: rules,
+              replaceUnderscores: replaceUnderscores,
+            ),
           ),
         ],
         child: MaterialApp(
@@ -86,6 +91,22 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('blur respects spaces preference and protects rendered text', (
+    tester,
+  ) async {
+    await pumpInput(
+      tester,
+      enableRegexReplace: false,
+      rules: [],
+      enableAutoFormat: true,
+      replaceUnderscores: true,
+    );
+    await typeAndBlur(tester, 'long_hair, blue eyes, "Hello_World Again"');
+    expect(controller.text, 'long hair, blue eyes, "Hello_World Again"');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('disabled tags survive formatting and repeated mode switches', (
     tester,
@@ -304,7 +325,18 @@ void main() {
 }
 
 class _TestLocalStorageService extends LocalStorageService {
-  _TestLocalStorageService({required this.rules});
+  _TestLocalStorageService({
+    required this.rules,
+    this.replaceUnderscores = false,
+  });
+  final bool replaceUnderscores;
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) {
+    if (key == StorageKeys.autocompleteReplaceUnderscores) {
+      return replaceUnderscores as T;
+    }
+    return super.getSetting(key, defaultValue: defaultValue);
+  }
 
   final List<PromptRegexRule> rules;
 

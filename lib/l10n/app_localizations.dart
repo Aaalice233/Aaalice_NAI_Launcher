@@ -3929,7 +3929,7 @@ abstract class AppLocalizations {
   /// No description provided for @prompt_autoFormatSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Convert Chinese commas and tag spaces while preserving line breaks'**
+  /// **'Normalize commas and tag spacing using your preference; preserve line breaks and quoted text'**
   String get prompt_autoFormatSubtitle;
 
   /// No description provided for @prompt_highlightEmphasis.
@@ -23565,7 +23565,7 @@ abstract class AppLocalizations {
   /// No description provided for @autocomplete_replaceUnderscores.
   ///
   /// In en, this message translates to:
-  /// **'Replace underscores with spaces on insertion'**
+  /// **'Replace underscores with spaces on insertion and auto-format'**
   String get autocomplete_replaceUnderscores;
 
   /// No description provided for @autocomplete_dataSourcesTitle.

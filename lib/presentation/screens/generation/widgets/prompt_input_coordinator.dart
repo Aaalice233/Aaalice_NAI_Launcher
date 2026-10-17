@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/utils/nai_prompt_formatter.dart';
+import '../../../services/prompt_formatting_service.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../adaptive/adaptive_presenter.dart';
@@ -76,8 +76,9 @@ class PromptInputCoordinator {
     }
   }
 
-  String _normalize(String prompt) =>
-      NaiPromptFormatter.format(SdToNaiConverter.convert(prompt));
+  String _normalize(String prompt) => _ref
+      .read(promptFormattingServiceProvider)
+      .format(SdToNaiConverter.convert(prompt));
 
   void applyToMainPrompt(String prompt) {
     _controller.promptController.text = prompt;

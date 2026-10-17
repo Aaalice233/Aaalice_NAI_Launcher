@@ -1,13 +1,165 @@
+import 'package:flutter/material.dart';
+import 'package:nai_launcher/data/models/prompt/random_prompt_result.dart';
+import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
+import 'package:nai_launcher/presentation/providers/prompt_config_provider.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_coordinator.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_controller.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
-import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart'
+    show ImageParams;
 import 'package:nai_launcher/data/models/online_gallery/ai_tag_generation_info.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/pending_prompt_provider.dart';
 import 'package:nai_launcher/presentation/services/generation_prompt_transfer_service.dart';
 
 void main() {
+  for (final enabled in [false, true]) {
+    for (final spaces in [false, true]) {
+      test(
+        'random apply honors formatting=$enabled and spaces=$spaces',
+        () async {
+          final container = ProviderContainer(
+            overrides: [
+              localStorageServiceProvider.overrideWithValue(
+                _FormattingStorage(enabled, spaces),
+              ),
+              generationParamsNotifierProvider.overrideWith(
+                _TestGenerationParamsNotifier.new,
+              ),
+              promptConfigNotifierProvider.overrideWith(_FixedRandomPrompt.new),
+              characterPromptNotifierProvider.overrideWith(_TestCharacters.new),
+            ],
+          );
+          addTearDown(container.dispose);
+          await container
+              .read(imageGenerationNotifierProvider.notifier)
+              .generateAndApplyRandomPrompt();
+          final expected = !enabled
+              ? 'long hair, blue_eyes'
+              : spaces
+              ? 'long hair, blue eyes'
+              : 'long_hair, blue_eyes';
+          expect(
+            container.read(generationParamsNotifierProvider).prompt,
+            expected,
+          );
+          final character = container
+              .read(characterPromptNotifierProvider)
+              .characters
+              .single;
+          expect(character.prompt, expected);
+          expect(
+            character.negativePrompt,
+            !enabled
+                ? 'bad hands, low_quality'
+                : spaces
+                ? 'bad hands, low quality'
+                : 'bad_hands, low_quality',
+          );
+        },
+      );
+
+      testWidgets(
+        'pending library transfer honors formatting=$enabled and spaces=$spaces',
+        (tester) async {
+          final container = ProviderContainer(
+            overrides: [
+              localStorageServiceProvider.overrideWithValue(
+                _FormattingStorage(enabled, spaces),
+              ),
+              generationParamsNotifierProvider.overrideWith(
+                _TestGenerationParamsNotifier.new,
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+          final controller = PromptInputController(
+            prompt: '',
+            negativePrompt: '',
+          );
+          addTearDown(controller.dispose);
+          late PromptInputCoordinator coordinator;
+          await tester.pumpWidget(
+            UncontrolledProviderScope(
+              container: container,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  coordinator = PromptInputCoordinator(
+                    ref: ref,
+                    controller: controller,
+                    context: () => context,
+                    mounted: () => false,
+                  );
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+          );
+          container
+              .read(pendingPromptNotifierProvider.notifier)
+              .set(
+                prompt: 'long hair, blue_eyes',
+                targetType: SendTargetType.mainPrompt,
+              );
+          coordinator.consumePendingPrompt();
+          final expected = !enabled
+              ? 'long hair, blue_eyes'
+              : spaces
+              ? 'long hair, blue eyes'
+              : 'long_hair, blue_eyes';
+          expect(controller.promptController.text, expected);
+          expect(
+            container.read(generationParamsNotifierProvider).prompt,
+            expected,
+          );
+          await tester.pumpWidget(const SizedBox.shrink());
+        },
+      );
+
+      test('transfer honors formatting=$enabled and spaces=$spaces', () {
+        final container = ProviderContainer(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(
+              _FormattingStorage(enabled, spaces),
+            ),
+            generationParamsNotifierProvider.overrideWith(
+              _TestGenerationParamsNotifier.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        container
+            .read(generationPromptTransferServiceProvider)
+            .replaceMainPrompt(
+              prompt: 'long hair, blue_eyes',
+              negativePrompt: 'bad hands, low_quality',
+            );
+        final params = container.read(generationParamsNotifierProvider);
+        expect(
+          params.prompt,
+          !enabled
+              ? 'long hair, blue_eyes'
+              : spaces
+              ? 'long hair, blue eyes'
+              : 'long_hair, blue_eyes',
+        );
+        expect(
+          params.negativePrompt,
+          !enabled
+              ? 'bad hands, low_quality'
+              : spaces
+              ? 'bad hands, low quality'
+              : 'bad_hands, low_quality',
+        );
+      });
+    }
+  }
+
   test('cross-page prompt transfer updates generation state immediately', () {
     final container = ProviderContainer(
       overrides: [
@@ -224,5 +376,44 @@ class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
   @override
   void updateSmeaDyn(bool smeaDyn) {
     state = state.copyWith(smeaDyn: smeaDyn);
+  }
+}
+
+class _FormattingStorage extends LocalStorageService {
+  _FormattingStorage(this.enabled, this.spaces);
+  final bool enabled;
+  final bool spaces;
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) {
+    if (key == StorageKeys.autoFormatPrompt) return enabled as T;
+    if (key == StorageKeys.autocompleteReplaceUnderscores) return spaces as T;
+    return defaultValue;
+  }
+}
+
+class _FixedRandomPrompt extends PromptConfigNotifier {
+  @override
+  Future<RandomPromptResult> generateRandomPrompt({
+    required String model,
+    int? seed,
+  }) async => const RandomPromptResult(
+    mainPrompt: 'long hair, blue_eyes',
+    characters: [
+      GeneratedCharacter(
+        prompt: 'long hair, blue_eyes',
+        negativePrompt: 'bad hands, low_quality',
+      ),
+    ],
+  );
+}
+
+class _TestCharacters extends CharacterPromptNotifier {
+  @override
+  CharacterPromptConfig build() => const CharacterPromptConfig();
+
+  @override
+  void replaceAll(List<CharacterPrompt> characters) {
+    state = CharacterPromptConfig(characters: characters);
   }
 }

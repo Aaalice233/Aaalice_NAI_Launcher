@@ -8,7 +8,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../providers/prompt_editor_preferences_provider.dart';
 import '../prompt_tag_mode_toggle.dart';
-import '../../../../core/utils/nai_prompt_formatter.dart';
+import '../../../services/prompt_formatting_service.dart';
 import '../../../../core/utils/prompt_edit_document.dart';
 import '../../../../core/utils/prompt_regex_replacer.dart';
 import '../../../../core/utils/sd_to_nai_converter.dart';
@@ -504,7 +504,9 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
     // 自动格式化
     if (widget.config.enableAutoFormat) {
-      final formatted = NaiPromptFormatter.format(text);
+      final formatted = ref
+          .read(promptFormattingServiceProvider)
+          .format(text, enabled: true);
       if (formatted != text) {
         text = formatted;
         changed = true;
