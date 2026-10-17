@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -7,15 +8,12 @@ import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/watermark/watermark_settings.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../derivatives/derivative_registry.dart';
+import '../derivatives/derivative_render.dart';
 import '../utils/image_share_sanitizer.dart';
 import '../utils/isolate_pool.dart';
 import 'watermark_scene.dart';
 import 'watermark_source_analysis.dart';
 import 'watermark_tone.dart';
-
-class WatermarkCancelledException implements Exception {
-  const WatermarkCancelledException();
-}
 
 class WatermarkRenderException implements Exception {
   const WatermarkRenderException(this.message, [this.cause]);
@@ -25,18 +23,6 @@ class WatermarkRenderException implements Exception {
 
   @override
   String toString() => message;
-}
-
-class WatermarkCancellationToken {
-  bool _cancelled = false;
-
-  bool get isCancelled => _cancelled;
-
-  void cancel() => _cancelled = true;
-
-  void throwIfCancelled() {
-    if (_cancelled) throw const WatermarkCancelledException();
-  }
 }
 
 class WatermarkRenderRequest {
@@ -55,7 +41,7 @@ class WatermarkRenderRequest {
   final String sourceFileName;
 }
 
-class WatermarkRenderResult {
+class WatermarkRenderResult implements DerivativeRenderedCopy {
   const WatermarkRenderResult({
     required this.bytes,
     required this.fileName,
@@ -64,24 +50,68 @@ class WatermarkRenderResult {
     required this.metadataPreserved,
   });
 
+  @override
   final Uint8List bytes;
+  @override
   final String fileName;
   final int width;
   final int height;
   final bool metadataPreserved;
 }
 
+typedef WatermarkRenderOperation =
+    Future<WatermarkRenderResult> Function(
+      WatermarkRenderRequest request, {
+      DerivativeRenderCancellationToken? cancellationToken,
+    });
+
+typedef WatermarkPreviewDecoder =
+    Future<ui.Image> Function(Uint8List bytes, {bool requireStatic});
+
 class WatermarkRenderService {
   WatermarkRenderService._();
 
   static const int _maxSourcePixels = 64000000;
   static const int _maxSourceDimension = 32768;
+  static const int _previewEdgeLimit = 2048;
+
+  /// 编辑器预览用的缩小解码；保存时由 [render] 按原尺寸重新解码。
+  static Future<ui.Image> decodePreview(
+    Uint8List bytes, {
+    bool requireStatic = false,
+  }) async {
+    ui.ImmutableBuffer? buffer;
+    ui.ImageDescriptor? descriptor;
+    ui.Codec? codec;
+    try {
+      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final longestEdge = math.max(descriptor.width, descriptor.height);
+      final scale = longestEdge > _previewEdgeLimit
+          ? _previewEdgeLimit / longestEdge
+          : 1.0;
+      codec = await descriptor.instantiateCodec(
+        targetWidth: math.max(1, (descriptor.width * scale).round()),
+        targetHeight: math.max(1, (descriptor.height * scale).round()),
+      );
+      if (requireStatic && codec.frameCount != 1) {
+        throw const WatermarkRenderException(
+          'Choose a static source image. Animated images are not supported.',
+        );
+      }
+      return (await codec.getNextFrame()).image;
+    } finally {
+      codec?.dispose();
+      descriptor?.dispose();
+      buffer?.dispose();
+    }
+  }
 
   static Future<WatermarkRenderResult> render(
     WatermarkRenderRequest request, {
-    WatermarkCancellationToken? cancellationToken,
+    DerivativeRenderCancellationToken? cancellationToken,
   }) async {
-    final token = cancellationToken ?? WatermarkCancellationToken();
+    final token = cancellationToken ?? DerivativeRenderCancellationToken();
     token.throwIfCancelled();
     if (!request.settings.textStyle.enabled &&
         !request.settings.logoStyle.enabled) {
@@ -186,6 +216,8 @@ class WatermarkRenderService {
       if (byteData == null) {
         throw const WatermarkRenderException('PNG encoding failed.');
       }
+      // 下一步要排 ComputeGate，已取消就不再占槽位
+      token.throwIfCancelled();
       final sanitized =
           await ImageShareSanitizer.prepareForCopyOrDragInBackground(
             byteData.buffer.asUint8List(),
@@ -215,7 +247,7 @@ class WatermarkRenderService {
         height: height,
         metadataPreserved: metadataPreserved,
       );
-    } on WatermarkCancelledException {
+    } on DerivativeRenderCancelledException {
       rethrow;
     } on WatermarkRenderException {
       rethrow;

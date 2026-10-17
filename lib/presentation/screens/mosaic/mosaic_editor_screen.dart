@@ -8,26 +8,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/derivatives/derivative_registry.dart';
-import '../../../core/mosaic/mosaic_derivative_registry.dart';
+import '../../../core/derivatives/derivative_render.dart';
 import '../../../core/mosaic/mosaic_render_service.dart';
-import '../../../core/save_naming/save_name_context.dart';
 import '../../../core/services/native_share_service.dart';
-import '../../../core/services/system_gallery_publisher.dart';
-import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/mosaic/mosaic_settings.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
-import '../../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
-import '../../providers/image_save_settings_provider.dart';
-import '../../providers/local_gallery_provider.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 import '../../widgets/common/horizontal_segmented_control.dart';
 import '../../widgets/common/labeled_slider_rows.dart';
+import '../derivatives/derivative_copy_save_run.dart';
+import '../derivatives/derivative_copy_saver.dart';
 import 'mosaic_editor_canvas.dart';
 
 class MosaicEditorSource {
@@ -70,7 +64,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   final _previewFocusNode = FocusNode(debugLabel: 'mosaic preview');
   final _undo = <_MosaicSnapshot>[];
   final _redo = <_MosaicSnapshot>[];
-  MosaicCancellationToken? _renderToken;
+  DerivativeCopySaveRun? _saveRun;
 
   late MosaicSettings _settings;
   late MosaicSettings _initialSettings;
@@ -85,11 +79,12 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   ui.Image? _processedImage;
   bool _loading = true;
   bool _processingPreview = false;
-  bool _saving = false;
   Object? _loadError;
   Object? _previewError;
   int _processedEpoch = 0;
   int _regionSequence = 0;
+
+  bool get _saving => _saveRun != null;
 
   @override
   void initState() {
@@ -109,7 +104,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
 
   @override
   void dispose() {
-    _renderToken?.cancel();
+    _saveRun?.close();
     _processedEpoch++;
     _previewFocusNode.dispose();
     _processedImage?.dispose();
@@ -596,131 +591,76 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       _showError(context.l10n.mosaic_noRegionError);
       return;
     }
-    final token = MosaicCancellationToken();
-    _renderToken = token;
-    setState(() => _saving = true);
-    try {
-      final result = await widget.renderCopy(
-        MosaicRenderRequest(
-          sourceBytes: _sourceBytes,
-          settings: _settings,
-          regions: _regions,
-          preserveMetadata: _settings.preserveMetadata,
-          sourceFileName: _sourceFileName,
-        ),
-        cancellationToken: token,
-      );
-      if (!mounted || token.isCancelled) return;
-      final galleryRoot = await GalleryFolderRepository.instance.getRootPath();
-      if (!mounted || token.isCancelled) return;
-      if (galleryRoot == null || galleryRoot.isEmpty) {
-        throw StateError(context.l10n.localGallery_saveDirectoryNotSet);
-      }
-      final systemGallery = ref.read(systemGalleryPublisherProvider);
-      final output = await ImageSaveUtils.saveBytesToGallery(
-        rootPath: galleryRoot,
-        bytes: result.bytes,
-        naming: ref.read(imageSaveSettingsNotifierProvider).naming,
-        context: SaveNameContext(createdAt: DateTime.now()),
-        preferredFileName: result.fileName,
-        protectedSuffix: DerivativeKind.mosaic.fileNameSuffix,
-      );
-      await FixedTagUsageRecordStore().copyForDerivative(
-        sourceBytes: _sourceBytes,
-        outputBytes: result.bytes,
-      );
-      final systemGalleryOutcome = await systemGallery.publishPng(
-        bytes: result.bytes,
-        fileName: result.fileName,
-      );
-      if (systemGalleryOutcome case SystemGalleryPublishFailed(
-        :final error,
-        :final stackTrace,
-      )) {
-        AppLogger.e(
-          'Redacted copy saved but system gallery export failed',
-          error,
-          stackTrace,
-          'MosaicEditor',
-        );
-      }
-      if (!mounted) return;
-      final sourcePath = _sourcePath;
-      if (sourcePath != null) {
-        await MosaicDerivativeRegistry(
-          ref.read(localStorageServiceProvider),
-        ).register(outputPath: output, sourcePath: sourcePath);
-      }
-      if (!mounted) return;
-      if (_settings.rememberLastStyle) {
-        await ref.read(mosaicSettingsProvider.notifier).saveDefaults(_settings);
-      }
-      if (!mounted) return;
-      final galleryRefreshError = await _refreshGalleryAfterSave();
-      if (!mounted) return;
-      if (systemGalleryOutcome is SystemGalleryPublishFailed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.mosaic_systemGalleryExportFailed),
-          ),
-        );
-      }
-      if (galleryRefreshError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.mosaic_galleryRefreshFailed)),
-        );
-      }
-      await _showSaved(result, output);
-      if (mounted) Navigator.of(context).pop(output);
-    } on MosaicCancelledException {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.mosaic_cancelled)));
-      }
-    } on Object catch (error, stackTrace) {
+    final l10n = context.l10n;
+    final settingsNotifier = ref.read(mosaicSettingsProvider.notifier);
+    final run = DerivativeCopySaveRun(
+      saver: ref.read(derivativeCopySaverProvider(DerivativeKind.mosaic)),
+      notices: DerivativeCopySaveNotices.capture(
+        context,
+        saved: l10n.mosaic_saved,
+        failed: l10n.mosaic_failedGeneric,
+        systemGalleryFailed: l10n.mosaic_systemGalleryExportFailed,
+        galleryIndexFailed: l10n.mosaic_galleryRefreshFailed,
+      ),
+    );
+    final settings = _settings;
+    final request = MosaicRenderRequest(
+      sourceBytes: _sourceBytes,
+      settings: settings,
+      regions: _regions,
+      preserveMetadata: settings.preserveMetadata,
+      sourceFileName: _sourceFileName,
+    );
+    setState(() => _saveRun = run);
+    final outcome = await run.save(
+      render: (cancellationToken) =>
+          widget.renderCopy(request, cancellationToken: cancellationToken),
+      sourceBytes: request.sourceBytes,
+      sourcePath: _sourcePath,
+    );
+    if (outcome case DerivativeCopyFailed(:final error, :final stackTrace)) {
       AppLogger.e(
         'Failed to create redacted copy',
         error,
         stackTrace,
         'MosaicEditor',
       );
-      if (mounted) _showError('${context.l10n.mosaic_failedGeneric}\n$error');
-    } finally {
-      _renderToken = null;
-      if (mounted) setState(() => _saving = false);
+    }
+    if (outcome is DerivativeCopySaved && settings.rememberLastStyle) {
+      unawaited(_rememberStyle(settingsNotifier, settings));
+    }
+    if (run.isClosed || !mounted) return;
+    setState(() => _saveRun = null);
+    switch (outcome) {
+      case DerivativeCopySaved(:final copy, :final outputPath):
+        await _showSaved(copy, outputPath);
+        if (mounted) Navigator.of(context).pop(outputPath);
+      case DerivativeCopyCancelled():
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.mosaic_cancelled)));
+      case DerivativeCopyFailed(:final error):
+        _showError('${context.l10n.mosaic_failedGeneric}\n$error');
     }
   }
 
-  Future<Object?> _refreshGalleryAfterSave() async {
-    Object? galleryRefreshError;
+  static Future<void> _rememberStyle(
+    MosaicSettingsNotifier notifier,
+    MosaicSettings settings,
+  ) async {
     try {
-      final previousError = ref.read(localGalleryNotifierProvider).error;
-      await ref.read(localGalleryNotifierProvider.notifier).refresh();
-      if (!mounted) return null;
-      final refreshError = ref.read(localGalleryNotifierProvider).error;
-      if (refreshError != null && !identical(refreshError, previousError)) {
-        galleryRefreshError = refreshError;
-        AppLogger.e(
-          'Redacted copy saved but gallery refresh failed',
-          refreshError.details ?? refreshError.code.name,
-          null,
-          'MosaicEditor',
-        );
-      }
+      await notifier.saveDefaults(settings);
     } on Object catch (error, stackTrace) {
-      galleryRefreshError = error;
       AppLogger.e(
-        'Redacted copy saved but gallery refresh failed',
+        'Redacted copy saved but its style was not remembered',
         error,
         stackTrace,
         'MosaicEditor',
       );
     }
-    return galleryRefreshError;
   }
 
-  Future<void> _showSaved(MosaicRenderResult result, String output) async {
+  Future<void> _showSaved(DerivativeRenderedCopy result, String output) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -751,7 +691,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     );
   }
 
-  Future<void> _share(MosaicRenderResult result) async {
+  Future<void> _share(DerivativeRenderedCopy result) async {
     final stripMetadata = ref
         .read(shareImageSettingsProvider)
         .effectiveStripMetadataForCopyAndDrag;
@@ -811,9 +751,8 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
   Widget build(BuildContext context) {
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     return PopScope(
-      canPop: !_saving,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _saving) _renderToken?.cancel();
+        if (didPop) _saveRun?.close();
       },
       child: Material(
         color: Theme.of(context).colorScheme.surface,
@@ -857,7 +796,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
         ),
         IconButton(
           tooltip: context.l10n.common_close,
-          onPressed: _saving ? null : () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.close),
         ),
       ],
