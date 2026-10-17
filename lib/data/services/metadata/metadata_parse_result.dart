@@ -1,5 +1,18 @@
 import '../../models/gallery/nai_image_metadata.dart';
 
+/// What a gradual reader should do after a failed parse of a file prefix.
+enum MetadataPrefixVerdict {
+  /// More bytes of the same file cannot overturn the failure.
+  conclusive,
+
+  /// A longer prefix may still reach the metadata.
+  needsMoreBytes,
+
+  /// Only the complete file can settle the result, so intermediate prefixes
+  /// would be read for nothing.
+  needsCompleteFile,
+}
+
 class MetadataParseResult {
   final bool success;
   final NaiImageMetadata? metadata;
@@ -9,10 +22,7 @@ class MetadataParseResult {
   final String? errorMessage;
   final Duration? parseTime;
   final int? bytesRead;
-
-  /// A failure that more bytes of the same file cannot overturn, so a gradual
-  /// reader can stop at this prefix.
-  final bool conclusive;
+  final MetadataPrefixVerdict prefixVerdict;
 
   const MetadataParseResult({
     this.success = false,
@@ -23,7 +33,7 @@ class MetadataParseResult {
     this.errorMessage,
     this.parseTime,
     this.bytesRead,
-    this.conclusive = false,
+    this.prefixVerdict = MetadataPrefixVerdict.needsMoreBytes,
   });
 
   factory MetadataParseResult.failed(
@@ -31,13 +41,13 @@ class MetadataParseResult {
     String error, {
     Duration? parseTime,
     int? bytesRead,
-    bool conclusive = false,
+    MetadataPrefixVerdict prefixVerdict = MetadataPrefixVerdict.needsMoreBytes,
   }) => MetadataParseResult(
     triedParsers: triedParsers,
     errorMessage: error,
     parseTime: parseTime,
     bytesRead: bytesRead,
-    conclusive: conclusive,
+    prefixVerdict: prefixVerdict,
   );
 
   factory MetadataParseResult.success(

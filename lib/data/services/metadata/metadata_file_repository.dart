@@ -69,7 +69,14 @@ class MetadataFileRepository {
         statistics.gradualReadSuccesses++;
         return result;
       }
-      if (result.conclusive) return result;
+      switch (result.prefixVerdict) {
+        case MetadataPrefixVerdict.conclusive:
+          return result;
+        case MetadataPrefixVerdict.needsCompleteFile:
+          return _extractFullFile(file, filePath, parseBytes);
+        case MetadataPrefixVerdict.needsMoreBytes:
+          continue;
+      }
     }
 
     return _extractFullFile(file, filePath, parseBytes);
