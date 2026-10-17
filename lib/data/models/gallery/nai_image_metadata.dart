@@ -322,6 +322,23 @@ class NaiImageMetadata with _$NaiImageMetadata {
     source: _textField(envelope, 'Source') ?? source,
   );
 
+  /// 官网外层信封（EXIF UserComment 与 alpha 隐写的载荷）只把生成参数放在 Comment 里；
+  /// [raw] 是这种信封时返回其中 Comment 的 JSON 原文，否则原样返回。
+  static String unwrapEnvelopeComment(String raw) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return raw;
+    }
+    if (decoded is! Map || decoded.containsKey('prompt')) return raw;
+    return switch (decoded['Comment'] ?? decoded['comment']) {
+      final String comment when comment.isNotEmpty => comment,
+      final Map<dynamic, dynamic> comment => jsonEncode(comment),
+      _ => raw,
+    };
+  }
+
   static String? _textField(Map<String, dynamic> json, String key) {
     final value = json[key] ?? json[key.toLowerCase()];
     return value is String && value.isNotEmpty ? value : null;

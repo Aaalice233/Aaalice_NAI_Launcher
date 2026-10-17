@@ -567,6 +567,40 @@ void main() {
       );
     });
 
+    test('unwrapping an envelope yields the generation Comment JSON', () {
+      const comment = '{"prompt":"1girl","seed":3}';
+
+      expect(
+        NaiImageMetadata.unwrapEnvelopeComment(
+          jsonEncode({'Software': 'NovelAI', 'Comment': comment}),
+        ),
+        comment,
+      );
+      expect(
+        jsonDecode(
+          NaiImageMetadata.unwrapEnvelopeComment(
+            jsonEncode({
+              'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
+              'comment': {'prompt': '1girl', 'seed': 3},
+            }),
+          ),
+        ),
+        {'prompt': '1girl', 'seed': 3},
+      );
+    });
+
+    test('unwrapping leaves anything but an envelope untouched', () {
+      for (final raw in [
+        '{"prompt":"1girl","Comment":"kept as is"}',
+        '{"Software":"NovelAI","Comment":""}',
+        '{"Software":"NovelAI"}',
+        '["not", "an", "object"]',
+        'masterpiece, 1girl\nSteps: 28',
+      ]) {
+        expect(NaiImageMetadata.unwrapEnvelopeComment(raw), raw, reason: raw);
+      }
+    });
+
     test('cached envelope rawJson resolves the model a stale Source hid', () {
       final rawJson = jsonEncode({
         'Software': 'NovelAI',
