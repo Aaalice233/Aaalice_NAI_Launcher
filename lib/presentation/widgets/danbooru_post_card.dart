@@ -1,3 +1,4 @@
+import '../services/prompt_formatting_service.dart';
 import '../selection/card_selection_scope.dart';
 import 'common/image_card_frame.dart';
 import 'dart:math';
@@ -239,8 +240,12 @@ class _DanbooruPostCardState extends ConsumerState<DanbooruPostCard> {
         CharacterPrompt(
           id: 'gallery-${widget.post.stableKey}-$index',
           name: widget.characterPrompts[index].label,
-          prompt: widget.characterPrompts[index].prompt,
-          negativePrompt: widget.characterPrompts[index].negativePrompt,
+          prompt: ref
+              .read(promptFormattingServiceProvider)
+              .format(widget.characterPrompts[index].prompt),
+          negativePrompt: ref
+              .read(promptFormattingServiceProvider)
+              .format(widget.characterPrompts[index].negativePrompt),
           positionMode: CharacterPositionMode.aiChoice,
         ),
     ]);

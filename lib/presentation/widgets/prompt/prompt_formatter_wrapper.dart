@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/localization_extension.dart';
-import '../../../core/utils/nai_prompt_formatter.dart';
+import '../../services/prompt_formatting_service.dart';
 import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../utils/text_selection_utils.dart';
 import '../common/app_toast.dart';
@@ -12,7 +13,7 @@ import 'tag_editor_scope.dart';
 ///
 /// 职责单一：只负责格式化和SD语法转换
 /// 与 AutocompleteWrapper 分离，可独立使用或组合使用
-class PromptFormatterWrapper extends StatefulWidget {
+class PromptFormatterWrapper extends ConsumerStatefulWidget {
   /// 被包装的输入组件
   final Widget child;
 
@@ -42,10 +43,12 @@ class PromptFormatterWrapper extends StatefulWidget {
   });
 
   @override
-  State<PromptFormatterWrapper> createState() => _PromptFormatterWrapperState();
+  ConsumerState<PromptFormatterWrapper> createState() =>
+      _PromptFormatterWrapperState();
 }
 
-class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
+class _PromptFormatterWrapperState
+    extends ConsumerState<PromptFormatterWrapper> {
   late FocusNode _focusNode;
   bool _ownsFocusNode = false;
 
@@ -117,7 +120,9 @@ class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
 
     // 自动格式化
     if (widget.enableAutoFormat) {
-      final formatted = NaiPromptFormatter.format(text);
+      final formatted = ref
+          .read(promptFormattingServiceProvider)
+          .format(text, enabled: true);
       if (formatted != text) {
         text = formatted;
         changed = true;

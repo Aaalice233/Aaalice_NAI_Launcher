@@ -16,7 +16,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/character_center_resolver.dart';
 import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/image_share_sanitizer.dart';
-import '../../core/utils/nai_prompt_formatter.dart';
+import '../services/prompt_formatting_service.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
@@ -1289,17 +1289,23 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final result = await ref
         .read(promptConfigNotifierProvider.notifier)
         .generateRandomPrompt(model: selectedModel, seed: seed);
-    final formatted = NaiPromptFormatter.format(result.mainPrompt);
-    if (!_isCurrentLifecycle(epoch)) return formatted;
+    if (!_isCurrentLifecycle(epoch)) return result.mainPrompt;
+    final formatted = ref
+        .read(promptFormattingServiceProvider)
+        .format(result.mainPrompt);
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt(formatted);
     if (result.hasCharacters &&
         capabilities.randomPromptProfile.supportsCharacterPrompts) {
       final characters = result.toCharacterPrompts().map((character) {
         return character.copyWith(
-          prompt: NaiPromptFormatter.format(character.prompt),
+          prompt: ref
+              .read(promptFormattingServiceProvider)
+              .format(character.prompt),
           negativePrompt: character.negativePrompt.isEmpty
               ? character.negativePrompt
-              : NaiPromptFormatter.format(character.negativePrompt),
+              : ref
+                    .read(promptFormattingServiceProvider)
+                    .format(character.negativePrompt),
         );
       }).toList();
       ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);

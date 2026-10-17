@@ -1,3 +1,4 @@
+import '../../services/prompt_formatting_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -493,7 +494,14 @@ class OnlineGalleryDetailLauncher {
     GenerationTransferConfiguration? configuration,
     Set<GenerationTransferSetting>? configurationSettings,
   }) {
-    characterPrompts.replaceAll(_codexCharacters(item, projection));
+    final formatter = ref.read(promptFormattingServiceProvider);
+    characterPrompts.replaceAll([
+      for (final character in _codexCharacters(item, projection))
+        character.copyWith(
+          prompt: formatter.format(character.prompt),
+          negativePrompt: formatter.format(character.negativePrompt),
+        ),
+    ]);
     promptTransfer.replaceMainPrompt(
       prompt: projection.positivePrompt,
       negativePrompt: projection.negativePrompt,

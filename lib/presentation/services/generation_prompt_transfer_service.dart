@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/api_constants.dart';
-import '../../core/utils/nai_prompt_formatter.dart';
+import 'prompt_formatting_service.dart';
 import '../../core/utils/sd_to_nai_converter.dart';
 import '../../data/models/online_gallery/ai_tag_generation_info.dart';
 import '../providers/image_generation_provider.dart';
@@ -252,6 +252,7 @@ class GenerationPromptTransferService {
     }
   }
 
-  String _normalize(String prompt) =>
-      NaiPromptFormatter.format(SdToNaiConverter.convert(prompt));
+  String _normalize(String prompt) => _ref
+      .read(promptFormattingServiceProvider)
+      .format(SdToNaiConverter.convert(prompt));
 }
