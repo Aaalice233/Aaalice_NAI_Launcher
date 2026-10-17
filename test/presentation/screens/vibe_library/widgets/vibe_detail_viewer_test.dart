@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -17,6 +18,7 @@ import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_deta
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail/vibe_preview_drop_zone.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
+import 'package:nai_launcher/presentation/widgets/common/editable_double_field.dart';
 
 import '../../../../helpers/adaptive_panel_expectations.dart';
 
@@ -428,6 +430,75 @@ void main() {
     expect(previewZone.imageBytes, same(rawImage));
     expect(storage.getEntryCalls, 0);
     expect(storage.loadBundleChildCalls, 0);
+  });
+
+  group('详情快捷键与参数输入框', () {
+    Future<({List<String> deleted, Finder field})> openDetail(
+      WidgetTester tester,
+    ) async {
+      tester.view.physicalSize = const Size(1400, 1800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final entry = _buildEntry();
+      final deleted = <String>[];
+      await tester.pumpWidget(
+        _wrapWithHost(
+          entry: entry,
+          storage: _FakeVibeLibraryStorageService(entry),
+          onSaveParams: (_, __, ___) async => entry,
+          callbacks: VibeDetailCallbacks(
+            onDelete: (entry) => deleted.add(entry.id),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      final field = find
+          .descendant(
+            of: find.byType(EditableDoubleField).first,
+            matching: find.byType(EditableText),
+          )
+          .first;
+      return (deleted: deleted, field: field);
+    }
+
+    testWidgets('强度输入框里的 Delete 删除字符，不删除条目', (tester) async {
+      final detail = await openDetail(tester);
+      await tester.tap(detail.field, kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      final editable = tester.widget<EditableText>(detail.field);
+      final before = editable.controller.text;
+      editable.controller.selection = const TextSelection.collapsed(offset: 0);
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pump();
+
+      expect(detail.deleted, isEmpty);
+      expect(editable.controller.text, before.substring(1));
+      expect(find.byType(VibeDetailViewer), findsOneWidget);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+    testWidgets('输入框点外部失焦后详情快捷键仍然可用', (tester) async {
+      final detail = await openDetail(tester);
+      await tester.tap(detail.field, kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await tester.tapAt(
+        tester.getCenter(detail.field) - const Offset(160, 0),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      expect(
+        tester.widget<EditableText>(detail.field).focusNode.hasFocus,
+        isFalse,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pumpAndSettle();
+
+      expect(detail.deleted, ['entry-1']);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
   });
 }
 

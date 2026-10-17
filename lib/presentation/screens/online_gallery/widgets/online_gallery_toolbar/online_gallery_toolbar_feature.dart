@@ -15,7 +15,6 @@ import '../../../../providers/online_gallery_blacklist_provider.dart';
 import '../../../../providers/online_gallery_output_filter_provider.dart';
 import '../../../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../../../providers/online_gallery_provider.dart';
-import '../../../../providers/quick_tag_cloud_gallery_provider.dart';
 import '../../../../providers/selection_mode_provider.dart';
 import '../../../../services/gallery_prompt_projection_service.dart';
 import '../../../../widgets/bulk_action_bar.dart';
@@ -510,7 +509,7 @@ class _OnlineGalleryToolbarPresenter {
           case _MobileGalleryAction.random:
             _toggleRandomGallery(state);
           case _MobileGalleryAction.refresh:
-            _refreshGallery(state);
+            _bindings.commands.actions.refresh();
           case _MobileGalleryAction.multiSelect:
             _selectionNotifier.enter();
         }
@@ -655,32 +654,6 @@ class _OnlineGalleryToolbarPresenter {
     unawaited(_galleryNotifier.setRandomEnabled(!state.randomEnabled));
   }
 
-  void _refreshGallery(OnlineGalleryState state) {
-    final isPopular = state.viewMode == GalleryViewMode.popular;
-    final activeSource = _activeSource(state);
-    if (activeSource == GallerySourceId.quickTagCloud) {
-      _galleryNotifier.clearDetailCache();
-      ref.read(quickTagCloudGallerySourceAdapterProvider).invalidateCatalog();
-      ref.invalidate(quickTagCloudCatalogProvider);
-      final query = ref.read(quickTagCloudFilterProvider);
-      if (query.codexId != 'all') {
-        ref.invalidate(quickTagCloudCodexProvider(query.codexId));
-      }
-    }
-    final query = switch (state.viewMode) {
-      GalleryViewMode.search => _controller.searchController.text,
-      GalleryViewMode.popular => _controller.popularSearchController.text,
-      GalleryViewMode.favorites => _controller.favoriteSearchController.text,
-    };
-    final prompt = isPopular
-        ? _controller.popularPromptSearchController.text
-        : _controller.promptSearchController.text;
-    unawaited(_galleryNotifier.refreshWithDraft(query: query, prompt: prompt));
-    if (state.randomEnabled && _controller.scrollController.hasClients) {
-      _controller.scrollController.jumpTo(0);
-    }
-  }
-
   Widget _buildPrimaryActions(
     ThemeData theme,
     OnlineGalleryState state,
@@ -759,7 +732,7 @@ class _OnlineGalleryToolbarPresenter {
         if (compact)
           FilledButton.tonal(
             key: const ValueKey('online-gallery-refresh'),
-            onPressed: () => _refreshGallery(state),
+            onPressed: () => _bindings.commands.actions.refresh(),
             style: FilledButton.styleFrom(
               minimumSize: Size(0, _galleryToolbarControlHeight(context)),
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -781,7 +754,7 @@ class _OnlineGalleryToolbarPresenter {
         else
           FilledButton.tonalIcon(
             key: const ValueKey('online-gallery-refresh'),
-            onPressed: () => _refreshGallery(state),
+            onPressed: () => _bindings.commands.actions.refresh(),
             icon: refreshIcon,
             label: Text(
               state.randomEnabled

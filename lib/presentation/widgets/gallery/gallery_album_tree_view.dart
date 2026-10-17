@@ -7,8 +7,9 @@ import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/gallery/gallery_album.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../common/context_menu_anchor.dart';
+import '../common/inline_rename_field.dart';
+import '../common/menu_action_label.dart';
 import '../common/surface_ink_well.dart';
-import '../common/themed_input.dart';
 import '../../utils/gallery_drop_reader.dart';
 import 'gallery_sidebar.dart';
 import 'library_sidebar_drag_item.dart';
@@ -538,27 +539,13 @@ class _AlbumItem extends StatefulWidget {
 /// 右键/触摸菜单每项自带动作，重命名进入就地编辑。
 class _AlbumItemState extends State<_AlbumItem> {
   bool _isEditing = false;
-  late TextEditingController _editController;
 
-  @override
-  void initState() {
-    super.initState();
-    _editController = TextEditingController(text: widget.label);
+  void _submitRename(String name) {
+    widget.onRename?.call(name);
+    _stopEditing();
   }
 
-  @override
-  void didUpdateWidget(covariant _AlbumItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.label != widget.label && !_isEditing) {
-      _editController.text = widget.label;
-    }
-  }
-
-  @override
-  void dispose() {
-    _editController.dispose();
-    super.dispose();
-  }
+  void _stopEditing() => setState(() => _isEditing = false);
 
   @override
   Widget build(BuildContext context) {
@@ -599,21 +586,15 @@ class _AlbumItemState extends State<_AlbumItem> {
         const SizedBox(width: 8),
         Expanded(
           child: _isEditing
-              ? ThemedInput(
-                  controller: _editController,
-                  autofocus: true,
+              ? InlineRenameField(
+                  name: widget.label,
                   style: const TextStyle(fontSize: 13),
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  onSubmitted: (value) {
-                    if (value.trim().isNotEmpty) {
-                      widget.onRename?.call(value.trim());
-                    }
-                    setState(() => _isEditing = false);
-                  },
-                  onTapOutside: (_) => setState(() => _isEditing = false),
+                  onSubmit: _submitRename,
+                  onCancel: _stopEditing,
                 )
               : Text(
                   widget.label,
@@ -760,63 +741,42 @@ class _AlbumItemState extends State<_AlbumItem> {
             onTap: () => Future.delayed(const Duration(milliseconds: 100), () {
               if (mounted) setState(() => _isEditing = true);
             }),
-            child: Row(
-              children: [
-                const Icon(Icons.edit, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.common_rename),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.edit),
+              label: context.l10n.common_rename,
             ),
           ),
         if (widget.onAddSubAlbum != null)
           PopupMenuItem(
             onTap: widget.onAddSubAlbum,
-            child: Row(
-              children: [
-                const Icon(Icons.create_new_folder, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_createSubAlbum),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.create_new_folder),
+              label: context.l10n.localGallery_createSubAlbum,
             ),
           ),
         if (widget.onMoveUp != null)
           PopupMenuItem(
             onTap: widget.onMoveUp,
-            child: Row(
-              children: [
-                const Icon(Icons.arrow_upward, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_moveAlbumUp),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.arrow_upward),
+              label: context.l10n.localGallery_moveAlbumUp,
             ),
           ),
         if (widget.onMoveToRoot != null)
           PopupMenuItem(
             onTap: widget.onMoveToRoot,
-            child: Row(
-              children: [
-                const Icon(Icons.drive_file_move_outline, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.localGallery_moveAlbumToRoot),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.drive_file_move_outline),
+              label: context.l10n.localGallery_moveAlbumToRoot,
             ),
           ),
         if (widget.onDelete != null)
           PopupMenuItem(
             onTap: widget.onDelete,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.delete,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  context.l10n.common_delete,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.delete),
+              label: context.l10n.common_delete,
+              destructive: true,
             ),
           ),
       ],

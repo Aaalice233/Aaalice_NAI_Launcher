@@ -8542,6 +8542,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get shortcut_action_next_image => '下一张';
 
   @override
+  String get shortcut_action_first_image => '第一张';
+
+  @override
+  String get shortcut_action_last_image => '最后一张';
+
+  @override
   String get shortcut_action_zoom_in => '放大';
 
   @override
@@ -24037,6 +24043,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get shortcut_action_next_image => '下一張';
+
+  @override
+  String get shortcut_action_first_image => '第一張';
+
+  @override
+  String get shortcut_action_last_image => '最後一張';
 
   @override
   String get shortcut_action_zoom_in => '放大';

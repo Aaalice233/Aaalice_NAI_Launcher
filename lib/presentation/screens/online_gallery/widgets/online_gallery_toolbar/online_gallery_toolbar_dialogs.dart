@@ -9,6 +9,7 @@ import '../../../../adaptive/interaction_policy.dart';
 import '../../../../providers/online_gallery_blacklist_provider.dart';
 import '../../../../providers/online_gallery_output_filter_provider.dart';
 import '../../../../providers/online_gallery_provider.dart';
+import '../../../../widgets/common/focus_on_appear.dart';
 import '../../../../widgets/online_gallery/blacklist_settings_panel.dart';
 import '../../../../widgets/online_gallery/output_filter_settings_panel.dart';
 import '../../online_gallery_screen_controller.dart';
@@ -231,8 +232,7 @@ class OnlineGalleryToolbarDialogs {
                       const SingleActivator(LogicalKeyboardKey.escape):
                           _hideDateRangePopup,
                     },
-                    child: Focus(
-                      autofocus: true,
+                    child: FocusOnAppear.self(
                       child: Align(
                         alignment: Alignment.topCenter,
                         child: ConstrainedBox(

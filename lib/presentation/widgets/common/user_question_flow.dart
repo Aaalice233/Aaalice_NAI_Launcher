@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/interaction/user_question.dart';
 import '../../themes/core/layered_surface_style.dart';
+import 'focus_on_appear.dart';
 
 /// Reusable, sequential question form. It does not know about agents or tools.
 class UserQuestionFlow extends StatefulWidget {
@@ -32,6 +33,7 @@ class _UserQuestionFlowState extends State<UserQuestionFlow> {
     null,
   );
   final _customController = TextEditingController();
+  final _customFocusNode = FocusNode(debugLabel: 'UserQuestionCustomInput');
   final _scrollController = ScrollController();
   int _index = 0;
   bool _custom = false;
@@ -75,12 +77,14 @@ class _UserQuestionFlowState extends State<UserQuestionFlow> {
   void dispose() {
     _countdown?.cancel();
     _customController.dispose();
+    _customFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _goTo(int index) {
-    FocusScope.of(context).unfocus();
+    // Unfocusing the route scope would push focus above the page shortcut anchor.
+    _customFocusNode.unfocus();
     setState(() {
       _index = index;
       final answer = _reviewing ? null : _answers[index];
@@ -234,22 +238,24 @@ class _UserQuestionFlowState extends State<UserQuestionFlow> {
         selected: _custom,
         onTap: () => setState(() => _custom = true),
         editor: _custom
-            ? TextField(
-                key: const ValueKey('user-question-custom-input'),
-                controller: _customController,
-                autofocus: true,
-                minLines: 2,
-                maxLines: 5,
-                onChanged: (_) => setState(() {}),
-                onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                decoration: InputDecoration(
-                  hintText: l10n.userQuestion_customDescription,
-                  filled: false,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.only(top: 4),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
+            ? FocusOnAppear(
+                child: TextField(
+                  key: const ValueKey('user-question-custom-input'),
+                  controller: _customController,
+                  focusNode: _customFocusNode,
+                  minLines: 2,
+                  maxLines: 5,
+                  onChanged: (_) => setState(() {}),
+                  onTapOutside: (_) => _customFocusNode.unfocus(),
+                  decoration: InputDecoration(
+                    hintText: l10n.userQuestion_customDescription,
+                    filled: false,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.only(top: 4),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
                 ),
               )
             : null,

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../adaptive/interaction_policy.dart';
 import '../../common/image_viewport_surface.dart';
+import '../../shortcuts/fallback_focus_home.dart';
 import '../core/editor_state.dart';
 import '../core/input_handler.dart';
 import '../core/transform_geometry.dart';
@@ -123,148 +124,151 @@ class _EditorCanvasState extends State<EditorCanvas>
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
+    return FallbackFocusHome(
       focusNode: _focusNode,
-      autofocus: true,
-      onKeyEvent: _inputHandler.handleKeyEvent,
-      child: Listener(
-        onPointerSignal: _inputHandler.handlePointerSignal,
-        onPointerHover: _inputHandler.handlePointerHover,
-        onPointerDown: _handlePointerDown,
-        onPointerUp: _handlePointerUp,
-        onPointerCancel: _handlePointerCancel,
-        onPointerMove: _handlePointerMove,
-        child: GestureDetector(
-          behavior: HitTestBehavior.translucent,
-          dragStartBehavior: DragStartBehavior.down,
-          onScaleStart: _inputHandler.handleScaleStart,
-          onScaleUpdate: _inputHandler.handleScaleUpdate,
-          onScaleEnd: _inputHandler.handleScaleEnd,
-          // 悬停在变换手柄上时只换光标，不重建画布子树
-          child: ValueListenableBuilder<MouseCursor>(
-            valueListenable: widget.state.layerTransformer.cursor,
-            builder: (context, _, child) => MouseRegion(
-              cursor: _inputHandler.getCursor(),
-              onExit: _inputHandler.handleMouseExit,
-              child: child,
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // 更新视口尺寸
-                widget.state.canvasController.setViewportSize(
-                  Size(constraints.maxWidth, constraints.maxHeight),
-                );
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: true,
+        onKeyEvent: _inputHandler.handleKeyEvent,
+        child: Listener(
+          onPointerSignal: _inputHandler.handlePointerSignal,
+          onPointerHover: _inputHandler.handlePointerHover,
+          onPointerDown: _handlePointerDown,
+          onPointerUp: _handlePointerUp,
+          onPointerCancel: _handlePointerCancel,
+          onPointerMove: _handlePointerMove,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            dragStartBehavior: DragStartBehavior.down,
+            onScaleStart: _inputHandler.handleScaleStart,
+            onScaleUpdate: _inputHandler.handleScaleUpdate,
+            onScaleEnd: _inputHandler.handleScaleEnd,
+            // 悬停在变换手柄上时只换光标，不重建画布子树
+            child: ValueListenableBuilder<MouseCursor>(
+              valueListenable: widget.state.layerTransformer.cursor,
+              builder: (context, _, child) => MouseRegion(
+                cursor: _inputHandler.getCursor(),
+                onExit: _inputHandler.handleMouseExit,
+                child: child,
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // 更新视口尺寸
+                  widget.state.canvasController.setViewportSize(
+                    Size(constraints.maxWidth, constraints.maxHeight),
+                  );
 
-                // 使用 toolNotifier 监听工具切换（轻量级，不触发画布重绘）
-                // renderNotifier 由 CustomPainter 内部监听
-                return ValueListenableBuilder<String?>(
-                  valueListenable: widget.state.toolNotifier,
-                  builder: (context, _, __) {
-                    // Alt 模式或拾色器工具时都显示拾色器界面
-                    final isColorPicker = _inputHandler.isColorPickerActive;
-                    final cursorPosition = _inputHandler.cursorPosition;
+                  // 使用 toolNotifier 监听工具切换（轻量级，不触发画布重绘）
+                  // renderNotifier 由 CustomPainter 内部监听
+                  return ValueListenableBuilder<String?>(
+                    valueListenable: widget.state.toolNotifier,
+                    builder: (context, _, __) {
+                      // Alt 模式或拾色器工具时都显示拾色器界面
+                      final isColorPicker = _inputHandler.isColorPickerActive;
+                      final cursorPosition = _inputHandler.cursorPosition;
 
-                    return ClipRect(
-                      child: Stack(
-                        children: [
-                          // 背景 - 独立重绘区域（静态内容）
-                          Positioned.fill(
-                            child: RepaintBoundary(
-                              child: Container(
-                                color: ImageViewportSurface.background,
-                              ),
-                            ),
-                          ),
-
-                          // 图层绘制 - 不使用 RepaintBoundary 以避免缓存问题
-                          Positioned.fill(
-                            child: CustomPaint(
-                              painter: LayerPainter(
-                                state: widget.state,
-                                showTransparentCanvasBackground:
-                                    widget.showTransparentCanvasBackground,
-                                revealOutsideFrame: widget.revealOutsideFrame,
-                                devicePixelRatio: MediaQuery.devicePixelRatioOf(
-                                  context,
+                      return ClipRect(
+                        child: Stack(
+                          children: [
+                            // 背景 - 独立重绘区域（静态内容）
+                            Positioned.fill(
+                              child: RepaintBoundary(
+                                child: Container(
+                                  color: ImageViewportSurface.background,
                                 ),
                               ),
                             ),
-                          ),
 
-                          // 当前笔画预览 - 仅实时预览，不写入图层数据
-                          Positioned.fill(
-                            child: RepaintBoundary(
+                            // 图层绘制 - 不使用 RepaintBoundary 以避免缓存问题
+                            Positioned.fill(
                               child: CustomPaint(
-                                painter: StrokePreviewPainter(
+                                painter: LayerPainter(
                                   state: widget.state,
-                                ),
-                                willChange: true,
-                              ),
-                            ),
-                          ),
-
-                          // 选区绘制 - 独立重绘区域（有动画，频繁更新）
-                          Positioned.fill(
-                            child: RepaintBoundary(
-                              child: CustomPaint(
-                                painter: SelectionPainter(
-                                  state: widget.state,
-                                  animation: _selectionAnimationController,
-                                  suppressSelectionOverlay:
-                                      widget.suppressSelectionOverlay,
+                                  showTransparentCanvasBackground:
+                                      widget.showTransparentCanvasBackground,
+                                  revealOutsideFrame: widget.revealOutsideFrame,
+                                  devicePixelRatio:
+                                      MediaQuery.devicePixelRatioOf(context),
                                 ),
                               ),
                             ),
-                          ),
 
-                          // 移动工具的变换框 - 独立重绘区域（拖动时逐帧跟随）
-                          if (widget.state.currentTool is MoveTool)
+                            // 当前笔画预览 - 仅实时预览，不写入图层数据
                             Positioned.fill(
                               child: RepaintBoundary(
                                 child: CustomPaint(
-                                  painter: TransformOverlayPainter(
+                                  painter: StrokePreviewPainter(
                                     state: widget.state,
-                                    metrics: _transformMetrics,
                                   ),
-                                ),
-                              ),
-                            ),
-
-                          // 仿制图章源点准星 - 独立重绘区域（涂抹时逐点移动）
-                          if (widget.state.currentTool
-                              case final CloneStampTool cloneStamp)
-                            Positioned.fill(
-                              child: RepaintBoundary(
-                                child: CustomPaint(
-                                  painter: CloneSourceMarkerPainter(
-                                    state: widget.state,
-                                    tool: cloneStamp,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                          // 光标绘制 - 独立重绘区域（每次指针移动都重绘，
-                          // 不隔离会连带整幅图层重绘，willChange 也会污染整块画布的光栅缓存）
-                          // Alt 模式下不显示笔刷光标（显示系统精确光标）
-                          if (cursorPosition != null && !isColorPicker)
-                            Positioned.fill(
-                              child: RepaintBoundary(
-                                child: CustomPaint(
-                                  painter: CursorPainter(state: widget.state),
                                   willChange: true,
                                 ),
                               ),
                             ),
 
-                          // 拾色器预览
-                          if (isColorPicker) ..._buildColorPickerOverlayList(),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+                            // 选区绘制 - 独立重绘区域（有动画，频繁更新）
+                            Positioned.fill(
+                              child: RepaintBoundary(
+                                child: CustomPaint(
+                                  painter: SelectionPainter(
+                                    state: widget.state,
+                                    animation: _selectionAnimationController,
+                                    suppressSelectionOverlay:
+                                        widget.suppressSelectionOverlay,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // 移动工具的变换框 - 独立重绘区域（拖动时逐帧跟随）
+                            if (widget.state.currentTool is MoveTool)
+                              Positioned.fill(
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    painter: TransformOverlayPainter(
+                                      state: widget.state,
+                                      metrics: _transformMetrics,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            // 仿制图章源点准星 - 独立重绘区域（涂抹时逐点移动）
+                            if (widget.state.currentTool
+                                case final CloneStampTool cloneStamp)
+                              Positioned.fill(
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    painter: CloneSourceMarkerPainter(
+                                      state: widget.state,
+                                      tool: cloneStamp,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                            // 光标绘制 - 独立重绘区域（每次指针移动都重绘，
+                            // 不隔离会连带整幅图层重绘，willChange 也会污染整块画布的光栅缓存）
+                            // Alt 模式下不显示笔刷光标（显示系统精确光标）
+                            if (cursorPosition != null && !isColorPicker)
+                              Positioned.fill(
+                                child: RepaintBoundary(
+                                  child: CustomPaint(
+                                    painter: CursorPainter(state: widget.state),
+                                    willChange: true,
+                                  ),
+                                ),
+                              ),
+
+                            // 拾色器预览
+                            if (isColorPicker)
+                              ..._buildColorPickerOverlayList(),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -280,6 +284,8 @@ class _EditorCanvasState extends State<EditorCanvas>
       return;
     }
 
+    // 下拉框等控件点击后会一直持有焦点，点回画布时把编辑器快捷键收回来
+    if (!_focusNode.hasFocus) _focusNode.requestFocus();
     _inputHandler.handlePointerDown(event);
   }
 

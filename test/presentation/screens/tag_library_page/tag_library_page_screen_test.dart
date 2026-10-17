@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +14,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/tag_library_page_screen.dart';
+import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/category_tree_view.dart';
+import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/tag_library_toolbar.dart';
 import '../../../helpers/light_theme_contrast.dart';
 
 void main() {
@@ -334,6 +339,206 @@ void main() {
     expect(offset(), closeTo(desktopOffset, 1));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('挂载后 Ctrl+F 聚焦搜索框，点外部失焦后页面快捷键仍然可用', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _DialogTagLibraryPageNotifier.new);
+    FocusNode searchFocus() => tester
+        .widget<EditableText>(
+          find.descendant(
+            of: find.byType(TagLibraryToolbar),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .focusNode;
+
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    expect(searchFocus().hasPrimaryFocus, isTrue);
+
+    await tester.tapAt(const Offset(1160, 780), kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(searchFocus().hasFocus, isFalse);
+
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    expect(searchFocus().hasPrimaryFocus, isTrue);
+    expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('搜索框里的 Delete 与 Ctrl+C 交给输入框，不被批量操作快捷键截走', (tester) async {
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _DialogTagLibraryPageNotifier.new);
+    final search = find.descendant(
+      of: find.byType(TagLibraryToolbar),
+      matching: find.byType(EditableText),
+    );
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    await tester.enterText(search, 'abc');
+    await tester.pump();
+    final controller = tester.widget<EditableText>(search).controller;
+    controller.selection = const TextSelection.collapsed(offset: 0);
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(controller.text, 'bc');
+
+    controller.selection = const TextSelection(baseOffset: 0, extentOffset: 2);
+    await tester.pump();
+    await _pressCtrl(tester, LogicalKeyboardKey.keyC);
+    expect(copied, ['bc']);
+  });
+
+  testWidgets('搜索框留在页面作用域焦点历史里时，右键重命名的分类输入框仍直接可输入', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _TestTagLibraryPageNotifier.new);
+    final search = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(TagLibraryToolbar),
+        matching: find.byType(EditableText),
+      ),
+    );
+    await _pressCtrl(tester, LogicalKeyboardKey.keyF);
+    // 外壳切回分支时只聚焦输入框所在作用域，输入框仍是该作用域记住的子节点
+    search.focusNode.enclosingScope!.requestScopeFocus();
+    await tester.pump();
+
+    await tester.tap(
+      find.text('测试类别'),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重命名').last);
+    await tester.pumpAndSettle();
+
+    final rename = tester.widget<EditableText>(
+      find.byWidgetPredicate(
+        (widget) => widget is EditableText && widget.controller.text == '测试类别',
+      ),
+    );
+    expect(rename.focusNode.hasPrimaryFocus, isTrue);
+    tester.testTextInput.enterText('新类别');
+    await tester.pump();
+    expect(rename.controller.text, '新类别');
+    expect(search.controller.text, isEmpty);
+  });
+
+  testWidgets('重命名分类时按 Esc 放弃修改并退出，按键不冒泡给页面', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _TestTagLibraryPageNotifier.new);
+    await _openCategoryRename(tester, '测试类别');
+    final escapes = _recordBubbledEscapes(tester);
+
+    tester.testTextInput.enterText('草稿');
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+
+    expect(escapes, isEmpty, reason: 'Esc 应被重命名框消费');
+    expect(_categoryRenameField(), findsNothing);
+    expect(find.text('测试类别'), findsOneWidget);
+
+    await _openCategoryRename(tester, '测试类别');
+    expect(_categoryRenameEditable(tester).controller.text, '测试类别');
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(_categoryRenameField(), findsNothing);
+  });
+
+  testWidgets('重命名分类回车不被页面“发送到首页”截走，新名称写入存储', (tester) async {
+    await _setViewport(tester, const Size(1180, 800));
+    await _pumpTagLibrary(tester, _StoredTagLibraryPageNotifier.new);
+    await _openCategoryRename(tester, '测试类别');
+
+    tester.testTextInput.enterText('新类别');
+    await tester.pump();
+    // 桌面引擎只在框架未处理时把回车交给输入法，由输入法触发提交
+    final handled = await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(handled, isFalse);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TagLibraryPageScreen)),
+    );
+    expect(_categoryRenameField(), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(CategoryTreeView),
+        matching: find.text('新类别'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      container.read(tagLibraryPageNotifierProvider).categories.single.name,
+      '新类别',
+    );
+    expect(
+      container.read(localStorageServiceProvider).getTagLibraryCategoriesJson(),
+      contains('新类别'),
+    );
+  });
+}
+
+Finder _categoryRenameField() => find.descendant(
+  of: find.byType(CategoryTreeView),
+  matching: find.byType(EditableText),
+);
+
+EditableText _categoryRenameEditable(WidgetTester tester) =>
+    tester.widget<EditableText>(_categoryRenameField());
+
+Future<void> _openCategoryRename(WidgetTester tester, String label) async {
+  await tester.tap(
+    find.text(label),
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryButton,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('重命名').last);
+  await tester.pumpAndSettle();
+  expect(_categoryRenameField(), findsOneWidget);
+  expect(_categoryRenameEditable(tester).focusNode.hasPrimaryFocus, isTrue);
+}
+
+/// 路由作用域位于分类树与页面级 Esc 绑定之间，冒泡的 Esc 必先经过它
+List<KeyEvent> _recordBubbledEscapes(WidgetTester tester) {
+  final scope = FocusScope.of(tester.element(find.byType(CategoryTreeView)));
+  final previousHandler = scope.onKeyEvent;
+  final escapes = <KeyEvent>[];
+  scope.onKeyEvent = (node, event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
+      escapes.add(event);
+    }
+    return KeyEventResult.ignored;
+  };
+  addTearDown(() => scope.onKeyEvent = previousHandler);
+  return escapes;
+}
+
+Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {
+  await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+  await tester.sendKeyEvent(key);
+  await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+  await tester.pump();
 }
 
 Future<void> _setViewport(WidgetTester tester, Size size) async {
@@ -431,6 +636,25 @@ class _TestTagLibraryPageNotifier extends TagLibraryPageNotifier {
       ),
     ],
   );
+}
+
+/// 经存储加载，重命名的保存走真实持久化路径
+class _StoredTagLibraryPageNotifier extends TagLibraryPageNotifier {
+  @override
+  TagLibraryPageState build() {
+    ref
+        .read(localStorageServiceProvider)
+        .setTagLibraryCategoriesJson(
+          jsonEncode([
+            TagLibraryCategory(
+              id: 'test-category',
+              name: '测试类别',
+              createdAt: DateTime(2026),
+            ).toJson(),
+          ]),
+        );
+    return super.build();
+  }
 }
 
 class _SortingTagLibraryPageNotifier extends TagLibraryPageNotifier {

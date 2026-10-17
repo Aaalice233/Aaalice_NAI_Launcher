@@ -11,7 +11,9 @@ import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_category_provider.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/vibe_library_screen.dart';
@@ -100,6 +102,9 @@ ProviderContainer _createContainer({
 }) {
   return ProviderContainer(
     overrides: [
+      shortcutConfigNotifierProvider.overrideWith(
+        _DefaultShortcutConfigNotifier.new,
+      ),
       authNotifierProvider.overrideWith(() => _TestAuthNotifier(status)),
       generationParamsNotifierProvider.overrideWith(() => paramsNotifier),
       vibeLibraryNotifierProvider.overrideWith(_TestVibeLibraryNotifier.new),
@@ -222,4 +227,9 @@ class _RecordingVibeLibraryStorageService extends VibeLibraryStorageService {
     saveCalls++;
     return entry;
   }
+}
+
+class _DefaultShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
 }

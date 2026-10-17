@@ -3,8 +3,6 @@ import 'dart:math';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/extensions/list_sort_extensions.dart';
-
 part 'tag_library_entry.freezed.dart';
 part 'tag_library_entry.g.dart';
 
@@ -266,36 +264,51 @@ extension TagLibraryEntryListExtension on List<TagLibraryEntry> {
       where((e) => e.categoryId == categoryId).toList();
 
   /// 按排序顺序排列
-  List<TagLibraryEntry> sortedByOrder() {
-    return [...this]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-  }
+  List<TagLibraryEntry> sortedByOrder() => [...this]..sort(_compareByOrder);
 
   /// 按更新时间排序（最新的在前）
-  List<TagLibraryEntry> sortedByUpdatedAt() {
-    return [...this]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-  }
+  List<TagLibraryEntry> sortedByUpdatedAt() => _sortedThenByOrder(
+    (a, b) => b.updatedAt.compareTo(a.updatedAt),
+  );
 
   /// 按使用次数排序（最多的在前）
-  List<TagLibraryEntry> sortedByUseCount() {
-    return [...this]..sort((a, b) => b.useCount.compareTo(a.useCount));
-  }
+  List<TagLibraryEntry> sortedByUseCount() =>
+      _sortedThenByOrder((a, b) => b.useCount.compareTo(a.useCount));
 
   /// 按名称排序
   List<TagLibraryEntry> sortedByName() {
-    return [...this]..sortByKey((entry) => entry.displayName.toLowerCase());
+    final keyed = [
+      for (final entry in this)
+        (name: entry.displayName.toLowerCase(), entry: entry),
+    ]..sort((a, b) {
+        final byName = a.name.compareTo(b.name);
+        return byName != 0 ? byName : _compareByOrder(a.entry, b.entry);
+      });
+    return [for (final item in keyed) item.entry];
   }
 
-  /// 更新排序顺序
-  List<TagLibraryEntry> reindex() {
-    return indexed
-        .map(
-          (e) => e.$2.copyWith(
-            sortOrder: e.$1,
-            updatedAt: DateTime.now(),
-          ),
-        )
-        .toList();
-  }
+  /// 收藏在前，组内保持原有次序
+  List<TagLibraryEntry> favoritesFirst() => [
+    ...where((entry) => entry.isFavorite),
+    ...where((entry) => !entry.isFavorite),
+  ];
+
+  /// 排到现有条目之后的序号
+  int get nextSortOrder =>
+      fold(-1, (latest, entry) => max(latest, entry.sortOrder)) + 1;
+
+  /// 按列表次序重新编号
+  List<TagLibraryEntry> reindex() => [
+    for (final (index, entry) in indexed)
+      entry.sortOrder == index ? entry : entry.copyWith(sortOrder: index),
+  ];
+
+  List<TagLibraryEntry> _sortedThenByOrder(
+    int Function(TagLibraryEntry a, TagLibraryEntry b) compare,
+  ) => [...this]..sort((a, b) {
+    final result = compare(a, b);
+    return result != 0 ? result : _compareByOrder(a, b);
+  });
 
   /// 搜索
   List<TagLibraryEntry> search(String query) {
@@ -322,4 +335,12 @@ extension TagLibraryEntryListExtension on List<TagLibraryEntry> {
     }
     return tags;
   }
+}
+
+// 旧数据序号可能重复，List.sort 又不稳定，必须有确定的兜底次序
+int _compareByOrder(TagLibraryEntry a, TagLibraryEntry b) {
+  final byOrder = a.sortOrder.compareTo(b.sortOrder);
+  if (byOrder != 0) return byOrder;
+  final byCreated = a.createdAt.compareTo(b.createdAt);
+  return byCreated != 0 ? byCreated : a.id.compareTo(b.id);
 }

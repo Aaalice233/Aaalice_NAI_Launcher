@@ -1,4 +1,3 @@
-import '../../selection/card_selection_scope.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -43,27 +42,13 @@ class OnlineGalleryContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return CardSelectionScope(
-      selection: ref.watch(onlineGallerySelectionNotifierProvider),
-      commands: ref.read(onlineGallerySelectionNotifierProvider.notifier),
-      orderedIds: const GalleryPromptProjectionService().selectableStableKeys(
-        items: state.posts,
-        promptTagSettings: ref.watch(onlineGalleryPromptTagSettingsProvider),
-        outputFilter: ref.watch(onlineGalleryOutputFilterProvider),
-        detailForItem: ref
-            .read(onlineGalleryNotifierProvider.notifier)
-            .peekDetail,
-      ),
-      child: CardSelectionShortcuts(
-        child: _OnlineGalleryContentPresenter(
-          context: context,
-          ref: ref,
-          controller: controller,
-          scrollCoordinator: scrollCoordinator,
-          commands: commands,
-        ).build(Theme.of(context), state),
-      ),
-    );
+    return _OnlineGalleryContentPresenter(
+      context: context,
+      ref: ref,
+      controller: controller,
+      scrollCoordinator: scrollCoordinator,
+      commands: commands,
+    ).build(Theme.of(context), state);
   }
 }
 

@@ -8899,6 +8899,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcut_action_next_image => 'Next Image';
 
   @override
+  String get shortcut_action_first_image => 'First Image';
+
+  @override
+  String get shortcut_action_last_image => 'Last Image';
+
+  @override
   String get shortcut_action_zoom_in => 'Zoom In';
 
   @override

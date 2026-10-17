@@ -565,6 +565,86 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  const menuCases = [
+    (width: 360.0, locale: 'en', scale: 3.0, signedIn: true),
+    (width: 360.0, locale: 'ja', scale: 3.0, signedIn: true),
+    (width: 360.0, locale: 'en', scale: 3.0, signedIn: false),
+    (width: 1000.0, locale: 'en', scale: 1.0, signedIn: true),
+    (width: 1000.0, locale: 'ja', scale: 3.0, signedIn: false),
+  ];
+  for (final c in menuCases) {
+    final state = c.signedIn ? '已登录' : '未登录';
+    testWidgets(
+      '${c.width.toInt()} ${c.locale} ${c.scale}x $state账号菜单不溢出且每项可点',
+      (tester) async {
+        await tester.binding.setSurfaceSize(Size(c.width, 760));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final navigationShell = _MockNavigationShell();
+        when(() => navigationShell.currentIndex).thenReturn(0);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              localStorageServiceProvider.overrideWith(
+                (ref) => _FakeMainNavStorage()..isExpanded = true,
+              ),
+              authNotifierProvider.overrideWith(
+                c.signedIn ? _SignedInAuthNotifier.new : _FakeAuthNotifier.new,
+              ),
+              accountManagerNotifierProvider.overrideWith(
+                c.signedIn
+                    ? _SignedInAccountManagerNotifier.new
+                    : _FakeAccountManagerNotifier.new,
+              ),
+              queueExecutionNotifierProvider.overrideWith(
+                _FakeQueueExecutionNotifier.new,
+              ),
+              replicationQueueNotifierProvider.overrideWith(
+                _FakeReplicationQueueNotifier.new,
+              ),
+            ],
+            child: MaterialApp(
+              locale: Locale(c.locale),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(c.scale)),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: MainNavRail(navigationShell: navigationShell),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        await tester.tap(find.byKey(const Key('main-nav-account-menu-button')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+
+        final l10n = lookupAppLocalizations(Locale(c.locale));
+        final labels = c.signedIn
+            ? [l10n.auth_addAccount, l10n.auth_manageAccounts, l10n.auth_logout]
+            : [l10n.auth_login];
+        for (final label in labels) {
+          final item = find.descendant(
+            of: find.byWidgetPredicate((widget) => widget is PopupMenuItem),
+            matching: find.text(label),
+          );
+          expect(item, findsOneWidget, reason: label);
+          await tester.ensureVisible(item);
+          await tester.pumpAndSettle();
+          expect(item.hitTestable(), findsOneWidget, reason: label);
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }
 
 Future<void> _pumpAuthenticatedRail(

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../adaptive/window_size_class.dart';
+import '../shortcuts/fallback_focus_home.dart';
 import 'gallery_detail_action_rail.dart';
 import 'gallery_detail_controller.dart';
 import 'gallery_detail_info_panel.dart';
@@ -67,104 +68,109 @@ class GalleryDetailDialogView extends StatelessWidget {
                       0.0,
                       constraints.maxHeight - verticalInset * 2,
                     );
-                    return KeyboardListener(
+                    return FallbackFocusHome(
                       focusNode: controller.keyboardFocusNode,
-                      autofocus: true,
-                      onKeyEvent: (event) => _handleKeyEvent(context, event),
-                      child: _GalleryDetailSurface(
-                        embedded: embedded,
-                        insetPadding: EdgeInsets.symmetric(
-                          horizontal: horizontalInset,
-                          vertical: verticalInset,
-                        ),
-                        child: SizedBox(
-                          width: math.min(1240, availableWidth),
-                          height: math.min(840, availableHeight),
-                          child: Column(
-                            children: [
-                              _GalleryDetailHeader(
-                                viewModel: viewModel,
-                                actions: actions,
-                              ),
-                              Divider(
-                                height: 1,
-                                color: Theme.of(context).dividerColor,
-                              ),
-                              Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final mediaViewer =
-                                        GalleryDetailMediaViewer(
-                                          controller: controller,
-                                          viewModel: viewModel,
-                                          actions: actions,
-                                          actionRail: GalleryDetailActionRail(
+                      child: KeyboardListener(
+                        focusNode: controller.keyboardFocusNode,
+                        autofocus: true,
+                        onKeyEvent: (event) => _handleKeyEvent(context, event),
+                        child: _GalleryDetailSurface(
+                          embedded: embedded,
+                          insetPadding: EdgeInsets.symmetric(
+                            horizontal: horizontalInset,
+                            vertical: verticalInset,
+                          ),
+                          child: SizedBox(
+                            width: math.min(1240, availableWidth),
+                            height: math.min(840, availableHeight),
+                            child: Column(
+                              children: [
+                                _GalleryDetailHeader(
+                                  viewModel: viewModel,
+                                  actions: actions,
+                                ),
+                                Divider(
+                                  height: 1,
+                                  color: Theme.of(context).dividerColor,
+                                ),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final mediaViewer =
+                                          GalleryDetailMediaViewer(
+                                            controller: controller,
                                             viewModel: viewModel,
                                             actions: actions,
-                                          ),
-                                        );
-                                    final infoPanel = GalleryDetailInfoPanel(
-                                      viewModel: viewModel,
-                                      actions: actions,
-                                      scrollController:
-                                          controller.infoScrollController,
-                                      primaryActions:
-                                          GalleryDetailPrimaryActions(
-                                            viewModel: viewModel,
-                                            actions: actions,
-                                          ),
-                                    );
-                                    final useVerticalLayout =
-                                        constraints.maxWidth < 840;
-                                    if (useVerticalLayout) {
-                                      final contentHeight = math.max(
-                                        0.0,
-                                        constraints.maxHeight - 1,
+                                            actionRail: GalleryDetailActionRail(
+                                              viewModel: viewModel,
+                                              actions: actions,
+                                            ),
+                                          );
+                                      final infoPanel = GalleryDetailInfoPanel(
+                                        viewModel: viewModel,
+                                        actions: actions,
+                                        scrollController:
+                                            controller.infoScrollController,
+                                        primaryActions:
+                                            GalleryDetailPrimaryActions(
+                                              viewModel: viewModel,
+                                              actions: actions,
+                                            ),
                                       );
-                                      final mediaHeight = contentHeight < 228
-                                          ? contentHeight * 0.42
-                                          : math.min(
-                                              390.0,
-                                              math.max(
-                                                96.0,
-                                                contentHeight * 0.42,
-                                              ),
-                                            );
-                                      return Column(
+                                      final useVerticalLayout =
+                                          constraints.maxWidth < 840;
+                                      if (useVerticalLayout) {
+                                        final contentHeight = math.max(
+                                          0.0,
+                                          constraints.maxHeight - 1,
+                                        );
+                                        final mediaHeight = contentHeight < 228
+                                            ? contentHeight * 0.42
+                                            : math.min(
+                                                390.0,
+                                                math.max(
+                                                  96.0,
+                                                  contentHeight * 0.42,
+                                                ),
+                                              );
+                                        return Column(
+                                          children: [
+                                            SizedBox(
+                                              height: mediaHeight,
+                                              child: mediaViewer,
+                                            ),
+                                            Divider(
+                                              height: 1,
+                                              color: Theme.of(
+                                                context,
+                                              ).dividerColor,
+                                            ),
+                                            Expanded(child: infoPanel),
+                                          ],
+                                        );
+                                      }
+                                      return Row(
                                         children: [
-                                          SizedBox(
-                                            height: mediaHeight,
-                                            child: mediaViewer,
-                                          ),
-                                          Divider(
-                                            height: 1,
+                                          Expanded(flex: 7, child: mediaViewer),
+                                          VerticalDivider(
+                                            width: 1,
                                             color: Theme.of(
                                               context,
                                             ).dividerColor,
                                           ),
-                                          Expanded(child: infoPanel),
+                                          SizedBox(
+                                            width: constraints.maxWidth < 1050
+                                                ? 390
+                                                : 430,
+                                            child: infoPanel,
+                                          ),
                                         ],
                                       );
-                                    }
-                                    return Row(
-                                      children: [
-                                        Expanded(flex: 7, child: mediaViewer),
-                                        VerticalDivider(
-                                          width: 1,
-                                          color: Theme.of(context).dividerColor,
-                                        ),
-                                        SizedBox(
-                                          width: constraints.maxWidth < 1050
-                                              ? 390
-                                              : 430,
-                                          child: infoPanel,
-                                        ),
-                                      ],
-                                    );
-                                  },
+                                    },
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),

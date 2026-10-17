@@ -8676,6 +8676,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shortcut_action_next_image => '次の画像';
 
   @override
+  String get shortcut_action_first_image => '最初の画像';
+
+  @override
+  String get shortcut_action_last_image => '最後の画像';
+
+  @override
   String get shortcut_action_zoom_in => 'ズームイン';
 
   @override

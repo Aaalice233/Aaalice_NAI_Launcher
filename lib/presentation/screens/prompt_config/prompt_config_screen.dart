@@ -10,6 +10,7 @@ import '../../widgets/prompt/diy/dialogs/preset_import_dialog.dart';
 import '../../widgets/prompt/global_settings_dialog.dart';
 import '../../widgets/prompt/random_manager/category_card_list.dart';
 import '../../widgets/prompt/random_manager/preview_generator_panel.dart';
+import '../../widgets/shortcuts/fallback_focus_home.dart';
 import 'widgets/preset_transfer_chooser.dart';
 import 'widgets/prompt_config_compact_workspace.dart';
 import 'widgets/prompt_config_expanded_workspace.dart';
@@ -28,6 +29,7 @@ class PromptConfigScreen extends ConsumerStatefulWidget {
 class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
+  final _pageFocusNode = FocusNode(debugLabel: 'PromptConfigScreen');
   final _previewController = PreviewGeneratorController();
   // 宽屏与紧凑排布互换时保留标题栏与类别列表（搜索焦点、展开状态、滚动位置）
   final _headerKey = GlobalKey();
@@ -41,6 +43,7 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _pageFocusNode.dispose();
     _previewController.dispose();
     super.dispose();
   }
@@ -70,17 +73,21 @@ class _PromptConfigScreenState extends ConsumerState<PromptConfigScreen> {
             onInvoke: (_) => _previewController.generate(),
           ),
         },
-        child: Focus(
-          autofocus: true,
-          child: Scaffold(
-            backgroundColor: colors.surface,
-            body: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) => _buildWorkspace(
-                  maxWidth: constraints.maxWidth,
-                  unavailableState: _buildUnavailableState(
-                    presetState: presetState,
-                    libraryState: libraryState,
+        child: FallbackFocusHome(
+          focusNode: _pageFocusNode,
+          child: Focus(
+            focusNode: _pageFocusNode,
+            autofocus: true,
+            child: Scaffold(
+              backgroundColor: colors.surface,
+              body: SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => _buildWorkspace(
+                    maxWidth: constraints.maxWidth,
+                    unavailableState: _buildUnavailableState(
+                      presetState: presetState,
+                      libraryState: libraryState,
+                    ),
                   ),
                 ),
               ),

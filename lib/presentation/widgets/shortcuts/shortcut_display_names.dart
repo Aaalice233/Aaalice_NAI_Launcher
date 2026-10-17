@@ -58,6 +58,10 @@ String shortcutActionDisplayName(AppLocalizations l10n, String actionKey) {
       return l10n.shortcut_action_previous_image;
     case 'shortcut_action_next_image':
       return l10n.shortcut_action_next_image;
+    case 'shortcut_action_first_image':
+      return l10n.shortcut_action_first_image;
+    case 'shortcut_action_last_image':
+      return l10n.shortcut_action_last_image;
     case 'shortcut_action_zoom_in':
       return l10n.shortcut_action_zoom_in;
     case 'shortcut_action_zoom_out':

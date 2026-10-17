@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/cache/online_gallery_detail_coordinator.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
+import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_source_adapter.dart';
@@ -24,6 +25,7 @@ import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart
 import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
+import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_content.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_screen.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
@@ -45,6 +47,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           localStorageServiceProvider.overrideWith(
             (ref) => _MemoryLocalStorageService(),
           ),
@@ -118,6 +121,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(
               _GelbooruSearchGalleryNotifier.new,
             ),
@@ -189,6 +193,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              _defaultShortcutConfig,
               onlineGalleryNotifierProvider.overrideWith(
                 _GelbooruCredentialsErrorGalleryNotifier.new,
               ),
@@ -224,6 +229,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(
               _AiTagSearchGalleryNotifier.new,
             ),
@@ -273,6 +279,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _GelbooruSearchGalleryNotifier.new,
           ),
@@ -307,6 +314,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(
               _GelbooruSearchGalleryNotifier.new,
             ),
@@ -567,6 +575,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _GelbooruSearchGalleryNotifier.new,
           ),
@@ -594,6 +603,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _SafebooruSearchGalleryNotifier.new,
           ),
@@ -624,6 +634,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _PopularGalleryNotifier.new,
           ),
@@ -667,6 +678,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(entry.value),
             danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
             gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
@@ -698,6 +710,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(
               _GelbooruFavoritesGalleryNotifier.new,
             ),
@@ -743,6 +756,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(
               _GelbooruFavoritesGalleryNotifier.new,
             ),
@@ -790,6 +804,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(
               _AiTagSearchGalleryNotifier.new,
             ),
@@ -912,6 +927,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _AiTagDetailGalleryNotifier.new,
           ),
@@ -995,6 +1011,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _AiTagHuntGalleryNotifier.new,
           ),
@@ -1080,6 +1097,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _EmptyFilteredGalleryNotifier.new,
           ),
@@ -1106,6 +1124,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _UnderfilledGalleryNotifier.new,
           ),
@@ -1138,6 +1157,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _PausedRandomGalleryNotifier.new,
           ),
@@ -1167,6 +1187,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(_PagedGalleryNotifier.new),
           danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
           gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
@@ -1234,6 +1255,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _ScrollableGalleryNotifier.new,
           ),
@@ -1273,6 +1295,101 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('搜索框失焦后 Ctrl+A 仍全选卡片', (tester) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          _defaultShortcutConfig,
+          onlineGalleryNotifierProvider.overrideWith(
+            _ScrollableGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    final search = tester.widget<EditableText>(find.byType(EditableText).first);
+    search.focusNode.requestFocus();
+    await tester.pump();
+    // 与桌面端点输入框外部的处理一致
+    search.focusNode.unfocus();
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    final selection = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    ).read(onlineGallerySelectionNotifierProvider);
+    expect(selection.isActive, isTrue);
+    expect(selection.selectedIds, hasLength(80));
+  });
+
+  testWidgets('日期范围弹层打开即可按 Esc 关闭，日期框失焦后仍可关闭，关闭后页面快捷键可用', (tester) async {
+    await _setViewSize(tester, 1200);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          _defaultShortcutConfig,
+          onlineGalleryNotifierProvider.overrideWith(
+            _ScrollableGalleryNotifier.new,
+          ),
+          danbooruAuthProvider.overrideWith(_LoggedOutDanbooruAuth.new),
+          gelbooruAuthProvider.overrideWith(_UnconfiguredGelbooruAuth.new),
+        ],
+        child: const _TestApp(),
+      ),
+    );
+    await tester.pump();
+    final popup = find.byKey(const ValueKey('online-gallery-date-range-popup'));
+    Future<void> openPopup() async {
+      await tester.tap(find.byIcon(Icons.date_range));
+      await tester.pumpAndSettle();
+      expect(popup, findsOneWidget);
+    }
+
+    Future<void> pressEscape() async {
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+    }
+
+    await openPopup();
+    await pressEscape();
+    expect(popup, findsNothing);
+
+    await openPopup();
+    final startDate = find
+        .descendant(of: popup, matching: find.byType(EditableText))
+        .first;
+    await tester.tap(startDate, kind: PointerDeviceKind.mouse);
+    await tester.pump();
+    expect(
+      tester.widget<EditableText>(startDate).focusNode.hasPrimaryFocus,
+      isTrue,
+    );
+    await tester.tap(
+      find.descendant(of: popup, matching: find.text('Date Range')),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    await pressEscape();
+    expect(popup, findsNothing);
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+    final selection = ProviderScope.containerOf(
+      tester.element(find.byType(OnlineGalleryScreen)),
+    ).read(onlineGallerySelectionNotifierProvider);
+    expect(selection.selectedIds, hasLength(80));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
   testWidgets('favorites source selector switches back to Danbooru', (
     tester,
   ) async {
@@ -1280,6 +1397,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _GelbooruFavoritesGalleryNotifier.new,
           ),
@@ -1315,6 +1433,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _HiddenUnderfilledGalleryNotifier.new,
           ),
@@ -1342,6 +1461,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _LifecycleGalleryNotifier.new,
           ),
@@ -1365,6 +1485,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _RandomUiGalleryNotifier.new,
           ),
@@ -1444,6 +1565,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
+              _defaultShortcutConfig,
               onlineGalleryNotifierProvider.overrideWith(
                 _QuickTagCloudGalleryNotifier.new,
               ),
@@ -1702,6 +1824,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            _defaultShortcutConfig,
             onlineGalleryNotifierProvider.overrideWith(
               _QuickTagCloudGalleryNotifier.new,
             ),
@@ -1745,6 +1868,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _QuickTagCloudGalleryNotifier.new,
           ),
@@ -1856,6 +1980,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _GelbooruSearchGalleryNotifier.new,
           ),
@@ -1917,6 +2042,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          _defaultShortcutConfig,
           onlineGalleryNotifierProvider.overrideWith(
             _GelbooruSearchGalleryNotifier.new,
           ),
@@ -2742,4 +2868,13 @@ class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
     state = state.copyWith(tasks: [...state.tasks, task]);
     return true;
   }
+}
+
+final _defaultShortcutConfig = shortcutConfigNotifierProvider.overrideWith(
+  _DefaultShortcutConfigNotifier.new,
+);
+
+class _DefaultShortcutConfigNotifier extends ShortcutConfigNotifier {
+  @override
+  Future<ShortcutConfig> build() async => ShortcutConfig.createDefault();
 }

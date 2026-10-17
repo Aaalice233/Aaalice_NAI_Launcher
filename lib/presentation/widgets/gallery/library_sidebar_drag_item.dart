@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,9 +7,9 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../adaptive/interaction_policy.dart';
-import '../../themes/core/layered_surface_style.dart';
 import '../../providers/library_sidebar_sort_provider.dart';
 import '../common/app_toast.dart';
+import 'library_drag_feedback.dart';
 
 /// Shared drag geometry; callers retain ownership of hierarchy and persistence.
 class LibrarySidebarDragItem<T extends Object> extends StatefulWidget {
@@ -167,28 +166,6 @@ class _LibrarySidebarDragItemState<T extends Object>
     },
   );
 
-  Widget _feedback(BuildContext context) => Material(
-    elevation: 8,
-    borderRadius: BorderRadius.circular(8),
-    color: overlaySurfaceColor(Theme.of(context).colorScheme),
-    child: SizedBox(
-      width: math.min(240, MediaQuery.sizeOf(context).width - 32),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(widget.icon, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                widget.label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
+  Widget _feedback(BuildContext context) =>
+      LibraryDragFeedback(icon: widget.icon, label: widget.label);
 }

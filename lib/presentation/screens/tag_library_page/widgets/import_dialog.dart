@@ -14,6 +14,7 @@ import '../../../adaptive/adaptive_presenter.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/menu_action_label.dart';
 import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/common/translated_tag_text.dart';
 import '../../../widgets/library_export/library_selection_controller.dart';
@@ -506,88 +507,42 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     ConflictResolution currentResolution,
     ValueChanged<ConflictResolution> onChanged,
   ) {
+    PopupMenuItem<ConflictResolution> option(
+      ConflictResolution value,
+      IconData icon,
+      String label,
+    ) {
+      final selected = currentResolution == value;
+      return PopupMenuItem(
+        value: value,
+        child: MenuActionLabel(
+          leading: Icon(icon),
+          label: label,
+          color: selected ? theme.colorScheme.primary : null,
+          fontWeight: selected ? FontWeight.w600 : null,
+        ),
+      );
+    }
+
     return PopupMenuButton<ConflictResolution>(
       tooltip: context.l10n.tagLibrary_conflictResolutionTooltip,
       initialValue: currentResolution,
       onSelected: onChanged,
       itemBuilder: (context) => [
-        PopupMenuItem(
-          value: ConflictResolution.skip,
-          child: Row(
-            children: [
-              Icon(
-                Icons.skip_next,
-                size: 18,
-                color: currentResolution == ConflictResolution.skip
-                    ? theme.colorScheme.primary
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                context.l10n.common_skip,
-                style: TextStyle(
-                  color: currentResolution == ConflictResolution.skip
-                      ? theme.colorScheme.primary
-                      : null,
-                  fontWeight: currentResolution == ConflictResolution.skip
-                      ? FontWeight.w600
-                      : null,
-                ),
-              ),
-            ],
-          ),
+        option(
+          ConflictResolution.skip,
+          Icons.skip_next,
+          context.l10n.common_skip,
         ),
-        PopupMenuItem(
-          value: ConflictResolution.rename,
-          child: Row(
-            children: [
-              Icon(
-                Icons.edit,
-                size: 18,
-                color: currentResolution == ConflictResolution.rename
-                    ? theme.colorScheme.primary
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                context.l10n.common_rename,
-                style: TextStyle(
-                  color: currentResolution == ConflictResolution.rename
-                      ? theme.colorScheme.primary
-                      : null,
-                  fontWeight: currentResolution == ConflictResolution.rename
-                      ? FontWeight.w600
-                      : null,
-                ),
-              ),
-            ],
-          ),
+        option(
+          ConflictResolution.rename,
+          Icons.edit,
+          context.l10n.common_rename,
         ),
-        PopupMenuItem(
-          value: ConflictResolution.overwrite,
-          child: Row(
-            children: [
-              Icon(
-                Icons.sync,
-                size: 18,
-                color: currentResolution == ConflictResolution.overwrite
-                    ? theme.colorScheme.primary
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                context.l10n.common_replace,
-                style: TextStyle(
-                  color: currentResolution == ConflictResolution.overwrite
-                      ? theme.colorScheme.primary
-                      : null,
-                  fontWeight: currentResolution == ConflictResolution.overwrite
-                      ? FontWeight.w600
-                      : null,
-                ),
-              ),
-            ],
-          ),
+        option(
+          ConflictResolution.overwrite,
+          Icons.sync,
+          context.l10n.common_replace,
         ),
       ],
       child: Container(

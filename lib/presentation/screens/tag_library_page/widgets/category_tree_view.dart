@@ -7,6 +7,8 @@ import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/context_menu_anchor.dart';
+import '../../../widgets/common/inline_rename_field.dart';
+import '../../../widgets/common/menu_action_label.dart';
 import '../../../widgets/common/library_classification_drag.dart';
 import '../../../widgets/common/surface_ink_well.dart';
 import '../../../widgets/gallery/gallery_album_tree_view.dart';
@@ -15,7 +17,6 @@ import '../../../widgets/gallery/library_sidebar_drag_item.dart';
 import '../../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../../utils/library_sidebar_sort.dart';
 import '../../../utils/library_category_counts.dart';
-import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 /// 分类树视图
 class CategoryTreeView extends StatefulWidget {
@@ -151,22 +152,16 @@ class _CategoryTreeViewState extends State<CategoryTreeView> {
         if (widget.onAddEntry != null)
           PopupMenuItem(
             onTap: () => widget.onAddEntry?.call(null),
-            child: Row(
-              children: [
-                const Icon(Icons.add_box_outlined, size: 18),
-                const SizedBox(width: 8),
-                Text(context.l10n.tagLibrary_addEntry),
-              ],
+            child: MenuActionLabel(
+              leading: const Icon(Icons.add_box_outlined),
+              label: context.l10n.tagLibrary_addEntry,
             ),
           ),
         PopupMenuItem(
           onTap: () => widget.onAddSubCategory(null),
-          child: Row(
-            children: [
-              const Icon(Icons.create_new_folder, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.tagLibrary_newCategory),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.create_new_folder),
+            label: context.l10n.tagLibrary_newCategory,
           ),
         ),
       ],
@@ -353,19 +348,13 @@ class _CategoryItemState extends State<_CategoryItem> {
   bool _isHovering = false;
   bool _isEditing = false;
   bool _isActionMenuOpen = false;
-  late TextEditingController _editController;
 
-  @override
-  void initState() {
-    super.initState();
-    _editController = TextEditingController(text: widget.label);
+  void _submitRename(String name) {
+    widget.onRename?.call(name);
+    _stopEditing();
   }
 
-  @override
-  void dispose() {
-    _editController.dispose();
-    super.dispose();
-  }
+  void _stopEditing() => setState(() => _isEditing = false);
 
   @override
   Widget build(BuildContext context) {
@@ -444,23 +433,15 @@ class _CategoryItemState extends State<_CategoryItem> {
                     // 名称
                     Expanded(
                       child: _isEditing
-                          ? ThemedInput(
-                              controller: _editController,
-                              autofocus: true,
+                          ? InlineRenameField(
+                              name: widget.label,
                               style: const TextStyle(fontSize: 13),
                               decoration: const InputDecoration(
                                 isDense: true,
                                 contentPadding: EdgeInsets.zero,
                               ),
-                              onSubmitted: (value) {
-                                if (value.trim().isNotEmpty) {
-                                  widget.onRename?.call(value.trim());
-                                }
-                                setState(() => _isEditing = false);
-                              },
-                              onTapOutside: (_) {
-                                setState(() => _isEditing = false);
-                              },
+                              onSubmit: _submitRename,
+                              onCancel: _stopEditing,
                             )
                           : Text(
                               widget.label,
@@ -532,62 +513,41 @@ class _CategoryItemState extends State<_CategoryItem> {
     return [
       PopupMenuItem(
         value: _CategoryAction.rename,
-        child: Row(
-          children: [
-            const Icon(Icons.edit, size: 18),
-            const SizedBox(width: 8),
-            Text(context.l10n.common_rename),
-          ],
+        child: MenuActionLabel(
+          leading: const Icon(Icons.edit),
+          label: context.l10n.common_rename,
         ),
       ),
       if (widget.onAddEntry != null)
         PopupMenuItem(
           value: _CategoryAction.addEntry,
-          child: Row(
-            children: [
-              const Icon(Icons.add_box_outlined, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.tagLibrary_addEntry),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.add_box_outlined),
+            label: context.l10n.tagLibrary_addEntry,
           ),
         ),
       if (widget.onAddSubCategory != null)
         PopupMenuItem(
           value: _CategoryAction.addSubCategory,
-          child: Row(
-            children: [
-              const Icon(Icons.create_new_folder, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.tagLibrary_addSubCategory),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.create_new_folder),
+            label: context.l10n.tagLibrary_addSubCategory,
           ),
         ),
       if (widget.onMoveToRoot != null)
         PopupMenuItem(
           value: _CategoryAction.moveToRoot,
-          child: Row(
-            children: [
-              const Icon(Icons.drive_file_move_outline, size: 18),
-              const SizedBox(width: 8),
-              Text(context.l10n.tagLibrary_moveToRoot),
-            ],
+          child: MenuActionLabel(
+            leading: const Icon(Icons.drive_file_move_outline),
+            label: context.l10n.tagLibrary_moveToRoot,
           ),
         ),
       PopupMenuItem(
         value: _CategoryAction.delete,
-        child: Row(
-          children: [
-            Icon(
-              Icons.delete,
-              size: 18,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              context.l10n.common_delete,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
+        child: MenuActionLabel(
+          leading: const Icon(Icons.delete),
+          label: context.l10n.common_delete,
+          destructive: true,
         ),
       ),
     ];
@@ -596,7 +556,6 @@ class _CategoryItemState extends State<_CategoryItem> {
   void _handleAction(_CategoryAction action) {
     switch (action) {
       case _CategoryAction.rename:
-        _editController.text = widget.label;
         setState(() => _isEditing = true);
       case _CategoryAction.addSubCategory:
         widget.onAddSubCategory?.call();
