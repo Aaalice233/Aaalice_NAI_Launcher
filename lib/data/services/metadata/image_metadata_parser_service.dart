@@ -102,7 +102,7 @@ class ImageMetadataParserService {
       'Unsupported image container, ${fileInfo}bytes length=${bytes.length}',
       parseTime: stopwatch.elapsed,
       bytesRead: bytes.length,
-      conclusive: true,
+      prefixVerdict: MetadataPrefixVerdict.conclusive,
     );
     _updateStatistics(result, stopwatch.elapsed);
     return result;
@@ -196,8 +196,11 @@ class ImageMetadataParserService {
           );
         }
 
-        // Null for anything that stops before IEND, so every PNG prefix lands here
-        final info = img.PngDecoder().startDecode(bytes) as img.PngInfo?;
+        // startDecode is null for anything that stops before IEND anyway; on a
+        // prefix it reads chunk data past the end of the view or throws
+        final info = ImageMetadataContainerCodec.pngReachesEnd(bytes)
+            ? img.PngDecoder().startDecode(bytes) as img.PngInfo?
+            : null;
         final text = _parseTextData(
           ImageMetadataContainerCodec.extractPngTextData(
             bytes,
@@ -211,6 +214,7 @@ class ImageMetadataParserService {
           stopwatch,
           parser: _pngExifParser,
           container: 'PNG',
+          incompleteVerdict: MetadataPrefixVerdict.needsMoreBytes,
         );
         if (exif.success) return exif;
         final triedParsers = [...text.triedParsers, ...exif.triedParsers];
@@ -222,6 +226,12 @@ class ImageMetadataParserService {
                 : 'Failed to decode PNG',
             parseTime: stopwatch.elapsed,
             bytesRead: bytes.length,
+            // Every chunk before the image data has been read by now; what is
+            // left lives after it or in the pixels
+            prefixVerdict:
+                ImageMetadataContainerCodec.pngReachesImageData(bytes)
+                ? MetadataPrefixVerdict.needsCompleteFile
+                : MetadataPrefixVerdict.needsMoreBytes,
           );
         }
         if (!includeStealth) return null;
@@ -274,6 +284,9 @@ class ImageMetadataParserService {
         stopwatch,
         parser: _webpExifParser,
         container: 'WebP',
+        // The EXIF chunk sits at the end and the stealth payload needs every
+        // pixel, so no shorter prefix of a truncated container can answer
+        incompleteVerdict: MetadataPrefixVerdict.needsCompleteFile,
       );
       if (result.success || extraction.containerDamaged) return result;
       if (!includeStealth) return null;
@@ -298,19 +311,26 @@ class ImageMetadataParserService {
         stopwatch,
         parser: _jpegExifParser,
         container: 'JPEG',
+        incompleteVerdict: MetadataPrefixVerdict.needsMoreBytes,
       ),
     )!;
     _updateStatistics(result, stopwatch.elapsed);
     return result;
   }
 
+  /// [incompleteVerdict] is how a gradual reader should go on when the bytes
+  /// end before every place [container] may keep EXIF.
   MetadataParseResult _parseExif(
     ExifMetadataExtraction extraction,
     Uint8List bytes,
     Stopwatch stopwatch, {
     required String parser,
     required String container,
+    required MetadataPrefixVerdict incompleteVerdict,
   }) {
+    final prefixVerdict = extraction.complete
+        ? MetadataPrefixVerdict.conclusive
+        : incompleteVerdict;
     if (extraction.errorMessage != null || !extraction.hasMetadata) {
       return MetadataParseResult.failed(
         [parser],
@@ -318,7 +338,7 @@ class ImageMetadataParserService {
             'No EXIF UserComment metadata found in $container',
         parseTime: stopwatch.elapsed,
         bytesRead: bytes.length,
-        conclusive: extraction.complete,
+        prefixVerdict: prefixVerdict,
       );
     }
 
@@ -337,7 +357,7 @@ class ImageMetadataParserService {
             parsed.errorMessage ?? 'Invalid $container EXIF metadata',
             parseTime: stopwatch.elapsed,
             bytesRead: bytes.length,
-            conclusive: extraction.complete,
+            prefixVerdict: prefixVerdict,
           );
   }
 
