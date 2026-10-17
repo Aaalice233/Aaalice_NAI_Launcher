@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/utils/novelai_vibe_codec.dart';
 import 'package:nai_launcher/core/utils/vibe_file_parser.dart';
+import 'package:path/path.dart' as p;
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
 import '../../helpers/shared_compute_gate.dart';
@@ -292,5 +295,222 @@ void main() {
     expect(parsed.vibeEncoding, 'gated-png-encoding');
     expect(bundle.single.displayName, 'Gated bundle vibe');
     expect(bundle.single.vibeEncoding, 'gated-bundle-encoding');
+  });
+
+  group('JSON 中的原图与缩略图', () {
+    final image = Uint8List.fromList([1, 2, 3, 4, 5, 6]);
+
+    Uint8List document(Map<String, dynamic> json) =>
+        Uint8List.fromList(utf8.encode(jsonEncode(json)));
+
+    test('Data URI 缩略图与原图载荷相同时共用同一份字节', () async {
+      final reference = await VibeFileParser.fromNaiV4Vibe(
+        'same.naiv4vibe',
+        document({
+          'name': 'Same image',
+          'type': 'image',
+          'image': base64Encode(image),
+          'thumbnail': 'data:image/png;base64,${base64Encode(image)}',
+        }),
+      );
+
+      expect(reference.rawImageData, image);
+      expect(identical(reference.thumbnail, reference.rawImageData), isTrue);
+    });
+
+    test('缺少 thumbnail 时缩略图复用原图字节', () async {
+      final reference = await VibeFileParser.fromNaiV4Vibe(
+        'image-only.naiv4vibe',
+        document({
+          'name': 'Image only',
+          'type': 'image',
+          'image': base64Encode(image),
+        }),
+      );
+
+      expect(reference.rawImageData, image);
+      expect(identical(reference.thumbnail, reference.rawImageData), isTrue);
+    });
+
+    test('载荷等长但内容不同的缩略图仍单独解码', () async {
+      final thumbnail = Uint8List.fromList([6, 5, 4, 3, 2, 1]);
+      final reference = await VibeFileParser.fromNaiV4Vibe(
+        'distinct.naiv4vibe',
+        document({
+          'name': 'Distinct thumbnail',
+          'type': 'image',
+          'image': base64Encode(image),
+          'thumbnail': 'data:image/png;base64,${base64Encode(thumbnail)}',
+        }),
+      );
+
+      expect(reference.rawImageData, image);
+      expect(reference.thumbnail, thumbnail);
+      expect(identical(reference.thumbnail, reference.rawImageData), isFalse);
+    });
+
+    test('.naiv4vibebundle 子项的 Data URI 缩略图与原图共用字节', () async {
+      final references = await VibeFileParser.fromBundle(
+        'data-uri.naiv4vibebundle',
+        document({
+          'vibes': [
+            {
+              'name': 'Data URI child',
+              'type': 'image',
+              'image': base64Encode(image),
+              'thumbnail': 'data:image/png;base64,${base64Encode(image)}',
+              'encodings': <String, dynamic>{},
+            },
+          ],
+        }),
+      );
+
+      expect(references.single.rawImageData, image);
+      expect(
+        identical(references.single.thumbnail, references.single.rawImageData),
+        isTrue,
+      );
+    });
+
+    test('PNG 内嵌 bundle 子项的缩略图与原图共用字节', () async {
+      final png = img.Image(width: 2, height: 2)
+        ..textData = {
+          'naidata': base64Encode(
+            utf8.encode(
+              jsonEncode({
+                'vibes': [
+                  {
+                    'name': 'Embedded child',
+                    'image': base64Encode(image),
+                    'thumbnail': 'data:image/png;base64,${base64Encode(image)}',
+                    'encodings': {
+                      'v4full': {
+                        'variant': {'encoding': 'embedded-encoding'},
+                      },
+                    },
+                  },
+                ],
+              }),
+            ),
+          ),
+        };
+
+      final references = await VibeFileParser.extractBundleFromPng(
+        Uint8List.fromList(img.encodePng(png)),
+      );
+
+      expect(references.single.rawImageData, image);
+      expect(
+        identical(references.single.thumbnail, references.single.rawImageData),
+        isTrue,
+      );
+    });
+  });
+
+  group('大型 .naiv4vibe 在后台 isolate 解析', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('vibe_file_parser_test_');
+    });
+
+    tearDown(() => tempDir.deleteSync(recursive: true));
+
+    VibeReference largeImageVibe() {
+      final image = Uint8List(1200 * 1024);
+      for (var i = 0; i < image.length; i++) {
+        image[i] = i & 0xff;
+      }
+      return VibeReference(
+        displayName: 'Large image vibe',
+        vibeEncoding: 'large-encoding',
+        thumbnail: image,
+        rawImageData: image,
+        strength: 0.4,
+        infoExtracted: 0.6,
+        encodingModel: ImageModels.animeDiffusionV45Full,
+        sourceType: VibeSourceType.naiv4vibe,
+      );
+    }
+
+    File writeDocument(String name, Map<String, dynamic> json) {
+      final file = File(p.join(tempDir.path, name))
+        ..writeAsStringSync(jsonEncode(json));
+      expect(file.lengthSync(), greaterThan(1024 * 1024));
+      return file;
+    }
+
+    test('读文件与解析一起经过共享计算闸门，原图与缩略图共用字节', () async {
+      final vibe = largeImageVibe();
+      final file = writeDocument(
+        'official.naiv4vibe',
+        NovelAiVibeCodec.buildSingleMap(vibe),
+      );
+
+      final parsed = await expectQueuedBehindSharedComputeGate(
+        () => VibeFileParser.fromNaiV4VibeFile(
+          file.path,
+          fileName: 'official.naiv4vibe',
+        ),
+      );
+
+      expect(parsed.matchesSchema, isTrue);
+      expect(parsed.reference.displayName, 'Large image vibe');
+      expect(parsed.reference.vibeEncoding, 'large-encoding');
+      expect(parsed.reference.rawImageData, vibe.rawImageData);
+      expect(
+        identical(parsed.reference.thumbnail, parsed.reference.rawImageData),
+        isTrue,
+      );
+    });
+
+    test('结构校验不核对内容哈希，但仍识别非官方结构', () async {
+      final official = NovelAiVibeCodec.buildSingleMap(largeImageVibe());
+      final mismatchedId = writeDocument('mismatched-id.naiv4vibe', {
+        ...official,
+        'id': 'f' * 64,
+      });
+      final legacy = writeDocument(
+        'legacy.naiv4vibe',
+        Map.of(official)..remove('identifier'),
+      );
+
+      final parsedMismatchedId = await VibeFileParser.fromNaiV4VibeFile(
+        mismatchedId.path,
+        fileName: 'mismatched-id.naiv4vibe',
+      );
+      final parsedLegacy = await VibeFileParser.fromNaiV4VibeFile(
+        legacy.path,
+        fileName: 'legacy.naiv4vibe',
+      );
+
+      expect(parsedMismatchedId.matchesSchema, isTrue);
+      expect(parsedLegacy.matchesSchema, isFalse);
+      expect(parsedLegacy.reference.vibeEncoding, 'large-encoding');
+    });
+
+    test('内存中的大文档经过共享计算闸门并保留原有异常类型', () async {
+      final official = NovelAiVibeCodec.buildSingleMap(largeImageVibe());
+      final valid = Uint8List.fromList(utf8.encode(jsonEncode(official)));
+      final missingImage = Uint8List.fromList(
+        utf8.encode(
+          jsonEncode({
+            'name': 'Broken image vibe',
+            'type': 'image',
+            'padding': ''.padRight(2 * 1024 * 1024, 'x'),
+          }),
+        ),
+      );
+
+      final parsed = await expectQueuedBehindSharedComputeGate(
+        () => VibeFileParser.fromNaiV4Vibe('valid.naiv4vibe', valid),
+      );
+
+      expect(parsed.vibeEncoding, 'large-encoding');
+      await expectLater(
+        VibeFileParser.fromNaiV4Vibe('broken.naiv4vibe', missingImage),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
   });
 }

@@ -129,6 +129,42 @@ void main() {
 
       expect(NovelAiVibeCodec.validateSingleMap(legacy), isFalse);
     });
+
+    test('skips content hashing only when asked, keeping structure checks', () {
+      for (final vibe in [
+        VibeReference(
+          displayName: 'Image Vibe',
+          vibeEncoding: 'image-encoding',
+          rawImageData: Uint8List.fromList(const [1, 2, 3, 4]),
+        ),
+        const VibeReference(
+          displayName: 'Encoding Vibe',
+          vibeEncoding: 'official-encoding',
+        ),
+      ]) {
+        final mismatchedId = {
+          ...NovelAiVibeCodec.buildSingleMap(vibe),
+          'id': 'f' * 64,
+        };
+        final malformedId = {...mismatchedId, 'id': 'short-id'};
+
+        expect(NovelAiVibeCodec.validateSingleMap(mismatchedId), isFalse);
+        expect(
+          NovelAiVibeCodec.validateSingleMap(
+            mismatchedId,
+            verifyContentHash: false,
+          ),
+          isTrue,
+        );
+        expect(
+          NovelAiVibeCodec.validateSingleMap(
+            malformedId,
+            verifyContentHash: false,
+          ),
+          isFalse,
+        );
+      }
+    });
   });
 }
 

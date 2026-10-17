@@ -624,17 +624,6 @@ class VibeExportUtils {
 
     return '${finalName}_vibe.png';
   }
-
-  /// 验证 .naiv4vibe JSON 格式是否有效
-  static bool validateNaiv4VibeJson(String jsonString) {
-    try {
-      final jsonData = jsonDecode(jsonString);
-      return jsonData is Map<String, dynamic> &&
-          NovelAiVibeCodec.validateSingleMap(jsonData);
-    } catch (e) {
-      return false;
-    }
-  }
 }
 
 class VibeExportImageCandidate {

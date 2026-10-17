@@ -164,6 +164,116 @@ void main() {
     );
   });
 
+  testWidgets('指针短暂经过不读取详情，预览弹出才读取且关闭后不再常驻', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = _entry(rawImageData: _onePixelPng);
+    final storage = _HoverStorage(entry, _onePixelPng);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: VibeCard(entry: entry.toDisplayEntry(), width: 180),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const outside = Offset(850, 650);
+    final center = tester.getCenter(find.byType(VibeCard));
+    final preview = find.byKey(const ValueKey('vibe-hover-preview'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: outside);
+
+    await mouse.moveTo(center);
+    await tester.pump(const Duration(milliseconds: 200));
+    await mouse.moveTo(outside);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(preview, findsNothing);
+    expect(storage.detailRequests, isEmpty);
+
+    await mouse.moveTo(center);
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+    expect(preview, findsOneWidget);
+    expect(storage.detailRequests, ['hover-vibe']);
+
+    await mouse.moveTo(outside);
+    await tester.pump();
+    expect(preview, findsNothing);
+    await mouse.moveTo(center);
+    await tester.pump(const Duration(milliseconds: 281));
+    await tester.pump();
+    expect(storage.detailRequests, ['hover-vibe', 'hover-vibe']);
+  });
+
+  testWidgets('滚轮滚动让卡片从静止指针下经过时不读取详情', (tester) async {
+    tester.view.physicalSize = const Size(400, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final entry = _entry(rawImageData: _onePixelPng);
+    final storage = _HoverStorage(entry, _onePixelPng);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: ListView(
+              children: [
+                for (var i = 0; i < 12; i++)
+                  Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: VibeCard(
+                        entry: entry.toDisplayEntry().copyWith(id: 'row-$i'),
+                        width: 150,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final pointer = TestPointer(1, PointerDeviceKind.mouse);
+    final location = tester.getCenter(find.byType(VibeCard).first);
+    await tester.sendEventToBinding(pointer.addPointer(location: location));
+    await tester.sendEventToBinding(pointer.hover(location));
+    await tester.pump();
+    for (var i = 0; i < 24; i++) {
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 40)));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scrollable.position.pixels, greaterThan(400));
+    expect(storage.detailRequests, isEmpty);
+    await tester.sendEventToBinding(pointer.removePointer());
+  });
+
   testWidgets('键盘聚焦可显示预览并用 Enter 触发卡片', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
@@ -531,13 +641,16 @@ class _HoverStorage extends VibeLibraryStorageService {
 
   final VibeLibraryEntry entry;
   final Uint8List thumbnail;
+  final List<String> detailRequests = [];
 
   @override
   Future<Uint8List?> getDisplayThumbnail(String id) async => thumbnail;
 
   @override
-  Future<VibeLibraryDetailData?> getDetailData(String id) async =>
-      VibeLibraryDetailData(entry: entry);
+  Future<VibeLibraryDetailData?> getDetailData(String id) async {
+    detailRequests.add(id);
+    return VibeLibraryDetailData(entry: entry);
+  }
 }
 
 final Uint8List _onePixelPng = base64Decode(
