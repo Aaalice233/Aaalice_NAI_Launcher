@@ -8,26 +8,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/derivatives/derivative_registry.dart';
-import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/mosaic/mosaic_render_service.dart';
-import '../../../core/save_naming/save_name_context.dart';
 import '../../../core/services/native_share_service.dart';
-import '../../../core/services/system_gallery_publisher.dart';
-import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/image_save_utils.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/mosaic/mosaic_settings.dart';
-import '../../../data/repositories/gallery_folder_repository.dart';
-import '../../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
-import '../../providers/image_save_settings_provider.dart';
-import '../../providers/local_gallery_provider.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
 import '../../widgets/image_editor/widgets/color_picker.dart';
 import '../../widgets/common/horizontal_segmented_control.dart';
 import '../../widgets/common/labeled_slider_rows.dart';
+import '../derivatives/derivative_copy_saver.dart';
 import 'mosaic_editor_canvas.dart';
 
 class MosaicEditorSource {
@@ -596,80 +588,55 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
       _showError(context.l10n.mosaic_noRegionError);
       return;
     }
+    final saver = ref.read(derivativeCopySaverProvider(DerivativeKind.mosaic));
+    final settingsNotifier = ref.read(mosaicSettingsProvider.notifier);
+    final notices = DerivativeCopyFollowUpNotices.capture(
+      context,
+      systemGalleryFailed: context.l10n.mosaic_systemGalleryExportFailed,
+      galleryIndexFailed: context.l10n.mosaic_galleryRefreshFailed,
+    );
+    final sourceBytes = _sourceBytes;
+    final sourcePath = _sourcePath;
+    final settings = _settings;
     final token = MosaicCancellationToken();
     _renderToken = token;
     setState(() => _saving = true);
     try {
       final result = await widget.renderCopy(
         MosaicRenderRequest(
-          sourceBytes: _sourceBytes,
-          settings: _settings,
+          sourceBytes: sourceBytes,
+          settings: settings,
           regions: _regions,
-          preserveMetadata: _settings.preserveMetadata,
+          preserveMetadata: settings.preserveMetadata,
           sourceFileName: _sourceFileName,
         ),
         cancellationToken: token,
       );
       if (!mounted || token.isCancelled) return;
-      final galleryRoot = await GalleryFolderRepository.instance.getRootPath();
+      final galleryRoot = await saver.resolveGalleryRoot();
       if (!mounted || token.isCancelled) return;
-      if (galleryRoot == null || galleryRoot.isEmpty) {
+      if (galleryRoot == null) {
         throw StateError(context.l10n.localGallery_saveDirectoryNotSet);
       }
-      final systemGallery = ref.read(systemGalleryPublisherProvider);
-      final output = await ImageSaveUtils.saveBytesToGallery(
+      final output = await saver.write(
         rootPath: galleryRoot,
-        bytes: result.bytes,
-        naming: ref.read(imageSaveSettingsNotifierProvider).naming,
-        context: SaveNameContext(createdAt: DateTime.now()),
-        preferredFileName: result.fileName,
-        protectedSuffix: DerivativeKind.mosaic.fileNameSuffix,
-      );
-      await FixedTagUsageRecordStore().copyForDerivative(
-        sourceBytes: _sourceBytes,
-        outputBytes: result.bytes,
-      );
-      final systemGalleryOutcome = await systemGallery.publishPng(
         bytes: result.bytes,
         fileName: result.fileName,
       );
-      if (systemGalleryOutcome case SystemGalleryPublishFailed(
-        :final error,
-        :final stackTrace,
-      )) {
-        AppLogger.e(
-          'Redacted copy saved but system gallery export failed',
-          error,
-          stackTrace,
-          'MosaicEditor',
-        );
+      // 文件已落盘，之后的登记、收录与记住样式都不能再把编辑器卡在保存态
+      notices.watch(
+        saver.followUp(
+          outputPath: output,
+          outputBytes: result.bytes,
+          fileName: result.fileName,
+          sourceBytes: sourceBytes,
+          sourcePath: sourcePath,
+        ),
+      );
+      if (settings.rememberLastStyle) {
+        unawaited(_rememberStyle(settingsNotifier, settings));
       }
       if (!mounted) return;
-      final sourcePath = _sourcePath;
-      if (sourcePath != null) {
-        await MosaicDerivativeRegistry(
-          ref.read(localStorageServiceProvider),
-        ).register(outputPath: output, sourcePath: sourcePath);
-      }
-      if (!mounted) return;
-      if (_settings.rememberLastStyle) {
-        await ref.read(mosaicSettingsProvider.notifier).saveDefaults(_settings);
-      }
-      if (!mounted) return;
-      final galleryRefreshError = await _refreshGalleryAfterSave();
-      if (!mounted) return;
-      if (systemGalleryOutcome is SystemGalleryPublishFailed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.l10n.mosaic_systemGalleryExportFailed),
-          ),
-        );
-      }
-      if (galleryRefreshError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.mosaic_galleryRefreshFailed)),
-        );
-      }
       await _showSaved(result, output);
       if (mounted) Navigator.of(context).pop(output);
     } on MosaicCancelledException {
@@ -692,32 +659,20 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
     }
   }
 
-  Future<Object?> _refreshGalleryAfterSave() async {
-    Object? galleryRefreshError;
+  static Future<void> _rememberStyle(
+    MosaicSettingsNotifier notifier,
+    MosaicSettings settings,
+  ) async {
     try {
-      final previousError = ref.read(localGalleryNotifierProvider).error;
-      await ref.read(localGalleryNotifierProvider.notifier).refresh();
-      if (!mounted) return null;
-      final refreshError = ref.read(localGalleryNotifierProvider).error;
-      if (refreshError != null && !identical(refreshError, previousError)) {
-        galleryRefreshError = refreshError;
-        AppLogger.e(
-          'Redacted copy saved but gallery refresh failed',
-          refreshError.details ?? refreshError.code.name,
-          null,
-          'MosaicEditor',
-        );
-      }
+      await notifier.saveDefaults(settings);
     } on Object catch (error, stackTrace) {
-      galleryRefreshError = error;
       AppLogger.e(
-        'Redacted copy saved but gallery refresh failed',
+        'Redacted copy saved but its style was not remembered',
         error,
         stackTrace,
         'MosaicEditor',
       );
     }
-    return galleryRefreshError;
   }
 
   Future<void> _showSaved(MosaicRenderResult result, String output) async {

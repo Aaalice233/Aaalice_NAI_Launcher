@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -71,11 +72,53 @@ class WatermarkRenderResult {
   final bool metadataPreserved;
 }
 
+typedef WatermarkRenderOperation =
+    Future<WatermarkRenderResult> Function(
+      WatermarkRenderRequest request, {
+      WatermarkCancellationToken? cancellationToken,
+    });
+
+typedef WatermarkPreviewDecoder =
+    Future<ui.Image> Function(Uint8List bytes, {bool requireStatic});
+
 class WatermarkRenderService {
   WatermarkRenderService._();
 
   static const int _maxSourcePixels = 64000000;
   static const int _maxSourceDimension = 32768;
+  static const int _previewEdgeLimit = 2048;
+
+  /// 编辑器预览用的缩小解码；保存时由 [render] 按原尺寸重新解码。
+  static Future<ui.Image> decodePreview(
+    Uint8List bytes, {
+    bool requireStatic = false,
+  }) async {
+    ui.ImmutableBuffer? buffer;
+    ui.ImageDescriptor? descriptor;
+    ui.Codec? codec;
+    try {
+      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+      final longestEdge = math.max(descriptor.width, descriptor.height);
+      final scale = longestEdge > _previewEdgeLimit
+          ? _previewEdgeLimit / longestEdge
+          : 1.0;
+      codec = await descriptor.instantiateCodec(
+        targetWidth: math.max(1, (descriptor.width * scale).round()),
+        targetHeight: math.max(1, (descriptor.height * scale).round()),
+      );
+      if (requireStatic && codec.frameCount != 1) {
+        throw const WatermarkRenderException(
+          'Choose a static source image. Animated images are not supported.',
+        );
+      }
+      return (await codec.getNextFrame()).image;
+    } finally {
+      codec?.dispose();
+      descriptor?.dispose();
+      buffer?.dispose();
+    }
+  }
 
   static Future<WatermarkRenderResult> render(
     WatermarkRenderRequest request, {
