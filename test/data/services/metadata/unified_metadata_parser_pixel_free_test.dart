@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../../helpers/metadata_parse_result_expectations.dart';
+import '../../../helpers/novelai_exif_fixture.dart';
 import '../../../helpers/novelai_webp_layout_fixture.dart';
 import '../../../helpers/stealth_png_fixture.dart';
 import '../../../helpers/webp_metadata_fixture.dart';

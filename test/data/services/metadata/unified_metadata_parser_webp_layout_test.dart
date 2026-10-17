@@ -4,11 +4,12 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/data/services/metadata/exif_metadata_extractor.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
-import 'package:nai_launcher/data/services/metadata/webp_exif_metadata_extractor.dart';
 
 import '../../../helpers/exif_orientation_fixture.dart' show plainWebp;
 import '../../../helpers/metadata_parse_result_expectations.dart';
+import '../../../helpers/novelai_exif_fixture.dart';
 import '../../../helpers/novelai_webp_layout_fixture.dart';
 import '../../../helpers/riff_webp_builder.dart';
 
@@ -120,7 +121,7 @@ void main() {
 
     test('maps both NovelAI IFD0 layouts to the same Source', () {
       for (final layout in NovelAiExifIfd0Layout.values) {
-        final extraction = WebpExifMetadataExtractor.extract(
+        final extraction = ExifMetadataExtractor.fromWebp(
           novelAiLayoutWebp(
             exif: novelAiExif(
               userComment: asciiUserComment(_exifEnvelope),
@@ -139,7 +140,7 @@ void main() {
     });
 
     test('decodes UTF-8 IFD0 text instead of reading it byte-per-char', () {
-      final extraction = WebpExifMetadataExtractor.extract(
+      final extraction = ExifMetadataExtractor.fromWebp(
         novelAiLayoutWebp(
           exif: novelAiExif(
             userComment: asciiUserComment(_exifEnvelope),
@@ -164,6 +165,23 @@ void main() {
 
       expect(result.metadata?.source, novelAiV45FullSource);
     });
+
+    test('the last EXIF chunk wins like the web reader', () {
+      final earlier = _withUserComment(
+        asciiUserComment(
+          novelAiEnvelopeJson(prompt: 'earlier chunk', seed: _exifSeed),
+        ),
+      );
+      final bytes = riffWebp([
+        ...earlier.sublist(12),
+        ...riffChunk(
+          'EXIF',
+          novelAiExif(userComment: asciiUserComment(_exifEnvelope)),
+        ),
+      ]);
+
+      _expectExifMetadata(UnifiedMetadataParser.parseFromImage(bytes));
+    });
   });
 
   group('stealth fallback', () {
@@ -181,7 +199,7 @@ void main() {
       final bytes = novelAiLayoutWebp(exif: rewrittenCameraExif());
 
       expect(
-        WebpExifMetadataExtractor.extract(bytes).errorMessage,
+        ExifMetadataExtractor.fromWebp(bytes).errorMessage,
         isNull,
         reason: 'a generic EXIF without UserComment is not damage',
       );
