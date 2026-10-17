@@ -282,11 +282,12 @@ class ImageMetadataContainerCodec {
     }
   }
 
-  /// Replaces multiple text fields in one container pass. Unchanged chunks,
-  /// including their CRCs, are copied verbatim after validation.
+  /// Replaces multiple text fields in one container pass; a null value removes
+  /// the field. Unchanged chunks, including their CRCs, are copied verbatim
+  /// after validation.
   static Uint8List embedTextChunks(
     Uint8List originalPng,
-    Map<String, String> replacements,
+    Map<String, String?> replacements,
   ) {
     if (!isPngHeader(originalPng)) {
       throw const FormatException('Metadata target must be PNG');
@@ -306,8 +307,8 @@ class ImageMetadataContainerCodec {
       originalPng,
       onChunk: (type, offset, end) {
         if (type == 'IDAT' && !inserted) {
-          for (final entry in replacements.entries) {
-            _writeTextMetadataChunk(output, entry.key, entry.value);
+          for (final MapEntry(:key, :value) in replacements.entries) {
+            if (value != null) _writeTextMetadataChunk(output, key, value);
           }
           inserted = true;
         }

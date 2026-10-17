@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -1360,12 +1359,14 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       charNegCaptions: charNegCaptions,
       useCoords: effective.useCoords,
     );
-    final raw = jsonEncode(comment);
-    final metadata = NaiImageMetadata.fromNaiComment({
-      'Comment': raw,
-      'Software': 'NovelAI',
-      'Source': ImageSaveUtils.getModelSourceName(effective.model),
-    }, rawJson: raw);
+    final textFields = ImageSaveUtils.buildMetadata(
+      commentJson: comment,
+      params: effective,
+    );
+    final metadata = NaiImageMetadata.fromNaiComment(
+      textFields,
+      rawJson: textFields['Comment'] as String,
+    );
     // 快照不再进 PNG，内存元数据仍要带上供历史面板与详情页判定固定词。
     return fixedTagUsageSnapshot == null
         ? metadata
