@@ -30,8 +30,8 @@ class VibeFileParser {
   /// 最大处理的文件大小（20MB）
   static const int _maxFileSize = 20 * 1024 * 1024;
 
-  /// 大型 Bundle 的 JSON 与 Base64 解码必须离开 UI isolate。
-  static const int _backgroundBundleParseThreshold = 1024 * 1024;
+  /// 超过此大小的 Vibe JSON 文档，其 JSON 与 Base64 解码必须离开 UI isolate。
+  static const int _backgroundParseThreshold = 1024 * 1024;
 
   /// 解析超时时间
   static const Duration _parseTimeout = Duration(seconds: 5);
@@ -273,17 +273,15 @@ class VibeFileParser {
                     infoExtracted,
                   );
 
-                  // 提取 vibe 自己的缩略图，如果没有则使用原图
-                  final thumbnail =
-                      _extractThumbnailFromJson(vibeJson) ?? params.bytes;
-                  final rawImageData = _extractRawImageFromJson(vibeJson);
+                  final images = _extractImagesFromJson(vibeJson);
 
                   results.add(
                     VibeReference(
                       displayName: name,
                       vibeEncoding: extractedEncoding,
-                      thumbnail: thumbnail,
-                      rawImageData: rawImageData,
+                      // vibe 自己没有缩略图时用承载它的 PNG
+                      thumbnail: images.thumbnail ?? params.bytes,
+                      rawImageData: images.rawImage,
                       strength: VibeReference.sanitizeStrength(strength),
                       infoExtracted: infoExtracted,
                       encodingModel: _extractEncodingModelFromJson(vibeJson),
@@ -582,10 +580,74 @@ class VibeFileParser {
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
-  }) async {
-    final jsonString = utf8.decode(bytes);
-    final jsonData = jsonDecode(jsonString) as Map<String, dynamic>;
+  }) {
+    VibeReference parse() => _naiV4VibeFromJson(
+      fileName,
+      _decodeJsonObject(bytes),
+      defaultStrength: defaultStrength,
+    );
 
+    if (bytes.length < _backgroundParseThreshold) {
+      return Future.sync(parse);
+    }
+    return ComputeGate().runIsolate(
+      parse,
+      debugName: 'VibeFileParser.fromNaiV4Vibe',
+    );
+  }
+
+  /// 从文件读取并解析 .naiv4vibe；大文件连文件读取也在后台 isolate 完成。
+  ///
+  /// `matchesSchema` 只反映文件结构是否符合 NovelAI 单文件格式，不影响解析结果。
+  static Future<({VibeReference reference, bool matchesSchema})>
+  fromNaiV4VibeFile(
+    String filePath, {
+    required String fileName,
+    double defaultStrength = 0.6,
+  }) async {
+    ({VibeReference reference, bool matchesSchema}) parse(Uint8List bytes) {
+      final jsonData = _decodeJsonObject(bytes);
+      return (
+        reference: _naiV4VibeFromJson(
+          fileName,
+          jsonData,
+          defaultStrength: defaultStrength,
+        ),
+        matchesSchema: _matchesSingleSchema(jsonData),
+      );
+    }
+
+    final file = File(filePath);
+    if (await file.length() < _backgroundParseThreshold) {
+      return parse(await file.readAsBytes());
+    }
+    return ComputeGate().runIsolate(
+      () => parse(File(filePath).readAsBytesSync()),
+      debugName: 'VibeFileParser.fromNaiV4VibeFile',
+    );
+  }
+
+  // 读取路径只用于诊断日志，跳过整图 SHA-256：大图单次核对约 200 ms
+  static bool _matchesSingleSchema(Map<String, dynamic> jsonData) {
+    try {
+      return NovelAiVibeCodec.validateSingleMap(
+        jsonData,
+        verifyContentHash: false,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // 融合解码直接解析 UTF-8 字节，省去与文件等大的中间字符串
+  static Map<String, dynamic> _decodeJsonObject(Uint8List bytes) =>
+      utf8.decoder.fuse(json.decoder).convert(bytes) as Map<String, dynamic>;
+
+  static VibeReference _naiV4VibeFromJson(
+    String fileName,
+    Map<String, dynamic> jsonData, {
+    required double defaultStrength,
+  }) {
     final name = jsonData['name'] as String? ?? fileName;
     final strength = _extractStrength(
       jsonData['importInfo'] as Map<String, dynamic>?,
@@ -595,8 +657,9 @@ class VibeFileParser {
       jsonData['importInfo'] as Map<String, dynamic>?,
       0.7,
     );
-    final rawImageData = _extractRawImageFromJson(jsonData);
-    final thumbnail = _extractThumbnailFromJson(jsonData);
+    final images = _extractImagesFromJson(jsonData);
+    final rawImageData = images.rawImage;
+    final thumbnail = images.thumbnail;
     final type = jsonData['type'] as String?;
     final encodingDetails = _extractEncodingDetails(jsonData);
 
@@ -643,17 +706,31 @@ class VibeFileParser {
     );
   }
 
-  /// 从 JSON 数据中提取缩略图
+  /// 从 JSON 数据中提取原图与缩略图；两者内容相同时共用同一份字节。
+  static ({Uint8List? rawImage, Uint8List? thumbnail}) _extractImagesFromJson(
+    Map<String, dynamic> jsonData,
+  ) {
+    final rawImage = _extractRawImageFromJson(jsonData);
+    return (
+      rawImage: rawImage,
+      thumbnail: _extractThumbnailFromJson(jsonData, rawImage: rawImage),
+    );
+  }
+
+  /// [rawImage] 必须是同一份 [jsonData] 的 image 字段解码结果。
   static Uint8List? _extractThumbnailFromJson(
     Map<String, dynamic> jsonData, {
-    Uint8List? rawImageData,
+    required Uint8List? rawImage,
   }) {
     try {
       final thumbnailBase64 = jsonData['thumbnail'] as String?;
+      final imageBase64 = jsonData['image'] as String?;
       if (thumbnailBase64 != null && thumbnailBase64.isNotEmpty) {
-        final imageBase64 = jsonData['image'] as String?;
-        if (rawImageData != null && thumbnailBase64 == imageBase64) {
-          return rawImageData;
+        // 官方文件的 thumbnail 常是带 data URI 前缀的整张原图，按载荷比较才能识别
+        if (rawImage != null &&
+            imageBase64 != null &&
+            _hasSameBase64Payload(thumbnailBase64, imageBase64)) {
+          return rawImage;
         }
         final base64Data = _extractBase64FromDataUri(thumbnailBase64);
         if (base64Data != null) {
@@ -661,13 +738,9 @@ class VibeFileParser {
         }
       }
 
-      // 如果没有 thumbnail 字段，尝试从 image 字段提取
-      final imageBase64 = jsonData['image'] as String?;
+      // 如果没有 thumbnail 字段，退回 image 字段
       if (imageBase64 != null && imageBase64.isNotEmpty) {
-        final base64Data = _extractBase64FromDataUri(imageBase64);
-        if (base64Data != null) {
-          return base64Decode(base64Data);
-        }
+        return rawImage;
       }
     } catch (e) {
       if (kDebugMode) {
@@ -698,14 +771,27 @@ class VibeFileParser {
   /// 从 Data URI 中提取 base64 数据
   /// 格式: data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ...
   static String? _extractBase64FromDataUri(String dataUri) {
-    if (dataUri.startsWith('data:')) {
-      final commaIndex = dataUri.indexOf(',');
-      if (commaIndex != -1 && commaIndex < dataUri.length - 1) {
-        return dataUri.substring(commaIndex + 1);
-      }
-    }
-    // 如果不是 Data URI 格式，假设是纯 base64
-    return dataUri;
+    final payloadStart = _base64PayloadStart(dataUri);
+    return payloadStart == 0 ? dataUri : dataUri.substring(payloadStart);
+  }
+
+  /// 不是 Data URI 格式时视为纯 base64，载荷从 0 开始
+  static int _base64PayloadStart(String value) {
+    if (!value.startsWith('data:')) return 0;
+    final commaIndex = value.indexOf(',');
+    return commaIndex != -1 && commaIndex < value.length - 1
+        ? commaIndex + 1
+        : 0;
+  }
+
+  // 原地比较载荷：截取子串会复制与原图等大的字符串
+  static bool _hasSameBase64Payload(String left, String right) {
+    final leftStart = _base64PayloadStart(left);
+    final rightStart = _base64PayloadStart(right);
+    if (left.length - leftStart != right.length - rightStart) return false;
+    if (rightStart == 0) return left.startsWith(right, leftStart);
+    if (leftStart == 0) return right.startsWith(left, rightStart);
+    return left.substring(leftStart) == right.substring(rightStart);
   }
 
   /// 从 .naiv4vibebundle 文件解析多个 Vibe 参考
@@ -714,9 +800,9 @@ class VibeFileParser {
     Uint8List bytes, {
     double defaultStrength = 0.6,
   }) {
-    if (bytes.length < _backgroundBundleParseThreshold) {
-      return Future.value(
-        _parseBundleBytesSync(
+    if (bytes.length < _backgroundParseThreshold) {
+      return Future.sync(
+        () => _parseBundleBytesSync(
           fileName,
           bytes,
           defaultStrength: defaultStrength,
@@ -742,7 +828,7 @@ class VibeFileParser {
   }) async {
     final file = File(filePath);
     final fileLength = await file.length();
-    if (fileLength < _backgroundBundleParseThreshold) {
+    if (fileLength < _backgroundParseThreshold) {
       return _parseBundleBytesSync(
         fileName,
         await file.readAsBytes(),
@@ -764,8 +850,7 @@ class VibeFileParser {
     Uint8List bytes, {
     required double defaultStrength,
   }) {
-    final jsonString = utf8.decode(bytes);
-    final bundleData = jsonDecode(jsonString) as Map<String, dynamic>;
+    final bundleData = _decodeJsonObject(bytes);
     final vibesList = bundleData['vibes'] as List<dynamic>? ?? [];
 
     final results = <VibeReference>[];
@@ -800,7 +885,7 @@ class VibeFileParser {
             (rawImageData != null && rawImageData.isNotEmpty)) {
           final thumbnail = _extractThumbnailFromJson(
             vibeJson,
-            rawImageData: rawImageData,
+            rawImage: rawImageData,
           );
           results.add(
             VibeReference(

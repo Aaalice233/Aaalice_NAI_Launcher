@@ -8,7 +8,6 @@ import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../../core/utils/novelai_vibe_codec.dart';
-import '../../core/utils/vibe_export_utils.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../../core/utils/vibe_library_path_helper.dart';
 import '../models/vibe/vibe_reference.dart';
@@ -217,13 +216,20 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
           filePath,
           fileName: fileName,
         );
-      } else {
-        final bytes = await file.readAsBytes();
-        if (extension == _singleFileExtension &&
-            !VibeExportUtils.validateNaiv4VibeJson(utf8.decode(bytes))) {
+      } else if (extension == _singleFileExtension) {
+        final parsed = await VibeFileParser.fromNaiV4VibeFile(
+          filePath,
+          fileName: fileName,
+        );
+        if (!parsed.matchesSchema) {
           AppLogger.w('文件格式校验失败: $filePath', _tag);
         }
-        references = await VibeFileParser.parseFile(fileName, bytes);
+        references = [parsed.reference];
+      } else {
+        references = await VibeFileParser.parseFile(
+          fileName,
+          await file.readAsBytes(),
+        );
       }
 
       if (references.isEmpty) {
