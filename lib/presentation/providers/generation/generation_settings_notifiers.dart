@@ -92,6 +92,23 @@ class ResolveAliasOnCopySettings extends _$ResolveAliasOnCopySettings {
   }
 }
 
+/// 粘贴时识别多角色提示词设置 Notifier
+@Riverpod(keepAlive: true)
+class DetectMultiCharacterOnPasteSettings
+    extends _$DetectMultiCharacterOnPasteSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() => _storage.getDetectMultiCharacterOnPaste();
+
+  void toggle() => set(!state);
+
+  void set(bool value) {
+    state = value;
+    _storage.setDetectMultiCharacterOnPaste(value);
+  }
+}
+
 /// 滚轮调整提示词权重设置 Notifier
 @Riverpod(keepAlive: true)
 class PromptWeightScrollSettings extends _$PromptWeightScrollSettings {

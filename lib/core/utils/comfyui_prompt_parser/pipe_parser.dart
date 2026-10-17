@@ -102,6 +102,7 @@ class PipeParser {
     var squareDepth = 0;
     var parenDepth = 0;
     var inDoubleQuote = false;
+    var inRandomBlock = false;
     var escaped = false;
 
     for (var i = 0; i < input.length; i++) {
@@ -144,7 +145,14 @@ class PipeParser {
           if (parenDepth > 0) parenDepth--;
           continue;
         case 0x7C: // |
-          if (curlyDepth == 0 &&
+          // NAI 随机选择 `||a|b||` 可嵌在括号里，块内竖线是候选项
+          if (i + 1 < input.length && input.codeUnitAt(i + 1) == 0x7C) {
+            inRandomBlock = !inRandomBlock;
+            i++;
+            continue;
+          }
+          if (!inRandomBlock &&
+              curlyDepth == 0 &&
               squareDepth == 0 &&
               parenDepth == 0 &&
               _isPromptPipeDelimiter(input, i)) {

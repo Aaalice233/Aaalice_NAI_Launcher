@@ -38,6 +38,9 @@ class PromptInputEditor extends ConsumerWidget {
     final enableSdSyntaxAutoConvert = ref.watch(
       sdSyntaxAutoConvertSettingsProvider,
     );
+    final detectMultiCharacterOnPaste = ref.watch(
+      detectMultiCharacterOnPasteSettingsProvider,
+    );
     final storage = ref.watch(localStorageServiceProvider);
     final negative = controller.isNegativeMode;
     // 模型固定 UC 预设时负向提示词不会发送，只读保留给切回后的模型使用。
@@ -101,7 +104,7 @@ class PromptInputEditor extends ConsumerWidget {
                   enableSdSyntaxAutoConvert: compact
                       ? false
                       : enableSdSyntaxAutoConvert,
-                  enableComfyuiImport: !negative,
+                  enableComfyuiImport: !negative && detectMultiCharacterOnPaste,
                   enableTagMode: true,
                   autocompleteConfig: AutocompleteConfig(
                     showTranslation: true,

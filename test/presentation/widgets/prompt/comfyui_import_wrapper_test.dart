@@ -259,6 +259,82 @@ void main() {
     expect(controller.text, 'a | b');
   });
 
+  testWidgets('does not offer import for NovelAI random choice prompts', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ComfyuiImportWrapper(
+            controller: controller,
+            onImport: (_, _) {},
+            child: TextField(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    const pastedText =
+        'The scene shows a girl in a red sweater and blue shorts '
+        '||standing|sitting|waving|jumping|crouching down|saluting|'
+        'staring into the distance|| on the beach.';
+    controller.text = pastedText;
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ComfyuiImportDialog), findsNothing);
+    expect(controller.text, pastedText);
+  });
+
+  testWidgets('stays silent while disabled and resumes from the latest text', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final enabled = ValueNotifier(false);
+    addTearDown(controller.dispose);
+    addTearDown(enabled.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: enabled,
+            builder: (context, value, child) => ComfyuiImportWrapper(
+              controller: controller,
+              enabled: value,
+              onImport: (_, _) {},
+              child: child!,
+            ),
+            child: TextField(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    controller.text = 'scene | alice | bob';
+    await tester.pumpAndSettle();
+    expect(find.byType(ComfyuiImportDialog), findsNothing);
+
+    enabled.value = true;
+    await tester.pump();
+    controller.text = 'scene | alice | bob, smile';
+    await tester.pumpAndSettle();
+    expect(find.byType(ComfyuiImportDialog), findsNothing);
+
+    controller.text = 'scene | first character | second character';
+    await tester.pumpAndSettle();
+    expect(find.byType(ComfyuiImportDialog), findsOneWidget);
+
+    await tester.tap(find.byType(TextButton).first);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('does not import normal text or incomplete pipe chunks', (
     tester,
   ) async {

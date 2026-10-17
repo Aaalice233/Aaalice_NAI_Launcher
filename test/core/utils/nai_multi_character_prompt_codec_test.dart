@@ -39,6 +39,47 @@ void main() {
       expect(NaiMultiCharacterPromptCodec.tryDecode('plain prompt'), isNull);
     });
 
+    test('keeps pipes inside random choice blocks as options', () {
+      expect(
+        NaiMultiCharacterPromptCodec.tryDecode(
+          'The scene shows a girl in a red sweater and blue shorts '
+          '||standing|sitting|waving|jumping|crouching down|saluting|'
+          'staring into the distance|| on the beach.',
+        ),
+        isNull,
+      );
+
+      final result = NaiMultiCharacterPromptCodec.tryDecode(
+        'scene, ||day|night|| | alice, ||red|blue|| hair | bob',
+      );
+      expect(result?.basePrompt, 'scene, ||day|night||');
+      expect(result?.characterPrompts, ['alice, ||red|blue|| hair', 'bob']);
+    });
+
+    test('pairs random block fences like the web client', () {
+      expect(
+        NaiMultiCharacterPromptCodec.tryDecode(
+          'scene ||a|b||| alice',
+        )?.characterPrompts,
+        ['alice'],
+      );
+      expect(
+        NaiMultiCharacterPromptCodec.tryDecode('scene || unclosed | alice'),
+        isNull,
+      );
+    });
+
+    test('round-trips inline exports that contain random blocks', () {
+      final encoded = NaiMultiCharacterPromptCodec.encodeInline(
+        basePrompt: 'scene, ||day|night||',
+        characterPrompts: const ['alice, ||red|blue|| hair'],
+      );
+      final decoded = NaiMultiCharacterPromptCodec.tryDecode(encoded);
+
+      expect(decoded?.basePrompt, 'scene, ||day|night||');
+      expect(decoded?.characterPrompts, ['alice, ||red|blue|| hair']);
+    });
+
     test('rejects more than six characters', () {
       expect(
         NaiMultiCharacterPromptCodec.tryDecode(
