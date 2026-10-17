@@ -2117,6 +2117,13 @@ class AppLocalizationsJa extends AppLocalizations {
       'コピーまたは切り取り時に <ライブラリ名> をその内容に置き換えます';
 
   @override
+  String get prompt_detectMultiCharacterOnPaste => '貼り付け時に複数キャラクターを検出';
+
+  @override
+  String get prompt_detectMultiCharacterOnPasteSubtitle =>
+      '| や COUPLE などの複数キャラクター構文を貼り付けたときにキャラクターのインポートを提案します';
+
+  @override
   String get prompt_cooccurrenceRecommendation => '共起タグの推奨事項';
 
   @override

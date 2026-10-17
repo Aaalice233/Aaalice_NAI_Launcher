@@ -3968,6 +3968,18 @@ abstract class AppLocalizations {
   /// **'Replace <library name> with its content when copying or cutting'**
   String get prompt_resolveAliasOnCopySubtitle;
 
+  /// No description provided for @prompt_detectMultiCharacterOnPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect Characters On Paste'**
+  String get prompt_detectMultiCharacterOnPaste;
+
+  /// No description provided for @prompt_detectMultiCharacterOnPasteSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offer to import characters when pasting | or COUPLE multi-character syntax'**
+  String get prompt_detectMultiCharacterOnPasteSubtitle;
+
   /// No description provided for @prompt_cooccurrenceRecommendation.
   ///
   /// In en, this message translates to:

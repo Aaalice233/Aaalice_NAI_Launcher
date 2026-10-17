@@ -870,6 +870,8 @@
   "prompt_sdSyntaxAutoConvertSubtitle": "フォーカスが外れたときに SD ウェイト構文を NAI 形式に変換します",
   "prompt_resolveAliasOnCopy": "コピー時に単語ライブラリを展開",
   "prompt_resolveAliasOnCopySubtitle": "コピーまたは切り取り時に <ライブラリ名> をその内容に置き換えます",
+  "prompt_detectMultiCharacterOnPaste": "貼り付け時に複数キャラクターを検出",
+  "prompt_detectMultiCharacterOnPasteSubtitle": "| や COUPLE などの複数キャラクター構文を貼り付けたときにキャラクターのインポートを提案します",
   "prompt_cooccurrenceRecommendation": "共起タグの推奨事項",
   "prompt_cooccurrenceRecommendationSubtitle": "タグ確定後に自動表示。Ctrl+Shift+Space または Ctrl+クリックでも表示できます",
   "prompt_regexRulesManage": "正規表現置換ルール…",

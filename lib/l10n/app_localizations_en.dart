@@ -2179,6 +2179,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Replace <library name> with its content when copying or cutting';
 
   @override
+  String get prompt_detectMultiCharacterOnPaste => 'Detect Characters On Paste';
+
+  @override
+  String get prompt_detectMultiCharacterOnPasteSubtitle =>
+      'Offer to import characters when pasting | or COUPLE multi-character syntax';
+
+  @override
   String get prompt_cooccurrenceRecommendation =>
       'Co-occurrence Tag Recommendation';
 

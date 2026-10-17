@@ -526,6 +526,22 @@ class LocalStorageService {
     await setSetting(StorageKeys.resolveAliasOnCopy, value);
   }
 
+  // ==================== Detect Multi Character On Paste ====================
+
+  /// 获取粘贴时是否识别多角色提示词 (默认开启)
+  bool getDetectMultiCharacterOnPaste() {
+    return getSetting<bool>(
+          StorageKeys.detectMultiCharacterOnPaste,
+          defaultValue: true,
+        ) ??
+        true;
+  }
+
+  /// 保存粘贴时是否识别多角色提示词
+  Future<void> setDetectMultiCharacterOnPaste(bool value) async {
+    await setSetting(StorageKeys.detectMultiCharacterOnPaste, value);
+  }
+
   // ==================== Prompt Regex Replace ====================
 
   /// 获取正则替换规则（每项为一条规则的 JSON 字符串）

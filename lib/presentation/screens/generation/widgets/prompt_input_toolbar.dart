@@ -226,6 +226,9 @@ class PromptInputToolbar extends ConsumerWidget {
     final highlight = ref.read(highlightEmphasisSettingsProvider);
     final sdConvert = ref.read(sdSyntaxAutoConvertSettingsProvider);
     final resolveAlias = ref.read(resolveAliasOnCopySettingsProvider);
+    final detectMultiCharacter = ref.read(
+      detectMultiCharacterOnPasteSettingsProvider,
+    );
     final cooccurrence = ref
         .read(completion_settings.autocompleteSettingsProvider)
         .relatedTagsEnabled;
@@ -285,6 +288,14 @@ class PromptInputToolbar extends ConsumerWidget {
         _toggleItem(
           context,
           theme,
+          'detect_multi_character_on_paste',
+          detectMultiCharacter,
+          context.l10n.prompt_detectMultiCharacterOnPaste,
+          context.l10n.prompt_detectMultiCharacterOnPasteSubtitle,
+        ),
+        _toggleItem(
+          context,
+          theme,
           'cooccurrence',
           cooccurrence,
           context.l10n.prompt_cooccurrenceRecommendation,
@@ -306,6 +317,8 @@ class PromptInputToolbar extends ConsumerWidget {
         RegexRulesDialog.show(context);
       case 'resolve_alias_on_copy':
         ref.read(resolveAliasOnCopySettingsProvider.notifier).toggle();
+      case 'detect_multi_character_on_paste':
+        ref.read(detectMultiCharacterOnPasteSettingsProvider.notifier).toggle();
       case 'cooccurrence':
         final provider = completion_settings.autocompleteSettingsProvider;
         final current = ref.read(provider).relatedTagsEnabled;
