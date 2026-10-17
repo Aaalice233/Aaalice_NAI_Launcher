@@ -1,9 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/services/metadata/nai_comment_composer.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
+import '../utils/decoded_image_size.dart';
 import '../utils/isolate_pool.dart';
 
 /// 源图元数据无法安全保留；调用方转成各自编辑器的渲染异常。
@@ -82,55 +82,23 @@ class DerivativeMetadataTransfer {
     required Map<String, String> existing,
   }) {
     var output = png;
-    if (!existing.containsKey('Comment')) {
-      output = UnifiedMetadataParser.embedTextChunkOnly(
-        output,
-        'Comment',
-        commentFor(metadata),
-      );
+    void fill(String key, String? value) {
+      if (value == null || value.isEmpty || existing.containsKey(key)) return;
+      output = UnifiedMetadataParser.embedTextChunkOnly(output, key, value);
     }
-    if (!existing.containsKey('Software') && metadata.software != null) {
-      output = UnifiedMetadataParser.embedTextChunkOnly(
-        output,
-        'Software',
-        metadata.software!,
-      );
-    }
-    if (!existing.containsKey('Source') && metadata.source != null) {
-      output = UnifiedMetadataParser.embedTextChunkOnly(
-        output,
-        'Source',
-        metadata.source!,
-      );
-    }
-    if (!existing.containsKey('Description') && metadata.prompt.isNotEmpty) {
-      output = UnifiedMetadataParser.embedTextChunkOnly(
-        output,
-        'Description',
-        metadata.prompt,
-      );
-    }
-    return output;
-  }
 
-  @visibleForTesting
-  static String commentFor(NaiImageMetadata metadata) {
-    final raw = metadata.rawJson;
-    if (raw != null && raw.trim().isNotEmpty) {
-      return NaiImageMetadata.unwrapEnvelopeComment(raw);
-    }
-    return jsonEncode({
-      if (metadata.prompt.isNotEmpty) 'prompt': metadata.prompt,
-      if (metadata.negativePrompt.isNotEmpty) 'uc': metadata.negativePrompt,
-      if (metadata.seed != null) 'seed': metadata.seed,
-      if (metadata.steps != null) 'steps': metadata.steps,
-      if (metadata.width != null) 'width': metadata.width,
-      if (metadata.height != null) 'height': metadata.height,
-      if (metadata.scale != null) 'scale': metadata.scale,
-      if (metadata.sampler != null) 'sampler': metadata.sampler,
-      if (metadata.model != null) 'model': metadata.model,
-      if (metadata.noiseSchedule != null)
-        'noise_schedule': metadata.noiseSchedule,
-    });
+    final size = DecodedImageSize.readHeader(png);
+    fill(
+      'Comment',
+      NaiCommentComposer.comment(
+        metadata,
+        pixelWidth: size?.$1,
+        pixelHeight: size?.$2,
+      ),
+    );
+    fill('Software', NaiCommentComposer.software(metadata));
+    fill('Source', NaiCommentComposer.source(metadata));
+    fill('Description', NaiCommentComposer.description(metadata));
+    return output;
   }
 }

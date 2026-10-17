@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/services/metadata/image_metadata_container_codec.dart';
 
 const _secret = 'PRIVATE_METADATA_295_\u4e2d\u6587';
@@ -19,14 +20,10 @@ void main() {
       await parent.create(recursive: true);
       final root = await parent.createTemp('case-');
       addTearDown(() => root.delete(recursive: true));
-      final original = await ImageSaveUtils.buildPrebuiltMetadataBytes(
+      final original = await ImageSaveUtils.rebuildImageBytesWithMetadata(
         imageBytes: _privatePng(),
-        metadata: const {
-          'Description': _secret,
-          'Software': 'NovelAI',
-          'Source': 'privacy-test',
-          'Comment': {'prompt': _secret, 'seed': 295},
-        },
+        params: const ImageParams(prompt: _secret, seed: 295),
+        actualSeed: 295,
         useStealth: useStealth,
       );
       expect(
