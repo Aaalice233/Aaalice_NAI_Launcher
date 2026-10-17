@@ -33,6 +33,46 @@ class ImageMetadataContainerCodec {
     return true;
   }
 
+  /// 按文件顺序给出每个 eXIf 块的 TIFF 载荷；块越过数据末尾即停止，[reachedEnd] 表示读到了 IEND。
+  static ({List<Uint8List> payloads, bool reachedEnd}) scanPngExif(
+    Uint8List bytes,
+  ) {
+    if (!isPngHeader(bytes)) return (payloads: const [], reachedEnd: false);
+    final chunks = _parsePngChunks(bytes);
+    return (
+      payloads: [
+        for (final chunk in chunks)
+          if (chunk.type == 'eXIf') chunk.data,
+      ],
+      reachedEnd: chunks.any((chunk) => chunk.type == 'IEND'),
+    );
+  }
+
+  /// 前缀里是否已经出现 IDAT 块头，即它之前的块都已完整读到。
+  static bool pngReachesImageData(Uint8List bytes) =>
+      _firstPngChunkOffset(bytes, 'IDAT') != null;
+
+  /// 数据是否完整包含 IEND 块。
+  static bool pngReachesEnd(Uint8List bytes) {
+    final offset = _firstPngChunkOffset(bytes, 'IEND');
+    return offset != null && offset + 12 <= bytes.length;
+  }
+
+  // 只读块头逐块跳过，块数据越过末尾也能继续判断
+  static int? _firstPngChunkOffset(Uint8List bytes, String type) {
+    if (!isPngHeader(bytes)) return null;
+    final view = ByteData.sublistView(bytes);
+    var offset = 8;
+    while (offset + 8 <= bytes.length) {
+      final chunkType = latin1.decode(
+        Uint8List.sublistView(bytes, offset + 4, offset + 8),
+      );
+      if (chunkType == type) return offset;
+      offset += 12 + view.getUint32(offset);
+    }
+    return null;
+  }
+
   /// 读取 PNG 文本元数据，同时支持 Latin-1 `tEXt` 和 UTF-8 `iTXt`。
   ///
   /// `package:image` 4.3.0 只暴露 `tEXt`，因此 Unicode 提示词需要在这里
@@ -267,11 +307,12 @@ class ImageMetadataContainerCodec {
     }
   }
 
-  /// Replaces multiple text fields in one container pass. Unchanged chunks,
-  /// including their CRCs, are copied verbatim after validation.
+  /// Replaces multiple text fields in one container pass; a null value removes
+  /// the field. Unchanged chunks, including their CRCs, are copied verbatim
+  /// after validation.
   static Uint8List embedTextChunks(
     Uint8List originalPng,
-    Map<String, String> replacements,
+    Map<String, String?> replacements,
   ) {
     if (!isPngHeader(originalPng)) {
       throw const FormatException('Metadata target must be PNG');
@@ -291,8 +332,8 @@ class ImageMetadataContainerCodec {
       originalPng,
       onChunk: (type, offset, end) {
         if (type == 'IDAT' && !inserted) {
-          for (final entry in replacements.entries) {
-            _writeTextMetadataChunk(output, entry.key, entry.value);
+          for (final MapEntry(:key, :value) in replacements.entries) {
+            if (value != null) _writeTextMetadataChunk(output, key, value);
           }
           inserted = true;
         }

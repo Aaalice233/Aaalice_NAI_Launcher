@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/exif_container.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/share_temp_directories.dart';
@@ -26,6 +27,8 @@ class DroppedFileData {
   final Uint8List bytes;
   final Uri? sourceUri;
   final String? sourcePath;
+
+  /// 前缀已覆盖元数据所在区域时只是文件前缀，否则是完整原图，见 [DroppedFileReader.downloadRemoteMetadataSource]。
   final Uint8List? metadataBytes;
   final bool imageBytesArePreview;
 }
@@ -368,7 +371,7 @@ class DroppedFileReader {
       }
     }
 
-    final metadataFuture = downloadRemoteMetadataPrefix(
+    final metadataFuture = downloadRemoteMetadataSource(
       originalUri,
       logTag: logTag,
     );
@@ -475,6 +478,27 @@ class DroppedFileReader {
     'quality',
     'width',
   };
+
+  /// PNG 的文本块在图像数据之前、JPEG 的 EXIF 在头部，前缀即可；WebP 的 EXIF 在图像数据之后、隐写在像素里，
+  /// 必须取完整原图，JPEG 头部超出前缀时同样如此。
+  static Future<Uint8List?> downloadRemoteMetadataSource(
+    Uri uri, {
+    String logTag = 'DroppedFileReader',
+  }) async {
+    final prefix = await downloadRemoteMetadataPrefix(uri, logTag: logTag);
+    if (prefix == null || !_endsBeforeMetadata(prefix)) return prefix;
+    return (await downloadRemoteImage(uri, logTag: logTag))?.bytes;
+  }
+
+  static bool _endsBeforeMetadata(Uint8List prefix) =>
+      _isTruncatedWebp(prefix) ||
+      (ExifContainer.isJpeg(prefix) &&
+          !ExifContainer.scanJpegExif(prefix).headerComplete);
+
+  static bool _isTruncatedWebp(Uint8List bytes) =>
+      ExifContainer.isWebp(bytes) &&
+      ByteData.sublistView(bytes).getUint32(4, Endian.little) + 8 >
+          bytes.length;
 
   static Future<Uint8List?> downloadRemoteMetadataPrefix(
     Uri uri, {

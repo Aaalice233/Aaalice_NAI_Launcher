@@ -1,14 +1,11 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/mosaic/mosaic_settings.dart';
-import '../../data/services/metadata/unified_metadata_parser.dart';
+import '../derivatives/derivative_metadata_transfer.dart';
 import '../derivatives/derivative_registry.dart';
 import '../utils/image_share_sanitizer.dart';
-import '../utils/isolate_pool.dart';
 
 class MosaicCancelledException implements Exception {
   const MosaicCancelledException();
@@ -309,7 +306,7 @@ class MosaicRenderService {
 
       var metadataPreserved = false;
       if (request.preserveMetadata) {
-        final transfer = await _preserveMetadataInBackground(
+        final transfer = await _preserveMetadata(
           request.sourceBytes,
           outputBytes,
         );
@@ -434,104 +431,20 @@ class MosaicRenderService {
     }
   }
 
-  static _MetadataTransfer _preserveSupportedMetadata({
-    required Uint8List source,
-    required Uint8List targetPng,
-  }) {
-    final isPng = UnifiedMetadataParser.isPngHeader(source);
-    final textData = isPng
-        ? UnifiedMetadataParser.extractPngTextData(source)
-        : const <String, String>{};
-    final parsed = UnifiedMetadataParser.parseFromImage(source);
-    if (textData.containsKey('Comment') && !parsed.success) {
-      throw MosaicRenderException(
-        'The source metadata is damaged or cannot be parsed: '
-        '${parsed.errorMessage ?? 'unknown metadata format'}',
-      );
-    }
-
-    var output = targetPng;
+  static Future<DerivativeMetadataTransfer> _preserveMetadata(
+    Uint8List source,
+    Uint8List targetPng,
+  ) async {
     try {
-      output = UnifiedMetadataParser.copySupportedMetadata(
+      return await DerivativeMetadataTransfer.preserveInBackground(
         source: source,
-        targetPng: output,
+        targetPng: targetPng,
       );
-    } on FormatException catch (error) {
-      throw MosaicRenderException(
-        'The source metadata is damaged and cannot be preserved safely.',
-        error,
+    } on DerivativeMetadataException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        MosaicRenderException(error.message, error.cause),
+        stackTrace,
       );
     }
-    if (parsed.success && parsed.metadata != null) {
-      final metadata = parsed.metadata!;
-      if (!textData.containsKey('Comment')) {
-        output = UnifiedMetadataParser.embedTextChunkOnly(
-          output,
-          'Comment',
-          _commentFor(metadata),
-        );
-      }
-      if (!textData.containsKey('Software') && metadata.software != null) {
-        output = UnifiedMetadataParser.embedTextChunkOnly(
-          output,
-          'Software',
-          metadata.software!,
-        );
-      }
-      if (!textData.containsKey('Source') && metadata.source != null) {
-        output = UnifiedMetadataParser.embedTextChunkOnly(
-          output,
-          'Source',
-          metadata.source!,
-        );
-      }
-      if (!textData.containsKey('Description') && metadata.prompt.isNotEmpty) {
-        output = UnifiedMetadataParser.embedTextChunkOnly(
-          output,
-          'Description',
-          metadata.prompt,
-        );
-      }
-    }
-    return _MetadataTransfer(
-      bytes: output,
-      preserved: textData.isNotEmpty || parsed.success,
-    );
   }
-
-  static String _commentFor(NaiImageMetadata metadata) {
-    final raw = metadata.rawJson;
-    if (raw != null && raw.trim().isNotEmpty) return raw;
-    return jsonEncode({
-      if (metadata.prompt.isNotEmpty) 'prompt': metadata.prompt,
-      if (metadata.negativePrompt.isNotEmpty) 'uc': metadata.negativePrompt,
-      if (metadata.seed != null) 'seed': metadata.seed,
-      if (metadata.steps != null) 'steps': metadata.steps,
-      if (metadata.width != null) 'width': metadata.width,
-      if (metadata.height != null) 'height': metadata.height,
-      if (metadata.scale != null) 'scale': metadata.scale,
-      if (metadata.sampler != null) 'sampler': metadata.sampler,
-      if (metadata.model != null) 'model': metadata.model,
-      if (metadata.noiseSchedule != null)
-        'noise_schedule': metadata.noiseSchedule,
-    });
-  }
-}
-
-// 源图缺文本元数据时解析会整图解码查找 stealth 数据。
-Future<_MetadataTransfer> _preserveMetadataInBackground(
-  Uint8List source,
-  Uint8List targetPng,
-) => ComputeGate().runIsolate(
-  () => MosaicRenderService._preserveSupportedMetadata(
-    source: source,
-    targetPng: targetPng,
-  ),
-);
-
-class _MetadataTransfer {
-  const _MetadataTransfer({required this.bytes, required this.preserved});
-
-  final Uint8List bytes;
-  final bool preserved;
 }

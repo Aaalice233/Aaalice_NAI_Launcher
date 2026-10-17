@@ -54,6 +54,13 @@ class UnifiedMetadataParser {
   static MetadataParseResult? parseFromPngWithoutPixelDecode(Uint8List bytes) =>
       _service.parseFromPngWithoutPixelDecode(bytes);
 
+  static MetadataParseResult? parseFromWebpWithoutPixelDecode(
+    Uint8List bytes,
+  ) => _service.parseFromWebpWithoutPixelDecode(bytes);
+
+  static bool readsStealthPayload(Uint8List bytes) =>
+      ImageMetadataParserService.readsStealthPayload(bytes);
+
   static MetadataParseResult parseFromWebp(
     Uint8List bytes, {
     String? filePathForLog,
@@ -87,7 +94,7 @@ class UnifiedMetadataParser {
 
   static Uint8List embedTextChunks(
     Uint8List originalPng,
-    Map<String, String> replacements,
+    Map<String, String?> replacements,
   ) => ImageMetadataContainerCodec.embedTextChunks(originalPng, replacements);
 
   static Uint8List copySupportedMetadata({

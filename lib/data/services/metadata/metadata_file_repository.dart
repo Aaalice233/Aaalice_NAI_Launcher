@@ -69,9 +69,13 @@ class MetadataFileRepository {
         statistics.gradualReadSuccesses++;
         return result;
       }
-      if (result.errorMessage?.startsWith('Unsupported image container') ??
-          false) {
-        return result;
+      switch (result.prefixVerdict) {
+        case MetadataPrefixVerdict.conclusive:
+          return result;
+        case MetadataPrefixVerdict.needsCompleteFile:
+          return _extractFullFile(file, filePath, parseBytes);
+        case MetadataPrefixVerdict.needsMoreBytes:
+          continue;
       }
     }
 

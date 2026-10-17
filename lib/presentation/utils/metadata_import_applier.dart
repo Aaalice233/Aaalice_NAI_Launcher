@@ -188,7 +188,8 @@ class MetadataImportApplier {
 
   static String? resolveImportableModel(NaiImageMetadata metadata) {
     return toImportableModelId(metadata.sourceModel) ??
-        toImportableModelId(metadata.model);
+        toImportableModelId(metadata.model) ??
+        toImportableModelId(metadata.sourceDefaultModel);
   }
 
   static int _applyValue<T>(

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-/// 只遍历 JPEG 标记段与 WebP RIFF 块头定位 EXIF 载荷，不触碰图像数据；结构损坏时抛 [FormatException]。
+/// 只遍历 JPEG 标记段与 WebP RIFF 块头定位 EXIF 载荷，不触碰图像数据；结构损坏时抛 [FormatException]，
+/// 只有 [scanJpegExif] 例外。
 abstract final class ExifContainer {
   static const int jpegStartOfScan = 0xDA;
   static const int jpegEndOfImage = 0xD9;
@@ -16,13 +17,33 @@ abstract final class ExifContainer {
   /// 每个 `Exif\0\0` APP1 段去掉标识后的 TIFF 载荷；读到 SOS 或 EOI 即停止，不扫描熵编码数据。
   static Iterable<Uint8List> jpegExifPayloads(Uint8List bytes) sync* {
     for (final (:marker, :payload) in jpegHeaderSegments(bytes)) {
-      if (marker == 0xE1 &&
-          payload != null &&
-          _asciiAt(payload, 0, 'Exif\u0000\u0000')) {
+      if (payload != null && _isJpegExifSegment(marker, payload)) {
         yield Uint8List.sublistView(payload, 6);
       }
     }
   }
+
+  /// [jpegExifPayloads] 的宽松版：头部截断或损坏时保留此前读到的载荷而不抛出；
+  /// [headerComplete] 表示读到了 SOS 或 EOI，即更多字节也不会再出现 EXIF。
+  static ({List<Uint8List> payloads, bool headerComplete}) scanJpegExif(
+    Uint8List bytes,
+  ) {
+    final payloads = <Uint8List>[];
+    try {
+      for (final (:marker, :payload) in jpegHeaderSegments(bytes)) {
+        if (payload == null) return (payloads: payloads, headerComplete: true);
+        if (_isJpegExifSegment(marker, payload)) {
+          payloads.add(Uint8List.sublistView(payload, 6));
+        }
+      }
+    } on FormatException {
+      // 截断点之后的段读不到，已读到的段仍然有效
+    }
+    return (payloads: payloads, headerComplete: false);
+  }
+
+  static bool _isJpegExifSegment(int marker, Uint8List payload) =>
+      marker == 0xE1 && _asciiAt(payload, 0, 'Exif\u0000\u0000');
 
   /// SOI 之后逐个标记段按段长跳过载荷；以 [jpegStartOfScan] 或 [jpegEndOfImage] 结尾时
   /// 给出该标记（[payload] 为 null）后停止，不扫描熵编码数据。

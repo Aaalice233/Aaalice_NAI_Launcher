@@ -13,13 +13,16 @@ import '../../data/services/fixed_tag/fixed_tag_usage_record_store.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../../data/services/metadata/hash_calculator.dart';
 import '../../data/services/metadata/metadata_parse_executor.dart';
+import '../../data/services/metadata/nai_comment_composer.dart';
 import '../../data/services/metadata/unified_metadata_parser.dart';
 import '../constants/api_constants.dart';
+import '../constants/nai_model_source_fingerprints.dart';
 import '../enums/image_model_mode.dart';
 import '../enums/precise_ref_type.dart';
 import '../save_naming/image_save_naming.dart';
 import '../save_naming/save_name_context.dart';
 import 'app_logger.dart';
+import 'decoded_image_size.dart';
 import 'file_name_sanitizer.dart';
 import 'isolate_pool.dart';
 import 'nai_resolution_adapter.dart';
@@ -225,7 +228,7 @@ class ImageSaveUtils {
 
     return _embedNaiAlignedMetadata(
       imageBytes: imageBytes,
-      commentJson: commentJson,
+      comment: jsonEncode(commentJson),
       description:
           existingMetadata?.description ??
           buildPromptSemanticsSnapshot(
@@ -242,108 +245,6 @@ class ImageSaveUtils {
       software: existingMetadata?.software ?? 'NovelAI',
       useStealth: useStealth,
     );
-  }
-
-  /// 保存图像并嵌入完整元数据
-  ///
-  /// [imageBytes] - 图像字节数据
-  /// [filePath] - 目标文件路径
-  /// [params] - 图像生成参数
-  /// [actualSeed] - 实际使用的种子
-  /// [charCaptions] - 角色提示词列表
-  /// [charNegCaptions] - 角色负面提示词列表
-  /// [useStealth] - 是否使用stealth编码（默认false）
-  /// [preserveExistingNovelAiMetadata] - 原图已有 NovelAI 元数据时不重写 PNG 字节。
-  ///
-  /// 返回保存后的文件
-  static Future<File> saveImageWithMetadata({
-    required Uint8List imageBytes,
-    required String filePath,
-    required ImageParams params,
-    required int actualSeed,
-    List<Map<String, dynamic>>? charCaptions,
-    List<Map<String, dynamic>>? charNegCaptions,
-    bool useCoords = false,
-    bool useStealth = false,
-    bool preserveExistingNovelAiMetadata = true,
-  }) async {
-    final embeddedBytes = await rebuildImageBytesWithMetadata(
-      imageBytes: imageBytes,
-      params: params,
-      actualSeed: actualSeed,
-      charCaptions: charCaptions,
-      charNegCaptions: charNegCaptions,
-      useCoords: useCoords,
-      useStealth: useStealth,
-      preserveExistingNovelAiMetadata: preserveExistingNovelAiMetadata,
-    );
-
-    // 确保目录存在
-    final file = File(filePath);
-    final dir = file.parent;
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-
-    // 写入文件
-    await file.writeAsBytes(embeddedBytes);
-
-    AppLogger.i('Image saved with metadata: $filePath', 'ImageSaveUtils');
-
-    return file;
-  }
-
-  /// 简化版保存（用于不需要完整参数的场景）
-  ///
-  /// [imageBytes] - 图像字节数据
-  /// [filePath] - 目标文件路径
-  /// [metadata] - 预构建的元数据Map
-  /// [useStealth] - 是否使用stealth编码
-  /// 仅构建嵌入预置元数据的字节（不写文件），供原子保存接口使用。
-  static Future<Uint8List> buildPrebuiltMetadataBytes({
-    required Uint8List imageBytes,
-    required Map<String, dynamic> metadata,
-    bool useStealth = false,
-  }) async {
-    final normalized = _normalizePrebuiltMetadata(metadata);
-    return _embedNaiAlignedMetadata(
-      imageBytes: imageBytes,
-      commentJson: normalized.commentJson,
-      description: normalized.description,
-      software: normalized.software,
-      source: normalized.source,
-      useStealth: useStealth,
-    );
-  }
-
-  static Future<File> saveWithPrebuiltMetadata({
-    required Uint8List imageBytes,
-    required String filePath,
-    required Map<String, dynamic> metadata,
-    bool useStealth = false,
-  }) async {
-    final embeddedBytes = await buildPrebuiltMetadataBytes(
-      imageBytes: imageBytes,
-      metadata: metadata,
-      useStealth: useStealth,
-    );
-
-    // 确保目录存在
-    final file = File(filePath);
-    final dir = file.parent;
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-
-    // 写入文件
-    await file.writeAsBytes(embeddedBytes);
-
-    AppLogger.i(
-      'Image saved with prebuilt metadata: $filePath',
-      'ImageSaveUtils',
-    );
-
-    return file;
   }
 
   /// 从元数据重新构建 ImageParams
@@ -408,42 +309,9 @@ class ImageSaveUtils {
     }
   }
 
-  /// 获取模型显示名称
-  static String getModelSourceName(String model) {
-    if (model.contains('diffusion-5') || model == ImageModels.v5StagingKey) {
-      // 与服务端实写一致：底模与重绘权重各有指纹，官方解析两者都认，
-      // 不带已知指纹的 V5 一律归 Curated。
-      final inpainting = ImageModels.isInpaintingModel(model);
-      if (model.contains('diffusion-5-full-medium')) {
-        return inpainting
-            ? 'NovelAI Diffusion V5 93F4BD30'
-            : 'NovelAI Diffusion V5 70AB5786';
-      }
-      if (model.contains('diffusion-5-full')) {
-        return inpainting
-            ? 'NovelAI Diffusion V5 657484A5'
-            : 'NovelAI Diffusion V5 0ADF9AB7';
-      }
-      return 'NovelAI Diffusion V5';
-    } else if (model.contains('diffusion-4-5')) {
-      return model.contains('curated')
-          ? 'NovelAI Diffusion V4.5 Curated'
-          : 'NovelAI Diffusion V4.5 Full';
-    } else if (model.contains('diffusion-4')) {
-      return model.contains('curated')
-          ? 'NovelAI Diffusion V4 Curated'
-          : 'NovelAI Diffusion V4 Full';
-    } else if (model.contains('furry') && model.contains('-3')) {
-      return 'NovelAI Furry Diffusion V3';
-    } else if (model.contains('diffusion-3')) {
-      return 'NovelAI Diffusion V3';
-    } else if (model.contains('diffusion-2')) {
-      return 'NovelAI Diffusion V2';
-    } else if (model.contains('furry')) {
-      return 'NovelAI Furry Diffusion';
-    }
-    return 'NovelAI';
-  }
+  /// 写入 PNG Source 的模型指纹，官网与启动器都能据此认回模型。
+  static String getModelSourceName(String model) =>
+      NaiModelSourceFingerprints.sourceOf(model) ?? 'NovelAI';
 
   static _EmbeddedPngMetadata? _extractEmbeddedPngMetadata(Uint8List bytes) {
     if (!UnifiedMetadataParser.isPngHeader(bytes)) {
@@ -498,20 +366,20 @@ class ImageSaveUtils {
 
   /// 对齐 NAI 官网格式写入 PNG 文本块：
   /// - Comment: 纯参数 JSON（根级含 prompt/seed/...）
-  /// - Description/Software/Source: 独立 tEXt 字段
+  /// - Description/Software/Source: 独立 tEXt 字段，为 null 时不写
   static Future<Uint8List> _embedNaiAlignedMetadata({
     required Uint8List imageBytes,
-    required Map<String, dynamic> commentJson,
-    required String description,
+    required String comment,
+    required String? description,
     String software = 'NovelAI',
-    required String source,
+    required String? source,
     bool useStealth = false,
   }) async {
     final result = await ComputeGate().runCompute(
       _writeAlignedMetadata,
       _MetadataWriteRequest(
         bytes: TransferableTypedData.fromList([imageBytes]),
-        commentJson: commentJson,
+        comment: comment,
         description: description,
         software: software,
         source: source,
@@ -520,46 +388,6 @@ class ImageSaveUtils {
       debugLabel: 'save-image-metadata',
     );
     return result.materialize().asUint8List();
-  }
-
-  static _NormalizedPrebuiltMetadata _normalizePrebuiltMetadata(
-    Map<String, dynamic> metadata,
-  ) {
-    final description =
-        (metadata['Description'] as String?) ??
-        (metadata['prompt'] as String?) ??
-        '';
-    final software = (metadata['Software'] as String?) ?? 'NovelAI';
-    final source = (metadata['Source'] as String?) ?? 'NovelAI';
-
-    final commentJson = _extractCommentJson(metadata);
-    return _NormalizedPrebuiltMetadata(
-      description: description,
-      software: software,
-      source: source,
-      commentJson: commentJson,
-    );
-  }
-
-  static Map<String, dynamic> _extractCommentJson(
-    Map<String, dynamic> metadata,
-  ) {
-    final rawComment = metadata['Comment'];
-    if (rawComment is Map<String, dynamic>) {
-      return rawComment;
-    }
-    if (rawComment is String && rawComment.isNotEmpty) {
-      final decoded = _tryDecodeJsonMap(rawComment);
-      if (decoded != null) {
-        return _unwrapCommentIfWrapped(decoded);
-      }
-    }
-
-    if (metadata.containsKey('prompt')) {
-      return Map<String, dynamic>.from(metadata);
-    }
-
-    return <String, dynamic>{};
   }
 
   static Map<String, dynamic>? _tryDecodeJsonMap(String source) {
@@ -790,76 +618,19 @@ class ImageSaveUtils {
   static Future<Uint8List> _embedOwnMetadata({
     required Uint8List imageBytes,
     required NaiImageMetadata metadata,
-  }) => _embedNaiAlignedMetadata(
-    imageBytes: imageBytes,
-    commentJson: _commentJsonOf(metadata),
-    description: metadata.prompt,
-    software: metadata.software ?? 'NovelAI',
-    source: metadata.source ?? 'NovelAI Diffusion',
-  );
-
-  // rawJson 是完整 Comment；字段投影会丢掉 v4_prompt、预设与 tag_hint 等。
-  static Map<String, dynamic> _commentJsonOf(NaiImageMetadata metadata) {
-    final raw = metadata.rawJson;
-    final decoded = raw == null ? null : _tryDecodeJsonMap(raw);
-    if (decoded != null) {
-      final comment = _unwrapCommentIfWrapped(decoded);
-      if (comment.containsKey('prompt')) return comment;
-    }
-    return _commentJsonFromFields(metadata);
-  }
-
-  static Map<String, dynamic> _commentJsonFromFields(
-    NaiImageMetadata metadata,
-  ) {
-    final commentJson = <String, dynamic>{
-      'prompt': metadata.prompt,
-      'uc': metadata.negativePrompt,
-      'seed': metadata.seed ?? -1,
-      'steps': metadata.steps ?? 28,
-      'width': metadata.width ?? 832,
-      'height': metadata.height ?? 1216,
-      'scale': metadata.scale ?? 5.0,
-      'uncond_scale': 0.0,
-      'cfg_rescale': metadata.cfgRescale ?? 0.0,
-      'n_samples': 1,
-      'noise_schedule': metadata.noiseSchedule ?? 'native',
-      'sampler': metadata.sampler ?? 'k_euler_ancestral',
-      'sm': metadata.smea ?? false,
-      'sm_dyn': metadata.smeaDyn ?? false,
-    };
-    final vibes = metadata.vibeReferences
-        .where((v) => v.vibeEncoding.isNotEmpty)
-        .toList();
-    if (vibes.isNotEmpty) {
-      commentJson['reference_image_multiple'] = vibes
-          .map((v) => v.vibeEncoding)
-          .toList();
-      commentJson['reference_strength_multiple'] = vibes
-          .map((v) => v.strength)
-          .toList();
-      commentJson['reference_information_extracted_multiple'] = vibes
-          .map((v) => v.infoExtracted)
-          .toList();
-    }
-    return commentJson;
-  }
-
-  /// 兼容历史“外层包装”结构：{Description, Software, Source, Comment:"{...}"}
-  static Map<String, dynamic> _unwrapCommentIfWrapped(
-    Map<String, dynamic> map,
-  ) {
-    final nested = map['Comment'];
-    if (map.containsKey('prompt')) {
-      return map;
-    }
-    if (nested is Map<String, dynamic>) {
-      return nested;
-    }
-    if (nested is String && nested.isNotEmpty) {
-      return _tryDecodeJsonMap(nested) ?? map;
-    }
-    return map;
+  }) {
+    final size = DecodedImageSize.readHeader(imageBytes);
+    return _embedNaiAlignedMetadata(
+      imageBytes: imageBytes,
+      comment: NaiCommentComposer.comment(
+        metadata,
+        pixelWidth: size?.$1,
+        pixelHeight: size?.$2,
+      ),
+      description: NaiCommentComposer.description(metadata),
+      software: NaiCommentComposer.software(metadata),
+      source: NaiCommentComposer.source(metadata),
+    );
   }
 }
 
@@ -896,7 +667,7 @@ class SavedResultImage {
 class _MetadataWriteRequest {
   const _MetadataWriteRequest({
     required this.bytes,
-    required this.commentJson,
+    required this.comment,
     required this.description,
     required this.software,
     required this.source,
@@ -904,10 +675,10 @@ class _MetadataWriteRequest {
   });
 
   final TransferableTypedData bytes;
-  final Map<String, dynamic> commentJson;
-  final String description;
+  final String comment;
+  final String? description;
   final String software;
-  final String source;
+  final String? source;
   final bool useStealth;
 }
 
@@ -915,35 +686,21 @@ Future<TransferableTypedData> _writeAlignedMetadata(
   _MetadataWriteRequest request,
 ) async {
   var bytes = request.bytes.materialize().asUint8List();
-  final commentText = jsonEncode(request.commentJson);
   if (request.useStealth) {
     bytes = await UnifiedMetadataParser.embedMetadata(
       bytes,
-      commentText,
+      request.comment,
       useStealth: true,
     );
   }
+  // 缺省的字段也要清掉同名旧块，四个字段始终出自同一份元数据
   final output = UnifiedMetadataParser.embedTextChunks(bytes, {
-    'Comment': commentText,
+    'Comment': request.comment,
     'Description': request.description,
     'Software': request.software,
     'Source': request.source,
   });
   return TransferableTypedData.fromList([output]);
-}
-
-class _NormalizedPrebuiltMetadata {
-  final String description;
-  final String software;
-  final String source;
-  final Map<String, dynamic> commentJson;
-
-  const _NormalizedPrebuiltMetadata({
-    required this.description,
-    required this.software,
-    required this.source,
-    required this.commentJson,
-  });
 }
 
 class _EmbeddedPngMetadata {

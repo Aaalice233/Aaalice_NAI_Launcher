@@ -6,6 +6,8 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
 import '../../../helpers/metadata_parse_result_expectations.dart';
+import '../../../helpers/novelai_exif_fixture.dart';
+import '../../../helpers/novelai_webp_layout_fixture.dart';
 import '../../../helpers/stealth_png_fixture.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
@@ -53,8 +55,14 @@ void main() {
     test('answers unsupported and truncated containers directly', () {
       final unsupported = Uint8List.fromList(List.filled(32, 7));
       final truncated = Uint8List.sublistView(_plainPng(), 0, 20);
+      final stealthWebp = novelAiLayoutWebp();
+      final truncatedWebp = Uint8List.sublistView(
+        stealthWebp,
+        0,
+        stealthWebp.length - 7,
+      );
 
-      for (final bytes in [unsupported, truncated]) {
+      for (final bytes in [unsupported, truncated, truncatedWebp]) {
         final result = UnifiedMetadataParser.parseFromImageWithoutPixelDecode(
           bytes,
         );
@@ -85,6 +93,35 @@ void main() {
         );
       },
     );
+  });
+
+  group('parseFromWebpWithoutPixelDecode', () {
+    test('rejects non-webp bytes like parseFromWebp', () {
+      final bytes = _textChunkPng();
+
+      expectSameParseResult(
+        UnifiedMetadataParser.parseFromWebpWithoutPixelDecode(bytes),
+        UnifiedMetadataParser.parseFromWebp(bytes),
+      );
+    });
+
+    test('defers only when the webp pixels decide the answer', () {
+      final exif = buildNovelAiWebpFixture(comment: _webpComment);
+      final stealth = novelAiLayoutWebp(exif: rewrittenCameraExif());
+
+      expectSameParseResult(
+        UnifiedMetadataParser.parseFromWebpWithoutPixelDecode(exif),
+        UnifiedMetadataParser.parseFromWebp(exif),
+      );
+      expect(
+        UnifiedMetadataParser.parseFromWebpWithoutPixelDecode(stealth),
+        isNull,
+      );
+      expect(
+        UnifiedMetadataParser.parseFromWebp(stealth).metadata?.prompt,
+        novelAiStealthPrompt,
+      );
+    });
   });
 
   group('parseFromPngWithoutPixelDecode', () {
