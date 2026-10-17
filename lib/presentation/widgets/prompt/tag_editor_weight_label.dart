@@ -32,7 +32,7 @@ class _TagEditorWeightLabelState extends State<TagEditorWeightLabel> {
     final theme = Theme.of(context);
     final span = widget.span;
     final prefix = span.prefix;
-    final numeric = prefix.endsWith('::') && span.suffix == '::'
+    final numeric = prefix.endsWith('::') && span.suffix.trimLeft() == '::'
         ? prefix.substring(0, prefix.length - 2).trim()
         : null;
     final label = numeric != null && double.tryParse(numeric) != null

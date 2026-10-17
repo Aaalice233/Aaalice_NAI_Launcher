@@ -76,6 +76,23 @@ class SdSyntaxAutoConvertSettings extends _$SdSyntaxAutoConvertSettings {
   }
 }
 
+/// 数字结尾的数值权重闭合补空格设置 Notifier
+@Riverpod(keepAlive: true)
+class SeparateNumericWeightClosingSettings
+    extends _$SeparateNumericWeightClosingSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  bool build() => _storage.getSeparateNumericWeightClosing();
+
+  void toggle() => set(!state);
+
+  void set(bool value) {
+    state = value;
+    _storage.setSeparateNumericWeightClosing(value);
+  }
+}
+
 /// 复制时展开词库别名设置 Notifier
 @Riverpod(keepAlive: true)
 class ResolveAliasOnCopySettings extends _$ResolveAliasOnCopySettings {

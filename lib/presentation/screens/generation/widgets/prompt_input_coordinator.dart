@@ -76,8 +76,14 @@ class PromptInputCoordinator {
     }
   }
 
-  String _normalize(String prompt) =>
-      NaiPromptFormatter.format(SdToNaiConverter.convert(prompt));
+  String _normalize(String prompt) => NaiPromptFormatter.format(
+    SdToNaiConverter.convert(
+      prompt,
+      separateNumericWeightClosing: _ref.read(
+        separateNumericWeightClosingSettingsProvider,
+      ),
+    ),
+  );
 
   void applyToMainPrompt(String prompt) {
     _controller.promptController.text = prompt;

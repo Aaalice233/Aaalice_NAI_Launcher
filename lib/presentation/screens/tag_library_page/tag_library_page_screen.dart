@@ -20,6 +20,7 @@ import '../../../core/utils/sd_to_nai_converter.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/generation/generation_settings_notifiers.dart';
 import '../../providers/pending_prompt_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/tag_library_selection_provider.dart';
@@ -998,7 +999,12 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     final parsed = CharacterPromptBlockParser.parse(entry.content);
     final content = sendAsAlias
         ? '<${entry.name}>'
-        : SdToNaiConverter.convert(parsed.positivePrompt);
+        : SdToNaiConverter.convert(
+            parsed.positivePrompt,
+            separateNumericWeightClosing: ref.read(
+              separateNumericWeightClosingSettingsProvider,
+            ),
+          );
 
     await ref
         .read(fixedTagsNotifierProvider.notifier)

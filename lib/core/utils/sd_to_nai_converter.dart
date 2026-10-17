@@ -1,4 +1,5 @@
 import 'emphasis_weight_format.dart';
+import 'numeric_weight_closing.dart';
 import 'tag_normalizer.dart';
 import 'prompt_edit_document.dart';
 
@@ -109,15 +110,21 @@ class SdToNaiConverter {
   ///
   /// 注意：只负责 SD 语法转换，不做通用空格转换
   /// 是否将空格转换为下划线由 NaiPromptFormatter 统一负责
-  static String convert(String text) {
-    return PromptEditDocument.mapActiveText(text, _convertActive);
+  static String convert(
+    String text, {
+    bool separateNumericWeightClosing = false,
+  }) {
+    return PromptEditDocument.mapActiveText(
+      text,
+      (fragment) => _convertActive(fragment, separateNumericWeightClosing),
+    );
   }
 
-  static String _convertActive(String text) {
+  static String _convertActive(String text, bool separateClosing) {
     // 只转换带数值的 SD 权重；普通括号属于合法 NAI 提示词内容。
     if (hasSDWeightSyntax(text)) {
       final parsed = _parsePromptAttention(text);
-      return _buildNaiV4(parsed);
+      return _buildNaiV4(parsed, separateClosing);
     }
 
     // 其他情况不转换权重，但仍处理 SD 里用于表示字面括号的转义。
@@ -328,9 +335,13 @@ class SdToNaiConverter {
   }
 
   /// 构建NAI V4数值语法
-  static String _buildNaiV4(List<List<dynamic>> parsed) {
+  static String _buildNaiV4(List<List<dynamic>> parsed, bool separateClosing) {
     final buffer = StringBuffer();
-    var isOpen = false;
+    String? openContent;
+    String closing() => NumericWeightClosing.closingFor(
+      openContent!,
+      separate: separateClosing,
+    );
 
     for (final item in parsed) {
       var s = item[0] as String;
@@ -348,9 +359,7 @@ class SdToNaiConverter {
         s = s.trim();
 
         // 如果前面有打开的权重区域，先关闭它
-        if (isOpen) {
-          buffer.write('::');
-        }
+        if (openContent != null) buffer.write(closing());
 
         // 检查是否需要添加分隔符（避免数字混淆）
         var sep = '';
@@ -361,13 +370,13 @@ class SdToNaiConverter {
         }
 
         buffer.write('$sep$weightStr::$s');
-        isOpen = true;
+        openContent = s;
       } else {
         // 无权重：直接写入文本
         // 如果前面有打开的权重区域，先关闭它
-        if (isOpen) {
-          buffer.write('::');
-          isOpen = false;
+        if (openContent != null) {
+          buffer.write(closing());
+          openContent = null;
         }
         // 无权重的文本保持原始空格；是否转下划线由自动格式化决定
         buffer.write(s);
@@ -375,9 +384,7 @@ class SdToNaiConverter {
     }
 
     // 关闭最后的权重区域
-    if (isOpen) {
-      buffer.write('::');
-    }
+    if (openContent != null) buffer.write(closing());
 
     return buffer.toString();
   }

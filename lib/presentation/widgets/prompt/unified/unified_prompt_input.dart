@@ -8,10 +8,8 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../providers/prompt_editor_preferences_provider.dart';
 import '../prompt_tag_mode_toggle.dart';
-import '../../../../core/utils/nai_prompt_formatter.dart';
 import '../../../../core/utils/prompt_edit_document.dart';
 import '../../../../core/utils/prompt_regex_replacer.dart';
-import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../providers/alias_resolver_service.dart';
 import '../../../../presentation/utils/text_selection_utils.dart';
@@ -32,6 +30,7 @@ import '../../../providers/fixed_tags_provider.dart';
 import '../../../providers/prompt_regex_rules_provider.dart';
 import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
+import '../prompt_blur_formatting.dart';
 import '../tag_mode_prompt_field.dart';
 import '../prompt_text_selection_actions.dart';
 import 'unified_prompt_config.dart';
@@ -291,6 +290,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       text: initialText,
       highlightEnabled: widget.config.enableSyntaxHighlight,
       numericEmphasisEnabled: widget.config.numericEmphasisEnabled,
+      separateNumericWeightClosing: widget.config.separateNumericWeightClosing,
     );
     if (widget.controller != null) {
       _syntaxController!.value = widget.controller!.value;
@@ -348,6 +348,8 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     _syntaxController?.highlightEnabled = widget.config.enableSyntaxHighlight;
     _syntaxController?.numericEmphasisEnabled =
         widget.config.numericEmphasisEnabled;
+    _syntaxController?.separateNumericWeightClosing =
+        widget.config.separateNumericWeightClosing;
   }
 
   @override
@@ -458,9 +460,13 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
 
   /// 失焦时格式化提示词
   void _formatOnBlur() {
-    if (!widget.config.enableAutoFormat &&
-        !widget.config.enableSdSyntaxAutoConvert &&
-        !widget.config.enableRegexReplace) {
+    final config = widget.config;
+    if (!config.enableRegexReplace &&
+        !PromptBlurFormatting.enabled(
+          sdSyntaxAutoConvert: config.enableSdSyntaxAutoConvert,
+          autoFormat: config.enableAutoFormat,
+          separateNumericWeightClosing: config.separateNumericWeightClosing,
+        )) {
       return;
     }
 
@@ -472,7 +478,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
     final messages = <String>[];
 
     // 正则替换（最先执行，规则匹配的是用户原样输入的文本）
-    if (widget.config.enableRegexReplace) {
+    if (config.enableRegexReplace) {
       final rules = ref.read(promptRegexRulesProvider);
       final result = PromptRegexReplacer.apply(text, rules);
       if (result.changed) {
@@ -492,26 +498,17 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       }
     }
 
-    // SD 语法自动转换（优先于格式化，因为格式化可能会影响转换结果）
-    if (widget.config.enableSdSyntaxAutoConvert) {
-      final converted = SdToNaiConverter.convert(text);
-      if (converted != text) {
-        text = converted;
-        changed = true;
-        messages.add('SD→NAI');
-      }
-    }
-
-    // 自动格式化
-    if (widget.config.enableAutoFormat) {
-      final formatted = NaiPromptFormatter.format(text);
-      if (formatted != text) {
-        text = formatted;
-        changed = true;
-        if (!messages.contains('SD→NAI')) {
-          messages.add(context.l10n.prompt_formatted);
-        }
-      }
+    final formatted = PromptBlurFormatting.apply(
+      text,
+      context.l10n,
+      sdSyntaxAutoConvert: config.enableSdSyntaxAutoConvert,
+      autoFormat: config.enableAutoFormat,
+      separateNumericWeightClosing: config.separateNumericWeightClosing,
+    );
+    if (formatted.text != text) {
+      text = formatted.text;
+      changed = true;
+      messages.addAll(formatted.messages);
     }
 
     if (changed) {

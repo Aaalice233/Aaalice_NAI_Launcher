@@ -119,6 +119,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
         generationParamsNotifierProvider.select((params) => params.model),
       ),
     );
+    _contentController.separateNumericWeightClosing = ref.watch(
+      separateNumericWeightClosingSettingsProvider,
+    );
 
     final isCompact = context.adaptiveWindow.isCompact;
     final body = KeyboardDismissRegion(
@@ -333,6 +336,9 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       controller: _contentController,
       focusNode: _contentFocusNode,
       enableAutoFormat: ref.watch(autoFormatPromptSettingsProvider),
+      separateNumericWeightClosing: ref.watch(
+        separateNumericWeightClosingSettingsProvider,
+      ),
       child: AutocompleteWrapper.withAlias(
         controller: _contentController.displayController,
         focusNode: _contentFocusNode,

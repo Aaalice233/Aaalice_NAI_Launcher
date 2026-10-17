@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/utils/prompt_edit_document.dart';
+import 'nai_syntax_controller.dart';
 import 'tag_editor_projection.dart';
 import 'tag_editor_grouping.dart';
 
@@ -589,6 +590,8 @@ class TagEditorSession extends ChangeNotifier {
       PromptSelectionGrouping.create(
         tags.map((tag) => tag.span).toList(),
         selectedTags.map((tag) => tag.span.start).toSet(),
+        separateNumericWeightClosing:
+            NaiSyntaxController.separatesNumericWeightClosing(controller),
       );
 
   void groupSelected(

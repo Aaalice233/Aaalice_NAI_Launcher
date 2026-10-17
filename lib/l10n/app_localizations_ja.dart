@@ -2110,6 +2110,13 @@ class AppLocalizationsJa extends AppLocalizations {
       'フォーカスが外れたときに SD ウェイト構文を NAI 形式に変換します';
 
   @override
+  String get prompt_separateNumericWeightClosing => '数字末尾タグの後に空白';
+
+  @override
+  String get prompt_separateNumericWeightClosingSubtitle =>
+      'year_2025:: が新しいウェイトとして読まれないよう :: の前に空白を入れます';
+
+  @override
   String get prompt_resolveAliasOnCopy => 'コピー時に単語ライブラリを展開';
 
   @override
@@ -2217,6 +2224,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get prompt_formatted => 'フォーマット済み';
+
+  @override
+  String get prompt_numericWeightClosingSeparated => 'ウェイトの区切りに空白を追加';
 
   @override
   String get image_save => '保存';

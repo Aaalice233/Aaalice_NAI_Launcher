@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/numeric_weight_closing.dart';
 import '../../../l10n/app_localizations.dart';
 import 'nai_syntax_controller.dart';
 import 'prompt_weight_editing.dart';
@@ -89,6 +90,9 @@ class TagEditorCommands {
     final controller = session.controller;
     final numeric =
         controller is! NaiSyntaxController || controller.numericEmphasisEnabled;
+    final separate = NaiSyntaxController.separatesNumericWeightClosing(
+      controller,
+    );
     final group = session.selectedGroup;
     if (group != null) {
       // Rewrite only this wrapper; nested weights and leaf identities survive.
@@ -96,6 +100,7 @@ class TagEditorCommands {
         group.span,
         value ?? weight! + step!,
         numericEmphasisEnabled: _useNumericWeight(group, numeric),
+        separateNumericWeightClosing: separate,
       );
       session.apply([
         PromptTextPatch(group.span.start, group.span.editStart, prefix),
@@ -112,10 +117,16 @@ class TagEditorCommands {
       );
       if (shell == 'x') return;
       final split = shell.indexOf('x');
+      final suffix = shell.substring(split + 1);
       session.groupSelected(
         plan,
         shell.substring(0, split),
-        shell.substring(split + 1),
+        suffix == NumericWeightClosing.plain
+            ? NumericWeightClosing.closingFor(
+                plan.selected.text,
+                separate: separate,
+              )
+            : suffix,
       );
       return;
     }
@@ -130,6 +141,7 @@ class TagEditorCommands {
                 PromptWeightEditing.parseWeightSyntax(tag.span.text).weight +
                     step!,
             numericEmphasisEnabled: _useNumericWeight(tag, numeric),
+            separateNumericWeightClosing: separate,
           ),
         ),
     ]);
