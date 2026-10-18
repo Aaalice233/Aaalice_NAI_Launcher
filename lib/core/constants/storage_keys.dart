@@ -115,6 +115,12 @@ class StorageKeys {
   static const String vibeTransferExpanded = 'vibe_transfer_expanded';
   static const String preciseRefExpanded = 'precise_ref_expanded';
 
+  // Generation Workbench Left Panel Module Visibility Keys (左侧面板模块显示开关)
+  static const String webPanelShowCharacter = 'web_panel_show_character';
+  static const String webPanelShowPreciseRef = 'web_panel_show_precise_ref';
+  static const String webPanelShowVibeTransfer = 'web_panel_show_vibe_transfer';
+  static const String webPanelShowTagExtraction = 'web_panel_show_tag_extraction';
+
   // Panel Width Keys (面板宽度)
   static const String historyPanelWidth = 'history_panel_width';
   static const String rightPanelTab = 'right_panel_tab';

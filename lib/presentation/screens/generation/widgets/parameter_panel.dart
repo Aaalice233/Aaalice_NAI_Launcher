@@ -13,6 +13,9 @@ import 'img2img_panel.dart';
 import 'precise_reference_panel.dart';
 import 'reverse_prompt_panel.dart';
 import 'unified_reference_panel.dart';
+import '../../../providers/character_prompt_provider.dart';
+import '../../../providers/generation/web_panel_modules_provider.dart';
+import '../../../providers/reverse_prompt_provider.dart';
 
 /// 参数面板组件（经典布局与移动端使用）
 ///
@@ -37,6 +40,7 @@ class ParameterPanel extends ConsumerWidget {
         (params) => params.hasAdvancedSamplingOptions,
       ),
     );
+    final panelModules = ref.watch(webPanelModulesProvider);
 
     return ListView(
       padding: const EdgeInsets.all(12),
@@ -79,28 +83,50 @@ class ParameterPanel extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // 角色编辑承接完整生成参数，并与下方辅助输入面板保持同级。
-        if (showCharacterEditor) ...[
+        if (showCharacterEditor &&
+            (panelModules.showCharacter ||
+                ref.watch(
+                  characterPromptNotifierProvider.select(
+                    (s) => s.characters.isNotEmpty,
+                  ),
+                ))) ...[
           const InlineCharacterSection(),
           const SizedBox(height: 8),
         ],
 
         // 反推面板
-        const ReversePromptPanel(),
-
-        const SizedBox(height: 8),
+        if (panelModules.showTagExtraction ||
+            ref.watch(
+              reversePromptProvider.select((s) => s.images.isNotEmpty),
+            )) ...[
+          const ReversePromptPanel(),
+          const SizedBox(height: 8),
+        ],
 
         // 图生图面板
         const Img2ImgPanel(),
 
-        const SizedBox(height: 8),
-
         // 风格迁移面板 (Vibe Transfer)
-        const UnifiedReferencePanel(),
-
-        const SizedBox(height: 8),
+        if (panelModules.showVibeTransfer ||
+            ref.watch(
+              generationParamsNotifierProvider.select(
+                (p) => p.vibeReferencesV4.isNotEmpty,
+              ),
+            )) ...[
+          const SizedBox(height: 8),
+          const UnifiedReferencePanel(),
+        ],
 
         // Precise Reference 面板 (角色/风格参考)
-        const PreciseReferencePanel(),
+        if (panelModules.showPreciseReference ||
+            ref.watch(
+              generationParamsNotifierProvider.select(
+                (p) => p.preciseReferences.isNotEmpty,
+              ),
+            )) ...[
+          const SizedBox(height: 8),
+          const PreciseReferencePanel(),
+        ],
 
         // 高级选项
         if (hasAdvancedOptions) ...[
