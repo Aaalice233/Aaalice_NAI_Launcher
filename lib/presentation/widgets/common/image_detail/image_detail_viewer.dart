@@ -54,6 +54,9 @@ class ImageDetailCallbacks {
   /// 发送到反推模块回调
   final Future<void> Function(ImageDetailData image)? onSendToReversePrompt;
 
+  /// 发送到局部重绘回调
+  final Future<void> Function(ImageDetailData image)? onInpaint;
+
   const ImageDetailCallbacks({
     this.onFavoriteToggle,
     this.onReuseMetadata,
@@ -62,6 +65,7 @@ class ImageDetailCallbacks {
     this.onCopyImage,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.onInpaint,
   });
 }
 
@@ -678,6 +682,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             onSendToReversePrompt:
                 widget.callbacks?.onSendToReversePrompt != null
                 ? () => widget.callbacks!.onSendToReversePrompt!(_currentImage)
+                : null,
+            onInpaint: widget.callbacks?.onInpaint != null
+                ? () => widget.callbacks!.onInpaint!(_currentImage)
                 : null,
           ),
         ),
