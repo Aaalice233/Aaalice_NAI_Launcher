@@ -104,24 +104,107 @@ class NaiMetadataPromptProjection {
     if (!hasSeparatedFields) return metadata.prompt;
 
     final mainTags = _splitPromptSegments(metadata.prompt);
-    _removeLeadingSegments(
-      mainTags,
-      _splitPromptEntries(metadata.fixedPrefixTags),
-    );
-    _removeTrailingSegments(
-      mainTags,
-      _splitPromptEntries(metadata.qualityTags),
-    );
+    final originalCount = mainTags.length;
+    final prefixEntries = _splitPromptEntries(metadata.fixedPrefixTags);
+    final qualityEntries = _splitPromptEntries(metadata.qualityTags);
+    final suffixEntries = _splitPromptEntries(metadata.fixedSuffixTags);
+
+    _removeLeadingSegments(mainTags, prefixEntries);
+    _removeTrailingSegments(mainTags, qualityEntries);
     if (hasRecordedTransparentBackgroundTag) {
       _removeTrailingSegments(mainTags, const [
         QualityTags.transparentBackgroundTag,
       ]);
     }
-    _removeTrailingSegments(
-      mainTags,
-      _splitPromptEntries(metadata.fixedSuffixTags),
+    _removeTrailingSegments(mainTags, suffixEntries);
+
+    // 若标签段落数量没有改变（例如 resolvedMetadata.prompt 已经预先清洗过），
+    // 必须直接原样返回 metadata.prompt，绝对不能用 mainTags.join(', ') 把用户的换行排版拍扁！
+    if (mainTags.length == originalCount) {
+      return metadata.prompt;
+    }
+
+    // 若原文本不含换行符，按常规逗号拼接返回
+    if (!metadata.prompt.contains('\n') && !metadata.prompt.contains('\r')) {
+      return mainTags.join(', ');
+    }
+
+    // 若原文本包含换行符，采用逐行保留排版的剥离逻辑
+    return _stripLeadingAndTrailingTagsPreservingLines(
+      metadata.prompt,
+      leading: prefixEntries,
+      trailing: [
+        ...qualityEntries,
+        if (hasRecordedTransparentBackgroundTag)
+          QualityTags.transparentBackgroundTag,
+        ...suffixEntries,
+      ],
     );
-    return mainTags.join(', ');
+  }
+
+  static String _stripLeadingAndTrailingTagsPreservingLines(
+    String prompt, {
+    required List<String> leading,
+    required List<String> trailing,
+  }) {
+    if (leading.isEmpty && trailing.isEmpty) return prompt;
+
+    final normLeading = leading
+        .map(NaiPromptParser.normalizeSegment)
+        .where((s) => s.isNotEmpty)
+        .toSet();
+    final normTrailing = trailing
+        .map(NaiPromptParser.normalizeSegment)
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    final lineBreakPattern = RegExp(r'\r\n|\r|\n');
+    final leadingWhitespacePattern = RegExp(r'^[ \t]*');
+    final trailingWhitespacePattern = RegExp(r'[ \t]*$');
+
+    final cleanedPrompt = prompt.splitMapJoin(
+      lineBreakPattern,
+      onMatch: (match) => match.group(0)!,
+      onNonMatch: (line) {
+        if (line.isEmpty) return line;
+
+        final leadingWs =
+            leadingWhitespacePattern.firstMatch(line)?.group(0) ?? '';
+        final trailingWs =
+            trailingWhitespacePattern.firstMatch(line)?.group(0) ?? '';
+        final contentEnd = line.length - trailingWs.length;
+        if (leadingWs.length >= contentEnd) return line;
+
+        final content = line.substring(leadingWs.length, contentEnd);
+        final keepsTrailingComma = content.trim().endsWith(',');
+
+        final lineTags = NaiPromptParser.splitSegments(content);
+        if (lineTags.isEmpty) return line;
+
+        final remainingLineTags = <String>[];
+        for (final rawTag in lineTags) {
+          final norm = NaiPromptParser.normalizeSegment(rawTag);
+          if (norm.isNotEmpty &&
+              !normLeading.contains(norm) &&
+              !normTrailing.contains(norm)) {
+            remainingLineTags.add(rawTag);
+          }
+        }
+
+        if (remainingLineTags.isEmpty) return '';
+
+        var formatted = remainingLineTags.join(', ');
+        if (keepsTrailingComma && formatted.isNotEmpty) {
+          formatted = '$formatted,';
+        }
+        return '$leadingWs$formatted$trailingWs';
+      },
+    );
+
+    if (cleanedPrompt.replaceAll(RegExp(r'[\r\n\s,]+'), '').isEmpty) {
+      return '';
+    }
+    return cleanedPrompt;
   }
 
   String get promptWithoutFixedTags => buildPositivePromptSelection(
