@@ -34,6 +34,7 @@ class ImageWorkflowLauncher {
     workflowNotifier.replaceSourceImage(imageBytes);
     workflowNotifier.enterBaseMode(clearMask: true);
     workflowNotifier.setPanelExpanded(true);
+    ref.read(generationParamsNotifierProvider.notifier).updateNSamples(1);
   }
 
   static Future<void> openEditor(
@@ -66,6 +67,7 @@ class ImageWorkflowLauncher {
     required ImageEditorMode mode,
     bool Function()? isCurrent,
   }) async {
+    read(generationParamsNotifierProvider.notifier).updateNSamples(1);
     final workflowNotifier = read(imageWorkflowControllerProvider.notifier);
     final workflow = read(imageWorkflowControllerProvider);
 

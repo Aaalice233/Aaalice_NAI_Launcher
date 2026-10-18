@@ -158,6 +158,7 @@ class _DraggableNumberInputState extends State<DraggableNumberInput> {
           ? SystemMouseCursors.text
           : SystemMouseCursors.resizeLeftRight,
       child: Listener(
+        behavior: HitTestBehavior.opaque,
         onPointerSignal: (event) {
           if (event is PointerScrollEvent) {
             _onScroll(event);
@@ -190,51 +191,44 @@ class _DraggableNumberInputState extends State<DraggableNumberInput> {
                   ),
                 ),
                 const SizedBox(width: 2),
-                // 数值/输入框
-                _isEditing
-                    ? Listener(
-                        onPointerSignal: (event) {
-                          if (event is PointerScrollEvent) {
-                            _onScroll(event);
-                          }
-                        },
-                        child: IntrinsicWidth(
-                          child: TextField(
-                            controller: _editController,
-                            focusNode: _focusNode,
-                            keyboardType: TextInputType.number,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            decoration: const InputDecoration(
-                              filled: false,
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(3),
-                            ],
-                            onSubmitted: (_) => _finishEditing(),
+                // 数值/输入框：保持恒定宽度，避免编辑激活时跳动
+                SizedBox(
+                  width: 22,
+                  child: _isEditing
+                      ? TextField(
+                          controller: _editController,
+                          focusNode: _focusNode,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          decoration: const InputDecoration(
+                            filled: false,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(2),
+                          ],
+                          onSubmitted: (_) => _finishEditing(),
+                        )
+                      : Text(
+                          widget.value.toString(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
-                      )
-                    : Text(
-                        widget.value.toString(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
+                ),
               ],
             ),
           ),
