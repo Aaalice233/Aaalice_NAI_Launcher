@@ -38,6 +38,7 @@ import '../../../providers/history_click_behavior_provider.dart';
 import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/fixed_tags_provider.dart';
+import '../../../providers/image_action_settings_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/preview_transparency_provider.dart';
 import '../../../providers/reverse_prompt_provider.dart';
@@ -696,6 +697,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       imageContentFooterHeight: comparisonFooterHeight,
       hoverEffectsEnabled: !comparisonEnabled,
       enableHoverScale: !comparisonEnabled,
+      hoverActionIds: ref
+          .watch(imageActionSettingsProvider)
+          .forScene(ImageActionScene.canvasPreview),
       enableSelection: canSelect,
       showSelectionOnHover: false,
       selectionMode: cardSelection.isActive,

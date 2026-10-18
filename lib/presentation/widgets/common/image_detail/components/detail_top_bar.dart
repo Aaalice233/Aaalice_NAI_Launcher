@@ -10,6 +10,8 @@ import '../../../../providers/local_gallery_provider.dart';
 import '../../../../providers/mosaic_settings_provider.dart';
 import '../../../../providers/watermark_settings_provider.dart';
 import '../../animated_favorite_button.dart';
+import '../../image_card_action.dart';
+import '../../../../providers/image_action_settings_provider.dart';
 import '../image_detail_data.dart';
 
 /// 顶部控制栏
@@ -31,6 +33,7 @@ class DetailTopBar extends StatelessWidget {
   final VoidCallback? onMosaic;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
+  final VoidCallback? onInpaint;
 
   const DetailTopBar({
     super.key,
@@ -49,6 +52,7 @@ class DetailTopBar extends StatelessWidget {
     this.onMosaic,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.onInpaint,
   });
 
   @override
@@ -126,6 +130,7 @@ class DetailTopBar extends StatelessWidget {
                 onMosaic: onMosaic,
                 onSendToImg2Img: onSendToImg2Img,
                 onSendToReversePrompt: onSendToReversePrompt,
+                onInpaint: onInpaint,
               ),
             ),
           ],
@@ -163,6 +168,7 @@ class _DetailTopBarActions extends ConsumerWidget {
     this.onMosaic,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.onInpaint,
   });
 
   final ImageDetailData currentImage;
@@ -178,6 +184,7 @@ class _DetailTopBarActions extends ConsumerWidget {
   final VoidCallback? onMosaic;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
+  final VoidCallback? onInpaint;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -384,68 +391,104 @@ class _DetailTopBarActions extends ConsumerWidget {
       );
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (currentImage.showSaveButton && onSave != null)
-          IconButton(
-            icon: const Icon(Icons.save_alt, color: Colors.white),
-            onPressed: onSave,
-            tooltip: l10n.common_save,
-          ),
-        if (canSaveAs)
-          IconButton(
-            icon: const Icon(Icons.save_as, color: Colors.white),
-            onPressed: onSaveAs,
-            tooltip: l10n.image_saveAs,
-          ),
-        if (onShare != null)
-          IconButton(
-            icon: const Icon(Icons.share_rounded, color: Colors.white),
-            onPressed: onShare,
-            tooltip: l10n.common_share,
-          ),
-        if (watermarkEnabled && onWatermark != null)
-          IconButton(
-            icon: const Icon(
-              Icons.branding_watermark_outlined,
-              color: Colors.white,
-            ),
-            onPressed: onWatermark,
-            tooltip: watermarkLabel,
-          ),
-        if (mosaicEnabled && onMosaic != null)
-          IconButton(
-            icon: const Icon(Icons.grid_on_rounded, color: Colors.white),
-            onPressed: onMosaic,
-            tooltip: mosaicLabel,
-          ),
-        if (hasMetadata && onReuseMetadata != null)
-          IconButton(
-            icon: const Icon(Icons.input, color: Colors.white),
-            onPressed: onReuseMetadata,
-            tooltip: l10n.shortcut_action_reuse_params,
-          ),
-        if (onSendToImg2Img != null)
-          IconButton(
-            icon: const Icon(Icons.image_search, color: Colors.white),
-            onPressed: onSendToImg2Img,
-            tooltip: l10n.detail_sendToImg2Img,
-          ),
-        if (onSendToReversePrompt != null)
-          IconButton(
-            icon: const Icon(Icons.auto_fix_high, color: Colors.white),
-            onPressed: onSendToReversePrompt,
-            tooltip: l10n.detail_sendToReversePrompt,
-          ),
-        if (onCopyImage != null)
-          IconButton(
-            icon: const Icon(Icons.copy, color: Colors.white),
-            onPressed: onCopyImage,
-            tooltip: l10n.shortcut_action_copy_image,
-          ),
-        if (favorite != null) favorite,
-      ],
+    final configuredActions = ref
+        .watch(imageActionSettingsProvider)
+        .forScene(ImageActionScene.imageDetail);
+
+    Widget? getActionWidget(ImageCardActionId id) {
+      return switch (id) {
+        ImageCardActionId.save => (currentImage.showSaveButton && onSave != null)
+            ? IconButton(
+                icon: const Icon(Icons.save_alt, color: Colors.white),
+                onPressed: onSave,
+                tooltip: l10n.common_save,
+              )
+            : null,
+        ImageCardActionId.saveAs => canSaveAs
+            ? IconButton(
+                icon: const Icon(Icons.save_as, color: Colors.white),
+                onPressed: onSaveAs,
+                tooltip: l10n.image_saveAs,
+              )
+            : null,
+        ImageCardActionId.shareDiscord => onShare != null
+            ? IconButton(
+                icon: const Icon(Icons.share_rounded, color: Colors.white),
+                onPressed: onShare,
+                tooltip: l10n.common_share,
+              )
+            : null,
+        ImageCardActionId.favorite => favorite,
+        ImageCardActionId.copy => (hasMetadata && onReuseMetadata != null)
+            ? IconButton(
+                icon: const Icon(Icons.input, color: Colors.white),
+                onPressed: onReuseMetadata,
+                tooltip: l10n.shortcut_action_reuse_params,
+              )
+            : null,
+        ImageCardActionId.imageToImage => onSendToImg2Img != null
+            ? IconButton(
+                icon: const Icon(Icons.image_search, color: Colors.white),
+                onPressed: onSendToImg2Img,
+                tooltip: l10n.detail_sendToImg2Img,
+              )
+            : null,
+        ImageCardActionId.reversePrompt => onSendToReversePrompt != null
+            ? IconButton(
+                icon: const Icon(Icons.auto_fix_high, color: Colors.white),
+                onPressed: onSendToReversePrompt,
+                tooltip: l10n.detail_sendToReversePrompt,
+              )
+            : null,
+        ImageCardActionId.copyPrompt ||
+        ImageCardActionId.copySeed => onCopyImage != null
+            ? IconButton(
+                icon: const Icon(Icons.copy, color: Colors.white),
+                onPressed: onCopyImage,
+                tooltip: l10n.shortcut_action_copy_image,
+              )
+            : null,
+        ImageCardActionId.inpaint ||
+        ImageCardActionId.editImage => onInpaint != null
+            ? IconButton(
+                icon: const Icon(Icons.draw_outlined, color: Colors.white),
+                onPressed: onInpaint,
+                tooltip: l10n.img2img_inpaint,
+              )
+            : null,
+        ImageCardActionId.createWatermark => (watermarkEnabled && onWatermark != null)
+            ? IconButton(
+                icon: const Icon(
+                  Icons.branding_watermark_outlined,
+                  color: Colors.white,
+                ),
+                onPressed: onWatermark,
+                tooltip: watermarkLabel,
+              )
+            : null,
+        ImageCardActionId.createMosaic => (mosaicEnabled && onMosaic != null)
+            ? IconButton(
+                icon: const Icon(Icons.grid_on_rounded, color: Colors.white),
+                onPressed: onMosaic,
+                tooltip: mosaicLabel,
+              )
+            : null,
+        _ => null,
+      };
+    }
+
+    final widgets = <Widget>[];
+    for (final id in configuredActions) {
+      final w = getActionWidget(id);
+      if (w != null) widgets.add(w);
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 2,
+      runSpacing: 2,
+      children: widgets,
     );
   }
 

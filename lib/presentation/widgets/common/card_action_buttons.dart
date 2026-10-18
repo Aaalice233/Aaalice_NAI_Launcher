@@ -143,20 +143,25 @@ class CardActionButtons extends StatelessWidget {
         ? 2
         : ((size.width + 4) / (extent + 4)).floor().clamp(1, 2).toInt();
     final allWidgets = <Widget>[
-      for (final button in buttons.where((a) => !a.isDanger))
-        ImageCardOverlayActionButton(config: button, extent: extent),
-      for (final group in groupMenus.entries)
-        if (this.buttons.any((a) => a.visible && a.group == group.key))
-          _CardOverflowButton(
-            buttons: this.buttons
-                .where((a) => a.visible && a.group == group.key)
-                .toList(),
-            extent: extent,
-            icon: group.value.icon,
-            label: group.value.label,
-          ),
-      for (final button in buttons.where((a) => a.isDanger))
-        ImageCardOverlayActionButton(config: button, extent: extent),
+      if (groupMenus.isEmpty)
+        for (final button in buttons)
+          ImageCardOverlayActionButton(config: button, extent: extent)
+      else ...[
+        for (final button in buttons.where((a) => !a.isDanger))
+          ImageCardOverlayActionButton(config: button, extent: extent),
+        for (final group in groupMenus.entries)
+          if (this.buttons.any((a) => a.visible && a.group == group.key))
+            _CardOverflowButton(
+              buttons: this.buttons
+                  .where((a) => a.visible && a.group == group.key)
+                  .toList(),
+              extent: extent,
+              icon: group.value.icon,
+              label: group.value.label,
+            ),
+        for (final button in buttons.where((a) => a.isDanger))
+          ImageCardOverlayActionButton(config: button, extent: extent),
+      ],
     ];
     final capacity = size == null
         ? allWidgets.length
