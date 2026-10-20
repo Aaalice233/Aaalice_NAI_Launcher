@@ -7,6 +7,8 @@ import 'package:nai_launcher/presentation/widgets/prompt/comfyui_import_dialog.d
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_config.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
+import '../../../../helpers/memory_local_storage.dart';
+
 void main() {
   Future<void> pumpInput(
     WidgetTester tester, {
@@ -17,7 +19,7 @@ void main() {
       ProviderScope(
         overrides: [
           localStorageServiceProvider.overrideWith(
-            (ref) => _TestLocalStorageService(),
+            (ref) => MemoryLocalStorage(),
           ),
         ],
         child: MaterialApp(
@@ -103,36 +105,4 @@ void main() {
     await tester.tap(find.byType(TextButton).first);
     await tester.pumpAndSettle();
   });
-}
-
-class _TestLocalStorageService extends LocalStorageService {
-  @override
-  bool getResolveAliasOnCopy() => false;
-
-  @override
-  bool getEnablePromptWeightScroll() => false;
-
-  @override
-  bool getEnableAutocomplete() => false;
-
-  @override
-  bool getAutoFormatPrompt() => false;
-
-  @override
-  bool getHighlightEmphasis() => false;
-
-  @override
-  bool getSdSyntaxAutoConvert() => false;
-
-  @override
-  bool getEnableCooccurrenceRecommendation() => false;
-
-  @override
-  String? getTagLibraryEntriesJson() => null;
-
-  @override
-  String? getTagLibraryCategoriesJson() => null;
-
-  @override
-  int getTagLibraryViewMode() => 0;
 }
