@@ -35,6 +35,7 @@ void main() {
     bool enableSdSyntaxAutoConvert = false,
     bool enableAutoFormat = false,
     bool enableTagMode = false,
+    bool replaceUnderscores = false,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -61,6 +62,7 @@ void main() {
                   enableAutoFormat: enableAutoFormat,
                   enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
                   enableRegexReplace: enableRegexReplace,
+                  replaceUnderscores: replaceUnderscores,
                 ),
                 maxLines: null,
                 expands: true,
@@ -86,6 +88,34 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('blur respects spaces preference and protects rendered text', (
+    tester,
+  ) async {
+    await pumpInput(
+      tester,
+      enableRegexReplace: false,
+      rules: [],
+      enableAutoFormat: true,
+      replaceUnderscores: true,
+    );
+    await typeAndBlur(tester, 'long_hair, blue eyes, ^_^, "Hello_World Again"');
+    expect(controller.text, 'long hair, blue eyes, ^_^, "Hello_World Again"');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('blur keeps underscore style by default', (tester) async {
+    await pumpInput(
+      tester,
+      enableRegexReplace: false,
+      rules: [],
+      enableAutoFormat: true,
+    );
+    await typeAndBlur(tester, "long hair, sign 'Don't Stop'");
+    expect(controller.text, "long_hair, sign 'Don't Stop'");
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('disabled tags survive formatting and repeated mode switches', (
     tester,

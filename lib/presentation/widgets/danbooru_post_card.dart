@@ -21,7 +21,6 @@ import '../../data/models/online_gallery/danbooru_post.dart';
 import '../../data/models/queue/replication_task.dart';
 import '../../core/autocomplete/tag_translation_lookup.dart';
 import '../adaptive/interaction_policy.dart';
-import '../providers/character_prompt_provider.dart';
 import '../providers/replication_queue_provider.dart';
 import '../providers/reverse_prompt_provider.dart';
 import '../services/generation_prompt_transfer_service.dart';
@@ -234,24 +233,23 @@ class _DanbooruPostCardState extends ConsumerState<DanbooruPostCard> {
       if (selectedSettings == null || !mounted) return;
     }
 
-    ref.read(characterPromptNotifierProvider.notifier).replaceAll([
-      for (var index = 0; index < widget.characterPrompts.length; index++)
-        CharacterPrompt(
-          id: 'gallery-${widget.post.stableKey}-$index',
-          name: widget.characterPrompts[index].label,
-          prompt: widget.characterPrompts[index].prompt,
-          negativePrompt: widget.characterPrompts[index].negativePrompt,
-          positionMode: CharacterPositionMode.aiChoice,
-        ),
-    ]);
-    ref
-        .read(generationPromptTransferServiceProvider)
-        .replaceMainPrompt(
-          prompt: prompt,
-          negativePrompt: widget.negativePromptOverride,
-          configuration: transferOptions?.configuration,
-          configurationSettings: selectedSettings,
-        );
+    ref.read(generationPromptTransferServiceProvider)
+      ..replaceCharacterPrompts([
+        for (var index = 0; index < widget.characterPrompts.length; index++)
+          CharacterPrompt(
+            id: 'gallery-${widget.post.stableKey}-$index',
+            name: widget.characterPrompts[index].label,
+            prompt: widget.characterPrompts[index].prompt,
+            negativePrompt: widget.characterPrompts[index].negativePrompt,
+            positionMode: CharacterPositionMode.aiChoice,
+          ),
+      ])
+      ..replaceMainPrompt(
+        prompt: prompt,
+        negativePrompt: widget.negativePromptOverride,
+        configuration: transferOptions?.configuration,
+        configurationSettings: selectedSettings,
+      );
     if (!mounted) return;
     context.go('/');
     AppToast.info(context, context.l10n.onlineGallery_sentToTextToImage);

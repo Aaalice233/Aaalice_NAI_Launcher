@@ -2094,7 +2094,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get prompt_autoFormat => '自動フォーマット';
 
   @override
-  String get prompt_autoFormatSubtitle => '改行を保持しながら、中国語のカンマとタグ内の空白を変換します';
+  String get prompt_autoFormatSubtitle => '空白の設定に従ってカンマとタグを整え、改行と引用符内の文字を保持します';
+
+  @override
+  String get prompt_replaceUnderscores => 'タグのアンダースコアを空白にする';
+
+  @override
+  String get prompt_replaceUnderscoresSubtitle =>
+      '補完の挿入と自動フォーマットで共通の設定です。顔文字のアンダースコアは保持します';
 
   @override
   String get prompt_highlightEmphasis => 'ハイライトの強調';
@@ -13247,7 +13254,7 @@ class AppLocalizationsJa extends AppLocalizations {
       'オンにすると既存タグのクリックで通常の補完を開きます。Ctrl/Command＋クリックでは引き続き関連タグを表示します';
 
   @override
-  String get autocomplete_replaceUnderscores => '挿入時にアンダースコアを空白に置換';
+  String get autocomplete_replaceUnderscores => '挿入時と自動フォーマット時にアンダースコアを空白に置換';
 
   @override
   String get autocomplete_dataSourcesTitle => 'データソースとキャッシュ';

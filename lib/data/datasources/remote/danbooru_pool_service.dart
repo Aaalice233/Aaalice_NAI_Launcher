@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/kaomoji_tags.dart';
 import '../../models/danbooru/danbooru_pool.dart';
 import '../../models/prompt/pool_mapping.dart';
 import '../../models/prompt/pool_post.dart';
@@ -102,7 +103,7 @@ class DanbooruPoolService {
 
           weightedTags.add(
             WeightedTag.simple(
-              entry.key.replaceAll('_', ' '),
+              KaomojiTags.underscoresToSpaces(entry.key),
               weight,
               TagSource.danbooru,
             ),

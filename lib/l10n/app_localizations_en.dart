@@ -2155,7 +2155,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prompt_autoFormatSubtitle =>
-      'Convert Chinese commas and tag spaces while preserving line breaks';
+      'Normalize commas and tag spacing by your preference; keeps line breaks and quoted text';
+
+  @override
+  String get prompt_replaceUnderscores => 'Use Spaces Instead of Underscores';
+
+  @override
+  String get prompt_replaceUnderscoresSubtitle =>
+      'Shared by autocomplete and auto format; kaomoji keep their underscores';
 
   @override
   String get prompt_highlightEmphasis => 'Highlight Emphasis';
@@ -13598,7 +13605,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autocomplete_replaceUnderscores =>
-      'Replace underscores with spaces on insertion';
+      'Replace underscores with spaces on insertion and auto format';
 
   @override
   String get autocomplete_dataSourcesTitle => 'Data Sources & Cache';

@@ -8,6 +8,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../../core/database/asset_database_manager.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/kaomoji_tags.dart';
 import '../../models/prompt/weighted_tag.dart';
 
 part 'random_tag_library_data_source.g.dart';
@@ -279,7 +280,7 @@ class RandomTagLibraryDataSource {
       rows.map((row) {
         final postCount = (row['post_count'] as num).toInt();
         return WeightedTag(
-          tag: (row['name'] as String).replaceAll('_', ' '),
+          tag: KaomojiTags.underscoresToSpaces(row['name'] as String),
           weight: _weightForPostCount(postCount),
           source: TagSource.catalog,
         );

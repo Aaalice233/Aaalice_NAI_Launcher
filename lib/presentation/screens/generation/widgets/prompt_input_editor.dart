@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/autocomplete/autocomplete_settings.dart'
+    show replaceUnderscoresPreferenceProvider;
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage_service.dart';
@@ -44,6 +46,7 @@ class PromptInputEditor extends ConsumerWidget {
     final separateNumericWeightClosing = ref.watch(
       separateNumericWeightClosingSettingsProvider,
     );
+    final replaceUnderscores = ref.watch(replaceUnderscoresPreferenceProvider);
     final storage = ref.watch(localStorageServiceProvider);
     final negative = controller.isNegativeMode;
     // 模型固定 UC 预设时负向提示词不会发送，只读保留给切回后的模型使用。
@@ -108,6 +111,7 @@ class PromptInputEditor extends ConsumerWidget {
                       ? false
                       : enableSdSyntaxAutoConvert,
                   separateNumericWeightClosing: separateNumericWeightClosing,
+                  replaceUnderscores: replaceUnderscores,
                   enableComfyuiImport: !negative && detectMultiCharacterOnPaste,
                   enableTagMode: true,
                   autocompleteConfig: AutocompleteConfig(

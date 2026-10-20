@@ -2066,7 +2066,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get prompt_autoFormat => '自动格式化';
 
   @override
-  String get prompt_autoFormatSubtitle => '中文逗号转英文、标签内空格转下划线（保留换行）';
+  String get prompt_autoFormatSubtitle => '按空格偏好整理逗号与标签，保留换行与引号内文字';
+
+  @override
+  String get prompt_replaceUnderscores => '标签用空格代替下划线';
+
+  @override
+  String get prompt_replaceUnderscoresSubtitle => '补全插入与自动格式化共用此偏好，颜文字保留下划线';
 
   @override
   String get prompt_highlightEmphasis => '高亮强调';
@@ -13018,7 +13024,7 @@ class AppLocalizationsZh extends AppLocalizations {
       '开启后，点击已有标签会打开普通补全菜单；Ctrl/Command + 点击仍显示相关标签';
 
   @override
-  String get autocomplete_replaceUnderscores => '插入时将下划线替换为空格';
+  String get autocomplete_replaceUnderscores => '插入和自动格式化时将下划线替换为空格';
 
   @override
   String get autocomplete_dataSourcesTitle => '数据源与缓存';
@@ -17580,7 +17586,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get prompt_autoFormat => '自動格式化';
 
   @override
-  String get prompt_autoFormatSubtitle => '中文逗號轉英文、標籤內空格轉下劃線（保留換行）';
+  String get prompt_autoFormatSubtitle => '依空格偏好整理逗號與標籤，保留換行與引號內文字';
+
+  @override
+  String get prompt_replaceUnderscores => '標籤用空格代替下劃線';
+
+  @override
+  String get prompt_replaceUnderscoresSubtitle => '補全插入與自動格式化共用此偏好，顏文字保留下劃線';
 
   @override
   String get prompt_highlightEmphasis => '高亮強調';
@@ -28532,7 +28544,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '開啟後，點選已有標籤會開啟普通補全選單；Ctrl/Command + 點選仍顯示相關標籤';
 
   @override
-  String get autocomplete_replaceUnderscores => '插入時將下劃線替換為空格';
+  String get autocomplete_replaceUnderscores => '插入與自動格式化時將下劃線替換為空格';
 
   @override
   String get autocomplete_dataSourcesTitle => '資料來源與快取';

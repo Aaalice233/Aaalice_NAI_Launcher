@@ -37,6 +37,9 @@ class UnifiedPromptConfig {
   /// 写入权重时直接生效，失焦时规整已有文本。
   final bool separateNumericWeightClosing;
 
+  /// 自动格式化时标签使用空格而不是下划线
+  final bool replaceUnderscores;
+
   /// 是否启用提示词正则替换
   ///
   /// 失焦时按用户配置的正则规则改写提示词，执行顺序早于
@@ -101,6 +104,7 @@ class UnifiedPromptConfig {
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
     this.separateNumericWeightClosing = false,
+    this.replaceUnderscores = false,
     this.enableRegexReplace = true,
     this.enableComfyuiImport = false,
     this.enableTagMode = false,
@@ -179,6 +183,7 @@ class UnifiedPromptConfig {
     bool? enableAutoFormat,
     bool? enableSdSyntaxAutoConvert,
     bool? separateNumericWeightClosing,
+    bool? replaceUnderscores,
     bool? enableRegexReplace,
     bool? enableComfyuiImport,
     bool? enableTagMode,
@@ -203,6 +208,7 @@ class UnifiedPromptConfig {
           enableSdSyntaxAutoConvert ?? this.enableSdSyntaxAutoConvert,
       separateNumericWeightClosing:
           separateNumericWeightClosing ?? this.separateNumericWeightClosing,
+      replaceUnderscores: replaceUnderscores ?? this.replaceUnderscores,
       enableRegexReplace: enableRegexReplace ?? this.enableRegexReplace,
       enableComfyuiImport: enableComfyuiImport ?? this.enableComfyuiImport,
       enableTagMode: enableTagMode ?? this.enableTagMode,
@@ -228,6 +234,7 @@ class UnifiedPromptConfig {
         other.enableAutoFormat == enableAutoFormat &&
         other.enableSdSyntaxAutoConvert == enableSdSyntaxAutoConvert &&
         other.separateNumericWeightClosing == separateNumericWeightClosing &&
+        other.replaceUnderscores == replaceUnderscores &&
         other.enableRegexReplace == enableRegexReplace &&
         other.enableComfyuiImport == enableComfyuiImport &&
         other.enableTagMode == enableTagMode &&
@@ -249,6 +256,7 @@ class UnifiedPromptConfig {
       enableAutoFormat,
       enableSdSyntaxAutoConvert,
       separateNumericWeightClosing,
+      replaceUnderscores,
       enableRegexReplace,
       enableComfyuiImport,
       enableTagMode,

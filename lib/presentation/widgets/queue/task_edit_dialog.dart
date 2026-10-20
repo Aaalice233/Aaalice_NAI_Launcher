@@ -3,6 +3,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../core/autocomplete/autocomplete_settings.dart'
+    show replaceUnderscoresPreferenceProvider;
 import '../../../data/models/queue/replication_task.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
@@ -199,6 +201,7 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
             separateNumericWeightClosing: ref.watch(
               separateNumericWeightClosingSettingsProvider,
             ),
+            replaceUnderscores: ref.watch(replaceUnderscoresPreferenceProvider),
             child: AutocompleteWrapper(
               controller: _promptController,
               focusNode: _promptFocusNode,
