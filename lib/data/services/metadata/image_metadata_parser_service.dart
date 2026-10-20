@@ -7,6 +7,7 @@ import '../../../core/utils/exif_container.dart';
 import '../../../core/utils/portable_logger.dart';
 import 'exif_metadata_extractor.dart';
 import 'image_metadata_container_codec.dart';
+import 'metadata_error_summary.dart';
 import 'metadata_file_repository.dart';
 import 'metadata_parse_result.dart';
 import 'metadata_text_decoder.dart';
@@ -71,10 +72,11 @@ class ImageMetadataParserService {
         parseTime: stopwatch.elapsed,
       );
     } catch (error, stackTrace) {
-      PortableLogger.e('Unexpected error: $error', error, stackTrace, _tag);
+      final summary = metadataErrorSummary(error);
+      PortableLogger.e('Unexpected error: $summary', null, stackTrace, _tag);
       return MetadataParseResult.failed(
         const [],
-        'Unexpected error: $error',
+        'Unexpected error: $summary',
         parseTime: stopwatch.elapsed,
       );
     }
@@ -374,9 +376,10 @@ class ImageMetadataParserService {
       return parse();
     } catch (error, stackTrace) {
       final fileInfo = filePathForLog != null ? 'file=$filePathForLog, ' : '';
+      final summary = metadataErrorSummary(error);
       final message =
-          'Error parsing metadata from $container (${fileInfo}bytes=${bytes.length}): $error';
-      PortableLogger.e(message, error, stackTrace, _tag);
+          'Error parsing metadata from $container (${fileInfo}bytes=${bytes.length}): $summary';
+      PortableLogger.e(message, null, stackTrace, _tag);
       return MetadataParseResult.failed(
         triedParsers,
         message,
