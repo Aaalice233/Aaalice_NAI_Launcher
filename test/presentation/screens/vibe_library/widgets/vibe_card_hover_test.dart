@@ -164,14 +164,14 @@ void main() {
     );
   });
 
-  testWidgets('指针短暂经过不读取详情，预览弹出才读取且关闭后不再常驻', (tester) async {
+  testWidgets('指针短暂经过不读取详情，预览弹出才读取且关闭后释放原图缓存', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final entry = _entry(rawImageData: _onePixelPng);
-    final storage = _HoverStorage(entry, _onePixelPng);
+    final storage = _HoverStorage(entry, _onePixelPng, copyOnRead: true);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -210,10 +210,25 @@ void main() {
     await tester.pump();
     expect(preview, findsOneWidget);
     expect(storage.detailRequests, ['hover-vibe']);
+    final image = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const ValueKey('vibe-hover-media')),
+        matching: find.byType(Image),
+      ),
+    );
+    final resized = image.image as BoxFitResizeImage;
+    expect(
+      (resized.imageProvider as MemoryImage).bytes,
+      same(storage.rawImageReads.single),
+    );
+    final cacheKey = await resized.obtainKey(ImageConfiguration.empty);
+    final imageCache = PaintingBinding.instance.imageCache;
+    expect(imageCache.statusForKey(cacheKey).tracked, isTrue);
 
     await mouse.moveTo(outside);
     await tester.pump();
     expect(preview, findsNothing);
+    expect(imageCache.statusForKey(cacheKey).untracked, isTrue);
     await mouse.moveTo(center);
     await tester.pump(const Duration(milliseconds: 281));
     await tester.pump();
@@ -637,11 +652,13 @@ VibeLibraryEntry _entry({required Uint8List rawImageData}) {
 }
 
 class _HoverStorage extends VibeLibraryStorageService {
-  _HoverStorage(this.entry, this.thumbnail);
+  _HoverStorage(this.entry, this.thumbnail, {this.copyOnRead = false});
 
   final VibeLibraryEntry entry;
   final Uint8List thumbnail;
+  final bool copyOnRead;
   final List<String> detailRequests = [];
+  final List<Uint8List?> rawImageReads = [];
 
   @override
   Future<Uint8List?> getDisplayThumbnail(String id) async => thumbnail;
@@ -649,7 +666,10 @@ class _HoverStorage extends VibeLibraryStorageService {
   @override
   Future<VibeLibraryDetailData?> getDetailData(String id) async {
     detailRequests.add(id);
-    return VibeLibraryDetailData(entry: entry);
+    final raw = entry.rawImageData;
+    final read = copyOnRead && raw != null ? Uint8List.fromList(raw) : raw;
+    rawImageReads.add(read);
+    return VibeLibraryDetailData(entry: entry.copyWith(rawImageData: read));
   }
 }
 

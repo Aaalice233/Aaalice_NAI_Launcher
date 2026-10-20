@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/cache/box_fit_resize_image.dart';
 
 /// 根据布局尺寸限制内存图解码尺寸，避免列表里反复全尺寸解码大图。
-class DecodedMemoryImage extends StatelessWidget {
+class DecodedMemoryImage extends StatefulWidget {
   const DecodedMemoryImage({
     super.key,
     required this.bytes,
@@ -17,6 +17,7 @@ class DecodedMemoryImage extends StatelessWidget {
     this.decodeScale = 1.0,
     this.errorBuilder,
     this.frameBuilder,
+    this.evictOnDispose = false,
   });
 
   final Uint8List bytes;
@@ -30,47 +31,12 @@ class DecodedMemoryImage extends StatelessWidget {
   final ImageErrorWidgetBuilder? errorBuilder;
   final ImageFrameBuilder? frameBuilder;
 
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final pixelRatio =
-            MediaQuery.maybeDevicePixelRatioOf(context) ??
-            View.of(context).devicePixelRatio;
-        final cacheWidth = resolveCacheDimension(
-          logicalSize: maxLogicalWidth,
-          constrainedSize: constraints.hasBoundedWidth
-              ? constraints.maxWidth
-              : null,
-          pixelRatio: pixelRatio,
-          decodeScale: decodeScale,
-        );
-        final cacheHeight = resolveCacheDimension(
-          logicalSize: maxLogicalHeight,
-          constrainedSize: constraints.hasBoundedHeight
-              ? constraints.maxHeight
-              : null,
-          pixelRatio: pixelRatio,
-          decodeScale: decodeScale,
-        );
+  /// 卸载时驱逐本组件用过的缓存项：缓存键强引用原图字节，且预算只计解码尺寸，
+  /// 每次读取新字节的临时预览不驱逐会让关闭后的原图常驻到被 LRU 挤出。
+  final bool evictOnDispose;
 
-        return Image(
-          image: BoxFitResizeImage.resizeIfNeeded(
-            MemoryImage(bytes),
-            fit: fit,
-            width: cacheWidth,
-            height: cacheHeight,
-          ),
-          fit: fit,
-          alignment: alignment,
-          filterQuality: filterQuality,
-          gaplessPlayback: gaplessPlayback,
-          errorBuilder: errorBuilder,
-          frameBuilder: frameBuilder,
-        );
-      },
-    );
-  }
+  @override
+  State<DecodedMemoryImage> createState() => _DecodedMemoryImageState();
 
   static int? resolveCacheDimension({
     required double? logicalSize,
@@ -97,5 +63,69 @@ class DecodedMemoryImage extends StatelessWidget {
     if (stepBits <= 0) return size;
     final step = 1 << stepBits;
     return (size + step - 1) ~/ step * step;
+  }
+}
+
+class _DecodedMemoryImageState extends State<DecodedMemoryImage> {
+  final Set<ImageProvider<Object>> _usedProviders = {};
+
+  @override
+  void dispose() {
+    if (widget.evictOnDispose) _evictUsedProviders();
+    super.dispose();
+  }
+
+  // 子树先于本组件卸载，Image 已摘掉监听；includeLive: false 避免打断同键的其他显示
+  void _evictUsedProviders() {
+    final imageCache = PaintingBinding.instance.imageCache;
+    for (final provider in _usedProviders) {
+      provider
+          .obtainKey(ImageConfiguration.empty)
+          .then((key) => imageCache.evict(key, includeLive: false));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final pixelRatio =
+            MediaQuery.maybeDevicePixelRatioOf(context) ??
+            View.of(context).devicePixelRatio;
+        final cacheWidth = DecodedMemoryImage.resolveCacheDimension(
+          logicalSize: widget.maxLogicalWidth,
+          constrainedSize: constraints.hasBoundedWidth
+              ? constraints.maxWidth
+              : null,
+          pixelRatio: pixelRatio,
+          decodeScale: widget.decodeScale,
+        );
+        final cacheHeight = DecodedMemoryImage.resolveCacheDimension(
+          logicalSize: widget.maxLogicalHeight,
+          constrainedSize: constraints.hasBoundedHeight
+              ? constraints.maxHeight
+              : null,
+          pixelRatio: pixelRatio,
+          decodeScale: widget.decodeScale,
+        );
+        final provider = BoxFitResizeImage.resizeIfNeeded(
+          MemoryImage(widget.bytes),
+          fit: widget.fit,
+          width: cacheWidth,
+          height: cacheHeight,
+        );
+        if (widget.evictOnDispose) _usedProviders.add(provider);
+
+        return Image(
+          image: provider,
+          fit: widget.fit,
+          alignment: widget.alignment,
+          filterQuality: widget.filterQuality,
+          gaplessPlayback: widget.gaplessPlayback,
+          errorBuilder: widget.errorBuilder,
+          frameBuilder: widget.frameBuilder,
+        );
+      },
+    );
   }
 }

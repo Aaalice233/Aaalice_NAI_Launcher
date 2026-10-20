@@ -171,6 +171,7 @@ class _PreciseRefHoverPreviewContentState
               maxLogicalWidth: layout.size.width,
               maxLogicalHeight: layout.size.height,
               filterQuality: FilterQuality.high,
+              evictOnDispose: true,
               errorBuilder: (_, __, ___) => _imageFallback(context),
             ),
     );

@@ -19,10 +19,11 @@ import 'package:nai_launcher/presentation/widgets/common/image_hover_preview.dar
 import 'package:nai_launcher/presentation/widgets/common/library_card_badges.dart';
 
 class _FakeStorage extends PreciseRefLibraryStorageService {
-  _FakeStorage({this.imageBytes});
+  _FakeStorage({this.imageBytes, this.copyOnRead = false});
 
   final Uint8List? imageBytes;
-  int imageReads = 0;
+  final bool copyOnRead;
+  final List<Uint8List?> imageReads = [];
 
   @override
   Future<Uint8List?> getDisplayThumbnail(
@@ -32,8 +33,12 @@ class _FakeStorage extends PreciseRefLibraryStorageService {
 
   @override
   Future<Uint8List?> readImageBytes(String id) async {
-    imageReads++;
-    return imageBytes;
+    final bytes = imageBytes;
+    final read = copyOnRead && bytes != null
+        ? Uint8List.fromList(bytes)
+        : bytes;
+    imageReads.add(read);
+    return read;
   }
 }
 
@@ -213,12 +218,15 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('指针短暂经过不读原图，预览弹出才读取且关闭后不再常驻', (tester) async {
+  testWidgets('指针短暂经过不读原图，预览弹出才读取且关闭后释放原图缓存', (tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final storage = _FakeStorage(imageBytes: Uint8List.fromList(_onePixelPng));
+    final storage = _FakeStorage(
+      imageBytes: Uint8List.fromList(_onePixelPng),
+      copyOnRead: true,
+    );
 
     await tester.pumpWidget(
       ProviderScope(
@@ -256,21 +264,36 @@ void main() {
     await mouse.moveTo(outside);
     await tester.pump(const Duration(milliseconds: 400));
     expect(preview, findsNothing);
-    expect(storage.imageReads, 0);
+    expect(storage.imageReads, isEmpty);
 
     await mouse.moveTo(center);
     await tester.pump(const Duration(milliseconds: 281));
     await tester.pump();
     expect(preview, findsOneWidget);
-    expect(storage.imageReads, 1);
+    expect(storage.imageReads, hasLength(1));
+    final image = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(const ValueKey('precise-ref-hover-media')),
+        matching: find.byType(Image),
+      ),
+    );
+    final resized = image.image as BoxFitResizeImage;
+    expect(
+      (resized.imageProvider as MemoryImage).bytes,
+      same(storage.imageReads.single),
+    );
+    final cacheKey = await resized.obtainKey(ImageConfiguration.empty);
+    final imageCache = PaintingBinding.instance.imageCache;
+    expect(imageCache.statusForKey(cacheKey).tracked, isTrue);
 
     await mouse.moveTo(outside);
     await tester.pump();
     expect(preview, findsNothing);
+    expect(imageCache.statusForKey(cacheKey).untracked, isTrue);
     await mouse.moveTo(center);
     await tester.pump(const Duration(milliseconds: 281));
     await tester.pump();
-    expect(storage.imageReads, 2);
+    expect(storage.imageReads, hasLength(2));
   });
 
   test('悬浮预览按比例适配且有最大尺寸', () {
