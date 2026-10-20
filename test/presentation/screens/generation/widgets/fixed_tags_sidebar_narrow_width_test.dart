@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +11,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar_slot.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/resize_handle.dart';
@@ -76,6 +78,44 @@ void main() {
       );
     }
   }
+
+  // 260 宽下鼠标时顶栏单行，首次触屏按下放大按钮后标题放不下，操作换到第二行。
+  testWidgets('first touch on a header action after mouse input survives the '
+      'relayout', (tester) async {
+    await _pumpSidebar(
+      tester,
+      viewMode: 'list',
+      width: 260,
+      textScale: 1,
+      policy: _pointerPolicy,
+    );
+    final topCard = find.byKey(const ValueKey('fixed-tags-top-card'));
+    final singleRowHeight = tester.getSize(topCard).height;
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(
+        find.byKey(const ValueKey('fixed-tags-collapse-sidebar')),
+      ),
+      kind: PointerDeviceKind.touch,
+    );
+    await tester.pump();
+    expect(
+      tester.getSize(topCard).height,
+      greaterThan(singleRowHeight),
+      reason: '触屏按下后顶栏操作应换到第二行',
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FixedTagsSidebar)),
+    );
+    expect(
+      container.read(layoutStateNotifierProvider).fixedTagsSidebarExpanded,
+      isFalse,
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'slot keeps the touch-sized resize handle inside its reserved width',

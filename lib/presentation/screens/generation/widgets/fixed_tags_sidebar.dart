@@ -95,6 +95,8 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   final _positiveGroupsKey = GlobalKey<_GroupedFixedTagCollectionState>();
   final _negativeGroupsKey = GlobalKey<_GroupedFixedTagCollectionState>();
   final _linkLayerKey = GlobalKey();
+  // 首次触屏按下就会让顶栏操作换到第二行，换父节点也要保住按钮的手势识别器。
+  final _headerActionsKey = GlobalKey();
   final _positiveAnchorKeys = <String, GlobalKey>{};
   final _negativeAnchorKeys = <String, GlobalKey>{};
 
@@ -259,6 +261,11 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
       const SizedBox(width: iconGap),
     ];
     final actions = _buildHeaderActions(isListMode);
+    final actionGroup = Row(
+      key: _headerActionsKey,
+      mainAxisSize: MainAxisSize.min,
+      children: actions,
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
@@ -274,16 +281,13 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
           ).scale(theme.textTheme.titleSmall?.fontSize ?? 14);
           // 标题放不下几个字时操作整体换到第二行，否则标题会被逐字折行。
           if (titleWidth >= glyphWidth * minimumTitleGlyphs) {
-            return Row(children: [...leading, title, ...actions]);
+            return Row(children: [...leading, title, actionGroup]);
           }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(children: [...leading, title]),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(mainAxisSize: MainAxisSize.min, children: actions),
-              ),
+              Align(alignment: Alignment.centerRight, child: actionGroup),
             ],
           );
         },
