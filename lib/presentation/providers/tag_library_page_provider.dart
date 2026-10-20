@@ -12,6 +12,7 @@ import '../../data/models/tag_library/tag_library_category.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
 import '../../data/models/tag_library/tag_library_entry_group.dart';
 import '../../data/models/tag_library/tag_library_entry_order.dart';
+import '../../data/services/metadata/metadata_error_summary.dart';
 import 'fixed_tags_provider.dart';
 import '../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../data/models/gallery/library_tree_order.dart';
@@ -247,8 +248,8 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       );
     } catch (e, stack) {
       AppLogger.e(
-        'Failed to load tag library: $e',
-        e,
+        'Failed to load tag library',
+        metadataErrorSummary(e),
         stack,
         'TagLibraryPageProvider',
       );

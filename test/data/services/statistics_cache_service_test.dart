@@ -7,6 +7,8 @@ import 'package:nai_launcher/data/models/gallery/daily_trend_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/services/statistics_cache_service.dart';
 
+import '../../helpers/log_capture.dart';
+
 void main() {
   late Directory hiveDirectory;
 
@@ -118,5 +120,19 @@ void main() {
     expect(restored.samplerDistribution.single.count, 1);
     expect(restored.parameterDistribution, isEmpty);
     expect(restored.recentActivity, isEmpty);
+  });
+
+  test('a corrupt cache is ignored without logging its tag names', () async {
+    await Hive.box(StorageKeys.statisticsCacheBox).put(
+      StorageKeys.statisticsCacheData,
+      '{"tagDistribution":[{"tagName":"secret lighthouse keeper",',
+    );
+
+    final logs = await captureLogs(
+      () => expect(StatisticsCacheService().getCache(), isNull),
+    );
+
+    expect(logs.where((line) => line.contains('statistics cache')), hasLength(1));
+    expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
 }

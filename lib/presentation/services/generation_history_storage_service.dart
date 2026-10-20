@@ -9,6 +9,7 @@ import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import '../../data/services/metadata/metadata_error_summary.dart';
 import '../providers/generation/generation_models.dart';
 
 /// Tests and embedders opt in explicitly so independently-created provider
@@ -68,7 +69,8 @@ class GenerationHistoryStorageService {
         validIds.add(id);
       } catch (error, stackTrace) {
         AppLogger.w(
-          'Skipping invalid persisted generation image $id: $error',
+          'Skipping invalid persisted generation image $id: '
+          '${metadataErrorSummary(error)}',
           'GenerationHistory',
         );
         AppLogger.d(stackTrace.toString(), 'GenerationHistory');

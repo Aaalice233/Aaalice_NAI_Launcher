@@ -232,7 +232,8 @@ class WorkflowTemplateManager {
           _templates.add(template);
         } catch (e) {
           AppLogger.w(
-            'Failed to load custom workflow from ${file.path}: $e',
+            'Failed to load custom workflow from ${file.path}: '
+            '${e.runtimeType}',
             _tag,
           );
         }

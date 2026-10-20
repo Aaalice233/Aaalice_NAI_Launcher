@@ -11,6 +11,8 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
 
+import '../../helpers/log_capture.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -175,6 +177,25 @@ void main() {
       historyBox.containsKey('generation_history_v1_record_orphan'),
       isFalse,
     );
+  });
+
+  test('corrupt record metadata is skipped without logging the prompt', () async {
+    await historyBox.put('generation_history_v1_order', ['broken']);
+    await historyBox.put('generation_history_v1_record_broken', {
+      'bytes': Uint8List.fromList([1, 2, 3]),
+      'width': 32,
+      'height': 48,
+      'metadata': '{"prompt":"secret lighthouse keeper",',
+    });
+
+    late List<GeneratedImage> restored;
+    final logs = await captureLogs(() async {
+      restored = await GenerationHistoryStorageService().load();
+    });
+
+    expect(restored, isEmpty);
+    expect(logs.where((line) => line.contains('Skipping invalid')), hasLength(1));
+    expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
 
   test('disabled storage remains a no-op', () async {

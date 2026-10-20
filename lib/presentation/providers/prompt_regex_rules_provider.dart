@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/prompt/prompt_regex_rule.dart';
+import '../../data/services/metadata/metadata_error_summary.dart';
 
 part 'prompt_regex_rules_provider.g.dart';
 
@@ -33,7 +34,7 @@ class PromptRegexRules extends _$PromptRegexRules {
         // 单条损坏不应连累整个列表，跳过并继续
         AppLogger.e(
           'Failed to decode prompt regex rule',
-          error,
+          metadataErrorSummary(error),
           stackTrace,
           'PromptRegexRules',
         );

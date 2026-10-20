@@ -10,6 +10,7 @@ import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/fixed_tag/fixed_tag_link.dart';
 import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
+import '../../data/services/metadata/metadata_error_summary.dart';
 import 'tag_library_page_provider.dart';
 
 part 'fixed_tags_provider.g.dart';
@@ -448,8 +449,8 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
       );
     } catch (e, stack) {
       AppLogger.e(
-        'Failed to load fixed tags: $e',
-        e,
+        'Failed to load fixed tags',
+        metadataErrorSummary(e),
         stack,
         'FixedTagsProvider',
       );

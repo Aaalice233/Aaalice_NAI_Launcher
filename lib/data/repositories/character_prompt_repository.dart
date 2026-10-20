@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/character/character_prompt.dart';
+import '../services/metadata/metadata_error_summary.dart';
 
 part 'character_prompt_repository.g.dart';
 
@@ -36,7 +37,12 @@ class CharacterPromptRepository {
       AppLogger.d('Loaded character prompt config with ${config.characters.length} characters', 'CharacterPromptRepo');
       return config;
     } catch (e, stack) {
-      AppLogger.e('Failed to load character prompt config: $e', e, stack, 'CharacterPromptRepo');
+      AppLogger.e(
+        'Failed to load character prompt config',
+        metadataErrorSummary(e),
+        stack,
+        'CharacterPromptRepo',
+      );
       return const CharacterPromptConfig();
     }
   }
