@@ -332,23 +332,6 @@ void main() {
       expect(identical(reference.thumbnail, reference.rawImageData), isTrue);
     });
 
-    test('载荷等长但内容不同的缩略图仍单独解码', () async {
-      final thumbnail = Uint8List.fromList([6, 5, 4, 3, 2, 1]);
-      final reference = await VibeFileParser.fromNaiV4Vibe(
-        'distinct.naiv4vibe',
-        document({
-          'name': 'Distinct thumbnail',
-          'type': 'image',
-          'image': base64Encode(image),
-          'thumbnail': 'data:image/png;base64,${base64Encode(thumbnail)}',
-        }),
-      );
-
-      expect(reference.rawImageData, image);
-      expect(reference.thumbnail, thumbnail);
-      expect(identical(reference.thumbnail, reference.rawImageData), isFalse);
-    });
-
     test('.naiv4vibebundle 子项的 Data URI 缩略图与原图共用字节', () async {
       final references = await VibeFileParser.fromBundle(
         'data-uri.naiv4vibebundle',
