@@ -3,6 +3,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../utils/app_logger.dart';
+import '../database_error_summary.dart';
 import 'gallery_database_gateway.dart';
 import 'gallery_image_repository.dart';
 import 'gallery_records.dart';
@@ -128,7 +129,8 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
           });
         } catch (e) {
           AppLogger.w(
-            'Failed to update FTS index for image $imageId: $e',
+            'Failed to update FTS index for image $imageId: '
+            '${databaseErrorSummary(e)}',
             'GalleryDS',
           );
         }
@@ -235,7 +237,10 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
         await batch.commit(noResult: true);
       }
     } catch (e) {
-      AppLogger.w('Failed to batch update FTS index: $e', 'GalleryDS');
+      AppLogger.w(
+        'Failed to batch update FTS index: ${databaseErrorSummary(e)}',
+        'GalleryDS',
+      );
     }
   }
 

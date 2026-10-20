@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/autocomplete/tag_translation_lookup.dart';
+import '../../../core/database/database_error_summary.dart';
 import '../../../core/utils/app_logger.dart';
 
 enum PromptTranslationStatus { pending, translated, missing, failed }
@@ -93,7 +94,11 @@ class PromptTranslationController extends ChangeNotifier {
           ),
       };
     } catch (error, stack) {
-      AppLogger.e('Prompt tag translation failed', error, stack);
+      AppLogger.e(
+        'Prompt tag translation failed',
+        databaseErrorSummary(error),
+        stack,
+      );
       resolved = {
         for (final text in texts)
           text: const PromptTranslation(PromptTranslationStatus.failed),

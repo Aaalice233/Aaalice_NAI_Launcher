@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/autocomplete/autocomplete_providers.dart';
 import '../../../core/autocomplete/completion_models.dart';
+import '../../../core/database/database_error_summary.dart';
 import '../../../core/database/services/service_providers.dart';
 import '../../../core/services/smart_tag_recommendation_service.dart';
 import '../../../core/utils/app_logger.dart';
@@ -252,7 +253,10 @@ class TagToolbox {
         ],
       );
     } catch (e) {
-      AppLogger.w('search_tags(search) failed: $e', 'AgentChat');
+      AppLogger.w(
+        'search_tags(search) failed: ${databaseErrorSummary(e)}',
+        'AgentChat',
+      );
       return _TagQueryOutcome(
         errorCode: 'tag_search_failed',
         errorMessage: 'Tag search failed: $e',
@@ -285,7 +289,10 @@ class TagToolbox {
         ],
       );
     } catch (e) {
-      AppLogger.w('search_tags(translate) failed: $e', 'AgentChat');
+      AppLogger.w(
+        'search_tags(translate) failed: ${databaseErrorSummary(e)}',
+        'AgentChat',
+      );
       return _TagQueryOutcome(
         errorCode: 'tag_translation_failed',
         errorMessage:
@@ -335,7 +342,10 @@ class TagToolbox {
         ],
       );
     } catch (e) {
-      AppLogger.w('search_tags(suggest) failed: $e', 'AgentChat');
+      AppLogger.w(
+        'search_tags(suggest) failed: ${databaseErrorSummary(e)}',
+        'AgentChat',
+      );
       return _TagQueryOutcome(
         errorCode: 'tag_suggestion_failed',
         errorMessage: 'Tag suggestion failed: $e',

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../../core/autocomplete/tag_catalog_repository.dart';
+import '../../../core/database/database_error_summary.dart';
 import '../../../core/online_gallery/gallery_tag_query.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../models/online_gallery/gallery_item.dart';
@@ -86,7 +87,8 @@ class OnlineGallerySearchService {
         records = await metadataLoader(terms);
       } catch (error) {
         AppLogger.w(
-          'Tag metadata unavailable; using source-native query terms: $error',
+          'Tag metadata unavailable; using source-native query terms: '
+          '${databaseErrorSummary(error)}',
           'OnlineGallery',
         );
       }
