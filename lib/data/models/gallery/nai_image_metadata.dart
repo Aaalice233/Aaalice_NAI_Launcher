@@ -233,11 +233,15 @@ class NaiImageMetadata with _$NaiImageMetadata {
     final base = sourceResolvedModel != null && model != sourceResolvedModel
         ? copyWith(model: sourceResolvedModel)
         : this;
+    // Source 认不出具体模型时，缓存的 model 可能只是家族默认值，Comment 记录的模型要重解析才能取代它
+    final modelMayBeFallback =
+        base.model == null ||
+        (sourceResolvedModel == null && base.model == base.sourceDefaultModel);
     final raw = base.rawJson;
     if (raw == null ||
         raw.isEmpty ||
         !(_rawJsonMayContainUpgrade(raw) ||
-            (base.model == null && _rawJsonMayNameModel(raw)))) {
+            (modelMayBeFallback && _rawJsonMayNameModel(raw)))) {
       return base;
     }
 
@@ -252,7 +256,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
         prompt: _adoptsReparsedPrompt(base, reparsed)
             ? reparsed.prompt
             : base.prompt,
-        model: base.model ?? reparsed.model,
+        model: modelMayBeFallback ? reparsed.model ?? base.model : base.model,
         characterPrompts: base.characterPrompts.isEmpty
             ? reparsed.characterPrompts
             : base.characterPrompts,

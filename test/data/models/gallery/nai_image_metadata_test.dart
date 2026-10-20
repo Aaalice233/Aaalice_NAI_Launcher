@@ -1599,6 +1599,25 @@ void main() {
       expect(upgraded.model, ImageModels.animeDiffusionV45Full);
       expect(upgraded.effectiveModel, ImageModels.animeDiffusionV45Full);
     });
+
+    test('a cached family default yields to the Comment model', () {
+      const source = 'NovelAI Diffusion V5';
+      final comment = jsonEncode({
+        'prompt': '1girl',
+        'model': ImageModels.animeDiffusionV5Full,
+      });
+      final cached = NaiImageMetadata(
+        prompt: '1girl',
+        model: ImageModels.animeDiffusionV5Curated,
+        source: source,
+        rawJson: jsonEncode({'Comment': comment, 'Source': source}),
+      );
+
+      expect(
+        cached.upgradeFromRawJsonIfNeeded().model,
+        parse(source: source, model: ImageModels.animeDiffusionV5Full).model,
+      );
+    });
   });
 }
 
