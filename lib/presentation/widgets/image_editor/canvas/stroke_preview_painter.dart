@@ -5,7 +5,6 @@ import '../core/stroke_rendering.dart';
 import '../tools/blur_tool.dart';
 import '../tools/brush_tool.dart';
 import '../tools/clone_stamp_tool.dart';
-import '../tools/eraser_tool.dart';
 
 /// Paints the in-progress stroke only.
 ///
@@ -25,8 +24,8 @@ class StrokePreviewPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final points = state.currentStrokePoints;
-    // 蒙版上的画笔笔画由图层绘制器画进蒙版层，与已有蒙版合成同一种颜色
-    if (!state.isDrawing || points.isEmpty || state.isPaintingMask) {
+    // 蒙版上的画笔与橡皮擦由图层绘制器直接画进所在图层
+    if (!state.isDrawing || points.isEmpty || state.isPaintingIntoLayer) {
       return;
     }
 
@@ -58,7 +57,6 @@ class StrokePreviewPainter extends CustomPainter {
     double opacity = 1.0;
     double hardness = 0.8;
     Color color = state.foregroundColor;
-    bool isEraser = false;
 
     if (tool is BrushTool) {
       final style = tool.strokeStyleFor(state);
@@ -66,10 +64,6 @@ class StrokePreviewPainter extends CustomPainter {
       color = style.color;
       opacity = style.opacity;
       hardness = style.hardness;
-    } else if (tool is EraserTool) {
-      size = tool.size;
-      hardness = tool.hardnessFor(state);
-      isEraser = true;
     } else if (tool is BlurTool) {
       size = tool.size;
       color = const Color(0xFF90CAF9);
@@ -86,10 +80,7 @@ class StrokePreviewPainter extends CustomPainter {
       color = Colors.cyanAccent;
     }
 
-    final paint = Paint()
-      ..color = isEraser
-          ? Colors.grey.withValues(alpha: 0.5)
-          : color.withValues(alpha: opacity);
+    final paint = Paint()..color = color.withValues(alpha: opacity);
 
     final soft = StrokeRendering.blurSigma(size: size, hardness: hardness) > 0;
     if (soft && magnified) {

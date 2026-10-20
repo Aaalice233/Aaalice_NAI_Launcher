@@ -99,23 +99,23 @@ void main() {
 
     final byteData = await _paintPreview(state);
 
-    expect(state.isPaintingMask, isTrue);
+    expect(state.isPaintingIntoLayer, isTrue);
     expect(_alphaByte(_pixelAt(byteData, 48, 24, 24)), 0);
   });
 
-  test('draws eraser preview as semi-transparent grey', () async {
+  test('leaves eraser strokes to the layer painter', () async {
     final state = EditorState()..setCanvasSize(const Size(48, 48));
     addTearDown(state.dispose);
+    state.layerManager.addLayer(name: 'image');
 
     state.setToolById('eraser');
     state.startStroke(const Offset(24, 24));
 
     final byteData = await _paintPreview(state);
-    final center = _pixelAt(byteData, 48, 24, 24);
 
-    expect(center.r, closeTo(center.g, 0.02));
-    expect(center.g, closeTo(center.b, 0.02));
-    expect(_alphaByte(center), inInclusiveRange(100, 160));
+    expect(state.isPaintingIntoLayer, isTrue);
+    expect(state.liveLayerStroke?.isEraser, isTrue);
+    expect(_alphaByte(_pixelAt(byteData, 48, 24, 24)), 0);
   });
 
   test('draws blur preview as low-opacity blue', () async {

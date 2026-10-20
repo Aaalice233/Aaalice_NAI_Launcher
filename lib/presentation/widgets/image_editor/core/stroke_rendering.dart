@@ -91,9 +91,17 @@ abstract final class StrokeRendering {
       shown.bottom.ceilToDouble(),
     );
 
+    // clear 在空白离屏上无物可擦：离屏只记录覆盖度，贴回时再按覆盖度从目标上扣除
+    final erases = paint.blendMode == BlendMode.clear;
     final recorder = ui.PictureRecorder();
     final local = Canvas(recorder)..translate(-region.left, -region.top);
-    draw(local, points, paint, size: size, hardness: hardness);
+    draw(
+      local,
+      points,
+      erases ? (Paint()..color = const Color(0xFFFFFFFF)) : paint,
+      size: size,
+      hardness: hardness,
+    );
     final picture = recorder.endRecording();
     final ui.Image image;
     try {
@@ -102,7 +110,13 @@ abstract final class StrokeRendering {
       picture.dispose();
     }
     // 绘制指令自行持有纹理，句柄可以当场释放
-    canvas.drawImage(image, region.topLeft, Paint()..filterQuality = sampling);
+    canvas.drawImage(
+      image,
+      region.topLeft,
+      Paint()
+        ..filterQuality = sampling
+        ..blendMode = erases ? BlendMode.dstOut : BlendMode.srcOver,
+    );
     image.dispose();
   }
 

@@ -241,16 +241,25 @@ class EditorState extends ChangeNotifier {
   List<Offset> get currentStrokePoints => strokeManager.currentStrokePoints;
   bool get isDrawing => strokeManager.isDrawing;
 
-  /// 画笔正在蒙版层上作画：这一笔由图层绘制器画进蒙版层，与已有蒙版重叠处同色
-  bool get isPaintingMask =>
-      isDrawing &&
-      currentStrokePoints.isNotEmpty &&
-      isMaskLayerActive &&
-      currentTool is BrushTool;
+  /// 这一笔由图层绘制器直接画进当前图层：蒙版上的画笔与已有蒙版重叠处同色，
+  /// 橡皮擦只擦本层像素且涂抹中即可看到结果
+  bool get isPaintingIntoLayer {
+    if (!isDrawing || currentStrokePoints.isEmpty) return false;
+    final tool = currentTool;
+    return tool is EraserTool || (tool is BrushTool && isMaskLayerActive);
+  }
 
-  StrokeData? get liveMaskStroke => isPaintingMask
-      ? (currentTool! as BrushTool).strokeFor(this, currentStrokePoints)
-      : null;
+  /// 锁定的图层不接受笔画，涂抹中也不显示
+  StrokeData? get liveLayerStroke {
+    if (!isPaintingIntoLayer || layerManager.activeLayer?.locked != false) {
+      return null;
+    }
+    return switch (currentTool) {
+      final BrushTool brush => brush.strokeFor(this, currentStrokePoints),
+      final EraserTool eraser => eraser.strokeFor(this, currentStrokePoints),
+      _ => null,
+    };
+  }
 
   // ===== 构造函数 =====
 

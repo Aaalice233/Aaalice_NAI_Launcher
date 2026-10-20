@@ -313,19 +313,27 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
   }
 
-  /// 重绘会话启用图层角色：原图层是受保护的图片层，默认绘制层改为蒙版层
+  /// 重绘会话启用图层角色：原图层是受保护的图片层，最上方另建蒙版层；
+  /// 默认绘制层与编辑会话一样留作图片层，编辑组的笔迹与擦除都落在它上面而不碰原图
   void _applyInpaintLayerRoles() {
     if (!_isInpaintMode) return;
-    final maskName = context.l10n.editor_maskLayerName;
-    final drawingName = context.l10n.editor_defaultDrawingLayerName;
-    for (final layer in _state.layerManager.layers) {
-      if (layer.id != _sourceLayerId && layer.name == drawingName) {
-        layer.role = LayerRole.mask;
-        _state.layerManager.renameLayer(layer.id, maskName);
-      }
-    }
+    _state.layerManager.addLayer(
+      name: context.l10n.editor_maskLayerName,
+      index: 0,
+      role: LayerRole.mask,
+    );
     _state.setRolePolicy(
       LayerRolePolicy.inpaint(protectedLayerId: _sourceLayerId),
+    );
+  }
+
+  void _selectInitialLayers() {
+    final layers = _state.layerManager;
+    layers.selectInitialLayers(
+      layers.layers.firstWhere(
+        (layer) => !layer.isMask && layer.id != _sourceLayerId,
+        orElse: () => layers.layers.last,
+      ),
     );
   }
 
@@ -419,6 +427,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       );
       _localizeDefaultLayerName();
       _applyInpaintLayerRoles();
+      _selectInitialLayers();
       _focusedSelectionState.canvasSize = size;
 
       // 加载已有蒙版（如果有）
@@ -508,13 +517,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
 
       _localizeDefaultLayerName();
       _applyInpaintLayerRoles();
-
-      // Select the default drawing layer rather than the base image layer.
-      final layer1 = _state.layerManager.layers.firstWhere(
-        (l) => l.name == defaultDrawingLayerName || l.isMask,
-        orElse: () => _state.layerManager.layers.last,
-      );
-      _state.layerManager.setActiveLayer(layer1.id);
+      _selectInitialLayers();
 
       // 加载已有蒙版
       await _loadExistingMask(operationEpoch);
@@ -532,6 +535,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       );
       _localizeDefaultLayerName();
       _applyInpaintLayerRoles();
+      _selectInitialLayers();
       _focusedSelectionState.canvasSize = _state.canvasSize;
     } finally {
       decodedImage?.dispose();

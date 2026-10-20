@@ -84,6 +84,16 @@ class LayerManager extends ChangeNotifier {
     if (layer != null) _lastActiveIdByRole[layer.role] = layer.id;
   }
 
+  /// 会话开始时选定活动图层：图片层记住 [drawing]，编辑工具不会直接落在载入的原图上；
+  /// 有蒙版层时从最上方的蒙版层开始
+  void selectInitialLayers(Layer drawing) {
+    setActiveLayer(drawing.id);
+    final mask = maskLayers.firstOrNull;
+    if (mask != null) {
+      setActiveLayer(mask.id);
+    }
+  }
+
   /// 切到 [role] 时落到的图层：最近激活过且未锁定的同角色图层，其次最上方未锁定的
   Layer? preferredLayerFor(LayerRole role) {
     final rememberedId = _lastActiveIdByRole[role];
@@ -562,6 +572,8 @@ class LayerManager extends ChangeNotifier {
           canvas,
           viewportBounds: viewportBounds,
           filterQuality: filterQuality,
+          pixelScale: pixelScale,
+          liveStroke: layer.id == _activeLayerId ? liveStroke : null,
         );
         index++;
         continue;

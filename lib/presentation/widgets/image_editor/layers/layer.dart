@@ -620,29 +620,32 @@ class Layer {
   @visibleForTesting
   Rect? get debugFlattenedBounds => _flattened == null ? null : _flattenedBounds;
 
-  /// 按屏幕显示的样子绘制图片层，优先使用缓存；移动预览只在这里生效。
+  /// 按屏幕显示的样子绘制图片层，优先使用缓存；移动预览与正在画进本层的 [liveStroke] 只在这里生效。
   /// 蒙版层由 [renderMaskOverlay] 成组绘制
   void renderWithCache(
     Canvas canvas, {
     Rect? viewportBounds,
     FilterQuality filterQuality = FilterQuality.none,
+    double pixelScale = 1,
+    StrokeData? liveStroke,
   }) {
     if (!visible) return;
 
     final preview = _preview;
-    final bounds = _displayBounds(null);
+    final bounds = _displayBounds(liveStroke);
     // 空间剔除优化：放大查看局部时跳过不在视口内的图层
     if (viewportBounds != null && !bounds.overlaps(viewportBounds)) {
       return;
     }
 
-    if (preview == null) {
+    if (preview == null && liveStroke == null) {
       _drawPixels(canvas, _layerPaint(filterQuality));
       return;
     }
 
-    // 预览分块绘制，不透明度与混合模式要在合拢后统一施加一次
-    final isolated = _hasLayerEffects;
+    // 预览分块绘制、笔画叠在像素上，不透明度与混合模式要在合拢后统一施加一次；
+    // 橡皮擦的 clear 只有落在本层的隔离层里才不会擦穿下方图层
+    final isolated = _hasLayerEffects || (liveStroke?.isEraser ?? false);
     canvas.save();
     if (isolated) {
       canvas.saveLayer(
@@ -650,11 +653,48 @@ class Layer {
         _layerPaint(filterQuality),
       );
     }
-    _drawPreviewPixels(canvas, preview, Paint()..filterQuality = filterQuality);
+    final pixels = Paint()..filterQuality = filterQuality;
+    if (preview == null) {
+      _drawPixels(canvas, pixels);
+    } else {
+      _drawPreviewPixels(canvas, preview, pixels);
+    }
+    if (liveStroke != null) {
+      _drawLiveStroke(
+        canvas,
+        liveStroke,
+        viewportBounds: viewportBounds,
+        magnified: pixelScale > 1,
+        sampling: filterQuality,
+      );
+    }
     if (isolated) {
       canvas.restore();
     }
     canvas.restore();
+  }
+
+  /// 放大时按文档分辨率显示正在画的一笔，松手后像素网格与缓存一致，不会跳变
+  void _drawLiveStroke(
+    Canvas canvas,
+    StrokeData stroke, {
+    required Rect? viewportBounds,
+    required bool magnified,
+    required FilterQuality sampling,
+  }) {
+    if (magnified && viewportBounds != null) {
+      StrokeRendering.drawAtDocumentResolution(
+        canvas,
+        stroke.points,
+        _strokePaint(stroke),
+        size: stroke.size,
+        hardness: stroke.hardness,
+        visible: viewportBounds,
+        sampling: sampling,
+      );
+    } else {
+      _drawStroke(canvas, stroke);
+    }
   }
 
   /// 屏幕上的绘制范围：预览覆盖的区域，加上正在画进本层的一笔
@@ -731,20 +771,13 @@ class Layer {
         _drawPreviewPixels(canvas, preview, Paint()..filterQuality = sampling);
       }
       if (liveStroke == null) return;
-      if (magnified && viewportBounds != null) {
-        // 涂抹中就按落笔后的像素网格显示，松手时不会从平滑跳成方块
-        StrokeRendering.drawAtDocumentResolution(
-          canvas,
-          liveStroke.points,
-          _strokePaint(liveStroke),
-          size: liveStroke.size,
-          hardness: liveStroke.hardness,
-          visible: viewportBounds,
-          sampling: sampling,
-        );
-      } else {
-        _drawStroke(canvas, liveStroke);
-      }
+      _drawLiveStroke(
+        canvas,
+        liveStroke,
+        viewportBounds: viewportBounds,
+        magnified: magnified,
+        sampling: sampling,
+      );
     });
   }
 

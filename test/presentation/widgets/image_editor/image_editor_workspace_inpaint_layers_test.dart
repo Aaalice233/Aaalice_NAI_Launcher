@@ -6,6 +6,7 @@ import 'package:nai_launcher/presentation/widgets/image_editor/core/history_mana
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_controller.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_workspace.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'image_editor_workspace_harness.dart';
@@ -16,15 +17,35 @@ void main() {
   // EditorState 构造时会异步读取工具设置
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('inpaint sessions turn the drawing layer into a mask', (
+  testWidgets('inpaint sessions keep the drawing layer under a new mask', (
     tester,
   ) async {
     final (key, session) = await _pumpInpaintWorkspace(tester);
     final state = session.editorState;
+    final layers = state.layerManager;
 
-    expect(key.currentState!.debugLayerNames, ['Mask']);
-    expect(state.layerManager.layers.single.isMask, isTrue);
+    expect(key.currentState!.debugLayerNames, ['Mask', 'Layer 1']);
+    expect(layers.layers.first.isMask, isTrue);
+    expect(layers.layers.last.isMask, isFalse);
+    expect(layers.activeLayer, same(layers.layers.first));
+    // 编辑组切回图片层时落在绘制层上，笔迹与擦除都不碰原图
+    expect(layers.preferredLayerFor(LayerRole.image), same(layers.layers.last));
     expect(state.rolePolicy.rolesEnabled, isTrue);
+  });
+
+  testWidgets('the edit group eraser erases on the drawing layer', (
+    tester,
+  ) async {
+    final (key, session) = await _pumpInpaintWorkspace(tester);
+    final state = session.editorState;
+    final drawing = state.layerManager.layers.last;
+
+    await tester.tap(find.byKey(const ValueKey('editor-tool-edit:eraser')));
+    await tester.pumpAndSettle();
+
+    expect(key.currentState!.debugCurrentToolId, 'eraser');
+    expect(state.layerManager.activeLayer, same(drawing));
+    expect(drawing.isMask, isFalse);
   });
 
   testWidgets('pixel-only tools give way to the brush on mask layers', (
@@ -36,11 +57,12 @@ void main() {
     final mask = state.layerManager.activeLayer!;
     // 模糊收在编辑组的修饰族折叠按钮里，没有单独的提示可找
     final blurButton = find.byKey(const ValueKey('editor-tool-edit:blur'));
-    expect(blurButton, findsNothing);
-
-    state.layerCommands.addLayer(name: 'Image');
-    await tester.pumpAndSettle();
     expect(blurButton, findsOneWidget);
+
+    state.layerManager.setActiveLayer(
+      state.layerManager.preferredLayerFor(LayerRole.image)!.id,
+    );
+    await tester.pumpAndSettle();
     workspace.debugSetToolById('blur');
     await tester.pumpAndSettle();
     expect(workspace.debugCurrentToolId, 'blur');
@@ -129,13 +151,15 @@ void main() {
     await settleLayerThumbnails(tester);
 
     final layers = state.layerManager.layers;
-    expect(layers, hasLength(2));
+    expect(layers, hasLength(3));
     expect(layers.first, same(mask));
-    expect(layers.last.isMask, isFalse);
+    final dropped = layers[1];
+    expect(dropped.isMask, isFalse);
+    expect(dropped.hasBaseImage, isTrue);
     // 小图按原尺寸放在取景框中央，带着变换框等待摆放
-    expect(layers.last.contentBounds, const Rect.fromLTWH(224, 224, 64, 64));
+    expect(dropped.contentBounds, const Rect.fromLTWH(224, 224, 64, 64));
     expect(state.layerTransformer.isActive, isTrue);
-    expect(state.layerManager.activeLayer, same(layers.last));
+    expect(state.layerManager.activeLayer, same(dropped));
     expect(state.rolePolicy.isValidOrder(layers), isTrue);
   });
 }
