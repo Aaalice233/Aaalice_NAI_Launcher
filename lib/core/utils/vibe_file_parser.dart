@@ -613,7 +613,11 @@ class VibeFileParser {
           jsonData,
           defaultStrength: defaultStrength,
         ),
-        matchesSchema: _matchesSingleSchema(jsonData),
+        // 读取路径只用于诊断日志，跳过整图 SHA-256：大图单次核对约 200 ms
+        matchesSchema: NovelAiVibeCodec.validateSingleMap(
+          jsonData,
+          verifyContentHash: false,
+        ),
       );
     }
 
@@ -625,18 +629,6 @@ class VibeFileParser {
       () => parse(File(filePath).readAsBytesSync()),
       debugName: 'VibeFileParser.fromNaiV4VibeFile',
     );
-  }
-
-  // 读取路径只用于诊断日志，跳过整图 SHA-256：大图单次核对约 200 ms
-  static bool _matchesSingleSchema(Map<String, dynamic> jsonData) {
-    try {
-      return NovelAiVibeCodec.validateSingleMap(
-        jsonData,
-        verifyContentHash: false,
-      );
-    } catch (_) {
-      return false;
-    }
   }
 
   // 融合解码直接解析 UTF-8 字节，省去与文件等大的中间字符串
