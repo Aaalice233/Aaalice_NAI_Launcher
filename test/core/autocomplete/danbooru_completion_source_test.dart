@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -251,6 +252,20 @@ void main() {
     expect(logs.where((line) => line.contains('Danbooru')), hasLength(2));
     expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
+
+  test('dropped connections never quote the request URI into the log', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://danbooru.donmai.us'))
+      ..httpClientAdapter = _DroppedConnectionAdapter();
+    final source = DanbooruCompletionSource(dio: dio, cache: _MemoryCache());
+
+    final logs = await captureLogs(() async {
+      await source.search(_query('lighthouse'));
+      await source.relatedTags('lighthouse');
+    });
+
+    expect(logs.where((line) => line.contains(' failed')), hasLength(2));
+    expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
+  });
 }
 
 CompletionQuery _query(String token, {int limit = 20}) => CompletionQuery(
@@ -283,6 +298,23 @@ class _FailingWriteCache extends _MemoryCache {
   Future<void> putRemote(String key, List<Map<String, dynamic>> payload) async {
     throw await databaseErrorCarrying(key);
   }
+}
+
+class _DroppedConnectionAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) {
+    throw HttpException(
+      'Connection closed before full header was received',
+      uri: options.uri,
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 class _QueueAdapter implements HttpClientAdapter {

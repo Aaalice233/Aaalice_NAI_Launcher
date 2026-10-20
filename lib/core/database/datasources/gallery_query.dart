@@ -121,7 +121,7 @@ class SqliteGalleryQuery implements GalleryQuery {
         return results;
       } catch (e, stack) {
         AppLogger.e(
-          'Failed to search full text: $query',
+          'Failed to search full text',
           e,
           stack,
           'GalleryDS',
@@ -178,7 +178,7 @@ class SqliteGalleryQuery implements GalleryQuery {
         return results;
       } catch (e, stack) {
         AppLogger.e(
-          'Failed to search by file name: $query',
+          'Failed to search by file name',
           e,
           stack,
           'GalleryDS',
@@ -265,7 +265,7 @@ class SqliteGalleryQuery implements GalleryQuery {
         return results;
       } catch (e, stack) {
         AppLogger.e(
-          'Failed to search by metadata text: $query',
+          'Failed to search by metadata text',
           e,
           stack,
           'GalleryDS',
@@ -415,7 +415,7 @@ class SqliteGalleryQuery implements GalleryQuery {
           return results;
         } catch (e, stack) {
           AppLogger.e(
-            'Failed to search by delimited text segments: ${searchSegments.join(",")}',
+            'Failed to search by delimited text segments',
             e,
             stack,
             'GalleryDS',
