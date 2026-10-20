@@ -7,6 +7,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/prompt_copy_dialog.dart';
 
 import '../../../../../helpers/adaptive_panel_expectations.dart';
+import '../../../../../helpers/viewport_scenarios.dart';
 
 void main() {
   String? clipboardText;
@@ -161,21 +162,13 @@ void main() {
     String? exported;
 
     await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('zh'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
-          builder: (context) => ElevatedButton(
-            onPressed: () async {
-              exported = await PromptCopyDialog.showExport(
-                context,
-                metadata: metadata,
-              );
-            },
-            child: const Text('open export'),
-          ),
-        ),
+      localizedTestApp(
+        home: panelLauncher('open export', (context) async {
+          exported = await PromptCopyDialog.showExport(
+            context,
+            metadata: metadata,
+          );
+        }),
       ),
     );
 

@@ -11,6 +11,7 @@ import 'package:nai_launcher/presentation/providers/random_preset_provider.dart'
 import 'package:nai_launcher/presentation/widgets/common/save_as_preset_dialog.dart';
 
 import '../../../helpers/adaptive_panel_expectations.dart';
+import '../../../helpers/viewport_scenarios.dart';
 
 Future<RandomPreset> _saveWithDefaults(
   WidgetTester tester,
@@ -20,18 +21,10 @@ Future<RandomPreset> _saveWithDefaults(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [randomPresetNotifierProvider.overrideWith(() => notifier)],
-      child: MaterialApp(
-        locale: const Locale('zh'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () =>
-                  SaveAsPresetDialog.show(context, metadata: metadata),
-              child: const Text('open'),
-            ),
-          ),
+      child: localizedTestApp(
+        home: panelLauncher(
+          'open',
+          (context) => SaveAsPresetDialog.show(context, metadata: metadata),
         ),
       ),
     ),
