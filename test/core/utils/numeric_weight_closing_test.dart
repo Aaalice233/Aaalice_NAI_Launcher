@@ -54,6 +54,13 @@ void main() {
         isFalse,
       );
     });
+
+    test('an unclosed disabled fragment swallows the closing', () {
+      expect(
+        NumericWeightClosing.endsAmbiguously('year_2025, /*disabled:do'),
+        isFalse,
+      );
+    });
   });
 
   group('NumericWeightClosing.closingFor', () {
@@ -126,6 +133,15 @@ void main() {
       expect(
         PromptEditDocument.effectiveText(separated),
         '1.2::cat, year_2025 ::, bird',
+      );
+    });
+
+    test('a fully disabled trailing group keeps the sent prompt separated', () {
+      const source =
+          '1.2::year_2025, {/*disabled:dog*/, /*disabled:bird*/}::, cat';
+      expect(
+        PromptEditDocument.effectiveText(NumericWeightClosing.separate(source)),
+        '1.2::year_2025 ::, cat',
       );
     });
 
