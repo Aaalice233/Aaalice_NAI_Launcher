@@ -1,11 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -18,6 +15,8 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_
 import 'package:nai_launcher/presentation/screens/generation/widgets/resize_handle.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/sidebar_entry_tile.dart';
 import 'package:nai_launcher/presentation/widgets/common/tile_action_button.dart';
+
+import '../../../../helpers/memory_local_storage.dart';
 
 const _pointerPolicy = InteractionPolicy(
   modality: InteractionModality.pointer,
@@ -42,27 +41,6 @@ const _sidebarWidths = [230.0, 320.0, 401.0];
 const _textScales = [1.0, 3.0];
 
 void main() {
-  late Directory hiveDir;
-
-  setUpAll(() async {
-    hiveDir = Directory.systemTemp.createTempSync('fixed_tags_narrow_hive_');
-    Hive.init(hiveDir.path);
-    // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
-    await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
-  });
-
-  setUp(() async {
-    await Hive.box(StorageKeys.settingsBox).clear();
-  });
-
-  tearDownAll(() async {
-    // 有界等待：box 被锁死时快速失败，不把整个测试分片拖到看门狗超时
-    await Hive.close().timeout(const Duration(seconds: 10));
-    if (await hiveDir.exists()) {
-      await hiveDir.delete(recursive: true);
-    }
-  });
-
   for (final policyEntry in _policies.entries) {
     for (final viewMode in const ['list', 'grid']) {
       testWidgets(
@@ -74,7 +52,7 @@ void main() {
               final scenario = '${policyEntry.key} $viewMode $width/${scale}x';
               await _pumpSidebar(
                 tester,
-                _NarrowSidebarStorage(viewMode: viewMode),
+                viewMode: viewMode,
                 width: width,
                 textScale: scale,
                 policy: policyEntry.value,
@@ -105,7 +83,7 @@ void main() {
             final scenario = '${policyEntry.key} $width/${scale}x';
             await _pumpSidebar(
               tester,
-              _NarrowSidebarStorage(),
+              viewMode: 'list',
               width: width,
               textScale: scale,
               policy: policyEntry.value,
@@ -151,7 +129,7 @@ void main() {
       for (final policyEntry in _policies.entries) {
         for (final sidebarWidth in const [240.0, 393.0]) {
           final scenario = '${policyEntry.key} $sidebarWidth';
-          final storage = _NarrowSidebarStorage(sidebarWidth: sidebarWidth);
+          final storage = _narrowSidebarStorage(sidebarWidth: sidebarWidth);
           late double reservedWidth;
           await tester.pumpWidget(
             _app(
@@ -197,7 +175,7 @@ void main() {
   ) async {
     await tester.pumpWidget(
       _app(
-        storage: _NarrowSidebarStorage(sidebarWidth: 393),
+        storage: _narrowSidebarStorage(sidebarWidth: 393),
         policy: InteractionPolicy.touchFirst,
         child: const Align(
           alignment: Alignment.topLeft,
@@ -319,8 +297,8 @@ void _expectHorizontallyInside(Rect inner, Rect outer, {String? reason}) {
 }
 
 Future<void> _pumpSidebar(
-  WidgetTester tester,
-  _NarrowSidebarStorage storage, {
+  WidgetTester tester, {
+  required String viewMode,
   required double width,
   required double textScale,
   required InteractionPolicy policy,
@@ -330,8 +308,8 @@ Future<void> _pumpSidebar(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     _app(
-      key: ValueKey('$width-$textScale-$policy-${storage.viewMode}'),
-      storage: storage,
+      key: ValueKey('$width-$textScale-$policy-$viewMode'),
+      storage: _narrowSidebarStorage(viewMode: viewMode),
       policy: policy,
       textScale: textScale,
       child: SizedBox(
@@ -346,7 +324,7 @@ Future<void> _pumpSidebar(
 
 Widget _app({
   Key? key,
-  required _NarrowSidebarStorage storage,
+  required MemoryLocalStorage storage,
   required InteractionPolicy policy,
   double textScale = 1,
   required Widget child,
@@ -372,12 +350,12 @@ Widget _app({
   );
 }
 
-class _NarrowSidebarStorage extends LocalStorageService {
-  _NarrowSidebarStorage({this.viewMode = 'list', this.sidebarWidth = 320});
-
-  static final _category = TagLibraryCategory.create(name: '分组', sortOrder: 0);
-
-  static final _entries = [
+MemoryLocalStorage _narrowSidebarStorage({
+  String viewMode = 'list',
+  double sidebarWidth = 320,
+}) {
+  final category = TagLibraryCategory.create(name: '分组', sortOrder: 0);
+  final entries = [
     for (final type in FixedTagPromptType.values)
       for (var index = 0; index < 4; index++)
         FixedTagEntry.create(
@@ -385,65 +363,21 @@ class _NarrowSidebarStorage extends LocalStorageService {
           content: 'long content tag $index, another tag',
           enabled: index.isEven,
           promptType: type,
-          categoryId: _category.id,
+          categoryId: category.id,
           sortOrder: index,
         ),
   ];
-
-  String viewMode;
-  final double sidebarWidth;
-  double _negativeHeight = 260;
-  String _linksJson = '[]';
-
-  @override
-  bool getFixedTagsSidebarExpanded() => true;
-
-  @override
-  double getFixedTagsSidebarWidth() => sidebarWidth;
-
-  @override
-  String getFixedTagsSidebarViewMode() => viewMode;
-
-  @override
-  Future<void> setFixedTagsSidebarViewMode(String mode) async {
-    viewMode = mode;
-  }
-
-  @override
-  double getFixedTagsNegativeHeight() => _negativeHeight;
-
-  @override
-  Future<void> setFixedTagsNegativeHeight(double height) async {
-    _negativeHeight = height;
-  }
-
-  @override
-  bool getFixedTagsNegativePanelExpanded() => true;
-
-  @override
-  String? getFixedTagsJson() =>
-      jsonEncode(_entries.map((entry) => entry.toJson()).toList());
-
-  @override
-  Future<void> setFixedTagsJson(String json) async {}
-
-  @override
-  String? getFixedTagLinksJson() => _linksJson;
-
-  @override
-  Future<void> setFixedTagLinksJson(String json) async {
-    _linksJson = json;
-  }
-
-  @override
-  String? getTagLibraryEntriesJson() => '[]';
-
-  @override
-  String? getTagLibraryCategoriesJson() => jsonEncode([_category.toJson()]);
-
-  @override
-  bool getEnableAutocomplete() => false;
-
-  @override
-  bool getHighlightEmphasis() => false;
+  return MemoryLocalStorage()
+    ..values.addAll({
+      StorageKeys.fixedTagsSidebarExpanded: true,
+      StorageKeys.fixedTagsSidebarWidth: sidebarWidth,
+      StorageKeys.fixedTagsSidebarViewMode: viewMode,
+      StorageKeys.fixedTagsNegativeHeight: 260.0,
+      StorageKeys.fixedTagsData: jsonEncode(
+        entries.map((entry) => entry.toJson()).toList(),
+      ),
+      StorageKeys.tagLibraryCategoriesData: jsonEncode([category.toJson()]),
+      StorageKeys.enableAutocomplete: false,
+      StorageKeys.highlightEmphasis: false,
+    });
 }
