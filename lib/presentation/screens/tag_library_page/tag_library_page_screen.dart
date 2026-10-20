@@ -162,7 +162,7 @@ class _TagLibraryPageScreenState extends ConsumerState<TagLibraryPageScreen> {
     return CardSelectionScope(
       selection: selectionState,
       commands: ref.read(tagLibrarySelectionNotifierProvider.notifier),
-      orderedIds: state.filteredEntries.map((entry) => entry.id).toList(),
+      orderedIds: state.presentedEntries.map((entry) => entry.id).toList(),
       child: PopScope<void>(
         canPop: !isSelectionMode,
         onPopInvokedWithResult: (didPop, _) {

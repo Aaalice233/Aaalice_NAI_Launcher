@@ -10,6 +10,7 @@ import '../../core/utils/last_result_memo.dart';
 import '../../data/models/tag_library/import_plan.dart';
 import '../../data/models/tag_library/tag_library_category.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
+import '../../data/models/tag_library/tag_library_entry_group.dart';
 import '../../data/models/tag_library/tag_library_entry_order.dart';
 import 'fixed_tags_provider.dart';
 import '../../data/models/gallery/gallery_tree_drop_slot.dart';
@@ -154,6 +155,26 @@ class TagLibraryPageState {
     // 收藏条目始终排在前面，自定义排序的拖拽重排依赖同一规则
     return List.unmodifiable(sorted.favoritesFirst());
   }
+
+  static final _groupsMemo =
+      LastResultMemo<
+        ({List<TagLibraryEntry> entries, List<TagLibraryCategory> categories}),
+        List<TagLibraryEntryGroup>
+      >();
+
+  /// 分组视图按分类排列的条目
+  List<TagLibraryEntryGroup> get entryGroups => _groupsMemo.resolve((
+    entries: filteredEntries,
+    categories: categories,
+  ), (key) => key.entries.groupedByCategory(key.categories));
+
+  /// 当前视图在屏幕上的条目次序，范围选择与多选拖动都按它排列
+  List<TagLibraryEntry> get presentedEntries => switch (viewMode) {
+    TagLibraryViewMode.grouped => [
+      for (final group in entryGroups) ...group.entries,
+    ],
+    TagLibraryViewMode.card || TagLibraryViewMode.list => filteredEntries,
+  };
 
   /// 获取指定分类的条目数量
   Map<String, int> get categoryEntryCounts => libraryCategoryCounts({
