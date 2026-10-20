@@ -522,6 +522,29 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('corrupt metadata never quotes the prompt into the error', () async {
+    final draft = await _prepare(repository);
+    final metadataFile = File(p.join(root.path, draft.id, 'metadata.json'));
+    final metadata = await metadataFile.readAsString();
+    await metadataFile.writeAsString(
+      metadata.replaceFirst(
+        '"prompt":"source"',
+        '"prompt":"secret lighthouse keeper" broken',
+      ),
+    );
+
+    await expectLater(
+      repository.get(draft.id),
+      throwsA(
+        isA<InpaintDraftIntegrityException>().having(
+          (error) => '$error',
+          'text',
+          allOf(contains('invalid metadata'), isNot(contains('lighthouse'))),
+        ),
+      ),
+    );
+  });
 }
 
 Future<InpaintDraft> _prepare(
