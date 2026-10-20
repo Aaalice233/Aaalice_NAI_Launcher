@@ -265,6 +265,75 @@ void main() {
         expect(stripped, equals('custom_negative'));
       },
     );
+
+    test('splitPresetByInt keeps the matched preset and the rest apart', () {
+      final preset = UcPresets.getPresetContentByInt(model, 0);
+
+      final split = UcPresets.splitPresetByInt(
+        '$preset, fixed_negative, main_negative',
+        model,
+        0,
+      );
+
+      expect(split.preset, preset);
+      expect(split.body, 'fixed_negative, main_negative');
+    });
+
+    test('splitPresetByInt leaves text without the preset untouched', () {
+      final split = UcPresets.splitPresetByInt(
+        'fixed_negative, main_negative',
+        model,
+        0,
+      );
+
+      expect(split.preset, isEmpty);
+      expect(split.body, 'fixed_negative, main_negative');
+    });
+
+    test('splitPresetByInt never strips anything for the none preset', () {
+      final split = UcPresets.splitPresetByInt(
+        'lowres, main_negative',
+        ImageModels.animeDiffusionV3,
+        UcPresets.noneApiValue,
+      );
+
+      expect(split.preset, isEmpty);
+      expect(split.body, 'lowres, main_negative');
+    });
+
+    test('without a model the longest preset of that type wins', () {
+      final shorter = UcPresets.getPresetContent(
+        ImageModels.animeDiffusionV4Full,
+        UcPresetType.light,
+      );
+      final longer = UcPresets.getPresetContent(
+        ImageModels.animeDiffusionV4Curated,
+        UcPresetType.light,
+      );
+      expect(longer, startsWith(shorter));
+
+      final split = UcPresets.splitPresetByInt(
+        '$longer, main_negative',
+        null,
+        UcPresets.lightApiValue,
+      );
+
+      expect(split.preset, longer);
+      expect(split.body, 'main_negative');
+    });
+
+    test('tag hints round-trip to request preset values', () {
+      for (final apiValue in [
+        UcPresets.heavyApiValue,
+        UcPresets.lightApiValue,
+        UcPresets.humanFocusApiValue,
+        UcPresets.noneApiValue,
+        UCPresets.furryFocus,
+      ]) {
+        expect(UcPresets.fromTagHint(UcPresets.toTagHint(apiValue)!), apiValue);
+      }
+      expect(UcPresets.fromTagHint(1), isNull);
+    });
   });
 
   group('V5 Full Medium tables', () {

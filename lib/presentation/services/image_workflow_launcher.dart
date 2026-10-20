@@ -346,12 +346,7 @@ class ImageWorkflowLauncher {
     if (isCurrent != null) prepareSource();
 
     if (metadata != null && metadata.hasData) {
-      _applyVariationMetadata(
-        metadata,
-        read,
-        paramsNotifier,
-        fallbackModel: read(generationParamsNotifierProvider).model,
-      );
+      _applyVariationMetadata(metadata, read, paramsNotifier);
     } else {
       paramsNotifier.randomizeSeed();
       paramsNotifier.updateStrength(0.45);
@@ -390,13 +385,11 @@ class ImageWorkflowLauncher {
   static void _applyVariationMetadata(
     NaiImageMetadata metadata,
     _ImageWorkflowRead read,
-    GenerationParamsNotifier notifier, {
-    required String fallbackModel,
-  }) {
+    GenerationParamsNotifier notifier,
+  ) {
     MetadataImportApplier.applyPromptAndGenerationParams(
       metadata: metadata,
       options: MetadataImportOptions.all(),
-      currentModel: fallbackModel,
       target: MetadataImportTarget(
         updatePrompt: notifier.updatePrompt,
         updateNegativePrompt: notifier.updateNegativePrompt,

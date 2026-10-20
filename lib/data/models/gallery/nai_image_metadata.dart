@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
 import '../../../core/enums/image_model_mode.dart';
 import '../../../core/utils/novelai_dataset_prefix.dart';
@@ -217,6 +218,12 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 旧版本缓存的 model 不含家族归类，最后再补。
   String? get effectiveModel => sourceModel ?? model ?? sourceDefaultModel;
 
+  /// 可以直接用于生成的模型 ID，取值顺序同 effectiveModel；都无法识别时为 null。
+  String? get importableModel =>
+      ImageModels.importableModelId(sourceModel) ??
+      ImageModels.importableModelId(model) ??
+      ImageModels.importableModelId(sourceDefaultModel);
+
   /// 生成时使用的 Anime / Furry 模式，模型没有该模式或无法判断时为 null。
   ImageModelMode? get modelMode {
     final model = effectiveModel;
@@ -374,8 +381,11 @@ class NaiImageMetadata with _$NaiImageMetadata {
   String get promptWithoutFixedTags =>
       NaiMetadataPromptProjection(this).promptWithoutFixedTags;
 
-  String get negativePromptWithoutFixedTags =>
-      NaiMetadataPromptProjection(this).negativePromptWithoutFixedTags;
+  UcPresetSplit get negativePresetSplit =>
+      NaiMetadataPromptProjection(this).negativePresetSplit;
+
+  String get mainNegativePrompt =>
+      NaiMetadataPromptProjection(this).mainNegativePrompt;
 
   String get fullPrompt => NaiMetadataPromptProjection(this).fullPrompt;
 

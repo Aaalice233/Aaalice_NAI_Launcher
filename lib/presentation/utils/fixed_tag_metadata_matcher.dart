@@ -28,7 +28,7 @@ NaiImageMetadata matchMetadataFixedTags({
     ],
   );
   final negativeMatches = _inferMatches(
-    metadata.negativePrompt,
+    metadata.negativePresetSplit.body,
     negativeEntries,
     recordedPrefix: metadata.fixedNegativePrefixTags,
     recordedSuffix: metadata.fixedNegativeSuffixTags,
@@ -213,30 +213,36 @@ bool _matchesAt(List<String> source, List<String> expected, int start) {
   return true;
 }
 
+/// [leadingTagCount] 是固定前缀之前不属于固定词的段数，例如负面开头的 UC 预设。
 Set<int> fixedPromptTagIndexes({
   required List<String> promptTags,
   required List<String> prefixEntries,
   required List<String> suffixEntries,
+  int leadingTagCount = 0,
 }) {
-  final normalizedPrompt = promptTags.map(_normalizeTag).toList();
+  final bodyStart = leadingTagCount.clamp(0, promptTags.length);
+  final normalizedBody = promptTags
+      .sublist(bodyStart)
+      .map(_normalizeTag)
+      .toList();
   final prefixLength = _matchedBoundaryLength(
-    normalizedPrompt,
+    normalizedBody,
     prefixEntries,
     fromStart: true,
   );
   final suffixLength = _matchedBoundaryLength(
-    normalizedPrompt,
+    normalizedBody,
     suffixEntries,
     fromStart: false,
   );
   return {
-    for (var index = 0; index < prefixLength; index++) index,
+    for (var index = 0; index < prefixLength; index++) bodyStart + index,
     for (
-      var index = normalizedPrompt.length - suffixLength;
-      index < normalizedPrompt.length;
+      var index = normalizedBody.length - suffixLength;
+      index < normalizedBody.length;
       index++
     )
-      if (index >= prefixLength) index,
+      if (index >= prefixLength) bodyStart + index,
   };
 }
 

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/utils/fixed_tag_import_resolution.dart';
+import 'package:nai_launcher/presentation/widgets/common/translated_tag_text.dart';
 import 'package:nai_launcher/presentation/widgets/metadata/metadata_import_dialog.dart';
 
 void main() {
@@ -228,6 +230,39 @@ void main() {
     expect(find.text('Source: not recorded; cannot be determined'), findsOne);
     expect(find.text('Disable current fixed tags (recommended)'), findsOne);
     expect(find.text('Keep and stack with the image prompt'), findsOne);
+  });
+
+  testWidgets('negative preview matches what the import writes', (
+    tester,
+  ) async {
+    const model = ImageModels.animeDiffusionV45Full;
+    final heavy = UcPresets.getPresetContent(model, UcPresetType.heavy);
+    final metadata = NaiImageMetadata(
+      prompt: '1girl',
+      negativePrompt: '$heavy, bad hands, watermark',
+      model: model,
+      ucPreset: UcPresets.heavyApiValue,
+      fixedNegativePrefixTags: const ['bad hands'],
+    );
+    Iterable<String> previews() => tester
+        .widgetList<TranslatedPromptText>(find.byType(TranslatedPromptText))
+        .map((widget) => widget.prompt);
+
+    await pumpAndOpenDialog(
+      tester,
+      size: const Size(900, 1000),
+      metadata: metadata,
+    );
+
+    expect(previews(), contains('watermark'));
+    expect(previews(), isNot(contains(metadata.negativePrompt)));
+
+    await tester.tap(
+      find.widgetWithText(FilterChip, 'Undesired Content Preset'),
+    );
+    await tester.pump();
+
+    expect(previews(), contains('$heavy, watermark'));
   });
 
   group('initial options', () {

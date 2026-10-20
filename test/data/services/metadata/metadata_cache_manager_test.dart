@@ -114,7 +114,7 @@ void main() {
           writtenAtMillis: 1234,
         ),
         'f' * 64: jsonEncode(legacy.toJson()),
-        '_cacheVersion': '8',
+        '_cacheVersion': '9',
       });
       await Hive.close();
 

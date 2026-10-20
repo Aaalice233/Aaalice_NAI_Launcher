@@ -5,6 +5,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../utils/fixed_tag_import_resolution.dart';
+import '../../utils/metadata_import_applier.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../common/adaptive_dialog_frame.dart';
 import '../common/translated_tag_text.dart';
@@ -507,11 +508,14 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
               ),
             ),
         ],
-        // 负向提示词
+        // 预览与实际写入负面框的内容一致，随 UC 预设勾选变化
         _buildCheckboxTile(
           title: l10n.metadataImport_negativePrompt,
           subtitleWidget: TranslatedPromptText(
-            metadata.displayNegativePrompt,
+            MetadataImportApplier.resolveImportedNegativePrompt(
+              metadata,
+              importUcPreset: _options.importUcPreset,
+            ),
             selectable: false,
             maxLines: 1,
           ),
