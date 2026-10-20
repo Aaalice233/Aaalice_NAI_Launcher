@@ -18,6 +18,10 @@ import 'prompt_input_controller.dart';
 import 'prompt_input_models.dart';
 import '../../../widgets/prompt/prompt_footer_style.dart';
 import 'prompt_type_switch.dart';
+import '../../../widgets/common/app_toast.dart';
+import '../../../providers/character_prompt_provider.dart';
+import '../../../providers/generation/web_panel_modules_provider.dart';
+import '../../../providers/reverse_prompt_provider.dart';
 
 class PromptInputToolbar extends ConsumerWidget {
   const PromptInputToolbar({
@@ -233,11 +237,58 @@ class PromptInputToolbar extends ConsumerWidget {
         .read(completion_settings.autocompleteSettingsProvider)
         .relatedTagsEnabled;
     final regexCount = ref.read(promptRegexRulesProvider).length;
+    final modules = ref.read(webPanelModulesProvider);
+    final hasCharacter =
+        ref.read(characterPromptNotifierProvider).characters.isNotEmpty;
+    final hasPreciseRef =
+        ref.read(generationParamsNotifierProvider).preciseReferences.isNotEmpty;
+    final hasVibe =
+        ref.read(generationParamsNotifierProvider).vibeReferencesV4.isNotEmpty;
+    final hasTagExtraction =
+        ref.read(reversePromptProvider).images.isNotEmpty;
+
     final value = await showMenu<String>(
       context: context,
       position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       items: [
+        _toggleItem(
+          context,
+          theme,
+          'module_character',
+          hasCharacter || modules.showCharacter,
+          '角色区域',
+          hasCharacter ? '模块内有内容，已锁定显示' : '在左侧面板显示角色区域卡片',
+          locked: hasCharacter,
+        ),
+        _toggleItem(
+          context,
+          theme,
+          'module_precise_ref',
+          hasPreciseRef || modules.showPreciseReference,
+          '精准参考',
+          hasPreciseRef ? '模块内有内容，已锁定显示' : '在左侧面板显示精准参考卡片',
+          locked: hasPreciseRef,
+        ),
+        _toggleItem(
+          context,
+          theme,
+          'module_vibe_transfer',
+          hasVibe || modules.showVibeTransfer,
+          '风格迁移',
+          hasVibe ? '模块内有内容，已锁定显示' : '在左侧面板显示风格迁移/氛围参考卡片',
+          locked: hasVibe,
+        ),
+        _toggleItem(
+          context,
+          theme,
+          'module_tag_extraction',
+          hasTagExtraction || modules.showTagExtraction,
+          '反推',
+          hasTagExtraction ? '模块内有内容，已锁定显示' : '在左侧面板显示图片反推卡片',
+          locked: hasTagExtraction,
+        ),
+        const PopupMenuDivider(),
         _toggleItem(
           context,
           theme,
@@ -305,6 +356,30 @@ class PromptInputToolbar extends ConsumerWidget {
     );
     if (!context.mounted) return;
     switch (value) {
+      case 'module_character':
+        if (hasCharacter) {
+          AppToast.info(context, '角色区域内有内容，已强制显示不可关闭');
+        } else {
+          ref.read(webPanelModulesProvider.notifier).toggleCharacter();
+        }
+      case 'module_precise_ref':
+        if (hasPreciseRef) {
+          AppToast.info(context, '精准参考内有内容，已强制显示不可关闭');
+        } else {
+          ref.read(webPanelModulesProvider.notifier).togglePreciseReference();
+        }
+      case 'module_vibe_transfer':
+        if (hasVibe) {
+          AppToast.info(context, '风格迁移内有内容，已强制显示不可关闭');
+        } else {
+          ref.read(webPanelModulesProvider.notifier).toggleVibeTransfer();
+        }
+      case 'module_tag_extraction':
+        if (hasTagExtraction) {
+          AppToast.info(context, '反推模块内有内容，已强制显示不可关闭');
+        } else {
+          ref.read(webPanelModulesProvider.notifier).toggleTagExtraction();
+        }
       case 'autocomplete':
         ref.read(autocompleteSettingsProvider.notifier).toggle();
       case 'auto_format':
@@ -334,18 +409,32 @@ class PromptInputToolbar extends ConsumerWidget {
     String value,
     bool enabled,
     String title,
-    String subtitle,
-  ) => PopupMenuItem<String>(
+    String subtitle, {
+    bool locked = false,
+  }) => PopupMenuItem<String>(
     value: value,
     child: Row(
       children: [
         Icon(
           enabled ? Icons.check_box : Icons.check_box_outline_blank,
           size: 20,
-          color: enabled ? theme.colorScheme.primary : null,
+          color: enabled
+              ? (locked
+                  ? theme.colorScheme.primary.withValues(alpha: 0.7)
+                  : theme.colorScheme.primary)
+              : null,
         ),
         const SizedBox(width: 12),
         Expanded(child: _menuLabels(theme, title, subtitle)),
+        if (locked)
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Icon(
+              Icons.lock_outline,
+              size: 16,
+              color: theme.colorScheme.outline,
+            ),
+          ),
       ],
     ),
   );

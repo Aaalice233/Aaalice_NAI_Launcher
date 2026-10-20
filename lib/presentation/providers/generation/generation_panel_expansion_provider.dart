@@ -32,19 +32,37 @@ extension GenerationWorkbenchPanelStorage on GenerationWorkbenchPanel {
 }
 
 class GenerationPanelExpansionState {
-  const GenerationPanelExpansionState(this._values);
+  const GenerationPanelExpansionState(
+    this._values, {
+    this.manuallyClosed = const {},
+  });
 
   final Map<GenerationWorkbenchPanel, bool> _values;
+  final Set<GenerationWorkbenchPanel> manuallyClosed;
 
-  bool isExpanded(GenerationWorkbenchPanel panel) =>
-      _values[panel] ?? panel.defaultExpanded;
+  bool isExpanded(GenerationWorkbenchPanel panel, {bool hasData = false}) {
+    if (manuallyClosed.contains(panel)) {
+      return false;
+    }
+    if (hasData) {
+      return true;
+    }
+    return _values[panel] ?? panel.defaultExpanded;
+  }
 
   GenerationPanelExpansionState copyWith(
     GenerationWorkbenchPanel panel,
     bool expanded,
   ) {
+    final nextClosed = Set<GenerationWorkbenchPanel>.from(manuallyClosed);
+    if (!expanded) {
+      nextClosed.add(panel);
+    } else {
+      nextClosed.remove(panel);
+    }
     return GenerationPanelExpansionState(
       Map.unmodifiable({..._values, panel: expanded}),
+      manuallyClosed: Set.unmodifiable(nextClosed),
     );
   }
 }
@@ -76,10 +94,27 @@ class GenerationPanelExpansionNotifier
 
   Future<void> setExpanded(
     GenerationWorkbenchPanel panel,
-    bool expanded,
-  ) async {
-    if (state.isExpanded(panel) == expanded) return;
-    state = state.copyWith(panel, expanded);
+    bool expanded, {
+    bool resetManuallyClosed = false,
+  }) async {
+    final nextClosed = Set<GenerationWorkbenchPanel>.from(state.manuallyClosed);
+    if (resetManuallyClosed) {
+      nextClosed.remove(panel);
+    } else if (!expanded) {
+      nextClosed.add(panel);
+    } else {
+      nextClosed.remove(panel);
+    }
+
+    if (state.isExpanded(panel) == expanded &&
+        state.manuallyClosed.contains(panel) == nextClosed.contains(panel)) {
+      return;
+    }
+
+    state = GenerationPanelExpansionState(
+      Map.unmodifiable({...state._values, panel: expanded}),
+      manuallyClosed: Set.unmodifiable(nextClosed),
+    );
     try {
       await _storage.setSetting(panel.storageKey, expanded);
     } catch (error, stackTrace) {
