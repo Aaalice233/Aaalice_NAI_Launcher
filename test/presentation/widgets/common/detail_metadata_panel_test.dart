@@ -454,6 +454,102 @@ void main() {
     expect(find.textContaining('blue sky'), findsWidgets);
     expect(find.textContaining('red moon'), findsNothing);
   });
+
+  testWidgets('解析结果为空时结束加载并显示无元数据', (tester) async {
+    final image = _PendingMetadataDetail('plain');
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+
+    await tester.pumpWidget(_panelApp(image));
+    expect(find.text(l10n.detail_parsingMetadata), findsOneWidget);
+
+    image.metadataLoad.complete(null);
+    await tester.pump();
+
+    expect(find.text(l10n.detail_parsingMetadata), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text(l10n.detail_noMetadata), findsOneWidget);
+  });
+
+  testWidgets('读取元数据失败时按无元数据收尾', (tester) async {
+    final image = _PendingMetadataDetail('locked');
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+
+    await tester.pumpWidget(_panelApp(image));
+    image.metadataLoad.completeError(
+      const FileSystemException('locked', 'locked.png'),
+    );
+    await tester.pump();
+
+    expect(find.text(l10n.detail_parsingMetadata), findsNothing);
+    expect(find.text(l10n.detail_noMetadata), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('上一张晚到的空结果不会提前结束当前图的加载', (tester) async {
+    final previous = _PendingMetadataDetail('previous');
+    final current = _PendingMetadataDetail('current');
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+
+    await tester.pumpWidget(_panelApp(previous));
+    await tester.pumpWidget(_panelApp(current));
+    previous.metadataLoad.complete(null);
+    await tester.pump();
+
+    expect(find.text(l10n.detail_parsingMetadata), findsOneWidget);
+    expect(find.text(l10n.detail_noMetadata), findsNothing);
+
+    current.metadataLoad.complete(const NaiImageMetadata(prompt: 'blue sky'));
+    await tester.pump();
+
+    expect(find.text(l10n.detail_parsingMetadata), findsNothing);
+    expect(find.textContaining('blue sky'), findsWidgets);
+  });
+}
+
+final _onePixelPng = Uint8List.fromList(
+  img.encodePng(img.Image(width: 1, height: 1)),
+);
+
+class _PendingMetadataDetail extends ImageDetailData {
+  _PendingMetadataDetail(this.identifier);
+
+  @override
+  final String identifier;
+
+  final metadataLoad = Completer<NaiImageMetadata?>();
+
+  @override
+  Future<NaiImageMetadata?> getMetadataAsync() => metadataLoad.future;
+
+  @override
+  ImageProvider getImageProvider() => MemoryImage(_onePixelPng);
+
+  @override
+  Future<Uint8List> getImageBytes() async => _onePixelPng;
+
+  @override
+  NaiImageMetadata? get metadata => null;
+
+  @override
+  bool get isFavorite => false;
+
+  @override
+  FileInfo? get fileInfo => null;
+
+  @override
+  bool get showSaveButton => false;
+
+  @override
+  bool get showCopyButton => false;
+
+  @override
+  bool get showSaveAsButton => false;
+
+  @override
+  bool get showFavoriteButton => false;
+
+  @override
+  bool get preserveOriginalBytesOnSave => false;
 }
 
 String _neverCreatedPath(String name) =>
