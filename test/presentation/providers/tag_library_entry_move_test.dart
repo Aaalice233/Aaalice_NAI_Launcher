@@ -8,6 +8,8 @@ import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
 
+import '../../helpers/memory_local_storage.dart';
+
 void main() {
   final created = DateTime(2026);
 
@@ -208,24 +210,14 @@ void main() {
   });
 }
 
-class _MemoryStorage extends LocalStorageService {
-  final Map<String, Object?> _values = {};
+class _MemoryStorage extends MemoryLocalStorage {
   int writeCount = 0;
   bool failWrites = false;
-
-  @override
-  T? getSetting<T>(String key, {T? defaultValue}) =>
-      (_values[key] ?? defaultValue) as T?;
 
   @override
   Future<void> setSetting<T>(String key, T value) async {
     if (failWrites) throw StateError('storage unavailable');
     writeCount++;
-    _values[key] = value;
-  }
-
-  @override
-  Future<void> deleteSetting(String key) async {
-    _values.remove(key);
+    await super.setSetting(key, value);
   }
 }
