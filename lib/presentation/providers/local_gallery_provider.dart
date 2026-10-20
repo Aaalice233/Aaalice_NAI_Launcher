@@ -616,12 +616,10 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
 
       // 扫描器抢先收录时同样要重取，否则开着图库会看不到新图。
-      if (admission.isIndexed && state.isInitialized) {
-        if (state.isGroupedView) {
-          await _loadGroupedImages();
-        } else if (state.currentPage == 0) {
-          await loadPage(0, showLoading: false);
-        }
+      if (admission.isIndexed &&
+          state.isInitialized &&
+          (state.isGroupedView || state.currentPage == 0)) {
+        await _reloadFirstView();
       }
     } catch (e) {
       AppLogger.e(
@@ -948,6 +946,15 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
+  /// 分组视图重载整份分组列表，否则静默重取首页。
+  Future<void> _reloadFirstView() async {
+    if (state.isGroupedView) {
+      await _loadGroupedImages();
+    } else {
+      await loadPage(0, showLoading: false);
+    }
+  }
+
   Future<void> _loadGroupedImages() async {
     _setState(state.copyWith(isGroupedLoading: true));
     try {
@@ -1244,8 +1251,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         ),
       );
 
-      // 刷新当前页
-      await loadPage(0, showLoading: false);
+      await _reloadFirstView();
     } on GalleryCancelledException {
       _setState(state.copyWith(isRebuildingIndex: false, isLoading: false));
     } on GalleryScanException catch (e) {
