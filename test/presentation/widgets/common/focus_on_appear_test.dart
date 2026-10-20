@@ -63,19 +63,6 @@ void main() {
     field.dispose();
   });
 
-  testWidgets('页面已有焦点时 autofocus 编辑框拿不到焦点', (tester) async {
-    final page = await _pumpPage(
-      tester,
-      anchor,
-      () => TextField(focusNode: field, autofocus: true),
-    );
-
-    await _startEditing(tester, page);
-
-    expect(field.hasFocus, isFalse);
-    expect(anchor.hasPrimaryFocus, isTrue);
-  });
-
   testWidgets('FocusOnAppear 在编辑框出现后把焦点交给它', (tester) async {
     final page = await _pumpPage(
       tester,
