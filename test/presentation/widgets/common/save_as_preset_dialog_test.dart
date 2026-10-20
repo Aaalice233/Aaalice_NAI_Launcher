@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/prompt/random_preset.dart';
 import 'package:nai_launcher/data/models/prompt/random_tag_group.dart';
@@ -11,62 +12,67 @@ import 'package:nai_launcher/presentation/widgets/common/save_as_preset_dialog.d
 
 import '../../../helpers/adaptive_panel_expectations.dart';
 
-void main() {
-  testWidgets('保存保留所选标签、顺序和随机算法配置', (tester) async {
-    final notifier = _CapturePresets();
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [randomPresetNotifierProvider.overrideWith(() => notifier)],
-        child: MaterialApp(
-          locale: const Locale('zh'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: TextButton(
-                onPressed: () =>
-                    SaveAsPresetDialog.show(context, metadata: _metadata),
-                child: const Text('open'),
-              ),
+Future<RandomPreset> _saveWithDefaults(
+  WidgetTester tester,
+  NaiImageMetadata metadata,
+) async {
+  final notifier = _CapturePresets();
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [randomPresetNotifierProvider.overrideWith(() => notifier)],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () =>
+                  SaveAsPresetDialog.show(context, metadata: metadata),
+              child: const Text('open'),
             ),
           ),
         ),
       ),
-    );
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('保存'),
-      200,
-      scrollable: find
-          .descendant(
-            of: find.byWidgetPredicate((widget) => widget is ScrollView),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
-    await tester.tap(find.text('保存'));
-    await tester.pumpAndSettle();
-    final preset = notifier.saved!;
+    ),
+  );
+  await tester.tap(find.text('open'));
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    find.text('保存'),
+    200,
+    scrollable: find
+        .descendant(
+          of: find.byWidgetPredicate((widget) => widget is ScrollView),
+          matching: find.byType(Scrollable),
+        )
+        .first,
+  );
+  await tester.tap(find.text('保存'));
+  await tester.pumpAndSettle();
+  return notifier.saved!;
+}
+
+List<List<String>> _categoryTags(RandomPreset preset) => preset.categories
+    .map(
+      (category) => category.groups.single.tags.map((tag) => tag.tag).toList(),
+    )
+    .toList();
+
+void main() {
+  testWidgets('保存保留所选标签、顺序和随机算法配置', (tester) async {
+    final preset = await _saveWithDefaults(tester, _metadata);
     expect(preset.name, 'very long promp..._42');
     expect(preset.isDefault, isFalse);
     expect(
       preset.algorithmConfig.characterCountConfig,
       CharacterCountConfig.naiDefault,
     );
-    expect(
-      preset.categories
-          .map(
-            (category) =>
-                category.groups.single.tags.map((tag) => tag.tag).toList(),
-          )
-          .toList(),
-      [
-        ['very long prompt', 'second tag'],
-        ['best quality'],
-        ['negative tag'],
-      ],
-    );
+    expect(_categoryTags(preset), [
+      ['very long prompt', 'second tag'],
+      ['best quality'],
+      ['negative tag'],
+    ]);
     for (final category in preset.categories) {
       expect(category.groupSelectionMode, SelectionMode.all);
       expect(category.shuffle, isFalse);
@@ -75,6 +81,29 @@ void main() {
     }
     expect(find.byType(SaveAsPresetDialog), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('负面分类不含 UC 预设与负向固定词', (tester) async {
+    const model = ImageModels.animeDiffusionV45Full;
+    final heavy = UcPresets.getPresetContent(model, UcPresetType.heavy);
+
+    final preset = await _saveWithDefaults(
+      tester,
+      NaiImageMetadata(
+        prompt: '1girl',
+        negativePrompt: '$heavy, bad hands, watermark',
+        seed: 7,
+        model: model,
+        ucPreset: UcPresets.heavyApiValue,
+        fixedNegativePrefixTags: const ['bad hands'],
+      ),
+    );
+
+    final tags = _categoryTags(preset);
+    expect(tags.last, ['watermark']);
+    expect(tags.expand((group) => group).where((tag) => tag == 'bad hands'), [
+      'bad hands',
+    ]);
   });
   testWidgets('320dp、3x、IME 与 SafeArea 下使用长表单且内容可滚动', (tester) async {
     final view = tester.view;

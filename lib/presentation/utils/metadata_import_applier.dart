@@ -1,4 +1,3 @@
-import '../../core/constants/api_constants.dart';
 import '../../core/enums/image_model_mode.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
@@ -55,7 +54,6 @@ class MetadataImportApplier {
   static int applyPromptAndGenerationParams({
     required NaiImageMetadata metadata,
     required MetadataImportOptions options,
-    required String currentModel,
     required MetadataImportTarget target,
   }) {
     var count = 0;
@@ -77,7 +75,6 @@ class MetadataImportApplier {
         resolveImportedNegativePrompt(
           metadata,
           importUcPreset: options.importUcPreset,
-          currentModel: currentModel,
         ),
       );
       count++;
@@ -163,34 +160,22 @@ class MetadataImportApplier {
     return count;
   }
 
+  /// 写入负面框的内容。导入 UC 预设时预设文字由预设选择在发送时拼回，
+  /// 不导入时保留在文本里，否则原图的预设会丢失。
   static String resolveImportedNegativePrompt(
     NaiImageMetadata metadata, {
     required bool importUcPreset,
-    required String currentModel,
   }) {
-    final baseNegative = metadata.hasSeparatedFields
-        ? metadata.negativePromptWithoutFixedTags
-        : metadata.displayNegativePrompt;
-    if (!importUcPreset || metadata.ucPreset == null) {
-      return baseNegative;
-    }
-
-    final model = resolveImportableModel(metadata) ?? currentModel;
-    return UcPresets.stripPresetByInt(baseNegative, model, metadata.ucPreset!);
+    final mainNegative = metadata.mainNegativePrompt;
+    if (importUcPreset) return mainNegative;
+    return [
+      metadata.negativePresetSplit.preset,
+      mainNegative,
+    ].where((part) => part.isNotEmpty).join(', ');
   }
 
-  static String? toImportableModelId(String? model) {
-    if (model == null || model.isEmpty) return null;
-    // 测试期生成的图元数据里是 `custom`，迁移到正式 ID。
-    final normalized = ImageModels.migrateLegacyModel(model);
-    return ImageModels.supportedModels.contains(normalized) ? normalized : null;
-  }
-
-  static String? resolveImportableModel(NaiImageMetadata metadata) {
-    return toImportableModelId(metadata.sourceModel) ??
-        toImportableModelId(metadata.model) ??
-        toImportableModelId(metadata.sourceDefaultModel);
-  }
+  static String? resolveImportableModel(NaiImageMetadata metadata) =>
+      metadata.importableModel;
 
   static int _applyValue<T>(
     bool shouldImport,

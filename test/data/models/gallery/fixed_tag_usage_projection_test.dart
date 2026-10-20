@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/gallery/fixed_tag_usage_projection.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 
@@ -73,7 +74,41 @@ void main() {
 
     expect(projected.fixedNegativePrefixTags, ['lowres']);
     expect(projected.fixedNegativeSuffixTags, ['watermark']);
-    expect(projected.negativePromptWithoutFixedTags, 'bad anatomy');
+    expect(projected.mainNegativePrompt, 'bad anatomy');
+  });
+
+  test('the UC preset in front does not hide the negative fixed prefix', () {
+    final heavy = UcPresets.getPresetContent(
+      ImageModels.animeDiffusionV45Full,
+      UcPresetType.heavy,
+    );
+    final projected = projectFixedTagUsageSnapshot(
+      NaiImageMetadata(
+        prompt: '1girl',
+        negativePrompt: '$heavy, bad hands, watermark, extra digits',
+        model: ImageModels.animeDiffusionV45Full,
+        ucPreset: UcPresets.heavyApiValue,
+        fixedTagUsageData: _snapshot([
+          _entry(
+            content: 'bad hands',
+            position: 'prefix',
+            promptType: 'negative',
+            order: 0,
+          ),
+          _entry(
+            content: 'extra digits',
+            position: 'suffix',
+            promptType: 'negative',
+            order: 1,
+          ),
+        ]),
+      ),
+    );
+
+    expect(projected.fixedNegativePrefixTags, ['bad hands']);
+    expect(projected.fixedNegativeSuffixTags, ['extra digits']);
+    expect(projected.negativePresetSplit.preset, heavy);
+    expect(projected.mainNegativePrompt, 'watermark');
   });
 
   test('quality tags at the tail do not hide the fixed suffix', () {

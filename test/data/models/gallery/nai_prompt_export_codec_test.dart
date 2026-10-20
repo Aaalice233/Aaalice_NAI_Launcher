@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/gallery/nai_prompt_export_codec.dart';
 
@@ -74,6 +75,41 @@ void main() {
         expect(decoded.characterUseCoords, isTrue);
       },
     );
+
+    group('UC preset in front of the negative fixed prefix', () {
+      const model = ImageModels.animeDiffusionV45Full;
+      final heavy = UcPresets.getPresetContent(model, UcPresetType.heavy);
+      final metadata = NaiImageMetadata(
+        prompt: '1girl',
+        negativePrompt: '$heavy, bad hands, watermark',
+        model: model,
+        ucPreset: UcPresets.heavyApiValue,
+        fixedNegativePrefixTags: const ['bad hands'],
+      );
+
+      test('main negative excludes both the preset and fixed tags', () {
+        expect(NaiPromptExportCodec.mainNegative(metadata), 'watermark');
+        expect(NaiPromptExportCodec.ucPreset(metadata), heavy);
+      });
+
+      test('copying everything reproduces the original negative', () {
+        final encoded = NaiPromptExportCodec.encode(metadata);
+
+        expect(encoded.split('\n')[1], 'negative: ${metadata.negativePrompt}');
+        final decoded = NaiPromptExportCodec.tryDecode(encoded)!;
+        expect(decoded.ucPreset, UcPresets.heavyApiValue);
+        expect(decoded.mainNegativePrompt, 'watermark');
+      });
+
+      test('copying only the main negative leaves the preset out', () {
+        final encoded = NaiPromptExportCodec.encode(
+          metadata,
+          selection: const NaiPromptCopySelection(mainNegative: true),
+        );
+
+        expect(encoded, 'positive: \nnegative: watermark');
+      });
+    });
 
     test(
       'custom selection retains role boundaries without mixing negatives',

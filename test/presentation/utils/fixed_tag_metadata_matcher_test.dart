@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
@@ -183,6 +184,41 @@ void main() {
 
     expect(result.fixedNegativePrefixTags, isEmpty);
     expect(result.fixedNegativeSuffixTags, isEmpty);
+  });
+
+  test('infers the negative prefix right after the UC preset', () {
+    const model = ImageModels.animeDiffusionV45Full;
+    final heavy = UcPresets.getPresetContent(model, UcPresetType.heavy);
+    final prefix = FixedTagEntry.create(
+      name: 'prefix',
+      content: 'bad hands',
+      promptType: FixedTagPromptType.negative,
+    );
+
+    final result = matchMetadataFixedTags(
+      metadata: NaiImageMetadata(
+        negativePrompt: '$heavy, bad hands, watermark',
+        model: model,
+        ucPreset: UcPresets.heavyApiValue,
+      ),
+      positiveEntries: const [],
+      negativeEntries: [prefix],
+    );
+
+    expect(result.fixedNegativePrefixTags, ['bad hands']);
+    expect(result.mainNegativePrompt, 'watermark');
+  });
+
+  test('highlights fixed tags after the leading UC preset tags', () {
+    expect(
+      fixedPromptTagIndexes(
+        promptTags: const ['lowres', 'bad hands', 'watermark', 'bad hands'],
+        prefixEntries: const ['bad hands'],
+        suffixEntries: const ['bad hands'],
+        leadingTagCount: 1,
+      ),
+      {1, 3},
+    );
   });
 
   test('marks only boundary occurrences of duplicate fixed tags', () {

@@ -430,6 +430,83 @@ void main() {
     expect(restoredFixed.enabled, isTrue);
   });
 
+  group('UC 预设在负向固定前缀之前', () {
+    const model = ImageModels.animeDiffusionV45Full;
+    final heavy = UcPresets.getPresetContent(model, UcPresetType.heavy);
+
+    Future<({ProviderContainer container, NaiImageMetadata metadata})>
+    serverWrittenImage() async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final negativeFixed = await container
+          .read(fixedTagsNotifierProvider.notifier)
+          .addEntry(
+            name: 'negative fixed',
+            content: 'lowres, bad anatomy',
+            promptType: FixedTagPromptType.negative,
+            enabled: false,
+          );
+      final snapshot = FixedTagUsageSnapshot(
+        entries: [FixedTagUsageEntry.fromFixedTag(negativeFixed, order: 0)],
+      );
+      container.read(generationParamsNotifierProvider.notifier)
+        ..updateNegativePrompt('previous negative')
+        ..updateUcPreset(UcPresets.noneApiValue);
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': '1girl, blue eyes',
+          'uc': '$heavy, lowres, bad anatomy, watermark',
+          'tag_hint_uc_preset': 2,
+        }),
+        'Source': 'NovelAI Diffusion V4.5 4BDE2A90',
+      }).withFixedTagUsageData(snapshot.toJson());
+      return (container: container, metadata: metadata);
+    }
+
+    test('负面框只留主负面，发送时与原图负面一致', () async {
+      final image = await serverWrittenImage();
+
+      await MetadataImportCoordinator.apply(
+        read: image.container.read,
+        metadata: image.metadata,
+        options: MetadataImportOptions.all(),
+        l10n: AppLocalizationsEn(),
+      );
+
+      final params = image.container.read(generationParamsNotifierProvider);
+      final withFixedTags = image.container
+          .read(fixedTagsNotifierProvider)
+          .applyToNegativePrompt(params.negativePrompt);
+      expect(params.negativePrompt, 'watermark');
+      expect(params.ucPreset, UcPresets.heavyApiValue);
+      expect(
+        UcPresets.applyPresetWithNsfwCheck(
+          withFixedTags,
+          params.prompt,
+          model,
+          params.ucPreset,
+        ),
+        image.metadata.negativePrompt,
+      );
+    });
+
+    test('不导入 UC 预设时保留预设文字，仍去掉固定词', () async {
+      final image = await serverWrittenImage();
+
+      await MetadataImportCoordinator.apply(
+        read: image.container.read,
+        metadata: image.metadata,
+        options: MetadataImportOptions.all().copyWith(importUcPreset: false),
+        l10n: AppLocalizationsEn(),
+      );
+
+      expect(
+        image.container.read(generationParamsNotifierProvider).negativePrompt,
+        '$heavy, watermark',
+      );
+    });
+  });
+
   test('fixed-tag restoration changes only the four selected scopes', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);

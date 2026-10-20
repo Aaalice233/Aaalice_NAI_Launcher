@@ -192,6 +192,13 @@ class ImageModels {
     return model;
   }
 
+  /// 迁移历史键后仍是可生成模型时返回其 ID，否则返回 null。
+  static String? importableModelId(String? model) {
+    if (model == null || model.isEmpty) return null;
+    final normalized = migrateLegacyModel(model);
+    return supportedModels.contains(normalized) ? normalized : null;
+  }
+
   /// 判断是否使用 V4 起的提示词结构（V4、V4.5、V5 均为 true）
   static bool isV4Model(String model) =>
       ModelCapabilityRegistry.of(model).promptStructure == PromptStructure.v4;
@@ -753,6 +760,9 @@ enum UcPresetType {
   none, // 不添加预设
 }
 
+/// 负面提示词开头的 UC 预设与其后的内容；未命中预设时 preset 为空。
+typedef UcPresetSplit = ({String preset, String body});
+
 class UcPresets {
   UcPresets._();
 
@@ -771,17 +781,26 @@ class UcPresets {
     };
   }
 
+  static const Map<int, int> _tagHintByApiValue = {
+    heavyApiValue: 2,
+    lightApiValue: 3,
+    humanFocusApiValue: 4,
+    noneApiValue: 0,
+    UCPresets.furryFocus: 5,
+  };
+
   /// 将旧版请求字段的 UC 取值转换为官网的数字提示。
   static int? toTagHint(int apiValue, {bool omit = false}) {
     if (omit) return null;
-    return switch (apiValue) {
-      heavyApiValue => 2,
-      lightApiValue => 3,
-      humanFocusApiValue => 4,
-      noneApiValue => 0,
-      UCPresets.furryFocus => 5,
-      _ => null,
-    };
+    return _tagHintByApiValue[apiValue];
+  }
+
+  /// 官网数字提示还原为旧版请求字段的 UC 取值，无法识别时返回 null。
+  static int? fromTagHint(int tagHint) {
+    for (final entry in _tagHintByApiValue.entries) {
+      if (entry.value == tagHint) return entry.key;
+    }
+    return null;
   }
 
   /// V5 预设（Curated/Full 共用一套）
@@ -1050,42 +1069,68 @@ class UcPresets {
     String negativePrompt,
     String model,
     UcPresetType type,
-  ) {
-    final trimmedNegative = negativePrompt.trim();
-    if (trimmedNegative.isEmpty || type == UcPresetType.none) {
-      return trimmedNegative;
-    }
+  ) => splitPreset(negativePrompt, model, type).body;
 
-    for (final presetContent in _getPresetVariants(model, type)) {
-      final stripped = _stripPresetContent(trimmedNegative, presetContent);
-      if (stripped != null) {
-        return stripped;
-      }
-    }
-    return trimmedNegative;
+  /// 把负面提示词拆成开头的预设与其后的内容；未命中预设时 preset 为空。
+  static UcPresetSplit splitPreset(
+    String negativePrompt,
+    String model,
+    UcPresetType type,
+  ) => _splitByVariants(negativePrompt, type, _getPresetVariants(model, type));
+
+  /// 根据整数 ucPreset 值剥离预设内容，恢复用户输入的负面提示词。
+  static String stripPresetByInt(
+    String negativePrompt,
+    String model,
+    int ucPreset,
+  ) => splitPresetByInt(negativePrompt, model, ucPreset).body;
+
+  /// 按整数 ucPreset 拆分；[model] 未知时改用所有模型的同档文案并取最长命中，
+  /// 因为不同模型的同档文案可能互为前缀（如 V4 Full 与 V4 Curated 的 light）。
+  static UcPresetSplit splitPresetByInt(
+    String negativePrompt,
+    String? model,
+    int ucPreset,
+  ) {
+    final type = getPresetTypeFromInt(ucPreset);
+    return _splitByVariants(
+      negativePrompt,
+      type,
+      model == null
+          ? _allPresetVariantsLongestFirst(type)
+          : _getPresetVariants(model, type),
+    );
   }
 
-  static String? _stripPresetContent(
+  static UcPresetSplit _splitByVariants(
     String negativePrompt,
-    String presetContent,
+    UcPresetType type,
+    Iterable<String> variants,
   ) {
-    final trimmedPreset = presetContent.trim();
-    if (trimmedPreset.isEmpty) {
-      return null;
-    }
-    final promptTags = _splitPromptTags(negativePrompt);
-    final presetTags = _splitPromptTags(trimmedPreset);
-    if (promptTags.length < presetTags.length) {
-      return null;
+    final trimmedNegative = negativePrompt.trim();
+    final unmatched = (preset: '', body: trimmedNegative);
+    if (trimmedNegative.isEmpty || type == UcPresetType.none) {
+      return unmatched;
     }
 
-    for (var i = 0; i < presetTags.length; i++) {
-      if (promptTags[i].toLowerCase() != presetTags[i].toLowerCase()) {
-        return null;
-      }
+    final promptTags = _splitPromptTags(trimmedNegative);
+    for (final variant in variants) {
+      final presetTags = _splitPromptTags(variant);
+      if (!_startsWithTags(promptTags, presetTags)) continue;
+      return (
+        preset: promptTags.sublist(0, presetTags.length).join(', '),
+        body: promptTags.sublist(presetTags.length).join(', '),
+      );
     }
+    return unmatched;
+  }
 
-    return promptTags.sublist(presetTags.length).join(', ');
+  static bool _startsWithTags(List<String> promptTags, List<String> prefix) {
+    if (prefix.isEmpty || promptTags.length < prefix.length) return false;
+    for (var i = 0; i < prefix.length; i++) {
+      if (promptTags[i].toLowerCase() != prefix[i].toLowerCase()) return false;
+    }
+    return true;
   }
 
   static List<String> _getPresetVariants(String model, UcPresetType type) {
@@ -1097,14 +1142,15 @@ class UcPresets {
     ];
   }
 
-  /// 根据整数 ucPreset 值剥离预设内容，恢复用户输入的负面提示词。
-  static String stripPresetByInt(
-    String negativePrompt,
-    String model,
-    int ucPreset,
-  ) {
-    final presetType = getPresetTypeFromInt(ucPreset);
-    return stripPreset(negativePrompt, model, presetType);
+  static List<String> _allPresetVariantsLongestFirst(UcPresetType type) {
+    final variants = {
+      for (final model in ImageModels.supportedModels)
+        ..._getPresetVariants(model, type),
+    }.toList();
+    final tagCounts = {
+      for (final variant in variants) variant: _splitPromptTags(variant).length,
+    };
+    return variants..sort((a, b) => tagCounts[b]!.compareTo(tagCounts[a]!));
   }
 
   static List<String> _splitPromptTags(String prompt) {

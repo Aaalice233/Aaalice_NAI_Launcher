@@ -13,6 +13,7 @@ class NaiPromptCopySelection {
     this.qualityTags = false,
     this.fixedPositive = false,
     this.mainNegative = false,
+    this.ucPreset = false,
     this.fixedNegative = false,
     this.characterPositiveIndices = const {},
     this.characterNegativeIndices = const {},
@@ -25,6 +26,7 @@ class NaiPromptCopySelection {
       qualityTags: NaiPromptExportCodec.hasQualityTags(metadata),
       fixedPositive: NaiPromptExportCodec.hasFixedPositive(metadata),
       mainNegative: NaiPromptExportCodec.mainNegative(metadata).isNotEmpty,
+      ucPreset: NaiPromptExportCodec.ucPreset(metadata).isNotEmpty,
       fixedNegative: NaiPromptExportCodec.hasFixedNegative(metadata),
       characterPositiveIndices: {
         for (var index = 0; index < characters; index++)
@@ -49,6 +51,7 @@ class NaiPromptCopySelection {
   final bool qualityTags;
   final bool fixedPositive;
   final bool mainNegative;
+  final bool ucPreset;
   final bool fixedNegative;
   final Set<int> characterPositiveIndices;
   final Set<int> characterNegativeIndices;
@@ -58,6 +61,7 @@ class NaiPromptCopySelection {
       qualityTags ||
       fixedPositive ||
       mainNegative ||
+      ucPreset ||
       fixedNegative ||
       characterPositiveIndices.isNotEmpty ||
       characterNegativeIndices.isNotEmpty;
@@ -67,6 +71,7 @@ class NaiPromptCopySelection {
     bool? qualityTags,
     bool? fixedPositive,
     bool? mainNegative,
+    bool? ucPreset,
     bool? fixedNegative,
     Set<int>? characterPositiveIndices,
     Set<int>? characterNegativeIndices,
@@ -75,6 +80,7 @@ class NaiPromptCopySelection {
     qualityTags: qualityTags ?? this.qualityTags,
     fixedPositive: fixedPositive ?? this.fixedPositive,
     mainNegative: mainNegative ?? this.mainNegative,
+    ucPreset: ucPreset ?? this.ucPreset,
     fixedNegative: fixedNegative ?? this.fixedNegative,
     characterPositiveIndices:
         characterPositiveIndices ?? this.characterPositiveIndices,
@@ -190,9 +196,10 @@ class NaiPromptExportCodec {
       NaiMetadataPromptProjection(metadata).mainPrompt.trim();
 
   static String mainNegative(NaiImageMetadata metadata) =>
-      NaiMetadataPromptProjection(
-        metadata,
-      ).negativePromptWithoutFixedTags.trim();
+      NaiMetadataPromptProjection(metadata).mainNegativePrompt.trim();
+
+  static String ucPreset(NaiImageMetadata metadata) =>
+      NaiMetadataPromptProjection(metadata).negativePresetSplit.preset.trim();
 
   static bool hasQualityTags(NaiImageMetadata metadata) =>
       metadata.qualityTags.any((tag) => tag.trim().isNotEmpty) ||
@@ -238,7 +245,9 @@ class NaiPromptExportCodec {
         'transparent background',
       if (selection.qualityTags) ...metadata.qualityTags,
     ].map((value) => value.trim()).where((value) => value.isNotEmpty).toList();
+    // 与发送时的嵌套顺序一致：[UC 预设][固定前缀][主负面][固定后缀]
     final negativeParts = <String>[
+      if (selection.ucPreset) ucPreset(metadata),
       if (selection.fixedNegative) ...metadata.fixedNegativePrefixTags,
       if (selection.mainNegative) mainNegative(metadata),
       if (selection.fixedNegative) ...metadata.fixedNegativeSuffixTags,
@@ -291,6 +300,7 @@ class NaiPromptExportCodec {
       transparentBackground: selection.qualityTags
           ? metadata.transparentBackground
           : null,
+      ucPreset: selection.ucPreset ? metadata.ucPreset : null,
       characterInfos: characterInfos,
       characterUseCoords: characterInfos.isEmpty
           ? null
@@ -301,6 +311,7 @@ class NaiPromptExportCodec {
 
   static bool _requiresMetadataExtension(NaiImageMetadata metadata) =>
       metadata.hasSeparatedFields ||
+      metadata.ucPreset != null ||
       metadata.characterNegativePrompts.any((value) => value.isNotEmpty) ||
       metadata.characterInfos.any(
         (info) =>

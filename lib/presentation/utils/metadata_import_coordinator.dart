@@ -40,11 +40,9 @@ class MetadataImportCoordinator {
       read(characterPromptNotifierProvider.notifier).clearAllCharacters();
     }
 
-    final currentModel = read(generationParamsNotifierProvider).model;
     var appliedCount = MetadataImportApplier.applyPromptAndGenerationParams(
       metadata: resolvedMetadata,
       options: options,
-      currentModel: currentModel,
       target: MetadataImportTarget(
         updatePrompt: notifier.updatePrompt,
         updateNegativePrompt: notifier.updateNegativePrompt,

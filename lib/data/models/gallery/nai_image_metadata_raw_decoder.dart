@@ -150,7 +150,8 @@ class NaiImageMetadataRawDecoder {
             promptWithoutAutoText,
             capabilities: ModelCapabilityRegistry.of(resolvedModel),
           ).prompt;
-    final importedUcPreset = _toInt(commentData['uc_preset']);
+    final importedUcPreset =
+        _toInt(commentData['uc_preset']) ?? _ucPresetFromTagHint(commentData);
     final importedQualityToggle =
         _safeGetBool(commentData, 'quality_toggle') ??
         _qualityToggleFromTagHint(commentData);
@@ -352,6 +353,12 @@ class NaiImageMetadataRawDecoder {
     if (value is bool) return value;
     if (value is num) return value != 0;
     return null;
+  }
+
+  /// 服务端回写的 comment 只有 `tag_hint_uc_preset`，没有旧字段 `uc_preset`。
+  static int? _ucPresetFromTagHint(Map<String, dynamic> data) {
+    final hint = _toInt(data['tag_hint_uc_preset']);
+    return hint == null ? null : UcPresets.fromTagHint(hint);
   }
 
   /// 从官网的数字提示恢复具体质量档位。

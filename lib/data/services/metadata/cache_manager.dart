@@ -22,7 +22,7 @@ class MetadataCacheManager {
   static const int _memoryCacheCapacity = 500;
   // Bump this whenever NaiImageMetadata parsing semantics change; cached values
   // are parsed snapshots, not raw PNG metadata.
-  static const int _currentCacheVersion = 8;
+  static const int _currentCacheVersion = 9;
   static const String _versionKey = '_cacheVersion';
 
   LazyBox<String>? _persistentBox;

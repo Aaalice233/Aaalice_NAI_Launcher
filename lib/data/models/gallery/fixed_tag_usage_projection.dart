@@ -35,7 +35,7 @@ NaiImageMetadata projectFixedTagUsageSnapshot(NaiImageMetadata metadata) {
     ],
   );
   final negative = _projectSide(
-    prompt: metadata.negativePrompt,
+    prompt: metadata.negativePresetSplit.body,
     snapshot: snapshot,
     promptType: FixedTagPromptType.negative,
     trailingBlockers: const [],

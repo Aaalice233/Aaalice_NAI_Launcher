@@ -613,6 +613,9 @@ class _MetadataContent extends StatelessWidget {
       promptTags: mainNegativeTags,
       prefixEntries: resolvedMetadata.fixedNegativePrefixTags,
       suffixEntries: resolvedMetadata.fixedNegativeSuffixTags,
+      leadingTagCount: _extractTags(
+        resolvedMetadata.negativePresetSplit.preset,
+      ).length,
     );
     final characterPositiveIndexes = {
       for (

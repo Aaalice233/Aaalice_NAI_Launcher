@@ -106,7 +106,7 @@ void main() {
         metadata.displayNegativePrompt,
         equals('bad anatomy, plain_negative, text'),
       );
-      expect(metadata.negativePromptWithoutFixedTags, equals('plain_negative'));
+      expect(metadata.mainNegativePrompt, equals('plain_negative'));
     });
 
     test('copy-safe prompt should remove only fixed tags', () {
@@ -239,6 +239,40 @@ void main() {
         );
       },
     );
+
+    test('fromNaiComment reads the uc preset from the server tag hint', () {
+      final preset = UcPresets.getPresetContent(
+        ImageModels.animeDiffusionV5Full,
+        UcPresetType.heavy,
+      );
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': '1girl',
+          'uc': '$preset, custom_negative',
+          'tag_hint_uc_preset': 2,
+          'seed': 1,
+        }),
+        'Software': 'NovelAI',
+        'Source': 'NovelAI Diffusion V5 657484A5',
+      });
+
+      expect(metadata.ucPreset, UcPresets.heavyApiValue);
+      expect(metadata.negativePresetSplit.preset, preset);
+      expect(metadata.mainNegativePrompt, 'custom_negative');
+    });
+
+    test('fromNaiComment prefers the uc_preset field over the tag hint', () {
+      final metadata = NaiImageMetadata.fromNaiComment({
+        'Comment': jsonEncode({
+          'prompt': '1girl',
+          'uc': 'custom_negative',
+          'uc_preset': UcPresets.lightApiValue,
+          'tag_hint_uc_preset': 2,
+        }),
+      });
+
+      expect(metadata.ucPreset, UcPresets.lightApiValue);
+    });
 
     test(
       'fromNaiComment should prefer source over legacy Comment model field',
@@ -487,7 +521,6 @@ void main() {
           importQualityToggle: true,
           importTransparentBackground: true,
         ),
-        currentModel: ImageModels.animeDiffusionV5Curated,
         target: MetadataImportTarget(
           updatePrompt: (value) => applied['prompt'] = value,
           updateNegativePrompt: (_) {},
@@ -638,7 +671,6 @@ void main() {
       final count = MetadataImportApplier.applyPromptAndGenerationParams(
         metadata: metadata,
         options: const MetadataImportOptions(importModel: true),
-        currentModel: ImageModels.animeDiffusionV45Curated,
         target: MetadataImportTarget(
           updatePrompt: (_) {},
           updateNegativePrompt: (_) {},
@@ -684,7 +716,6 @@ void main() {
         final count = MetadataImportApplier.applyPromptAndGenerationParams(
           metadata: metadata,
           options: MetadataImportOptions.all(),
-          currentModel: ImageModels.animeDiffusionV45Curated,
           target: MetadataImportTarget(
             updatePrompt: (value) => applied['prompt'] = value,
             updateNegativePrompt: (value) => applied['negativePrompt'] = value,
@@ -1295,7 +1326,6 @@ void main() {
       MetadataImportApplier.applyPromptAndGenerationParams(
         metadata: metadata,
         options: options,
-        currentModel: ImageModels.animeDiffusionV45Full,
         target: target,
       );
 
@@ -1352,7 +1382,6 @@ void main() {
     final count = MetadataImportApplier.applyPromptAndGenerationParams(
       metadata: metadata,
       options: const MetadataImportOptions(importTransparentBackground: true),
-      currentModel: ImageModels.animeDiffusionV5Curated,
       target: MetadataImportTarget(
         updatePrompt: (_) {},
         updateNegativePrompt: (_) {},
@@ -1456,7 +1485,6 @@ void main() {
       MetadataImportApplier.applyPromptAndGenerationParams(
         metadata: metadata,
         options: MetadataImportOptions.all(),
-        currentModel: ImageModels.animeDiffusionV45Full,
         target: _recordingTarget(
           onPrompt: (value) => appliedPrompt = value,
           onModelMode: (value) => appliedMode = value,
@@ -1473,7 +1501,6 @@ void main() {
       MetadataImportApplier.applyPromptAndGenerationParams(
         metadata: parse(prompt: 'fur dataset, wolf'),
         options: MetadataImportOptions.all().copyWith(importPrompt: false),
-        currentModel: ImageModels.animeDiffusionV45Full,
         target: _recordingTarget(onModelMode: (value) => appliedMode = value),
       );
 

@@ -282,6 +282,7 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
     final hasFixedPositive = NaiPromptExportCodec.hasFixedPositive(_metadata);
     final hasFixedNegative = NaiPromptExportCodec.hasFixedNegative(_metadata);
     final hasQuality = NaiPromptExportCodec.hasQualityTags(_metadata);
+    final hasUcPreset = NaiPromptExportCodec.ucPreset(_metadata).isNotEmpty;
     final positiveValues = <bool>[
       if (hasMainPositive) _exportSelection.mainPositive,
       if (hasFixedPositive) _exportSelection.fixedPositive,
@@ -292,6 +293,7 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
     final negativeValues = <bool>[
       if (hasMainNegative) _exportSelection.mainNegative,
       if (hasFixedNegative) _exportSelection.fixedNegative,
+      if (hasUcPreset) _exportSelection.ucPreset,
       for (final index in negativeCharacters)
         _exportSelection.characterNegativeIndices.contains(index),
     ];
@@ -350,6 +352,7 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
               negativeCharacters,
               hasMainNegative: hasMainNegative,
               hasFixedNegative: hasFixedNegative,
+              hasUcPreset: hasUcPreset,
             ),
           ),
           if (hasMainNegative)
@@ -365,6 +368,13 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
               value: _exportSelection.fixedNegative,
               onChanged: (value) =>
                   _update(_exportSelection.copyWith(fixedNegative: value)),
+            ),
+          if (hasUcPreset)
+            _childTile(
+              label: context.l10n.ucPreset_label,
+              value: _exportSelection.ucPreset,
+              onChanged: (value) =>
+                  _update(_exportSelection.copyWith(ucPreset: value)),
             ),
           for (final index in negativeCharacters)
             _childTile(
@@ -430,10 +440,12 @@ class _PromptCopyDialogState extends State<PromptCopyDialog> {
     Set<int> characterIndices, {
     required bool hasMainNegative,
     required bool hasFixedNegative,
+    required bool hasUcPreset,
   }) => _update(
     _exportSelection.copyWith(
       mainNegative: hasMainNegative && value,
       fixedNegative: hasFixedNegative && value,
+      ucPreset: hasUcPreset && value,
       characterNegativeIndices: value ? characterIndices : const {},
     ),
   );
