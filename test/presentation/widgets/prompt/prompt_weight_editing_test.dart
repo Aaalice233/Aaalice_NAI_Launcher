@@ -201,6 +201,10 @@ void main() {
         PromptWeightEditing.withWeight('1.05::year_2025 ::', 1),
         'year_2025',
       );
+      expect(
+        PromptWeightEditing.withWeight('1.2::cat ::', 1.25),
+        '1.25::cat ::',
+      );
     });
 
     test('toolbar steps follow the controller preference', () {

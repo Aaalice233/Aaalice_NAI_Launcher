@@ -76,20 +76,18 @@ void main() {
       expect(NumericWeightClosing.closingFor('cat', separate: true), '::');
     });
 
-    test('recognises a closing the user already separated', () {
-      expect(
-        NumericWeightClosing.hasSeparatedClosing('1.05::year_2025 ::'),
-        isTrue,
-      );
-      expect(
-        NumericWeightClosing.hasSeparatedClosing('/*disabled:1.05::a1 ::*/'),
-        isTrue,
-      );
-      expect(
-        NumericWeightClosing.hasSeparatedClosing('1.05::year_2025::'),
-        isFalse,
-      );
-      expect(NumericWeightClosing.hasSeparatedClosing('year_2025'), isFalse);
+    test('keeps a closing the user already separated', () {
+      String rewrite(String content, String original) =>
+          NumericWeightClosing.closingFor(
+            content,
+            separate: false,
+            original: original,
+          );
+      expect(rewrite('year_2025', '1.05::year_2025 ::'), ' ::');
+      expect(rewrite('cat', '1.05::cat ::'), ' ::');
+      expect(rewrite('a1', '/*disabled:1.05::a1 ::*/'), ' ::');
+      expect(rewrite('year_2025', '1.05::year_2025::'), '::');
+      expect(rewrite('year_2025', 'year_2025'), '::');
     });
   });
 

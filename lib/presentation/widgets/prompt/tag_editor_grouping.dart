@@ -98,8 +98,8 @@ class PromptSelectionGrouping {
   ) => span.suffix.trimLeft() == NumericWeightClosing.plain
       ? NumericWeightClosing.closingFor(
           content,
-          separate:
-              separate || NumericWeightClosing.hasSeparatedClosing(span.raw),
+          separate: separate,
+          original: span.raw,
         )
       : span.suffix;
 

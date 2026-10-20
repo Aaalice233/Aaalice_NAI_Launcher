@@ -14,13 +14,16 @@ abstract final class NumericWeightClosing {
     return sent.isNotEmpty && _isNumeric(sent.codeUnitAt(sent.length - 1));
   }
 
-  static String closingFor(String content, {required bool separate}) =>
-      separate && endsAmbiguously(content) ? separated : plain;
-
-  /// 重写权重时用于沿用原文已有的闭合空格，选项关闭也不拆掉。
-  static bool hasSeparatedClosing(String source) => _separatedEnding.hasMatch(
-    PromptEditDocument.decodeDisabled(source).trimRight(),
-  );
+  /// [original] 是被重写的原文，其闭合已带空格时沿用，选项关闭也不拆掉。
+  static String closingFor(
+    String content, {
+    required bool separate,
+    String? original,
+  }) =>
+      (original != null && _hasSeparatedClosing(original)) ||
+          (separate && endsAmbiguously(content))
+      ? separated
+      : plain;
 
   /// 只在闭合 `::` 前插入空格，不改动其他字符。
   static String separate(String source) {
@@ -42,6 +45,10 @@ abstract final class NumericWeightClosing {
     result.write(source.substring(cursor));
     return result.toString();
   }
+
+  static bool _hasSeparatedClosing(String source) => _separatedEnding.hasMatch(
+    PromptEditDocument.decodeDisabled(source).trimRight(),
+  );
 
   static bool _isNumeric(int code) =>
       (code >= 0x30 && code <= 0x39) || code == 0x2E || code == 0x2D;
