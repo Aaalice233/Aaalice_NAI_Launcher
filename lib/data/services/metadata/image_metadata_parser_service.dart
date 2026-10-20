@@ -138,7 +138,7 @@ class ImageMetadataParserService {
       return parseFromPngWithoutPixelDecode(bytes);
     }
     if (ExifContainer.isWebp(bytes)) {
-      return parseFromWebpWithoutPixelDecode(bytes);
+      return _parseFromWebpWithoutPixelDecode(bytes);
     }
     return parseFromImage(bytes);
   }
@@ -152,8 +152,7 @@ class ImageMetadataParserService {
     );
   }
 
-  /// WebP-only counterpart of [parseFromImageWithoutPixelDecode].
-  MetadataParseResult? parseFromWebpWithoutPixelDecode(Uint8List bytes) {
+  MetadataParseResult? _parseFromWebpWithoutPixelDecode(Uint8List bytes) {
     final stopwatch = Stopwatch()..start();
     return _recordDeferrable(
       _parseWebp(bytes, stopwatch, includeStealth: false),

@@ -54,10 +54,6 @@ class UnifiedMetadataParser {
   static MetadataParseResult? parseFromPngWithoutPixelDecode(Uint8List bytes) =>
       _service.parseFromPngWithoutPixelDecode(bytes);
 
-  static MetadataParseResult? parseFromWebpWithoutPixelDecode(
-    Uint8List bytes,
-  ) => _service.parseFromWebpWithoutPixelDecode(bytes);
-
   static bool readsStealthPayload(Uint8List bytes) =>
       ImageMetadataParserService.readsStealthPayload(bytes);
 
