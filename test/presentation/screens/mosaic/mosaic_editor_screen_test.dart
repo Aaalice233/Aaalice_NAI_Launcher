@@ -9,18 +9,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/derivatives/derivative_registry.dart';
 import 'package:nai_launcher/core/derivatives/derivative_render.dart';
-import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/mosaic/mosaic_settings.dart';
 import 'package:nai_launcher/core/mosaic/mosaic_render_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/mosaic_settings_provider.dart';
-import 'package:nai_launcher/presentation/screens/derivatives/derivative_copy_saver.dart';
 import 'package:nai_launcher/presentation/screens/mosaic/mosaic_editor_canvas.dart';
 import 'package:nai_launcher/presentation/screens/mosaic/mosaic_editor_screen.dart';
 
-import '../../../helpers/editor_exit.dart';
+import '../../../helpers/derivative_copy_save_scenarios.dart';
 import '../../../helpers/labeled_rows_expectations.dart';
-import '../../../helpers/pending_derivative_copy_saver.dart';
 
 class _Settings extends MosaicSettingsNotifier {
   @override
@@ -358,151 +355,41 @@ void main() {
   );
 
   group('save copy', () {
-    testWidgets('stalled follow-up steps never hold the editor once written', (
-      tester,
-    ) async {
-      final pending = PendingDerivativeCopySaver(DerivativeKind.mosaic);
-      addTearDown(pending.releaseAll);
-      final settings = _RecordingSettings();
-      final closed = await _openForSave(tester, bytes, pending, settings);
-      final output = pending.outputPathFor('source_redacted.png');
+    late _RecordingSettings settings;
 
-      await tester.tap(find.widgetWithIcon(FilledButton, Icons.save_alt));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+    setUp(() => settings = _RecordingSettings());
 
-      expect(find.text('Redacted copy saved'), findsOneWidget);
-      expect(pending.writes, [output]);
-      expect(pending.admissions, [
-        [output],
-      ]);
-      expect(pending.indexing.isCompleted, isFalse);
-      expect(settings.remembered, hasLength(1));
-
-      await tester.tap(find.widgetWithText(FilledButton, 'Close'));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(MosaicEditorScreen), findsNothing);
-      expect(closed.isCompleted, isTrue);
-      expect(await closed.future, output);
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('follow-up failures still surface after the editor closed', (
-      tester,
-    ) async {
-      final pending = PendingDerivativeCopySaver(DerivativeKind.mosaic);
-      addTearDown(pending.releaseAll);
-      await _openForSave(tester, bytes, pending, _RecordingSettings());
-      await tester.tap(find.widgetWithIcon(FilledButton, Icons.save_alt));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.widgetWithText(FilledButton, 'Close'));
-      await tester.pumpAndSettle();
-      expect(find.byType(MosaicEditorScreen), findsNothing);
-
-      pending.indexing.complete(GalleryIndexAdmission.failed);
-      pending.rescanning.complete('refreshFailed');
-      pending.publishing.completeError(StateError('media store'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      final l10n = lookupAppLocalizations(const Locale('en'));
-      expect(find.text(l10n.mosaic_galleryRefreshFailed), findsOneWidget);
-      expect(find.text(l10n.mosaic_systemGalleryExportFailed), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 4));
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-    });
-
-    for (final exit in EditorExit.values) {
-      testWidgets('${exit.name} during a stalled render leaves and writes '
-          'nothing', (tester) async {
-        final pending = PendingDerivativeCopySaver(DerivativeKind.mosaic);
-        addTearDown(pending.releaseAll);
-        final settings = _RecordingSettings();
-        final rendering = Completer<MosaicRenderResult>();
-        final closed = await _openForSave(
-          tester,
-          bytes,
-          pending,
-          settings,
-          renderCopy: (request, {cancellationToken}) => rendering.future,
-        );
-
-        await tester.tap(find.widgetWithIcon(FilledButton, Icons.save_alt));
-        await tester.pump();
-        expect(find.text('Saving…'), findsOneWidget);
-
-        await exit.perform(tester);
-        await tester.pump();
-        expect(closed.isCompleted, isTrue);
-        await settleWithin(tester, const Duration(seconds: 2));
-        expect(find.byType(MosaicEditorScreen), findsNothing);
-        expect(await closed.future, isNull);
-
-        rendering.complete(_renderResult(bytes));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-        expect(pending.writes, isEmpty);
-        expect(settings.remembered, isEmpty);
-        expect(tester.takeException(), isNull);
-      });
-
-      testWidgets('${exit.name} once writing started leaves and still saves', (
-        tester,
-      ) async {
-        final pending = PendingDerivativeCopySaver(
-          DerivativeKind.mosaic,
-          holdWrites: true,
-        );
-        addTearDown(pending.releaseAll);
-        final settings = _RecordingSettings();
-        final closed = await _openForSave(tester, bytes, pending, settings);
-        final output = pending.outputPathFor('source_redacted.png');
-
-        await tester.tap(find.widgetWithIcon(FilledButton, Icons.save_alt));
-        await tester.pump();
-        expect(pending.writeRequests, [output]);
-
-        await exit.perform(tester);
-        await tester.pump();
-        expect(closed.isCompleted, isTrue);
-        await settleWithin(tester, const Duration(seconds: 2));
-        expect(find.byType(MosaicEditorScreen), findsNothing);
-        expect(await closed.future, isNull);
-
-        pending.writing.complete();
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 400));
-
-        expect(pending.writes, [output]);
-        expect(pending.admissions, [
-          [output],
-        ]);
-        expect(settings.remembered, hasLength(1));
-        expect(find.byType(AlertDialog), findsNothing);
-        expect(
-          find.text('Redacted copy saved\nsource_redacted.png'),
-          findsOneWidget,
-        );
-
-        await tester.pump(const Duration(seconds: 4));
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-      });
-    }
+    defineDerivativeCopySaveTests<MosaicRenderResult>(
+      kind: DerivativeKind.mosaic,
+      editorType: MosaicEditorScreen,
+      surfaceSize: const Size(1180, 900),
+      saveButton: find.widgetWithIcon(FilledButton, Icons.save_alt),
+      savingLabel: (l10n) => l10n.mosaic_saving,
+      savedLabel: (l10n) => l10n.mosaic_saved,
+      galleryIndexFailedLabel: (l10n) => l10n.mosaic_galleryRefreshFailed,
+      systemGalleryFailedLabel: (l10n) => l10n.mosaic_systemGalleryExportFailed,
+      overrides: () => [mosaicSettingsProvider.overrideWith(() => settings)],
+      renderResult: (bytes, fileName) => MosaicRenderResult(
+        bytes: bytes,
+        fileName: fileName,
+        width: 80,
+        height: 60,
+        metadataPreserved: false,
+      ),
+      buildEditor: (render) => MosaicEditorScreen(
+        sourceBytes: bytes,
+        sourceFileName: 'source.png',
+        sourcePath: 'source.png',
+        defaultsOnly: false,
+        decodePreview: (_) async => _preview.clone(),
+        renderCopy: (request, {cancellationToken}) =>
+            render(request.sourceBytes),
+      ),
+      expectEditorEffects: ({required written}) =>
+          expect(settings.remembered, hasLength(written ? 1 : 0)),
+    );
   });
 }
-
-MosaicRenderResult _renderResult(Uint8List bytes) => MosaicRenderResult(
-  bytes: bytes,
-  fileName: 'source_redacted.png',
-  width: 80,
-  height: 60,
-  metadataPreserved: false,
-);
 
 class _RecordingSettings extends _Settings {
   final remembered = <MosaicSettings>[];
@@ -511,66 +398,6 @@ class _RecordingSettings extends _Settings {
   Future<void> saveDefaults([MosaicSettings? configuration]) async {
     remembered.add(configuration ?? state.configuration);
   }
-}
-
-/// 推入编辑器路由并等原图载入；返回的 Completer 在编辑器关闭时带上返回值完成。
-Future<Completer<String?>> _openForSave(
-  WidgetTester tester,
-  Uint8List bytes,
-  PendingDerivativeCopySaver pending,
-  _RecordingSettings settings, {
-  MosaicRenderOperation? renderCopy,
-}) async {
-  await tester.binding.setSurfaceSize(const Size(1180, 900));
-  addTearDown(() => tester.binding.setSurfaceSize(null));
-  final closed = Completer<String?>();
-  await tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        mosaicSettingsProvider.overrideWith(() => settings),
-        derivativeCopySaverProvider(
-          DerivativeKind.mosaic,
-        ).overrideWithValue(pending.saver),
-      ],
-      child: MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: FilledButton(
-              onPressed: () => Navigator.of(context)
-                  .push<String>(
-                    MaterialPageRoute(
-                      builder: (_) => MosaicEditorScreen(
-                        sourceBytes: bytes,
-                        sourceFileName: 'source.png',
-                        sourcePath: 'source.png',
-                        defaultsOnly: false,
-                        decodePreview: (_) async => _preview.clone(),
-                        renderCopy:
-                            renderCopy ??
-                            (request, {cancellationToken}) async =>
-                                _renderResult(request.sourceBytes),
-                      ),
-                    ),
-                  )
-                  .then(closed.complete),
-              child: const Text('Open'),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-  await tester.tap(find.text('Open'));
-  await tester.pumpAndSettle(
-    const Duration(milliseconds: 20),
-    EnginePhase.sendSemanticsUpdate,
-    const Duration(seconds: 10),
-  );
-  expect(find.widgetWithIcon(FilledButton, Icons.save_alt), findsOneWidget);
-  return closed;
 }
 
 Future<void> _mount(
