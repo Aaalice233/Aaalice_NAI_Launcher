@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/prompt_translation_controller.dart';
 
+import '../../../helpers/database_error_probe.dart';
+import '../../../helpers/log_capture.dart';
+
 void main() {
   testWidgets(
     'assistant translations refresh missing captions and beat stale lookup',
@@ -135,5 +138,28 @@ void main() {
       controller.values['missing']!.status,
       PromptTranslationStatus.missing,
     );
+  });
+
+  test('dictionary failures never quote prompt tags into the log', () async {
+    final dbError = await databaseErrorCarrying('secret lighthouse keeper');
+    final controller = PromptTranslationController(
+      TagTranslationLookup.fromResolver((_) => Future.error(dbError)),
+    );
+    addTearDown(controller.dispose);
+
+    final logs = await captureLogs(() async {
+      controller.update(['lighthouse'], immediate: true);
+      await pumpEventQueue();
+    });
+
+    expect(
+      controller.values['lighthouse']!.status,
+      PromptTranslationStatus.failed,
+    );
+    expect(
+      logs.where((line) => line.contains('translation failed')),
+      hasLength(1),
+    );
+    expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
 }

@@ -3,7 +3,15 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/autocomplete/fast_tag_service_provider.dart';
+import 'package:nai_launcher/core/autocomplete/tag_catalog_repository.dart';
+import 'package:nai_launcher/core/database/services/service_providers.dart';
+import 'package:nai_launcher/core/services/smart_tag_recommendation_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/tag_toolbox.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import '../../../helpers/database_error_probe.dart';
+import '../../../helpers/log_capture.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 
@@ -125,5 +133,38 @@ void main() {
     });
 
     expect(result.details['code'], 'invalid_mode');
+  });
+
+  test('database failures never quote the queried tag into the log', () async {
+    sqfliteFfiInit();
+    final emptyCatalog = await databaseFactoryFfiNoIsolate.openDatabase(
+      inMemoryDatabasePath,
+    );
+    addTearDown(emptyCatalog.close);
+    final dbError = await databaseErrorCarrying('secret lighthouse keeper');
+    final container = ProviderContainer(
+      overrides: [
+        tagCatalogRepositoryProvider.overrideWithValue(
+          TagCatalogRepository(database: emptyCatalog),
+        ),
+        translationDataSourceProvider.overrideWith(
+          (ref) => Future.error(dbError),
+        ),
+        smartTagRecommendationServiceProvider.overrideWith(
+          (ref) => Future.error(dbError),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final tool = TagToolbox(container.read(_refProvider)).tools().single;
+
+    final logs = await captureLogs(() async {
+      for (final mode in ['search', 'translate', 'suggest']) {
+        await tool.execute(mode, {'query': 'lighthouse', 'mode': mode});
+      }
+    });
+
+    expect(logs.where((line) => line.contains('search_tags')), hasLength(3));
+    expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
 }

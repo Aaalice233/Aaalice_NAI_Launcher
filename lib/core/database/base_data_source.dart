@@ -6,6 +6,7 @@ import '../utils/app_logger.dart';
 import 'connection_lease.dart';
 import 'connection_pool_holder.dart';
 import 'data_source.dart' as ds;
+import 'database_error_summary.dart';
 
 class DataSourceOperationException implements Exception {
   final String message;
@@ -84,7 +85,7 @@ abstract class EnhancedBaseDataSource extends ds.BaseDataSource {
           await Future.delayed(Duration(milliseconds: delayMs));
         } else {
           throw DataSourceOperationException(
-            message: 'Operation failed: $e',
+            message: 'Operation failed: ${databaseErrorSummary(e)}',
             operationName: operationId,
             originalError: e,
           );
@@ -228,7 +229,11 @@ abstract class EnhancedBaseDataSource extends ds.BaseDataSource {
   }
 
   void _logRetry(String operationId, int attempt, int maxRetries, String reason, dynamic error) {
-    AppLogger.w('[$operationId] $reason, retrying ($attempt/$maxRetries): $error', name);
+    AppLogger.w(
+      '[$operationId] $reason, retrying ($attempt/$maxRetries): '
+      '${databaseErrorSummary(error)}',
+      name,
+    );
   }
 
   void _logOperationDuration(String operationId, int durationMs) {

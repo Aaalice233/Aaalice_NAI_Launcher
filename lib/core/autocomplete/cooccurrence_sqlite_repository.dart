@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../database/database_error_summary.dart';
 import '../services/verified_resumable_downloader.dart';
 import '../utils/app_logger.dart';
 import 'cooccurrence_manifest_codec.dart';
@@ -206,7 +207,7 @@ class CooccurrenceSqliteRepository {
     } catch (error, stack) {
       AppLogger.e(
         'Co-occurrence query failed; using online-only results',
-        error,
+        databaseErrorSummary(error),
         stack,
         'CooccurrencePack',
       );

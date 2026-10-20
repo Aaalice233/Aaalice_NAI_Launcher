@@ -7,6 +7,9 @@ import 'package:nai_launcher/core/autocomplete/autocomplete_cache_database.dart'
 import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
 
+import '../../helpers/database_error_probe.dart';
+import '../../helpers/log_capture.dart';
+
 void main() {
   test(
     'sends only the token and filters empty, deprecated, and invalid categories',
@@ -215,6 +218,39 @@ void main() {
     expect(adapter.requests, hasLength(3));
     expect(result, isEmpty);
   });
+
+  test('cache write failures never quote the typed tag into the log', () async {
+    final adapter = _QueueAdapter([
+      ResponseBody.fromString(
+        '[{"name":"lighthouse","category":0,"post_count":10}]',
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      ),
+      ResponseBody.fromString(
+        '{"related_tags":[]}',
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      ),
+    ]);
+    final dio = Dio(BaseOptions(baseUrl: 'https://danbooru.donmai.us'))
+      ..httpClientAdapter = adapter;
+    final source = DanbooruCompletionSource(
+      dio: dio,
+      cache: _FailingWriteCache(),
+    );
+
+    final logs = await captureLogs(() async {
+      await source.search(_query('lighthouse'));
+      await source.relatedTags('lighthouse');
+    });
+
+    expect(logs.where((line) => line.contains('Danbooru')), hasLength(2));
+    expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
+  });
 }
 
 CompletionQuery _query(String token, {int limit = 20}) => CompletionQuery(
@@ -239,6 +275,13 @@ class _MemoryCache extends AutocompleteCacheDatabase {
       payload: payload,
       fetchedAt: DateTime.now().toUtc(),
     );
+  }
+}
+
+class _FailingWriteCache extends _MemoryCache {
+  @override
+  Future<void> putRemote(String key, List<Map<String, dynamic>> payload) async {
+    throw await databaseErrorCarrying(key);
   }
 }
 
