@@ -8,6 +8,7 @@ import '../../../core/utils/nai_prompt_parser.dart';
 import '../../../core/utils/novelai_auto_text.dart';
 import '../../../core/utils/novelai_dataset_prefix.dart';
 import '../../../core/utils/portable_logger.dart';
+import '../../services/metadata/metadata_error_summary.dart';
 import '../vibe/vibe_reference.dart';
 
 class NaiImageMetadataRawDecoder {
@@ -31,7 +32,7 @@ class NaiImageMetadataRawDecoder {
       source = extracted.$3;
     } catch (e) {
       PortableLogger.w(
-        'Failed to extract comment data: $e',
+        'Failed to extract comment data: ${metadataErrorSummary(e)}',
         'NaiImageMetadata',
       );
       // 使用原始 JSON 作为备选
@@ -57,7 +58,10 @@ class NaiImageMetadataRawDecoder {
     try {
       parts = _extractFixedTags(commentData);
     } catch (e) {
-      PortableLogger.w('Failed to extract fixed tags: $e', 'NaiImageMetadata');
+      PortableLogger.w(
+        'Failed to extract fixed tags: ${metadataErrorSummary(e)}',
+        'NaiImageMetadata',
+      );
     }
 
     try {
@@ -69,7 +73,7 @@ class NaiImageMetadataRawDecoder {
       characterUseCoords = _extractCharacterUseCoords(commentData);
     } catch (e) {
       PortableLogger.w(
-        'Failed to extract character prompts: $e',
+        'Failed to extract character prompts: ${metadataErrorSummary(e)}',
         'NaiImageMetadata',
       );
     }
@@ -79,7 +83,7 @@ class NaiImageMetadataRawDecoder {
       vibeReferences = _extractVibeReferences(commentData);
     } catch (e) {
       PortableLogger.w(
-        'Failed to extract vibe references: $e',
+        'Failed to extract vibe references: ${metadataErrorSummary(e)}',
         'NaiImageMetadata',
       );
     }
@@ -88,7 +92,7 @@ class NaiImageMetadataRawDecoder {
       preciseReferenceMetadata = _extractPreciseReferenceMetadata(commentData);
     } catch (e) {
       PortableLogger.w(
-        'Failed to extract precise references: $e',
+        'Failed to extract precise references: ${metadataErrorSummary(e)}',
         'NaiImageMetadata',
       );
     }
@@ -98,7 +102,10 @@ class NaiImageMetadataRawDecoder {
     try {
       rawPrompt = commentData['prompt'] as String? ?? '';
     } catch (e) {
-      PortableLogger.d('Failed to parse prompt field: $e', 'NaiImageMetadata');
+      PortableLogger.d(
+        'Failed to parse prompt field: ${metadataErrorSummary(e)}',
+        'NaiImageMetadata',
+      );
     }
 
     String negativePrompt = '';
@@ -106,7 +113,7 @@ class NaiImageMetadataRawDecoder {
       negativePrompt = commentData['uc'] as String? ?? '';
     } catch (e) {
       PortableLogger.d(
-        'Failed to parse negative prompt field: $e',
+        'Failed to parse negative prompt field: ${metadataErrorSummary(e)}',
         'NaiImageMetadata',
       );
     }
@@ -215,7 +222,7 @@ class NaiImageMetadataRawDecoder {
     } catch (e, stack) {
       PortableLogger.e(
         'fromNaiComment failed, returning partial metadata',
-        e,
+        metadataErrorSummary(e),
         stack,
         'NaiImageMetadata',
       );

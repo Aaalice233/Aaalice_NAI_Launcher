@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/utils/portable_logger.dart';
 import '../../models/gallery/nai_image_metadata.dart';
+import 'metadata_error_summary.dart';
 import 'metadata_parse_result.dart';
 
 /// Runs format-specific text decoders in stable precedence order.
@@ -325,7 +326,7 @@ class NovelAiParser implements MetadataParser {
           } catch (e, stack) {
             PortableLogger.e(
               'NovelAiParser: Failed to create metadata fromNaiComment',
-              e,
+              metadataErrorSummary(e),
               stack,
               'UnifiedMetadataParser',
             );
@@ -364,7 +365,7 @@ class NovelAiParser implements MetadataParser {
             } catch (e, stack) {
               PortableLogger.e(
                 'NovelAiParser: Failed to parse nested Comment',
-                e,
+                metadataErrorSummary(e),
                 stack,
                 'UnifiedMetadataParser',
               );
@@ -385,7 +386,7 @@ class NovelAiParser implements MetadataParser {
             } catch (e, stack) {
               PortableLogger.e(
                 'NovelAiParser: Failed to parse nested Comment Map',
-                e,
+                metadataErrorSummary(e),
                 stack,
                 'UnifiedMetadataParser',
               );
@@ -395,7 +396,8 @@ class NovelAiParser implements MetadataParser {
         }
       } catch (e) {
         PortableLogger.d(
-          'NovelAiParser: Failed to parse field "$field": $e',
+          'NovelAiParser: Failed to parse field "$field": '
+              '${metadataErrorSummary(e)}',
           'UnifiedMetadataParser',
         );
         continue;
@@ -574,7 +576,10 @@ class ComfyUiParser implements MetadataParser {
         }
       }
     } catch (e) {
-      PortableLogger.d('ComfyUI parser failed: $e', 'UnifiedMetadataParser');
+      PortableLogger.d(
+        'ComfyUI parser failed: ${metadataErrorSummary(e)}',
+        'UnifiedMetadataParser',
+      );
     }
 
     return null;
