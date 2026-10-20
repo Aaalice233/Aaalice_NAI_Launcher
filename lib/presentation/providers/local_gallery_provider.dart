@@ -615,11 +615,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         );
       }
 
-      // 扫描器抢先收录时同样要重取首页，否则开着图库会看不到新图。
-      if (admission.isIndexed &&
-          state.isInitialized &&
-          state.currentPage == 0) {
-        await loadPage(0, showLoading: false);
+      // 扫描器抢先收录时同样要重取，否则开着图库会看不到新图。
+      if (admission.isIndexed && state.isInitialized) {
+        if (state.isGroupedView) {
+          await _loadGroupedImages();
+        } else if (state.currentPage == 0) {
+          await loadPage(0, showLoading: false);
+        }
       }
     } catch (e) {
       AppLogger.e(
