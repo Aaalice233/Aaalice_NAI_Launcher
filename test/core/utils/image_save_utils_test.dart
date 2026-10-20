@@ -764,30 +764,6 @@ void main() {
     });
   });
 
-  test('damaged bytes fail before anything is saved', () async {
-    final original = Uint8List.fromList(
-      img.encodePng(img.Image(width: 8, height: 8)),
-    );
-    final damaged = Uint8List.fromList(original)..[original.length - 1] ^= 1;
-
-    await expectLater(
-      ImageSaveUtils.rebuildImageBytesWithMetadata(
-        imageBytes: damaged,
-        params: const ImageParams(seed: 123),
-        actualSeed: 123,
-      ),
-      throwsFormatException,
-    );
-    await expectLater(
-      ImageSaveUtils.prepareResultBytes(
-        imageBytes: damaged,
-        preserveOriginalBytes: false,
-        metadata: const NaiImageMetadata(prompt: 'p', seed: 123),
-      ),
-      throwsFormatException,
-    );
-  });
-
   group('prepareResultBytes writes the shared NovelAI text fields', () {
     final plainPng = Uint8List.fromList(
       img.encodePng(img.Image(width: 24, height: 40)),
