@@ -93,6 +93,8 @@ class SidebarEntryTile extends StatefulWidget {
 }
 
 class _SidebarEntryTileState extends State<SidebarEntryTile> {
+  // 首次触屏按下就会让列表行改为两行，操作区换父节点也要保住手势识别器，否则抬手会落到外层切换。
+  final _actionsKey = GlobalKey();
   bool _isHovering = false;
   bool _isFocused = false;
 
@@ -394,27 +396,30 @@ class _SidebarEntryTileState extends State<SidebarEntryTile> {
   }) {
     final collapsed =
         availableWidth < SidebarEntryTile._inlineActionsExtentOf(context);
-    return AnimatedOpacity(
-      key: const ValueKey('sidebar-entry-actions'),
-      opacity: _actionsHighlighted ? 1 : 0.4,
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 120),
-      child: collapsed
-          ? _buildActionMenu(theme)
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final action in _SidebarEntryAction.values)
-                  TileActionButton(
-                    icon: action.icon,
-                    tooltip: action.label(context),
-                    color: theme.colorScheme.onSurfaceVariant,
-                    hoverColor: action.emphasisColor(theme.colorScheme),
-                    onPressed: () => _perform(action),
-                  ),
-              ],
-            ),
+    return KeyedSubtree(
+      key: _actionsKey,
+      child: AnimatedOpacity(
+        key: const ValueKey('sidebar-entry-actions'),
+        opacity: _actionsHighlighted ? 1 : 0.4,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 120),
+        child: collapsed
+            ? _buildActionMenu(theme)
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final action in _SidebarEntryAction.values)
+                    TileActionButton(
+                      icon: action.icon,
+                      tooltip: action.label(context),
+                      color: theme.colorScheme.onSurfaceVariant,
+                      hoverColor: action.emphasisColor(theme.colorScheme),
+                      onPressed: () => _perform(action),
+                    ),
+                ],
+              ),
+      ),
     );
   }
 
