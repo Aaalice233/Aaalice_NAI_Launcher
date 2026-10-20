@@ -7,20 +7,11 @@ abstract final class NumericWeightClosing {
   static const separated = ' ::';
   static final _separatedEnding = RegExp(r'\s::$');
 
-  /// 发送前被移除的结尾禁用片段不算内容，按剩余部分判断。
+  /// 按发送时的有效内容判断；未闭合的禁用片段会吞掉随后的 `::`，无需补空格。
   static bool endsAmbiguously(String content) {
-    var end = content.length;
-    final fragments = PromptEditDocument.disabledRanges(
-      content,
-      allowIncomplete: true,
-    );
-    for (var i = fragments.length - 1; i >= 0 && fragments[i].$2 == end; i--) {
-      end = fragments[i].$1;
-      while (end > 0 && _isSeparator(content[end - 1])) {
-        end--;
-      }
-    }
-    return end > 0 && _isNumeric(content.codeUnitAt(end - 1));
+    if (_hasUnclosedDisabled(content)) return false;
+    final sent = PromptEditDocument.effectiveText(content);
+    return sent.isNotEmpty && _isNumeric(sent.codeUnitAt(sent.length - 1));
   }
 
   static String closingFor(String content, {required bool separate}) =>
@@ -55,5 +46,12 @@ abstract final class NumericWeightClosing {
   static bool _isNumeric(int code) =>
       (code >= 0x30 && code <= 0x39) || code == 0x2E || code == 0x2D;
 
-  static bool _isSeparator(String char) => char == ',' || char.trim().isEmpty;
+  static bool _hasUnclosedDisabled(String content) {
+    final fragments = PromptEditDocument.disabledRanges(
+      content,
+      allowIncomplete: true,
+    );
+    return fragments.isNotEmpty &&
+        PromptEditDocument.disabledEnd(content, fragments.last.$1) < 0;
+  }
 }
