@@ -1085,20 +1085,26 @@ class UcPresets {
     int ucPreset,
   ) => splitPresetByInt(negativePrompt, model, ucPreset).body;
 
-  /// 按整数 ucPreset 拆分；[model] 未知时改用所有模型的同档文案并取最长命中，
-  /// 因为不同模型的同档文案可能互为前缀（如 V4 Full 与 V4 Curated 的 light）。
+  /// 按整数 ucPreset 拆分：先用 [model] 的同档文案，未命中再用所有模型的同档文案取最长命中。
+  /// [model] 可能只是 Source 的家族归类；不同模型的同档文案又可能互为前缀（如 V4 Full 与 V4 Curated 的 light）。
   static UcPresetSplit splitPresetByInt(
     String negativePrompt,
     String? model,
     int ucPreset,
   ) {
     final type = getPresetTypeFromInt(ucPreset);
+    if (model != null) {
+      final split = _splitByVariants(
+        negativePrompt,
+        type,
+        _getPresetVariants(model, type),
+      );
+      if (split.preset.isNotEmpty) return split;
+    }
     return _splitByVariants(
       negativePrompt,
       type,
-      model == null
-          ? _allPresetVariantsLongestFirst(type)
-          : _getPresetVariants(model, type),
+      _allPresetVariantsLongestFirst(type),
     );
   }
 
