@@ -14698,9 +14698,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get watermark_noLayer => '保存前请启用文字或 Logo。';
 
   @override
-  String get watermark_cancelled => '已取消水印渲染';
-
-  @override
   String watermark_failed(Object error) {
     return '无法创建水印副本：$error';
   }
@@ -15038,9 +15035,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mosaic_share => '分享';
-
-  @override
-  String get mosaic_cancelled => '已取消打码渲染。';
 
   @override
   String get mosaic_failedGeneric => '无法创建打码副本。';
@@ -30196,9 +30190,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get watermark_noLayer => '儲存前請啟用文字或 Logo。';
 
   @override
-  String get watermark_cancelled => '已取消浮水印渲染';
-
-  @override
   String watermark_failed(Object error) {
     return '無法建立浮水印副本：$error';
   }
@@ -30537,9 +30528,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get mosaic_share => '分享';
-
-  @override
-  String get mosaic_cancelled => '已取消打碼算繪。';
 
   @override
   String get mosaic_failedGeneric => '無法建立打碼副本。';
