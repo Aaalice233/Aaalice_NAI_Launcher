@@ -59,6 +59,9 @@ void main() {
               );
 
               expect(tester.takeException(), isNull, reason: scenario);
+              if (viewMode == 'list') {
+                _expectSidebarChromeFits(tester, scenario: scenario);
+              }
               for (final type in FixedTagPromptType.values) {
                 await _expectFirstEntryUsable(
                   tester,
@@ -72,55 +75,6 @@ void main() {
         },
       );
     }
-  }
-
-  for (final policyEntry in _policies.entries) {
-    testWidgets(
-      'sidebar chrome under ${policyEntry.key} input fits narrow widths',
-      (tester) async {
-        for (final width in _sidebarWidths) {
-          for (final scale in _textScales) {
-            final scenario = '${policyEntry.key} $width/${scale}x';
-            await _pumpSidebar(
-              tester,
-              viewMode: 'list',
-              width: width,
-              textScale: scale,
-              policy: policyEntry.value,
-            );
-
-            expect(tester.takeException(), isNull, reason: scenario);
-            final sidebar = tester.getRect(find.byType(FixedTagsSidebar));
-            for (final key in const [
-              'fixed-tags-top-card',
-              'fixed-tags-positive-card',
-              'fixed-tags-negative-card',
-              'fixed-tags-collapse-sidebar',
-              'fixed-tags-positive-enabled-only',
-              'fixed-tags-negative-enabled-only',
-            ]) {
-              final finder = find.byKey(ValueKey(key));
-              expect(finder.hitTestable(), findsOneWidget, reason: scenario);
-              _expectHorizontallyInside(
-                tester.getRect(finder),
-                sidebar,
-                reason: '$scenario $key',
-              );
-            }
-            final title = tester.getRect(find.text('固定词侧栏'));
-            expect(
-              title.width,
-              greaterThanOrEqualTo(
-                MediaQuery.textScalerOf(
-                  tester.element(find.byType(FixedTagsSidebar)),
-                ).scale(14),
-              ),
-              reason: '$scenario 侧栏标题被挤没',
-            );
-          }
-        }
-      },
-    );
   }
 
   testWidgets(
@@ -289,6 +243,36 @@ Future<void> _expectFirstEntryUsable(
   }
   await tester.tapAt(Offset.zero);
   await tester.pumpAndSettle();
+}
+
+void _expectSidebarChromeFits(WidgetTester tester, {required String scenario}) {
+  final sidebar = tester.getRect(find.byType(FixedTagsSidebar));
+  for (final key in const [
+    'fixed-tags-top-card',
+    'fixed-tags-positive-card',
+    'fixed-tags-negative-card',
+    'fixed-tags-collapse-sidebar',
+    'fixed-tags-positive-enabled-only',
+    'fixed-tags-negative-enabled-only',
+  ]) {
+    final finder = find.byKey(ValueKey(key));
+    expect(finder.hitTestable(), findsOneWidget, reason: scenario);
+    _expectHorizontallyInside(
+      tester.getRect(finder),
+      sidebar,
+      reason: '$scenario $key',
+    );
+  }
+  final title = tester.getRect(find.text('固定词侧栏'));
+  expect(
+    title.width,
+    greaterThanOrEqualTo(
+      MediaQuery.textScalerOf(
+        tester.element(find.byType(FixedTagsSidebar)),
+      ).scale(14),
+    ),
+    reason: '$scenario 侧栏标题被挤没',
+  );
 }
 
 void _expectHorizontallyInside(Rect inner, Rect outer, {String? reason}) {
