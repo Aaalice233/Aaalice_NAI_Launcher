@@ -11,6 +11,8 @@ import 'package:nai_launcher/data/services/vibe_file_storage_service.dart';
 import 'package:nai_launcher/data/services/vibe_import_service.dart';
 import 'package:nai_launcher/presentation/screens/vibe_library/widgets/vibe_selector_dialog.dart';
 
+import '../../helpers/log_capture.dart';
+
 class _FakeVibeLibraryImportRepository implements VibeLibraryImportRepository {
   final List<VibeLibraryEntry> savedEntries = <VibeLibraryEntry>[];
   List<VibeReference> savedBundleVibes = const [];
@@ -167,6 +169,34 @@ void main() {
       );
       expect(repository.getAllEntriesCalls, 0);
       expect(repository.findEntryByNameCalls, greaterThan(0));
+    });
+  });
+
+  group('VibeImportService.importFromEncoding', () {
+    test('pasted JSON that fails to parse is not quoted into the log',
+        () async {
+      final service = VibeImportService(
+        repository: _FakeVibeLibraryImportRepository(),
+      );
+
+      late VibeImportResult result;
+      final logs = await captureLogs(() async {
+        result = await service.importFromEncoding(
+          items: const [
+            VibeEncodingImportItem(
+              source: 'clipboard',
+              encoding: '{"name":"secret lighthouse keeper",',
+            ),
+          ],
+        );
+      });
+
+      expect(result.failCount, 1);
+      expect(
+        logs.where((line) => line.contains('Failed to parse vibe encoding')),
+        hasLength(1),
+      );
+      expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
     });
   });
 

@@ -11,6 +11,7 @@ import '../../core/utils/novelai_vibe_codec.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../../core/utils/vibe_library_path_helper.dart';
 import '../models/vibe/vibe_reference.dart';
+import 'metadata/metadata_error_summary.dart';
 import 'vibe_file_document_codec.dart';
 import 'vibe_file_storage_protocol.dart';
 import 'vibe_file_storage_types.dart';
@@ -173,7 +174,9 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
         }
       } catch (error) {
         if (preserveExistingData) {
-          throw StateError('无法安全解析现有 Vibe Bundle，已取消覆盖: $error');
+          throw StateError(
+            '无法安全解析现有 Vibe Bundle，已取消覆盖: ${metadataErrorSummary(error)}',
+          );
         }
       }
       if (preserveExistingData && existingJson == null) {
@@ -283,7 +286,12 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
         infoExtracted: _extractStoredInfoExtracted(importInfo, 0.7),
       );
     } catch (e, stackTrace) {
-      AppLogger.e('读取 Vibe 导入参数失败: $filePath', e, stackTrace, _tag);
+      AppLogger.e(
+        '读取 Vibe 导入参数失败: $filePath',
+        metadataErrorSummary(e),
+        stackTrace,
+        _tag,
+      );
       return null;
     }
   }
@@ -443,7 +451,12 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
 
       return previews;
     } catch (e, stackTrace) {
-      AppLogger.e('提取 Bundle 缩略图失败: $bundlePath', e, stackTrace, _tag);
+      AppLogger.e(
+        '提取 Bundle 缩略图失败: $bundlePath',
+        metadataErrorSummary(e),
+        stackTrace,
+        _tag,
+      );
       return const [];
     }
   }

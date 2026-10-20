@@ -14,6 +14,24 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import '../../helpers/shared_compute_gate.dart';
 
 void main() {
+  test('损坏的 Vibe JSON 抛出的异常只带位置，不带文件内容', () async {
+    final corrupt = Uint8List.fromList(
+      utf8.encode('{"name":"secret lighthouse keeper",'),
+    );
+    final quotesNothing = isA<FormatException>()
+        .having((error) => error.offset, 'offset', isNotNull)
+        .having((error) => '$error', 'text', isNot(contains('lighthouse')));
+
+    await expectLater(
+      () => VibeFileParser.fromNaiV4Vibe('broken.naiv4vibe', corrupt),
+      throwsA(quotesNothing),
+    );
+    await expectLater(
+      () => VibeFileParser.fromBundle('broken.naiv4vibebundle', corrupt),
+      throwsA(quotesNothing),
+    );
+  });
+
   test('.naiv4vibe 的 type=image 文件会按原图 Vibe 解析', () async {
     final rawImage = Uint8List.fromList([1, 2, 3, 4, 5]);
     final thumbnail = Uint8List.fromList([6, 7, 8, 9]);

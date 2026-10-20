@@ -631,9 +631,16 @@ class VibeFileParser {
     );
   }
 
-  // 融合解码直接解析 UTF-8 字节，省去与文件等大的中间字符串
-  static Map<String, dynamic> _decodeJsonObject(Uint8List bytes) =>
-      utf8.decoder.fuse(json.decoder).convert(bytes) as Map<String, dynamic>;
+  // 融合解码直接解析 UTF-8 字节，省去与文件等大的中间字符串；
+  // FormatException 的 source 是整份 vibe JSON，会随异常进入日志、界面提示和智能体回复
+  static Map<String, dynamic> _decodeJsonObject(Uint8List bytes) {
+    try {
+      return utf8.decoder.fuse(json.decoder).convert(bytes)
+          as Map<String, dynamic>;
+    } on FormatException catch (error) {
+      throw FormatException(error.message, null, error.offset);
+    }
+  }
 
   static VibeReference _naiV4VibeFromJson(
     String fileName,

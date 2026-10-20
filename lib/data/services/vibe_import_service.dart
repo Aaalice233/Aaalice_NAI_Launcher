@@ -8,6 +8,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../models/vibe/vibe_library_entry.dart';
 import '../models/vibe/vibe_reference.dart';
+import 'metadata/metadata_error_summary.dart';
 
 typedef ImportProgressCallback =
     void Function(int current, int total, String message);
@@ -280,7 +281,7 @@ class VibeImportService {
       } catch (e, stackTrace) {
         AppLogger.e(
           'Failed to parse vibe encoding: ${item.source}',
-          e,
+          metadataErrorSummary(e),
           stackTrace,
           'VibeImportService',
         );
