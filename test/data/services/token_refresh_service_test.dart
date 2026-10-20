@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -12,6 +13,27 @@ import 'package:nai_launcher/data/services/token_refresh_service.dart';
 import 'package:nai_launcher/data/services/account_manager_provider.dart';
 
 void main() {
+  test('concurrent refresh callers share one login and its result', () async {
+    final harness = _RefreshHarness.create();
+    addTearDown(harness.dispose);
+    final release = Completer<void>();
+    harness.adapter.waitBeforeResponse = release.future;
+    final service = harness.container.read(
+      tokenRefreshServiceProvider.notifier,
+    );
+
+    final first = service.refreshCurrentToken();
+    final second = service.refreshCurrentToken();
+    expect(second, same(first));
+    release.complete();
+
+    expect(await Future.wait([first, second]), [
+      TokenRefreshOutcome.refreshed,
+      TokenRefreshOutcome.refreshed,
+    ]);
+    expect(harness.adapter.requests, hasLength(1));
+  });
+
   test(
     'refreshes current credentials JWT through the image user host',
     () async {
@@ -196,6 +218,7 @@ class _FakeAccountManagerNotifier extends AccountManagerNotifier {
 
 class _LoginDioAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
+  Future<void>? waitBeforeResponse;
 
   @override
   Future<ResponseBody> fetch(
@@ -204,6 +227,7 @@ class _LoginDioAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
+    await waitBeforeResponse;
     return ResponseBody.fromString(
       jsonEncode({'accessToken': _RefreshHarness.newToken}),
       201,

@@ -36,7 +36,7 @@ class TokenRefreshService extends _$TokenRefreshService {
 
   /// 刷新当前会话的 token，并发调用共享同一次刷新
   Future<TokenRefreshOutcome> refreshCurrentToken() {
-    // 两个 Dio 各有拦截器，同时收到 401 时若第二个直接判失败会误触发登出
+    // 并发 401 和主动刷新共用同一次登录，后到的调用也等待结果。
     return _inFlight ??= _refreshCurrentTokenSafely().whenComplete(
       () => _inFlight = null,
     );

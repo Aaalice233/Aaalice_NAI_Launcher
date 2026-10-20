@@ -23,20 +23,18 @@ void main() {
     registerFallbackValue(Options());
   });
 
-  test('provider uses the HTTP/1.1 image generation client', () async {
-    final generationDio = _MockDio();
-    final generalDio = _MockDio();
+  test('provider uses the shared HTTP/1.1 client', () async {
+    final dio = _MockDio();
     final container = ProviderContainer(
       overrides: [
-        imageGenerationDioClientProvider.overrideWithValue(generationDio),
-        dioClientProvider.overrideWithValue(generalDio),
+        dioClientProvider.overrideWithValue(dio),
       ],
     );
     addTearDown(container.dispose);
 
     final service = container.read(naiImageEnhancementApiServiceProvider);
     when(
-      () => generationDio.post<dynamic>(
+      () => dio.post<dynamic>(
         any(),
         data: any(named: 'data'),
         options: any(named: 'options'),
@@ -49,14 +47,13 @@ void main() {
       throwsA(isA<StateError>()),
     );
     verify(
-      () => generationDio.post<dynamic>(
+      () => dio.post<dynamic>(
         any(),
         data: any(named: 'data'),
         options: any(named: 'options'),
         onReceiveProgress: any(named: 'onReceiveProgress'),
       ),
     ).called(1);
-    verifyZeroInteractions(generalDio);
   });
 
   group('NAIImageEnhancementApiService', () {

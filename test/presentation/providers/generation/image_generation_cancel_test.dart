@@ -1256,7 +1256,7 @@ void main() {
     final adapter = _RecordingHttpAdapter();
     final container = _createAuthenticatedContainer(
       overrides: [
-        imageGenerationDioClientProvider.overrideWithValue(
+        dioClientProvider.overrideWithValue(
           Dio()..httpClientAdapter = adapter,
         ),
       ],
