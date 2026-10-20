@@ -49,16 +49,16 @@ class DroppedImageInspector {
     if (metadataDetection.metadata == null &&
         fileData.metadataBytes == null &&
         isDiscordAttachment) {
-      final metadataBytes =
+      final metadataSource =
           await DroppedFileReader.downloadRemoteMetadataSource(
             fileData.sourceUri!,
             logTag: 'DropHandler',
           );
-      if (metadataBytes != null) {
+      if (metadataSource != null) {
         final remoteDetection = await detectDroppedImageMetadata(
           fileName,
           bytes,
-          metadataBytes: metadataBytes,
+          metadataBytes: metadataSource.bytes,
         );
         metadataDetection = DroppedImageMetadataDetection(
           metadata: remoteDetection.metadata,
@@ -84,6 +84,7 @@ class DroppedImageInspector {
 
   Future<Uint8List?> resolveOriginalBytes(DroppedFileData fileData) async {
     if (!fileData.imageBytesArePreview) return fileData.bytes;
+    if (fileData.metadataBytesAreOriginal) return fileData.metadataBytes;
     final sourceUri = fileData.sourceUri;
     if (sourceUri == null) return null;
     final originalImage = await DroppedFileReader.downloadRemoteImage(
