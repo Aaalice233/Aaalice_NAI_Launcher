@@ -31,6 +31,7 @@ typedef DerivativeRegistration =
       required String sourcePath,
     });
 
+// 实现须自行记录并吞掉失败：副本此时已落盘
 typedef DerivativeFixedTagUsageCopier =
     Future<void> Function({
       required Uint8List sourceBytes,
@@ -129,7 +130,10 @@ class DerivativeCopySaver {
     String? sourcePath,
   }) => DerivativeCopyFollowUp(
     registered: _register(outputPath, sourcePath),
-    fixedTagUsageCopied: _copyUsage(sourceBytes, outputBytes),
+    fixedTagUsageCopied: _copyFixedTagUsage(
+      sourceBytes: sourceBytes,
+      outputBytes: outputBytes,
+    ),
     systemGallery: _publish(outputBytes, fileName),
     galleryIndexed: _indexInGallery(outputPath),
   );
@@ -141,22 +145,6 @@ class DerivativeCopySaver {
     } on Object catch (error, stackTrace) {
       AppLogger.e(
         'Derivative copy saved but its source link was not registered',
-        error,
-        stackTrace,
-        _logTag,
-      );
-    }
-  }
-
-  Future<void> _copyUsage(Uint8List sourceBytes, Uint8List outputBytes) async {
-    try {
-      await _copyFixedTagUsage(
-        sourceBytes: sourceBytes,
-        outputBytes: outputBytes,
-      );
-    } on Object catch (error, stackTrace) {
-      AppLogger.e(
-        'Derivative copy saved but fixed-tag usage was not copied',
         error,
         stackTrace,
         _logTag,
