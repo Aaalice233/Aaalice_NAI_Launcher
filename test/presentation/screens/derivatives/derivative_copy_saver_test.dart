@@ -227,8 +227,6 @@ void main() {
         saver(
           registerDerivative: ({required outputPath, required sourcePath}) =>
               throw StateError('registry'),
-          copyFixedTagUsage: ({required sourceBytes, required outputBytes}) =>
-              Future<void>.error(StateError('usage')),
           addGalleryImages: (_) => Future.error(StateError('index')),
           writeSystemGalleryImage: (bytes, fileName, mimeType) =>
               Future<void>.error(StateError('media store')),
