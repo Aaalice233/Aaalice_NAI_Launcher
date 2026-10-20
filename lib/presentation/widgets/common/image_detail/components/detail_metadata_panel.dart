@@ -292,7 +292,10 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
   Widget _buildExpandedPanel(ThemeData theme) {
     final l10n = context.l10n;
     final metadata = _currentMetadata;
-    final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
+    final displayedMetadata =
+        !_isLoadingMetadata && metadata != null && metadata.hasData
+        ? metadata
+        : null;
     final colorScheme = theme.colorScheme;
 
     return Column(
@@ -309,29 +312,56 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                 )
-              : _isLoadingMetadata
-              ? _buildLoadingState(theme)
-              : metadata != null && metadata.hasData
-              ? SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: _MetadataContent(
-                    metadata: metadata,
-                    positiveFixedTagEntries: fixedTagsState.positiveEntries,
-                    negativeFixedTagEntries: fixedTagsState.negativeEntries,
-                    fileInfo: _fileInfo,
-                    actualImageSize: _actualImageSize,
-                  ),
-                )
-              : _buildNoMetadataState(theme),
+              : _buildImageDetails(theme, displayedMetadata),
         ),
         // 只在有元数据时显示操作按钮
-        if (metadata != null && metadata.hasData)
+        if (displayedMetadata != null)
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const ThemedDivider(height: 1),
-              _ActionButtons(metadata: metadata),
+              _ActionButtons(metadata: displayedMetadata),
             ],
+          ),
+      ],
+    );
+  }
+
+  /// 基本信息不依赖元数据，解析中和无元数据时同样展示
+  Widget _buildImageDetails(ThemeData theme, NaiImageMetadata? metadata) {
+    final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
+    final basicInfo = _BasicInfoSection(
+      fileInfo: _fileInfo,
+      // 有元数据时分辨率归在生成参数里
+      resolution: metadata == null ? _encodedSizeLabel(_actualImageSize) : null,
+    );
+
+    return CustomScrollView(
+      slivers: [
+        if (basicInfo.hasContent)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            sliver: SliverToBoxAdapter(child: basicInfo),
+          ),
+        if (metadata != null)
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverToBoxAdapter(
+              child: _MetadataContent(
+                metadata: metadata,
+                positiveFixedTagEntries: fixedTagsState.positiveEntries,
+                negativeFixedTagEntries: fixedTagsState.negativeEntries,
+                actualImageSize: _actualImageSize,
+              ),
+            ),
+          )
+        else
+          // 状态块要被量 intrinsic 高度，内部不能用 LayoutBuilder
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _isLoadingMetadata
+                ? _buildLoadingState(theme)
+                : _buildNoMetadataState(theme),
           ),
       ],
     );
@@ -366,31 +396,24 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
   /// 构建无元数据状态
   Widget _buildNoMetadataState(ThemeData theme) {
     final colorScheme = theme.colorScheme;
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 48,
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.l10n.detail_noMetadata,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.info_outline,
+              size: 48,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
-          ),
+            const SizedBox(height: 16),
+            Text(
+              context.l10n.detail_noMetadata,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+          ],
         ),
       ),
     );
@@ -473,56 +496,86 @@ class _PanelHeader extends StatelessWidget {
   }
 }
 
+/// 编码后的实际像素尺寸，未读到时返回 null
+String? _encodedSizeLabel((int, int)? size) =>
+    size == null ? null : '${size.$1} × ${size.$2}';
+
+/// 文件基本信息
+class _BasicInfoSection extends StatelessWidget {
+  final FileInfo? fileInfo;
+  final String? resolution;
+
+  const _BasicInfoSection({this.fileInfo, this.resolution});
+
+  bool get hasContent =>
+      fileInfo != null || (resolution != null && resolution!.isNotEmpty);
+
+  @override
+  Widget build(BuildContext context) {
+    final info = fileInfo;
+    final modifiedAt = info?.modifiedAt;
+    final size = info?.size;
+
+    return _InfoSection(
+      title: context.l10n.detail_basicInfo,
+      icon: Icons.insert_drive_file_outlined,
+      children: [
+        if (info != null)
+          _InfoRow(label: context.l10n.detail_fileName, value: info.fileName),
+        if (modifiedAt != null)
+          _InfoRow(
+            label: context.l10n.detail_modifiedTime,
+            value: _formatTime(context, modifiedAt),
+          ),
+        if (size != null)
+          _InfoRow(
+            label: context.l10n.detail_fileSize,
+            value: _formatSize(size),
+          ),
+        if (resolution != null)
+          _InfoRow(
+            label: context.l10n.gallery_metaResolution,
+            value: resolution!,
+          ),
+      ],
+    );
+  }
+
+  String _formatTime(BuildContext context, DateTime time) {
+    final locale = context.timeagoLocaleCode;
+    return '${timeago.format(time, locale: locale)} (${time.toString().substring(0, 16)})';
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  }
+}
+
 /// 元数据内容
 class _MetadataContent extends StatelessWidget {
   final NaiImageMetadata metadata;
   final List<FixedTagEntry> positiveFixedTagEntries;
   final List<FixedTagEntry> negativeFixedTagEntries;
-  final FileInfo? fileInfo;
   final (int, int)? actualImageSize;
 
   const _MetadataContent({
     required this.metadata,
     this.positiveFixedTagEntries = const [],
     this.negativeFixedTagEntries = const [],
-    this.fileInfo,
     this.actualImageSize,
   });
 
   @override
   Widget build(BuildContext context) {
     final displayModel = metadata.effectiveModel ?? metadata.source;
-    final resolution = actualImageSize == null
-        ? metadata.sizeString
-        : '${actualImageSize!.$1} × ${actualImageSize!.$2}';
+    final resolution =
+        _encodedSizeLabel(actualImageSize) ?? metadata.sizeString;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 基本信息（仅在有文件信息时显示）
-        if (fileInfo != null) ...[
-          _InfoSection(
-            title: context.l10n.detail_basicInfo,
-            icon: Icons.insert_drive_file_outlined,
-            children: [
-              _InfoRow(
-                label: context.l10n.detail_fileName,
-                value: fileInfo!.fileName,
-              ),
-              if (fileInfo!.modifiedAt != null)
-                _InfoRow(
-                  label: context.l10n.detail_modifiedTime,
-                  value: _formatTime(context, fileInfo!.modifiedAt!),
-                ),
-              if (fileInfo!.size != null)
-                _InfoRow(
-                  label: context.l10n.detail_fileSize,
-                  value: _formatSize(fileInfo!.size!),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
         // 生成参数
         _InfoSection(
           title: context.l10n.gallery_generationParams,
@@ -735,17 +788,6 @@ class _MetadataContent extends StatelessWidget {
       vibe: vibe,
       defaultName: vibe.displayName,
     );
-  }
-
-  String _formatTime(BuildContext context, DateTime time) {
-    final locale = context.timeagoLocaleCode;
-    return '${timeago.format(time, locale: locale)} (${time.toString().substring(0, 16)})';
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 }
 
