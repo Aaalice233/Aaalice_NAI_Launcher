@@ -280,6 +280,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
             ? reparsed.vibeReferences
             : base.vibeReferences,
         varietyPlus: base.varietyPlus ?? reparsed.varietyPlus,
+        ucPreset: base.ucPreset ?? reparsed.ucPreset,
         qualityToggle: base.qualityToggle ?? reparsed.qualityToggle,
         qualityTier: base.qualityTier ?? reparsed.qualityTier,
         fixedPrefixTags: base.fixedPrefixTags.isEmpty
@@ -491,6 +492,7 @@ bool _rawJsonMayContainUpgrade(String raw) {
     'skip_cfg_above_sigma',
     'tag_hint_transparent_background',
     'tag_hint_qt',
+    'tag_hint_uc_preset',
     'quality_tier',
     'fixed_prefix',
     'fixed_suffix',

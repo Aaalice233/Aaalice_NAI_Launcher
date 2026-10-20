@@ -981,6 +981,31 @@ void main() {
       expect(upgraded.mainPrompt, '1girl');
     });
 
+    test('cached rawJson metadata should upgrade the uc preset tag hint', () {
+      final preset = UcPresets.getPresetContent(
+        ImageModels.animeDiffusionV5Full,
+        UcPresetType.heavy,
+      );
+      final negative = '$preset, custom_negative';
+      final rawJson = jsonEncode({
+        'prompt': '1girl',
+        'uc': negative,
+        'tag_hint_uc_preset': 2,
+      });
+      final stale = NaiImageMetadata(
+        prompt: '1girl',
+        negativePrompt: negative,
+        rawJson: rawJson,
+        software: 'NovelAI',
+        source: 'NovelAI Diffusion V5 657484A5',
+      );
+
+      final upgraded = stale.upgradeFromRawJsonIfNeeded();
+
+      expect(upgraded.ucPreset, UcPresets.heavyApiValue);
+      expect(upgraded.mainNegativePrompt, 'custom_negative');
+    });
+
     test('cached rawJson metadata should upgrade V4 character prompts', () {
       final rawJson = jsonEncode({
         'prompt': '1girl, 1boy, indoor',
