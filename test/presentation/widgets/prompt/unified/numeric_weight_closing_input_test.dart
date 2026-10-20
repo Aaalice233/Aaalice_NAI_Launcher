@@ -1,5 +1,3 @@
-import 'dart:ui' show PointerDeviceKind;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,6 +8,7 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
 import '../../../../helpers/memory_local_storage.dart';
+import 'prompt_wheel_test_helpers.dart';
 
 Future<void> _pumpInput(
   WidgetTester tester,
@@ -60,26 +59,6 @@ Future<void> _pumpInput(
   await tester.pump();
 }
 
-Future<void> _wheelWeight(WidgetTester tester, String text, String part) async {
-  await tester.tap(find.byType(EditableText).first);
-  await tester.pump();
-  final start = text.indexOf(part);
-  tester.testTextInput.updateEditingValue(
-    TextEditingValue(
-      text: text,
-      selection: TextSelection(
-        baseOffset: start,
-        extentOffset: start + part.length,
-      ),
-    ),
-  );
-  await tester.pump();
-  final pointer = TestPointer(1, PointerDeviceKind.mouse)
-    ..hover(tester.getCenter(find.byType(EditableText).first));
-  await tester.sendEventToBinding(pointer.scroll(const Offset(0, -40)));
-  await tester.pump();
-}
-
 void main() {
   testWidgets('wheel weights follow the option, including later toggles', (
     tester,
@@ -91,13 +70,13 @@ void main() {
     addTearDown(separate.dispose);
     await _pumpInput(tester, host, separate);
 
-    await _wheelWeight(tester, text, 'year_2025');
+    await wheelSelectedPart(tester, text, 'year_2025');
     expect(host.text, '1.05::year_2025::, b');
 
     host.text = text;
     separate.value = true;
     await tester.pump();
-    await _wheelWeight(tester, text, 'year_2025');
+    await wheelSelectedPart(tester, text, 'year_2025');
     expect(host.text, '1.05::year_2025 ::, b');
   });
 
