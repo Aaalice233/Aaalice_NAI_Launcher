@@ -220,101 +220,104 @@ class PromptInputToolbar extends ConsumerWidget {
   ) async {
     final position = PromptEditorToolbar.getSettingsButtonPosition(context);
     if (position == null) return;
-    final theme = Theme.of(context);
-    final autocomplete = ref.read(autocompleteSettingsProvider);
-    final autoFormat = ref.read(autoFormatPromptSettingsProvider);
-    final highlight = ref.read(highlightEmphasisSettingsProvider);
-    final sdConvert = ref.read(sdSyntaxAutoConvertSettingsProvider);
-    final separateClosing = ref.read(
-      separateNumericWeightClosingSettingsProvider,
-    );
-    final resolveAlias = ref.read(resolveAliasOnCopySettingsProvider);
-    final detectMultiCharacter = ref.read(
-      detectMultiCharacterOnPasteSettingsProvider,
-    );
-    final cooccurrence = ref
-        .read(completion_settings.autocompleteSettingsProvider)
-        .relatedTagsEnabled;
-    final regexCount = ref.read(promptRegexRulesProvider).length;
     final value = await showMenu<String>(
       context: context,
       position: position,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-      items: [
-        _toggleItem(
-          context,
-          theme,
-          'autocomplete',
-          autocomplete,
-          context.l10n.prompt_smartAutocomplete,
-          context.l10n.prompt_smartAutocompleteSubtitle,
-        ),
-        _toggleItem(
-          context,
-          theme,
-          'auto_format',
-          autoFormat,
-          context.l10n.prompt_autoFormat,
-          context.l10n.prompt_autoFormatSubtitle,
-        ),
-        _toggleItem(
-          context,
-          theme,
-          'highlight',
-          highlight,
-          context.l10n.prompt_highlightEmphasis,
-          context.l10n.prompt_highlightEmphasisSubtitle,
-        ),
-        _toggleItem(
-          context,
-          theme,
-          'sd_syntax_convert',
-          sdConvert,
-          context.l10n.prompt_sdSyntaxAutoConvert,
-          context.l10n.prompt_sdSyntaxAutoConvertSubtitle,
-        ),
-        _toggleItem(
-          context,
-          theme,
-          'separate_numeric_weight_closing',
-          separateClosing,
-          context.l10n.prompt_separateNumericWeightClosing,
-          context.l10n.prompt_separateNumericWeightClosingSubtitle,
-        ),
-        _actionItem(
-          theme,
-          'regex_rules',
-          Icons.find_replace,
-          context.l10n.prompt_regexRulesManage,
-          context.l10n.prompt_regexRulesCount(regexCount),
-        ),
-        _toggleItem(
-          context,
-          theme,
-          'resolve_alias_on_copy',
-          resolveAlias,
-          context.l10n.prompt_resolveAliasOnCopy,
-          context.l10n.prompt_resolveAliasOnCopySubtitle,
-        ),
-        _toggleItem(
-          context,
-          theme,
-          'detect_multi_character_on_paste',
-          detectMultiCharacter,
-          context.l10n.prompt_detectMultiCharacterOnPaste,
-          context.l10n.prompt_detectMultiCharacterOnPasteSubtitle,
-        ),
-        _toggleItem(
-          context,
-          theme,
-          'cooccurrence',
-          cooccurrence,
-          context.l10n.prompt_cooccurrenceRecommendation,
-          context.l10n.prompt_cooccurrenceRecommendationSubtitle,
-        ),
-      ],
+      items: _settingsMenuItems(context, ref),
     );
-    if (!context.mounted) return;
+    if (value == null || !context.mounted) return;
+    _applySettingsSelection(context, ref, value);
+  }
+
+  static List<PopupMenuEntry<String>> _settingsMenuItems(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    return [
+      _toggleItem(
+        context,
+        theme,
+        'autocomplete',
+        ref.read(autocompleteSettingsProvider),
+        l10n.prompt_smartAutocomplete,
+        l10n.prompt_smartAutocompleteSubtitle,
+      ),
+      _toggleItem(
+        context,
+        theme,
+        'auto_format',
+        ref.read(autoFormatPromptSettingsProvider),
+        l10n.prompt_autoFormat,
+        l10n.prompt_autoFormatSubtitle,
+      ),
+      _toggleItem(
+        context,
+        theme,
+        'highlight',
+        ref.read(highlightEmphasisSettingsProvider),
+        l10n.prompt_highlightEmphasis,
+        l10n.prompt_highlightEmphasisSubtitle,
+      ),
+      _toggleItem(
+        context,
+        theme,
+        'sd_syntax_convert',
+        ref.read(sdSyntaxAutoConvertSettingsProvider),
+        l10n.prompt_sdSyntaxAutoConvert,
+        l10n.prompt_sdSyntaxAutoConvertSubtitle,
+      ),
+      _toggleItem(
+        context,
+        theme,
+        'separate_numeric_weight_closing',
+        ref.read(separateNumericWeightClosingSettingsProvider),
+        l10n.prompt_separateNumericWeightClosing,
+        l10n.prompt_separateNumericWeightClosingSubtitle,
+      ),
+      _actionItem(
+        theme,
+        'regex_rules',
+        Icons.find_replace,
+        l10n.prompt_regexRulesManage,
+        l10n.prompt_regexRulesCount(ref.read(promptRegexRulesProvider).length),
+      ),
+      _toggleItem(
+        context,
+        theme,
+        'resolve_alias_on_copy',
+        ref.read(resolveAliasOnCopySettingsProvider),
+        l10n.prompt_resolveAliasOnCopy,
+        l10n.prompt_resolveAliasOnCopySubtitle,
+      ),
+      _toggleItem(
+        context,
+        theme,
+        'detect_multi_character_on_paste',
+        ref.read(detectMultiCharacterOnPasteSettingsProvider),
+        l10n.prompt_detectMultiCharacterOnPaste,
+        l10n.prompt_detectMultiCharacterOnPasteSubtitle,
+      ),
+      _toggleItem(
+        context,
+        theme,
+        'cooccurrence',
+        ref
+            .read(completion_settings.autocompleteSettingsProvider)
+            .relatedTagsEnabled,
+        l10n.prompt_cooccurrenceRecommendation,
+        l10n.prompt_cooccurrenceRecommendationSubtitle,
+      ),
+    ];
+  }
+
+  static void _applySettingsSelection(
+    BuildContext context,
+    WidgetRef ref,
+    String value,
+  ) {
     switch (value) {
       case 'autocomplete':
         ref.read(autocompleteSettingsProvider.notifier).toggle();
@@ -338,8 +341,6 @@ class PromptInputToolbar extends ConsumerWidget {
         final provider = completion_settings.autocompleteSettingsProvider;
         final current = ref.read(provider).relatedTagsEnabled;
         ref.read(provider.notifier).setRelatedTagsEnabled(!current);
-      case null:
-        return;
     }
   }
 
