@@ -93,32 +93,16 @@ void main() {
         );
       },
     );
-  });
 
-  group('parseFromWebpWithoutPixelDecode', () {
-    test('rejects non-webp bytes like parseFromWebp', () {
-      final bytes = _textChunkPng();
-
-      expectSameParseResult(
-        UnifiedMetadataParser.parseFromWebpWithoutPixelDecode(bytes),
-        UnifiedMetadataParser.parseFromWebp(bytes),
-      );
-    });
-
-    test('defers only when the webp pixels decide the answer', () {
-      final exif = buildNovelAiWebpFixture(comment: _webpComment);
+    test('defers a webp whose pixels decide the answer', () {
       final stealth = novelAiLayoutWebp(exif: rewrittenCameraExif());
 
-      expectSameParseResult(
-        UnifiedMetadataParser.parseFromWebpWithoutPixelDecode(exif),
-        UnifiedMetadataParser.parseFromWebp(exif),
-      );
       expect(
-        UnifiedMetadataParser.parseFromWebpWithoutPixelDecode(stealth),
+        UnifiedMetadataParser.parseFromImageWithoutPixelDecode(stealth),
         isNull,
       );
       expect(
-        UnifiedMetadataParser.parseFromWebp(stealth).metadata?.prompt,
+        UnifiedMetadataParser.parseFromImage(stealth).metadata?.prompt,
         novelAiStealthPrompt,
       );
     });
