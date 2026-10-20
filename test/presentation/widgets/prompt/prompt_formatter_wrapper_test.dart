@@ -22,6 +22,7 @@ void main() {
     bool enableAutoFormat = false,
     bool enableSdSyntaxAutoConvert = false,
     bool separateNumericWeightClosing = false,
+    bool replaceUnderscores = false,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -34,6 +35,7 @@ void main() {
             enableAutoFormat: enableAutoFormat,
             enableSdSyntaxAutoConvert: enableSdSyntaxAutoConvert,
             separateNumericWeightClosing: separateNumericWeightClosing,
+            replaceUnderscores: replaceUnderscores,
             child: TextField(controller: controller, focusNode: focusNode),
           ),
         ),
@@ -83,5 +85,21 @@ void main() {
     await typeAndBlur(tester, '(year 2025:1.2), other tags');
 
     expect(controller.text, '1.2::year_2025 ::, other_tags');
+  });
+
+  testWidgets('spaces preference reaches the shared blur pipeline', (
+    tester,
+  ) async {
+    await pumpWrapper(
+      tester,
+      enableAutoFormat: true,
+      enableSdSyntaxAutoConvert: true,
+      separateNumericWeightClosing: true,
+      replaceUnderscores: true,
+    );
+
+    await typeAndBlur(tester, '(year_2025:1.2), long_hair, >_<, "my_text"');
+
+    expect(controller.text, '1.2::year 2025 ::, long hair, >_<, "my_text"');
   });
 }

@@ -1,11 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/api_constants.dart';
-import '../../core/utils/nai_prompt_formatter.dart';
-import '../../core/utils/sd_to_nai_converter.dart';
+import '../../data/models/character/character_prompt.dart';
 import '../../data/models/online_gallery/ai_tag_generation_info.dart';
+import '../providers/character_prompt_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/pending_prompt_provider.dart';
+import 'prompt_formatting_policy.dart';
 
 final generationPromptTransferServiceProvider =
     Provider<GenerationPromptTransferService>(
@@ -243,21 +244,28 @@ class GenerationPromptTransferService {
 
     final positive = prompt.trim();
     if (positive.isNotEmpty) {
-      notifier.updatePrompt(_normalize(positive));
+      notifier.updatePrompt(normalize(positive));
     }
 
     final negative = negativePrompt?.trim();
     if (negative != null && negative.isNotEmpty) {
-      notifier.updateNegativePrompt(_normalize(negative));
+      notifier.updateNegativePrompt(normalize(negative));
     }
   }
 
-  String _normalize(String prompt) => NaiPromptFormatter.format(
-    SdToNaiConverter.convert(
-      prompt,
-      separateNumericWeightClosing: _ref.read(
-        separateNumericWeightClosingSettingsProvider,
-      ),
-    ),
-  );
+  /// 角色提示词与主提示词走同一条规范化后整体替换。
+  void replaceCharacterPrompts(List<CharacterPrompt> characters) {
+    _ref.read(characterPromptNotifierProvider.notifier).replaceAll([
+      for (final character in characters)
+        character.copyWith(
+          prompt: normalize(character.prompt),
+          negativePrompt: normalize(character.negativePrompt),
+        ),
+    ]);
+  }
+
+  /// 外部来源可能是 SD 语法，转换常开；格式化与补空格按用户设置。
+  String normalize(String prompt) => _ref
+      .read(promptFormattingPolicyProvider)
+      .apply(prompt, convertSdSyntax: true);
 }

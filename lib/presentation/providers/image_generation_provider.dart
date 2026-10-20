@@ -15,7 +15,6 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/character_center_resolver.dart';
 import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/image_share_sanitizer.dart';
-import '../../core/utils/nai_prompt_formatter.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
@@ -29,6 +28,7 @@ import 'alias_resolver_service.dart';
 import '../../data/services/gallery/gallery_image_file_deleter.dart';
 import '../../data/services/statistics_cache_service.dart';
 import '../services/generation_history_storage_service.dart';
+import '../services/prompt_formatting_policy.dart';
 import '../../data/services/auth_provider.dart';
 import 'dlss_provider.dart';
 import 'character_prompt_provider.dart';
@@ -1288,17 +1288,18 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final result = await ref
         .read(promptConfigNotifierProvider.notifier)
         .generateRandomPrompt(model: selectedModel, seed: seed);
-    final formatted = NaiPromptFormatter.format(result.mainPrompt);
-    if (!_isCurrentLifecycle(epoch)) return formatted;
+    if (!_isCurrentLifecycle(epoch)) return result.mainPrompt;
+    final policy = ref.read(promptFormattingPolicyProvider);
+    String format(String prompt) =>
+        policy.apply(prompt, convertSdSyntax: false);
+    final formatted = format(result.mainPrompt);
     ref.read(generationParamsNotifierProvider.notifier).updatePrompt(formatted);
     if (result.hasCharacters &&
         capabilities.randomPromptProfile.supportsCharacterPrompts) {
       final characters = result.toCharacterPrompts().map((character) {
         return character.copyWith(
-          prompt: NaiPromptFormatter.format(character.prompt),
-          negativePrompt: character.negativePrompt.isEmpty
-              ? character.negativePrompt
-              : NaiPromptFormatter.format(character.negativePrompt),
+          prompt: format(character.prompt),
+          negativePrompt: format(character.negativePrompt),
         );
       }).toList();
       ref.read(characterPromptNotifierProvider.notifier).replaceAll(characters);

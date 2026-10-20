@@ -256,6 +256,14 @@ class PromptInputToolbar extends ConsumerWidget {
       _toggleItem(
         context,
         theme,
+        'replace_underscores',
+        ref.read(completion_settings.replaceUnderscoresPreferenceProvider),
+        l10n.prompt_replaceUnderscores,
+        l10n.prompt_replaceUnderscoresSubtitle,
+      ),
+      _toggleItem(
+        context,
+        theme,
         'highlight',
         ref.read(highlightEmphasisSettingsProvider),
         l10n.prompt_highlightEmphasis,
@@ -323,6 +331,13 @@ class PromptInputToolbar extends ConsumerWidget {
         ref.read(autocompleteSettingsProvider.notifier).toggle();
       case 'auto_format':
         ref.read(autoFormatPromptSettingsProvider.notifier).toggle();
+      case 'replace_underscores':
+        final current = ref.read(
+          completion_settings.replaceUnderscoresPreferenceProvider,
+        );
+        ref
+            .read(completion_settings.autocompleteSettingsProvider.notifier)
+            .setReplaceUnderscores(!current);
       case 'highlight':
         ref.read(highlightEmphasisSettingsProvider.notifier).toggle();
       case 'sd_syntax_convert':

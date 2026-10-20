@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../core/utils/kaomoji_tags.dart';
+
 part 'weighted_tag.freezed.dart';
 part 'weighted_tag.g.dart';
 
@@ -60,7 +62,7 @@ class WeightedTag with _$WeightedTag {
     // 权重计算：post_count / 100000，最小为1
     final weight = (postCount / 100000).ceil().clamp(1, 1000);
     return WeightedTag(
-      tag: name.replaceAll('_', ' '),
+      tag: KaomojiTags.underscoresToSpaces(name),
       weight: weight,
       translation: translation,
       source: TagSource.danbooru,

@@ -160,4 +160,35 @@ void main() {
       );
     });
   });
+
+  group('NovelAiAutoText.quotedRanges', () {
+    List<String> spans(String prompt) => [
+      for (final range in NovelAiAutoText.quotedRanges(prompt))
+        prompt.substring(range.start, range.end),
+    ];
+
+    test('spans include the quotes and every web quote pair', () {
+      expect(spans('sign "A", “B”, 「C」, \'D\', ‘E’'), [
+        '"A"',
+        '“B”',
+        '「C」',
+        "'D'",
+        '‘E’',
+      ]);
+    });
+
+    test('apostrophes inside words neither open nor close a quote', () {
+      expect(spans("'Don't Stop', girl's 'HI'"), ["'Don't Stop'", "'HI'"]);
+      expect(spans('‘Don’t Stop’'), ['‘Don’t Stop’']);
+    });
+
+    test('empty quotes are spans but not rendered text', () {
+      expect(spans('a "" b'), ['""']);
+      expect(NovelAiAutoText.buildBlock('a "" b'), isNull);
+    });
+
+    test('an unmatched opening is skipped and scanning continues', () {
+      expect(spans('“open, "closed"'), ['"closed"']);
+    });
+  });
 }

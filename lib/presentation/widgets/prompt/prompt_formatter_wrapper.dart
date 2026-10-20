@@ -30,6 +30,9 @@ class PromptFormatterWrapper extends StatefulWidget {
   /// 是否在失焦时给以数字结尾的数值权重内容在闭合 :: 前补空格
   final bool separateNumericWeightClosing;
 
+  /// 自动格式化时标签使用空格而不是下划线
+  final bool replaceUnderscores;
+
   /// 文本变化回调
   final ValueChanged<String>? onChanged;
 
@@ -41,6 +44,7 @@ class PromptFormatterWrapper extends StatefulWidget {
     this.enableAutoFormat = true,
     this.enableSdSyntaxAutoConvert = false,
     this.separateNumericWeightClosing = false,
+    this.replaceUnderscores = false,
     this.onChanged,
   });
 
@@ -110,6 +114,7 @@ class _PromptFormatterWrapperState extends State<PromptFormatterWrapper> {
       sdSyntaxAutoConvert: widget.enableSdSyntaxAutoConvert,
       autoFormat: widget.enableAutoFormat,
       separateNumericWeightClosing: widget.separateNumericWeightClosing,
+      replaceUnderscores: widget.replaceUnderscores,
     );
     final text = result.text;
     if (text == originalValue.text) return;

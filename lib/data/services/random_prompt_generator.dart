@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/kaomoji_tags.dart';
 import '../../core/utils/nai_prompt_parser.dart';
 import '../datasources/local/pool_cache_service.dart';
 import '../datasources/local/tag_group_cache_service.dart';
@@ -792,7 +793,7 @@ class RandomPromptGenerator {
 
     // 应用权重括号并格式化标签
     final formattedTags = allTags.map((tag) {
-      final formattedTag = tag.replaceAll('_', ' ');
+      final formattedTag = KaomojiTags.underscoresToSpaces(tag);
       return _applyBrackets(formattedTag, bracketMin, bracketMax, random);
     }).toList();
 
@@ -1207,7 +1208,10 @@ class RandomPromptGenerator {
     return entries.map((entry) {
       // 根据热度计算权重 (1-10)
       final weight = _calculateWeightFromPostCount(entry.postCount);
-      return WeightedTag(tag: entry.name.replaceAll('_', ' '), weight: weight);
+      return WeightedTag(
+        tag: KaomojiTags.underscoresToSpaces(entry.name),
+        weight: weight,
+      );
     }).toList();
   }
 

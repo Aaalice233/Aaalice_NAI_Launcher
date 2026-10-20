@@ -61,6 +61,28 @@ void main() {
       );
     });
 
+    test('space insertion keeps kaomoji underscores', () {
+      String insert(String canonicalTag) {
+        final query = PromptTokenParser.parse(
+          text: 'smile, ha',
+          cursorPosition: 9,
+          limit: 20,
+          locale: 'en',
+        );
+        return PromptTokenParser.apply(
+          text: query.fullText,
+          query: query,
+          canonicalTag: canonicalTag,
+          autoInsertComma: true,
+          replaceUnderscores: true,
+        ).text;
+      }
+
+      expect(insert('^_^'), 'smile, ^_^, ');
+      expect(insert('>_<'), 'smile, >_<, ');
+      expect(insert('very_long_hair'), 'smile, very long hair, ');
+    });
+
     test('supports space-separated tag search when explicitly enabled', () {
       final query = PromptTokenParser.parse(
         text: 'foot_focus lo',

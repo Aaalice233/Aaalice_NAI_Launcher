@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
+import '../../../core/autocomplete/autocomplete_settings.dart'
+    show replaceUnderscoresPreferenceProvider;
 import '../../../core/constants/api_constants.dart';
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
@@ -339,6 +341,7 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       separateNumericWeightClosing: ref.watch(
         separateNumericWeightClosingSettingsProvider,
       ),
+      replaceUnderscores: ref.watch(replaceUnderscoresPreferenceProvider),
       child: AutocompleteWrapper.withAlias(
         controller: _contentController.displayController,
         focusNode: _contentFocusNode,

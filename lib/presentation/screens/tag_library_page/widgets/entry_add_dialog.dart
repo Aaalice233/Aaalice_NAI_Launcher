@@ -9,6 +9,8 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/autocomplete/autocomplete_settings.dart'
+    show replaceUnderscoresPreferenceProvider;
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/thumbnail_image_normalizer.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
@@ -369,6 +371,9 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                         ),
                         separateNumericWeightClosing: ref.watch(
                           separateNumericWeightClosingSettingsProvider,
+                        ),
+                        replaceUnderscores: ref.watch(
+                          replaceUnderscoresPreferenceProvider,
                         ),
                         child: AutocompleteWrapper.withAlias(
                           controller: _contentController.displayController,

@@ -504,6 +504,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       sdSyntaxAutoConvert: config.enableSdSyntaxAutoConvert,
       autoFormat: config.enableAutoFormat,
       separateNumericWeightClosing: config.separateNumericWeightClosing,
+      replaceUnderscores: config.replaceUnderscores,
     );
     if (formatted.text != text) {
       text = formatted.text;

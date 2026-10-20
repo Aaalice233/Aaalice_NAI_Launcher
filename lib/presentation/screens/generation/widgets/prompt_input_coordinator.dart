@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/utils/nai_prompt_formatter.dart';
-import '../../../../core/utils/sd_to_nai_converter.dart';
 import '../../../../data/models/character/character_prompt.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
@@ -12,6 +10,7 @@ import '../../../providers/character_prompt_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/pending_prompt_provider.dart';
 import '../../../providers/prompt_config_provider.dart';
+import '../../../services/generation_prompt_transfer_service.dart';
 import '../../../widgets/character/mobile_character_manager_sheet.dart';
 import '../../../widgets/common/app_toast.dart';
 import 'prompt_input_controller.dart';
@@ -76,14 +75,8 @@ class PromptInputCoordinator {
     }
   }
 
-  String _normalize(String prompt) => NaiPromptFormatter.format(
-    SdToNaiConverter.convert(
-      prompt,
-      separateNumericWeightClosing: _ref.read(
-        separateNumericWeightClosingSettingsProvider,
-      ),
-    ),
-  );
+  String _normalize(String prompt) =>
+      _ref.read(generationPromptTransferServiceProvider).normalize(prompt);
 
   void applyToMainPrompt(String prompt) {
     _controller.promptController.text = prompt;

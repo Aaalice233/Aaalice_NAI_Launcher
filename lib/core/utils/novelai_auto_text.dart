@@ -135,8 +135,9 @@ abstract final class NovelAiAutoText {
     return groups.expand((group) => group).toList(growable: false);
   }
 
-  static List<String> _extractQuotedTexts(String prompt) {
-    final result = <String>[];
+  /// Quote spans the web client reads as rendered text, quotes included.
+  static List<({int start, int end})> quotedRanges(String prompt) {
+    final ranges = <({int start, int end})>[];
     var cursor = 0;
     while (cursor < prompt.length) {
       final opening = prompt[cursor];
@@ -161,12 +162,16 @@ abstract final class NovelAiAutoText {
         continue;
       }
 
-      final value = prompt.substring(cursor + 1, end).trim();
-      if (value.isNotEmpty) result.add(value);
+      ranges.add((start: cursor, end: end + 1));
       cursor = end + 1;
     }
-    return result;
+    return ranges;
   }
+
+  static List<String> _extractQuotedTexts(String prompt) => quotedRanges(prompt)
+      .map((range) => prompt.substring(range.start + 1, range.end - 1).trim())
+      .where((value) => value.isNotEmpty)
+      .toList();
 
   static bool _isSingleQuoteBoundary(String text, int index) {
     if (index < 0 || index >= text.length) return true;

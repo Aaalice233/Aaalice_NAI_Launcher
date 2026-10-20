@@ -19,7 +19,6 @@ import '../../../data/models/online_gallery/gallery_prompt_projection.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../adaptive/adaptive_presenter.dart';
-import '../../providers/character_prompt_provider.dart';
 import '../../providers/online_gallery_output_filter_provider.dart';
 import '../../providers/online_gallery_prompt_tag_settings_provider.dart';
 import '../../providers/online_gallery_provider.dart';
@@ -488,18 +487,18 @@ class OnlineGalleryDetailLauncher {
     BuildContext dialogContext,
     GalleryItem item,
     GalleryPromptProjection projection, {
-    required CharacterPromptNotifier characterPrompts,
     required GenerationPromptTransferService promptTransfer,
     GenerationTransferConfiguration? configuration,
     Set<GenerationTransferSetting>? configurationSettings,
   }) {
-    characterPrompts.replaceAll(_codexCharacters(item, projection));
-    promptTransfer.replaceMainPrompt(
-      prompt: projection.positivePrompt,
-      negativePrompt: projection.negativePrompt,
-      configuration: configuration,
-      configurationSettings: configurationSettings,
-    );
+    promptTransfer
+      ..replaceCharacterPrompts(_codexCharacters(item, projection))
+      ..replaceMainPrompt(
+        prompt: projection.positivePrompt,
+        negativePrompt: projection.negativePrompt,
+        configuration: configuration,
+        configurationSettings: configurationSettings,
+      );
     Navigator.of(dialogContext, rootNavigator: true).pop();
     if (!context.mounted) return;
     context.go('/');
@@ -512,7 +511,6 @@ class OnlineGalleryDetailLauncher {
     GalleryPromptProjection projection,
     GalleryMedia? media,
   ) async {
-    final characterPrompts = ref.read(characterPromptNotifierProvider.notifier);
     final promptTransfer = ref.read(generationPromptTransferServiceProvider);
     final configuration = item.sourceId == GallerySourceId.aiTag
         ? _replacementConfigurationFor(media)
@@ -529,7 +527,6 @@ class OnlineGalleryDetailLauncher {
       dialogContext,
       item,
       projection,
-      characterPrompts: characterPrompts,
       promptTransfer: promptTransfer,
       configuration: configuration,
       configurationSettings: selectedSettings,

@@ -1,5 +1,6 @@
 import '../utils/alias_parser.dart';
 import '../utils/character_prompt_block_parser.dart';
+import '../utils/kaomoji_tags.dart';
 import 'completion_models.dart';
 
 class PromptTokenParser {
@@ -299,7 +300,7 @@ class PromptTokenParser {
     final tag = query.kind == CompletionQueryKind.libraryAlias
         ? '<$canonicalTag>'
         : replaceUnderscores
-        ? canonicalTag.replaceAll('_', ' ')
+        ? KaomojiTags.underscoresToSpaces(canonicalTag)
         : canonicalTag;
     final range = query.replacementRange;
     final before = text.substring(0, range.start);
