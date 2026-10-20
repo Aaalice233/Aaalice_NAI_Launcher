@@ -504,6 +504,96 @@ void main() {
     expect(find.text(l10n.detail_parsingMetadata), findsNothing);
     expect(find.textContaining('blue sky'), findsWidgets);
   });
+
+  testWidgets('解析中与无元数据时都先显示文件基本信息', (tester) async {
+    final image = _PendingMetadataDetail(
+      'plain',
+      fileInfo: FileInfo(
+        path: _neverCreatedPath('plain'),
+        fileName: 'plain.png',
+        size: 2048,
+      ),
+    );
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+
+    await tester.pumpWidget(_panelApp(image));
+    expect(find.text(l10n.detail_basicInfo), findsOneWidget);
+    expect(find.text('plain.png'), findsOneWidget);
+    expect(find.text(l10n.detail_parsingMetadata), findsOneWidget);
+
+    image.metadataLoad.complete(null);
+    await tester.pump();
+
+    expect(find.text('plain.png'), findsOneWidget);
+    expect(find.text('2.0 KB'), findsOneWidget);
+    expect(find.text(l10n.detail_noMetadata), findsOneWidget);
+    expect(find.text(l10n.gallery_generationParams), findsNothing);
+  });
+
+  testWidgets('无元数据时实际分辨率归入基本信息', (tester) async {
+    final image = _PendingMetadataDetail('memory');
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+
+    await tester.pumpWidget(_panelApp(image));
+    image.metadataLoad.complete(null);
+    await tester.pump();
+
+    expect(find.text(l10n.detail_basicInfo), findsOneWidget);
+    expect(find.text(l10n.gallery_metaResolution), findsOneWidget);
+    expect(find.text('1 × 1'), findsOneWidget);
+    expect(find.text(l10n.detail_noMetadata), findsOneWidget);
+  });
+
+  testWidgets('有元数据时分辨率只出现在生成参数里', (tester) async {
+    final image = _PendingMetadataDetail('generated');
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+
+    await tester.pumpWidget(_panelApp(image));
+    image.metadataLoad.complete(const NaiImageMetadata(prompt: 'blue sky'));
+    await tester.pump();
+
+    expect(find.text(l10n.gallery_generationParams), findsOneWidget);
+    expect(find.text(l10n.gallery_metaResolution), findsOneWidget);
+    expect(find.text('1 × 1'), findsOneWidget);
+    // 内存图没有文件信息，分辨率又归生成参数，基本信息整组不出现
+    expect(find.text(l10n.detail_basicInfo), findsNothing);
+  });
+
+  testWidgets('窄屏三倍字号下无元数据状态可滚动到底且不溢出', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 480));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final image = _PendingMetadataDetail(
+      'scaled',
+      fileInfo: FileInfo(
+        path: _neverCreatedPath('scaled'),
+        fileName: 'a_long_generated_file_name_for_scale_check.png',
+        size: 4 * 1024 * 1024,
+      ),
+    );
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+
+    await tester.pumpWidget(_panelApp(image, expandedWidth: 320, textScale: 3));
+    image.metadataLoad.complete(null);
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.text('a_long_generated_file_name_for_scale_check.png'),
+      findsOneWidget,
+    );
+    await tester.scrollUntilVisible(
+      find.text(l10n.detail_noMetadata),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(find.text(l10n.detail_noMetadata), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 final _onePixelPng = Uint8List.fromList(
@@ -511,10 +601,13 @@ final _onePixelPng = Uint8List.fromList(
 );
 
 class _PendingMetadataDetail extends ImageDetailData {
-  _PendingMetadataDetail(this.identifier);
+  _PendingMetadataDetail(this.identifier, {this.fileInfo});
 
   @override
   final String identifier;
+
+  @override
+  final FileInfo? fileInfo;
 
   final metadataLoad = Completer<NaiImageMetadata?>();
 
@@ -532,9 +625,6 @@ class _PendingMetadataDetail extends ImageDetailData {
 
   @override
   bool get isFavorite => false;
-
-  @override
-  FileInfo? get fileInfo => null;
 
   @override
   bool get showSaveButton => false;
@@ -556,14 +646,27 @@ String _neverCreatedPath(String name) =>
     '${Directory.systemTemp.path}${Platform.pathSeparator}'
     'detail_panel_never_created_$name.png';
 
-Widget _panelApp(ImageDetailData image) {
+Widget _panelApp(
+  ImageDetailData image, {
+  double expandedWidth = 600,
+  double textScale = 1,
+}) {
   return ProviderScope(
     child: MaterialApp(
       locale: const Locale('zh'),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       home: Scaffold(
-        body: DetailMetadataPanel(currentImage: image, expandedWidth: 600),
+        body: DetailMetadataPanel(
+          currentImage: image,
+          expandedWidth: expandedWidth,
+        ),
       ),
     ),
   );
