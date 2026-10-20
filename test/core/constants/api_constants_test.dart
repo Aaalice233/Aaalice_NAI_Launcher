@@ -322,6 +322,22 @@ void main() {
       expect(split.body, 'main_negative');
     });
 
+    test('a model guess that misses falls back to every model', () {
+      final full = UcPresets.getPresetContent(
+        ImageModels.animeDiffusionV45Full,
+        UcPresetType.heavy,
+      );
+
+      final split = UcPresets.splitPresetByInt(
+        '$full, main_negative',
+        ImageModels.animeDiffusionV45Curated,
+        UcPresets.heavyApiValue,
+      );
+
+      expect(split.preset, full);
+      expect(split.body, 'main_negative');
+    });
+
     test('tag hints round-trip to request preset values', () {
       for (final apiValue in [
         UcPresets.heavyApiValue,

@@ -218,7 +218,7 @@ class NaiImageMetadata with _$NaiImageMetadata {
   /// 旧版本缓存的 model 不含家族归类，最后再补。
   String? get effectiveModel => sourceModel ?? model ?? sourceDefaultModel;
 
-  /// 可以直接用于生成的模型 ID，取值顺序同 effectiveModel；都无法识别时为 null。
+  /// 可以直接用于生成的模型 ID，取值顺序同 [effectiveModel]；都无法识别时为 null。
   String? get importableModel =>
       ImageModels.importableModelId(sourceModel) ??
       ImageModels.importableModelId(model) ??
