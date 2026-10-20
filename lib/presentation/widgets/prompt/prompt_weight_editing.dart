@@ -193,9 +193,8 @@ class PromptWeightEditing {
       suffix == NumericWeightClosing.plain
           ? NumericWeightClosing.closingFor(
               span.label,
-              separate:
-                  separateNumericWeightClosing ||
-                  NumericWeightClosing.hasSeparatedClosing(span.raw),
+              separate: separateNumericWeightClosing,
+              original: span.raw,
             )
           : suffix,
     );
@@ -412,9 +411,8 @@ class PromptWeightEditing {
     } else if (numericEmphasisEnabled) {
       final closing = NumericWeightClosing.closingFor(
         parsed.baseText,
-        separate:
-            separateNumericWeightClosing ||
-            NumericWeightClosing.hasSeparatedClosing(source),
+        separate: separateNumericWeightClosing,
+        original: source,
       );
       text = '${formatEmphasisWeight(value)}::${parsed.baseText}$closing';
     } else {
