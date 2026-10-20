@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
+import 'package:nai_launcher/data/models/tag_library/tag_library_entry_group.dart';
 
 void main() {
   final created = DateTime(2026);
@@ -11,6 +12,7 @@ void main() {
     int useCount = 0,
     bool favorite = false,
     String? name,
+    String? category,
   }) => TagLibraryEntry(
     id: id,
     name: name ?? id,
@@ -18,6 +20,7 @@ void main() {
     sortOrder: order,
     useCount: useCount,
     isFavorite: favorite,
+    categoryId: category,
     createdAt: created,
     updatedAt: created,
   );
@@ -97,6 +100,26 @@ void main() {
       expect(categories.nextSortOrderUnder('root-a'), 10);
       expect(categories.nextSortOrderUnder('root-b'), 0);
       expect(categories.nextSortOrder, 10);
+    });
+
+    test('分组按分类树深度优先排列，父在前、同级按序号，未分类最后', () {
+      final categories = [
+        category('y', order: 1),
+        category('z2', order: 1, parent: 'x'),
+        category('x'),
+        category('z1', parent: 'x'),
+      ];
+      final entries = [
+        for (final id in ['y', 'z2', 'x', 'z1']) entry('e-$id', category: id),
+        entry('loose'),
+      ];
+      expect(entries.groupedByCategory(categories).map((g) => g.category?.id), [
+        'x',
+        'z1',
+        'z2',
+        'y',
+        null,
+      ]);
     });
   });
 }

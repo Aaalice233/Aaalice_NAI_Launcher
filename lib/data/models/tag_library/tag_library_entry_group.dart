@@ -8,7 +8,7 @@ typedef TagLibraryEntryGroup = ({
 });
 
 extension TagLibraryEntryGrouping on List<TagLibraryEntry> {
-  /// 按分类顺序分组，未分类排在最后；组内保持原有次序，没有条目的分类不成组
+  /// 按侧栏分类树顺序分组，未分类排在最后；组内保持原有次序，没有条目的分类不成组
   List<TagLibraryEntryGroup> groupedByCategory(
     List<TagLibraryCategory> categories,
   ) {
@@ -17,7 +17,7 @@ extension TagLibraryEntryGrouping on List<TagLibraryEntry> {
       byCategory.putIfAbsent(entry.categoryId, () => []).add(entry);
     }
     return List.unmodifiable(<TagLibraryEntryGroup>[
-      for (final category in categories.sortedByOrder())
+      for (final category in categories.inTreeOrder())
         if (byCategory[category.id] case final entries?)
           (category: category, entries: List.unmodifiable(entries)),
       if (byCategory[null] case final entries?)

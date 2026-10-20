@@ -96,17 +96,28 @@ extension TagLibraryCategoryListExtension on List<TagLibraryCategory> {
     return [...this]..sortByKey((category) => category.name.toLowerCase());
   }
 
-  /// 构建分类树
+  /// 构建分类树，同级按 [sortedByOrder] 排列
   Map<String?, List<TagLibraryCategory>> buildTree() {
     final tree = <String?, List<TagLibraryCategory>>{};
-    for (final category in this) {
-      final parentId = category.parentId;
-      tree.putIfAbsent(parentId, () => []).add(category);
-    }
-    for (final children in tree.values) {
-      children.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    for (final category in sortedByOrder()) {
+      tree.putIfAbsent(category.parentId, () => []).add(category);
     }
     return tree;
+  }
+
+  /// 按侧栏树的展示顺序平铺：父分类在前，子分类紧随其后
+  List<TagLibraryCategory> inTreeOrder() {
+    final tree = buildTree();
+    final ordered = <TagLibraryCategory>[];
+    void visit(String? parentId) {
+      for (final category in tree[parentId] ?? const <TagLibraryCategory>[]) {
+        ordered.add(category);
+        visit(category.id);
+      }
+    }
+
+    visit(null);
+    return ordered;
   }
 
   /// 获取分类路径
