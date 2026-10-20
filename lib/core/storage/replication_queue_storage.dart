@@ -42,7 +42,11 @@ class ReplicationQueueStorage extends BaseHiveStorage<void> {
       final taskList = ReplicationTaskList.fromJson(json);
       return taskList.tasks;
     } catch (error, stackTrace) {
-      AppLogger.e('Failed to restore replication queue', error, stackTrace);
+      AppLogger.e(
+        'Failed to restore replication queue',
+        '${error.runtimeType}',
+        stackTrace,
+      );
       return [];
     }
   }

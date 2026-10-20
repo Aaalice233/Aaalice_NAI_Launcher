@@ -10,6 +10,8 @@ import 'package:nai_launcher/data/models/queue/failure_handling_strategy.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_status.dart';
 
+import '../../helpers/log_capture.dart';
+
 void main() {
   late Directory hiveDirectory;
 
@@ -135,5 +137,19 @@ void main() {
     expect(restored.autoExecuteEnabled, isTrue);
     expect(restored.taskIntervalSeconds, 1.5);
     expect(restored.failureStrategy, FailureHandlingStrategy.pauseAndWait);
+  });
+
+  test('损坏的队列数据恢复失败时日志不带出提示词', () async {
+    await Hive.box<String>(StorageKeys.replicationQueueBox).put(
+      StorageKeys.replicationQueueData,
+      '{"tasks":[{"prompt":"secret lighthouse keeper",',
+    );
+
+    final logs = await captureLogs(
+      () => expect(ReplicationQueueStorage().load(), isEmpty),
+    );
+
+    expect(logs.where((line) => line.contains('replication queue')), hasLength(1));
+    expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
 }

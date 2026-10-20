@@ -14,6 +14,7 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/models/agent/agent_settings.dart';
 import '../../../data/repositories/gallery_folder_repository.dart';
+import '../../../data/services/metadata/metadata_error_summary.dart';
 import '../../agent_chat/services/agent_system_prompt.dart';
 import '../../providers/image_save_settings_provider.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
@@ -133,7 +134,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     } catch (error) {
       AppLogger.e(
         'Agent settings initialization failed',
-        error,
+        metadataErrorSummary(error),
         null,
         'AgentSettings',
       );
@@ -156,7 +157,8 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
         );
       } catch (error) {
         throw FormatException(
-          'Cannot migrate the existing chat configuration: $error',
+          'Cannot migrate the existing chat configuration: '
+          '${metadataErrorSummary(error)}',
         );
       }
     }

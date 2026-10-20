@@ -15,6 +15,7 @@ import '../models/prompt/tag_group.dart';
 import '../models/prompt/tag_group_sync_config.dart';
 import '../models/prompt/tag_library.dart';
 import '../models/prompt/weighted_tag.dart';
+import 'metadata/metadata_error_summary.dart';
 
 part 'tag_library_service.g.dart';
 
@@ -113,7 +114,12 @@ class TagLibraryService {
         return fromJson(jsonDecode(json) as Map<String, dynamic>);
       }
     } catch (e) {
-      AppLogger.e('Failed to load $key: $e', 'TagLibrary');
+      AppLogger.e(
+        'Failed to load $key',
+        metadataErrorSummary(e),
+        null,
+        'TagLibrary',
+      );
     }
     return null;
   }
