@@ -146,6 +146,9 @@ class InpaintDraftFileRepository implements InpaintDraftRepository {
       return draft;
     } on InpaintDraftIntegrityException {
       rethrow;
+    } on FormatException catch (error) {
+      // source 是整份 metadata.json，parameterSnapshot 里有提示词
+      throw InpaintDraftIntegrityException('invalid metadata: ${error.message}');
     } on Object catch (error) {
       throw InpaintDraftIntegrityException('invalid metadata: $error');
     }
