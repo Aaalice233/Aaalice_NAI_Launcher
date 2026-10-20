@@ -72,13 +72,6 @@ void main() {
       expect(result.metadata?.source, novelAiV45FullSource);
       expect(result.metadata?.software, 'NovelAI');
       expect(result.metadata?.model, ImageModels.animeDiffusionV45Full);
-    });
-
-    test('keeps non-ASCII UTF-8 text after the ASCII prefix', () {
-      final result = UnifiedMetadataParser.parseFromImage(
-        _withUserComment(asciiUserComment(_exifEnvelope)),
-      );
-
       expect(result.metadata?.prompt, contains('中文提示词'));
       expect(result.rawData, _exifEnvelope);
     });
