@@ -480,9 +480,7 @@ class _WatermarkEditorScreenState extends ConsumerState<WatermarkEditorScreen> {
         await _showSaved(copy, outputPath);
         if (mounted) Navigator.of(context).pop(outputPath);
       case DerivativeCopyCancelled():
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.watermark_cancelled)),
-        );
+        return;
       case DerivativeCopyFailed():
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

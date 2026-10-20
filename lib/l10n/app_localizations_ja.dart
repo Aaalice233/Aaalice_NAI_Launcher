@@ -14973,9 +14973,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get watermark_noLayer => '保存前にテキストまたはロゴを有効にしてください。';
 
   @override
-  String get watermark_cancelled => 'ウォーターマーク処理をキャンセルしました';
-
-  @override
   String watermark_failed(Object error) {
     return '透かし入りコピーを作成できませんでした：$error';
   }
@@ -15321,9 +15318,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get mosaic_share => '共有';
-
-  @override
-  String get mosaic_cancelled => '処理をキャンセルしました。';
 
   @override
   String get mosaic_failedGeneric => 'モザイク済みコピーを作成できませんでした。';

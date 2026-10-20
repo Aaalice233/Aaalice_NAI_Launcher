@@ -26650,12 +26650,6 @@ abstract class AppLocalizations {
   /// **'Enable text or logo before saving.'**
   String get watermark_noLayer;
 
-  /// No description provided for @watermark_cancelled.
-  ///
-  /// In en, this message translates to:
-  /// **'Watermark rendering cancelled'**
-  String get watermark_cancelled;
-
   /// No description provided for @watermark_failed.
   ///
   /// In en, this message translates to:
@@ -27315,12 +27309,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Share'**
   String get mosaic_share;
-
-  /// No description provided for @mosaic_cancelled.
-  ///
-  /// In en, this message translates to:
-  /// **'Redaction rendering was cancelled.'**
-  String get mosaic_cancelled;
 
   /// No description provided for @mosaic_failedGeneric.
   ///

@@ -636,9 +636,7 @@ class _MosaicEditorScreenState extends ConsumerState<MosaicEditorScreen> {
         await _showSaved(copy, outputPath);
         if (mounted) Navigator.of(context).pop(outputPath);
       case DerivativeCopyCancelled():
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(context.l10n.mosaic_cancelled)));
+        return;
       case DerivativeCopyFailed(:final error):
         _showError('${context.l10n.mosaic_failedGeneric}\n$error');
     }

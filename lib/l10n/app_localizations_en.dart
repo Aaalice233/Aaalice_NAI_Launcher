@@ -15377,9 +15377,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get watermark_noLayer => 'Enable text or logo before saving.';
 
   @override
-  String get watermark_cancelled => 'Watermark rendering cancelled';
-
-  @override
   String watermark_failed(Object error) {
     return 'Could not create watermark copy: $error';
   }
@@ -15743,9 +15740,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mosaic_share => 'Share';
-
-  @override
-  String get mosaic_cancelled => 'Redaction rendering was cancelled.';
 
   @override
   String get mosaic_failedGeneric => 'The redacted copy could not be created.';
