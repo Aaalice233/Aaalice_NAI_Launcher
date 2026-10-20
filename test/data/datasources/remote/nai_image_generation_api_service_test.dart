@@ -1213,7 +1213,7 @@ void main() {
       );
     });
 
-    // 与 imageGenerationDioClient 一致：默认 HTTP/1.1 适配器
+    // 与 dioClient 一致：默认 HTTP/1.1 适配器
     final dio = Dio();
     final endpointService = NaiApiEndpointService()
       ..setCurrent(

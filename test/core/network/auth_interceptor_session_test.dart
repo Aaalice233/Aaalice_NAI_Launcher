@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/network/dio_client.dart';
+import 'package:nai_launcher/core/network/system_proxy_http_overrides.dart';
 import 'package:nai_launcher/core/services/auth_error_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
@@ -107,6 +110,61 @@ void main() {
     expect(refresh.calls, 1);
     expect(auth.logoutCodes, isEmpty);
     expect(await storage.getAccessToken(), _carolToken);
+  });
+
+  test('并发 401 都等待刷新，并使用新 token 重试各自的请求', () async {
+    final previousOverrides = HttpOverrides.current;
+    HttpOverrides.global = SystemProxyHttpOverrides('DIRECT');
+    addTearDown(() => HttpOverrides.global = previousOverrides);
+
+    final retriedPaths = <String>[];
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final subscription = server.listen((request) async {
+      expect(request.headers.value('authorization'), 'Bearer $_carolToken');
+      retriedPaths.add(request.uri.path);
+      request.response.headers.contentType = ContentType.json;
+      request.response.write('{"ok":true}');
+      await request.response.close();
+    });
+    addTearDown(subscription.cancel);
+
+    final started = Completer<void>();
+    final joined = Completer<void>();
+    final release = Completer<void>();
+    refresh.outcome = TokenRefreshOutcome.refreshed;
+    refresh.whileRefreshing = () async {
+      if (!started.isCompleted) started.complete();
+      if (refresh.calls == 2) joined.complete();
+      await release.future;
+      await signIn(_carolToken);
+    };
+
+    Future<int?> request(String path) async {
+      try {
+        final response = await dio.get<dynamic>(
+          'http://127.0.0.1:${server.port}$path',
+          options: Options(headers: {'Authorization': 'Bearer $_bobToken'}),
+        );
+        return response.statusCode;
+      } on DioException catch (error) {
+        return error.response?.statusCode;
+      }
+    }
+
+    final first = request('/user/subscription');
+    await started.future;
+    final second = request('/ai/generate-image');
+    // 旧实现在刷新期间直接返回第二个 401；无需依赖延时来制造竞态。
+    await Future.any([joined.future, second.then<void>((_) {})]);
+    release.complete();
+
+    expect(await Future.wait([first, second]), [200, 200]);
+    expect(
+      retriedPaths,
+      unorderedEquals(['/user/subscription', '/ai/generate-image']),
+    );
+    expect(auth.logoutCodes, isEmpty);
   });
 }
 

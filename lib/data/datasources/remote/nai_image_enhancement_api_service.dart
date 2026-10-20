@@ -372,15 +372,9 @@ class NAIImageEnhancementApiService {
 }
 
 /// NAIImageEnhancementApiService Provider
-///
-/// 使用 `imageGenerationDioClientProvider`（始终是可中断的 HTTP/1.1 适配器），
-/// 不用通用 `dioClientProvider`：通用 client 在没有代理时切到 `Http2Adapter`，
-/// 一是取消请求不会终止 HTTP/2 流（见 imageGenerationDioClient 的说明），放大、
-/// 增强、Vibe 编码和导演工具同样是计费请求；二是移动端直连时该适配器访问
-/// image.novelai.net 会直接失败，错误只剩"未知错误"。
 @riverpod
 NAIImageEnhancementApiService naiImageEnhancementApiService(Ref ref) {
-  final dio = ref.watch(imageGenerationDioClientProvider);
+  final dio = ref.watch(dioClientProvider);
   final endpointService = ref.watch(naiApiEndpointServiceProvider);
   return NAIImageEnhancementApiService(dio, endpointService);
 }

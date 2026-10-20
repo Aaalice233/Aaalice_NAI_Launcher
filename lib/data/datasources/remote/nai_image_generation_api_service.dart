@@ -392,7 +392,7 @@ class _PreparedGeneration {
 /// that started the in-flight request.
 @Riverpod(keepAlive: true)
 NAIImageGenerationApiService naiImageGenerationApiService(Ref ref) {
-  final dio = ref.watch(imageGenerationDioClientProvider);
+  final dio = ref.watch(dioClientProvider);
   final enhancementService = ref.watch(naiImageEnhancementApiServiceProvider);
   final endpointService = ref.watch(naiApiEndpointServiceProvider);
   return NAIImageGenerationApiService(dio, enhancementService, endpointService);
