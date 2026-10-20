@@ -94,6 +94,13 @@ void main() {
     sourcePath: sourcePath,
   );
 
+  Future<void> settled(DerivativeCopyFollowUp steps) => Future.wait<Object?>([
+    steps.registered,
+    steps.fixedTagUsageCopied,
+    steps.systemGallery,
+    steps.galleryIndexed,
+  ]);
+
   group('gallery root and write', () {
     test('missing or empty root means the gallery folder is not set', () async {
       expect(await saver(rootPath: () => null).resolveGalleryRoot(), isNull);
@@ -152,7 +159,7 @@ void main() {
   group('follow-up', () {
     test('admits only the new copy and skips the full rescan', () async {
       final steps = followUp(saver(), outputPath: 'a/out_watermarked.png');
-      await steps.settled;
+      await settled(steps);
 
       expect(await steps.galleryIndexed, isTrue);
       expect(admissions, [
@@ -198,7 +205,7 @@ void main() {
     });
 
     test('a copy without a known original registers no source link', () async {
-      await followUp(saver(), sourcePath: null).settled;
+      await settled(followUp(saver(), sourcePath: null));
 
       expect(registrations, isEmpty);
       expect(usageCopies, hasLength(1));
@@ -233,7 +240,7 @@ void main() {
         ),
       );
 
-      await expectLater(steps.settled, completes);
+      await expectLater(settled(steps), completes);
       expect(await steps.galleryIndexed, isFalse);
       final outcome = await steps.systemGallery;
       expect(outcome, isA<SystemGalleryPublishFailed>());
