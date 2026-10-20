@@ -99,7 +99,10 @@ void main() {
     final result = ImageMetadataParserService().parseFromImage(prefix);
 
     expect(result.success, isFalse);
-    expect(result.errorMessage, 'Failed to decode PNG (incomplete data?)');
+    expect(
+      result.errorMessage,
+      'No parser could extract metadata from 0 fields',
+    );
     expect(result.prefixVerdict, MetadataPrefixVerdict.needsMoreBytes);
   });
 

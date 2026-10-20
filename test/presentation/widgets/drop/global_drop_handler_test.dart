@@ -175,6 +175,32 @@ void main() {
       expect(detection.parseError, contains('from 1 fields'));
     });
 
+    test('an incomplete PNG prefix keeps the text diagnosis', () async {
+      Future<String?> prefixParseError(String keyword, String text) async {
+        final png = UnifiedMetadataParser.embedTextChunkOnly(
+          Uint8List.fromList(_transparentPngBytes),
+          keyword,
+          text,
+        );
+        final idatTypeOffset = _indexOfBytes(png, ascii.encode('IDAT'));
+        final detection = await detectDroppedImageMetadata(
+          'opened_discord_image.webp',
+          Uint8List.fromList(const [0x52, 0x49, 0x46, 0x46]),
+          metadataBytes: Uint8List.fromList(png.sublist(0, idatTypeOffset - 4)),
+        );
+        return detection.parseError;
+      }
+
+      expect(
+        await prefixParseError('Software', 'Example image editor'),
+        isNull,
+      );
+      expect(
+        await prefixParseError('Comment', 'unparseable payload'),
+        contains('from 1 fields'),
+      );
+    });
+
     test(
       'reads metadata from an incomplete PNG prefix beside WebP display bytes',
       () async {
