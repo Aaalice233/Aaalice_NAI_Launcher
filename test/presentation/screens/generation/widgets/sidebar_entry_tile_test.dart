@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
@@ -121,5 +122,69 @@ void main() {
         }
       });
     }
+  }
+
+  // 首次触屏按下会放大操作按钮，行内放不下名称时操作换到第二行；抬手仍须落在原按钮上。
+  for (final (action, icon) in [
+    ('edit', Icons.edit_rounded),
+    ('delete', Icons.delete_outline_rounded),
+  ]) {
+    testWidgets('first touch on $action after mouse input survives the '
+        'relayout', (tester) async {
+      var toggles = 0;
+      var edits = 0;
+      var deletes = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: InteractionPolicyScope(
+              initialPolicy: const InteractionPolicy(
+                modality: InteractionModality.pointer,
+                touchAvailable: false,
+                precisePointerAvailable: true,
+              ),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: 220,
+                  child: SidebarEntryTile(
+                    entry: FixedTagEntry.create(
+                      name: 'Fixed tag',
+                      content: 'blue eyes',
+                    ),
+                    categoryColor: Colors.teal,
+                    isListMode: true,
+                    onToggle: () => toggles++,
+                    onEdit: () => edits++,
+                    onDelete: () => deletes++,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final rowHeight = tester.getSize(find.byType(SidebarEntryTile)).height;
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byIcon(icon)),
+        kind: PointerDeviceKind.touch,
+      );
+      await tester.pump();
+      expect(
+        tester.getSize(find.byType(SidebarEntryTile)).height,
+        greaterThan(rowHeight),
+        reason: '触屏按下后操作应换到第二行',
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(toggles, 0);
+      expect(edits, action == 'edit' ? 1 : 0);
+      expect(deletes, action == 'delete' ? 1 : 0);
+      expect(tester.takeException(), isNull);
+    });
   }
 }
