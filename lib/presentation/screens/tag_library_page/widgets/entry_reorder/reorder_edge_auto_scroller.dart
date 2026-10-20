@@ -26,8 +26,6 @@ class ReorderEdgeAutoScroller {
   Rect? _viewport;
   Duration? _lastElapsed;
 
-  bool get isScrolling => _ticker.isActive;
-
   /// [pointer] 与 [viewport] 都是全局坐标
   void update(Offset pointer, Rect viewport) {
     _pointer = pointer;
