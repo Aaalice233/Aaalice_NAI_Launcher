@@ -543,6 +543,36 @@ void main() {
       _expectSameColor(overlap, _pixelAt(pixels, 48, 4, 24), 'committed only');
     });
 
+    test('erasing a mask clears its overlay while painting', () async {
+      final state = createState();
+      state.setToolById('eraser');
+      state.setBrushSize(12);
+      state.startStroke(const Offset(24, 6));
+      state.updateStroke(const Offset(24, 42));
+
+      final pixels = await _paintOpaque(state, viewport);
+
+      expect(_pixelAt(pixels, 48, 24, 24), Colors.white);
+      expect(_pixelAt(pixels, 48, 8, 24), isNot(Colors.white));
+    });
+
+    test('magnified mask erasing clears whole pixels while painting', () async {
+      final state = createState();
+      state.setToolById('eraser');
+      state.setBrushSize(12);
+      state.canvasController
+        ..setScale(2)
+        ..setOffset(const Offset(-24, -24));
+      state.startStroke(const Offset(24, 6));
+      state.updateStroke(const Offset(24, 42));
+
+      final pixels = await _paintOpaque(state, viewport);
+
+      // 文档 (24, 24) 落在视口中央，(14, 24) 在擦除范围之外
+      expect(_pixelAt(pixels, 48, 24, 24), Colors.white);
+      expect(_pixelAt(pixels, 48, 4, 24), isNot(Colors.white));
+    });
+
     test('magnified mask edges show whole pixels instead of a blur', () async {
       final state = createState();
       // 上方再画一笔，让缓存图向上延伸，被测边缘落在缓存内部而不是图像边界上
@@ -667,6 +697,124 @@ void main() {
       expect(_pixelAt(pixels, 48, 20, 24), const Color(0xFFFF0000));
       expect(_pixelAt(pixels, 48, 24, 8), isNot(const Color(0xFFFF0000)));
       expect(_pixelAt(pixels, 48, 8, 24), isNot(Colors.white));
+    });
+  });
+
+  group('live eraser on image layers', () {
+    const viewport = Size(48, 48);
+    const red = Color(0xFFFF0000);
+    const green = Color(0xFF00FF00);
+
+    // 红色铺底，绿色图层盖在上方并为活动图层，橡皮擦横穿 y=24
+    Future<(EditorState, Layer)> createState({double hardness = 1}) async {
+      final state = EditorState()..setCanvasSize(viewport);
+      addTearDown(state.dispose);
+      state.layerManager.addLayerFromUiImage(
+        await _createSolidImage(48, 48, red),
+        name: 'bottom',
+      );
+      final top = state.layerManager.addLayer(name: 'top', index: 0);
+      top.setBaseRaster(LayerRaster(await _createSolidImage(48, 48, green)));
+      state.canvasController.setViewportSize(viewport);
+      state.setToolById('eraser');
+      state.setBrushSize(10);
+      state.setBrushHardness(hardness);
+      return (state, top);
+    }
+
+    void eraseAcross(EditorState state) {
+      state.startStroke(const Offset(4, 24));
+      state.updateStroke(const Offset(24, 24));
+      state.updateStroke(const Offset(44, 24));
+    }
+
+    test('reveals the layer below while painting', () async {
+      final (state, _) = await createState();
+      eraseAcross(state);
+
+      final pixels = await _paintOpaque(state, viewport);
+
+      expect(_pixelAt(pixels, 48, 24, 24), red);
+      expect(_pixelAt(pixels, 48, 24, 8), green);
+    });
+
+    test('looks the same before and after the stroke is committed', () async {
+      final (state, top) = await createState();
+      eraseAcross(state);
+      final live = await _paintOpaque(state, viewport);
+
+      state.currentTool!.onPointerUp(
+        const PointerUpEvent(position: Offset(44, 24)),
+        state,
+      );
+      expect(top.strokes.single.isEraser, isTrue);
+      final committed = await _paintOpaque(state, viewport);
+
+      // 矢量笔画与缓存图在圆头端点的抗锯齿像素上取整略有出入，其余像素一致
+      final liveBytes = live.buffer.asUint8List();
+      final committedBytes = committed.buffer.asUint8List();
+      var differing = 0;
+      for (var i = 0; i < liveBytes.length; i++) {
+        final diff = (liveBytes[i] - committedBytes[i]).abs();
+        expect(
+          diff,
+          lessThanOrEqualTo(12),
+          reason: 'pixel ${i ~/ 4} channel ${i % 4}',
+        );
+        if (diff > 2) differing++;
+      }
+      expect(differing, lessThanOrEqualTo(8));
+    });
+
+    test('keeps the layer opacity on what remains', () async {
+      final (state, top) = await createState();
+      top.opacity = 0.5;
+      eraseAcross(state);
+
+      final pixels = await _paintOpaque(state, viewport);
+
+      expect(_pixelAt(pixels, 48, 24, 24), red);
+      final halfGreen = _pixelAt(pixels, 48, 24, 8);
+      expect(_redByte(halfGreen), inInclusiveRange(120, 135));
+    });
+
+    test('leaves a locked layer untouched', () async {
+      final (state, top) = await createState();
+      top.locked = true;
+      eraseAcross(state);
+
+      final pixels = await _paintOpaque(state, viewport);
+
+      expect(state.liveLayerStroke, isNull);
+      expect(_pixelAt(pixels, 48, 24, 24), green);
+    });
+
+    test('magnified soft strokes erase at document resolution', () async {
+      final (state, _) = await createState(hardness: 0.5);
+      // 放大 8 倍，文档 (24, 24) 落在视口中央
+      state.canvasController
+        ..setScale(8)
+        ..setOffset(const Offset(24 - 24 * 8, 24 - 24 * 8));
+      eraseAcross(state);
+
+      final canvas = TestRecordingCanvas();
+      LayerPainter(state: state).paint(canvas, viewport);
+      final erasingImages = [
+        for (final call in canvas.invocations)
+          if (call.invocation.memberName == #drawImage &&
+              (call.invocation.positionalArguments[2] as Paint).blendMode ==
+                  BlendMode.dstOut)
+            call.invocation.positionalArguments[0] as ui.Image,
+      ];
+      expect(erasingImages, hasLength(1));
+      // 视口只露出文档 6 像素见方，烘焙范围不随笔画全长分配
+      expect(erasingImages.single.width, lessThanOrEqualTo(8));
+      expect(erasingImages.single.height, lessThanOrEqualTo(8));
+
+      // 软边笔画中心的覆盖率不足 100%，上层残留少许绿色
+      final center = _pixelAt(await _paintOpaque(state, viewport), 48, 24, 24);
+      expect(_redByte(center), greaterThanOrEqualTo(240));
+      expect((center.g * 255).round(), lessThanOrEqualTo(16));
     });
   });
 

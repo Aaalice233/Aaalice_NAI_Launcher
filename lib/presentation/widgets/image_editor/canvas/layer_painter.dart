@@ -30,7 +30,7 @@ class LayerPainter extends CustomPainter {
   /// 使用 renderNotifier 而非整个 state
   /// 这样只有在渲染相关变化时才会触发重绘
   /// 切换活动图层等 UI 操作不会导致画布重绘；
-  /// 涂蒙版时正在画的一笔画在蒙版层里，所以也跟随笔画预览重绘
+  /// 涂蒙版与擦除时正在画的一笔画在图层里，所以也跟随笔画预览重绘
   LayerPainter({
     required this.state,
     this.showTransparentCanvasBackground = false,
@@ -84,7 +84,7 @@ class LayerPainter extends CustomPainter {
       viewportBounds: viewportBounds,
       filterQuality: FilterQuality.medium,
       pixelScale: controller.scale * devicePixelRatio,
-      liveStroke: state.liveMaskStroke,
+      liveStroke: state.liveLayerStroke,
     );
 
     if (revealOutsideFrame) {
