@@ -20,6 +20,7 @@ class DroppedFileData {
     this.sourceUri,
     this.sourcePath,
     this.metadataBytes,
+    this.metadataBytesAreOriginal = false,
     this.imageBytesArePreview = false,
   });
 
@@ -28,8 +29,9 @@ class DroppedFileData {
   final Uri? sourceUri;
   final String? sourcePath;
 
-  /// 前缀已覆盖元数据所在区域时只是文件前缀，否则是完整原图，见 [DroppedFileReader.downloadRemoteMetadataSource]。
+  /// 前缀已覆盖元数据所在区域时只是文件前缀，否则是完整原图，由 [metadataBytesAreOriginal] 标明。
   final Uint8List? metadataBytes;
+  final bool metadataBytesAreOriginal;
   final bool imageBytesArePreview;
 }
 
@@ -381,21 +383,21 @@ class DroppedFileReader {
       timeout: discordPreviewTimeout,
     );
     final previewImage = await previewFuture;
-    final metadataBytes = await metadataFuture;
+    final metadataSource = await metadataFuture;
     if (previewImage != null) {
       return DroppedFileData(
         fileName: inferFileNameFromUri(originalUri),
         bytes: previewImage.bytes,
         sourceUri: originalUri,
-        metadataBytes: metadataBytes,
+        metadataBytes: metadataSource?.bytes,
+        metadataBytesAreOriginal: metadataSource?.original != null,
         imageBytesArePreview: true,
       );
     }
 
-    final originalImage = await downloadRemoteImage(
-      originalUri,
-      logTag: logTag,
-    );
+    final originalImage =
+        metadataSource?.original ??
+        await downloadRemoteImage(originalUri, logTag: logTag);
     if (originalImage == null) {
       return null;
     }
@@ -403,7 +405,8 @@ class DroppedFileReader {
       fileName: originalImage.fileName,
       bytes: originalImage.bytes,
       sourceUri: originalUri,
-      metadataBytes: metadataBytes,
+      metadataBytes: metadataSource?.bytes,
+      metadataBytesAreOriginal: metadataSource?.original != null,
     );
   }
 
@@ -480,14 +483,19 @@ class DroppedFileReader {
   };
 
   /// PNG 的文本块在图像数据之前、JPEG 的 EXIF 在头部，前缀即可；WebP 的 EXIF 在图像数据之后、隐写在像素里，
-  /// 必须取完整原图，JPEG 头部超出前缀时同样如此。
-  static Future<Uint8List?> downloadRemoteMetadataSource(
+  /// 必须取完整原图，JPEG 头部超出前缀时同样如此。取了完整原图时 [original] 就是这次下载，[bytes] 是它的字节。
+  static Future<({Uint8List bytes, DroppedFileData? original})?>
+  downloadRemoteMetadataSource(
     Uri uri, {
     String logTag = 'DroppedFileReader',
   }) async {
     final prefix = await downloadRemoteMetadataPrefix(uri, logTag: logTag);
-    if (prefix == null || !_endsBeforeMetadata(prefix)) return prefix;
-    return (await downloadRemoteImage(uri, logTag: logTag))?.bytes;
+    if (prefix == null) return null;
+    if (!_endsBeforeMetadata(prefix)) return (bytes: prefix, original: null);
+    final original = await downloadRemoteImage(uri, logTag: logTag);
+    return original == null
+        ? null
+        : (bytes: original.bytes, original: original);
   }
 
   static bool _endsBeforeMetadata(Uint8List prefix) =>

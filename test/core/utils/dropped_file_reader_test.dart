@@ -231,7 +231,8 @@ void main() {
           server.uri,
         );
 
-        expect(result, orderedEquals(original));
+        expect(result?.bytes, orderedEquals(original));
+        expect(result?.original?.bytes, same(result?.bytes));
         expect(server.requestedRanges, [
           'bytes=0-${DroppedFileReader.discordMetadataProbeBytes - 1}',
           null,
@@ -249,7 +250,11 @@ void main() {
         server.uri,
       );
 
-      expect(result, hasLength(DroppedFileReader.discordMetadataProbeBytes));
+      expect(
+        result?.bytes,
+        hasLength(DroppedFileReader.discordMetadataProbeBytes),
+      );
+      expect(result?.original, isNull);
       expect(server.requestedRanges, hasLength(1));
     });
 
@@ -262,7 +267,8 @@ void main() {
         server.uri,
       );
 
-      expect(result, orderedEquals(original));
+      expect(result?.bytes, orderedEquals(original));
+      expect(result?.original, isNull);
       expect(server.requestedRanges, hasLength(1));
     });
 
@@ -294,7 +300,8 @@ void main() {
           server.uri,
         );
 
-        expect(result, orderedEquals(original));
+        expect(result?.bytes, orderedEquals(original));
+        expect(result?.original?.bytes, same(result?.bytes));
         expect(server.requestedRanges, [
           'bytes=0-${DroppedFileReader.discordMetadataProbeBytes - 1}',
           null,
@@ -314,7 +321,11 @@ void main() {
           server.uri,
         );
 
-        expect(result, hasLength(DroppedFileReader.discordMetadataProbeBytes));
+        expect(
+          result?.bytes,
+          hasLength(DroppedFileReader.discordMetadataProbeBytes),
+        );
+        expect(result?.original, isNull);
         expect(server.requestedRanges, hasLength(1));
       },
     );
