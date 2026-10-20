@@ -169,7 +169,7 @@ class CooccurrenceService {
       return recommendations;
     } catch (e, stack) {
       AppLogger.e(
-        'Failed to get related tags for "$tag"',
+        'Failed to get related tags',
         e,
         stack,
         'CooccurrenceService',
