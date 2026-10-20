@@ -218,11 +218,4 @@ class DerivativeCopyFollowUp {
   final Future<void> fixedTagUsageCopied;
   final Future<SystemGalleryPublishOutcome> systemGallery;
   final Future<bool> galleryIndexed;
-
-  Future<void> get settled => Future.wait<Object?>([
-    registered,
-    fixedTagUsageCopied,
-    systemGallery,
-    galleryIndexed,
-  ]);
 }
