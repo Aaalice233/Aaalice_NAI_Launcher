@@ -153,11 +153,8 @@ Future<DroppedImageMetadataDetection> detectDroppedImageMetadata(
     }
 
     if (metadataBytes != null) {
-      final result = UnifiedMetadataParser.isPngHeader(metadataBytes)
-          ? _parsePngMetadataPrefix(metadataBytes)
-          : await ImageMetadataService().getMetadataParseResultFromBytes(
-              metadataBytes,
-            );
+      final result = await ImageMetadataService()
+          .getMetadataParseResultFromBytes(metadataBytes);
       metadata = result.success ? result.metadata : null;
       if (metadata == null || !metadata.hasData) {
         recordParseFailure(result, metadataBytes);
@@ -243,18 +240,6 @@ bool _isDroppedMetadataParseFailure(String? errorMessage, Uint8List bytes) {
   if (errorMessage.startsWith('No EXIF UserComment metadata')) return false;
   if (errorMessage.startsWith('Unsupported image container')) return false;
   return true;
-}
-
-/// 前缀的像素不完整，只认文本块与 eXIf；都读不出时保留文本块的诊断。
-MetadataParseResult _parsePngMetadataPrefix(Uint8List prefix) {
-  final text = UnifiedMetadataParser.parseFromTextData(
-    UnifiedMetadataParser.extractPngTextData(prefix),
-  );
-  if (text.success) return text;
-  final withoutPixels = UnifiedMetadataParser.parseFromPngWithoutPixelDecode(
-    prefix,
-  );
-  return withoutPixels != null && withoutPixels.success ? withoutPixels : text;
 }
 
 NaiImageMetadata? _parseStealthMetadataFromImageBytes(Uint8List bytes) {

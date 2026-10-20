@@ -220,12 +220,11 @@ class ImageMetadataParserService {
         );
         if (exif.success) return exif;
         final triedParsers = [...text.triedParsers, ...exif.triedParsers];
+        // The text diagnosis stays: callers tell a damaged Comment from none by it
         if (info == null) {
           return MetadataParseResult.failed(
             triedParsers,
-            bytes.length < 1024 * 1024
-                ? 'Failed to decode PNG (incomplete data?)'
-                : 'Failed to decode PNG',
+            text.errorMessage!,
             parseTime: stopwatch.elapsed,
             bytesRead: bytes.length,
             // Every chunk before the image data has been read by now; what is
@@ -237,7 +236,6 @@ class ImageMetadataParserService {
           );
         }
         if (!includeStealth) return null;
-        // The text diagnosis stays: callers tell a damaged Comment from none by it
         return _preferStealth(
           bytes,
           stopwatch,
