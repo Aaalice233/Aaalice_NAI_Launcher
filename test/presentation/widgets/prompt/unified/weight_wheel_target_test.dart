@@ -11,6 +11,7 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 
 import '../../../../helpers/memory_local_storage.dart';
+import 'prompt_wheel_test_helpers.dart';
 
 Future<void> _pumpInput(
   WidgetTester tester,
@@ -64,29 +65,11 @@ void main() {
   // 选区解析的各种形态由 prompt_weight_editing_test 覆盖，这里只验证滚轮接线
   testWidgets('双击选中带权重标签的文字后滚轮改写该权重', (tester) async {
     const text = 'a, 1.05::iu::, b';
-    const part = 'iu';
     final host = TextEditingController(text: text);
     addTearDown(host.dispose);
     final reported = <String>[];
     await _pumpInput(tester, host, onChanged: reported.add);
-    await tester.tap(find.byType(EditableText).first);
-    await tester.pump();
-    final start = text.indexOf(part);
-    tester.testTextInput.updateEditingValue(
-      TextEditingValue(
-        text: text,
-        selection: TextSelection(
-          baseOffset: start,
-          extentOffset: start + part.length,
-        ),
-      ),
-    );
-    await tester.pump();
-
-    final pointer = TestPointer(1, PointerDeviceKind.mouse)
-      ..hover(tester.getCenter(find.byType(EditableText).first));
-    await tester.sendEventToBinding(pointer.scroll(const Offset(0, -40)));
-    await tester.pump();
+    await wheelSelectedPart(tester, text, 'iu');
 
     expect(host.text, 'a, 1.1::iu::, b');
     expect(reported.last, 'a, 1.1::iu::, b');
