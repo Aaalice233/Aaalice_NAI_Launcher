@@ -56,7 +56,7 @@ class TagLibraryEntryTile extends ConsumerWidget {
       if (HardwareKeyboard.instance.isShiftPressed) {
         final ids = ref
             .read(tagLibraryPageNotifierProvider)
-            .filteredEntries
+            .presentedEntries
             .map((e) => e.id)
             .toList();
         notifier.selectRange(entry.id, ids);

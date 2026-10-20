@@ -15,6 +15,7 @@ import 'package:nai_launcher/presentation/providers/tag_library_page_provider.da
 import 'package:nai_launcher/presentation/providers/tag_library_selection_provider.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/tag_library_page_screen.dart';
 import 'package:nai_launcher/presentation/screens/tag_library_page/widgets/entry_reorder/entry_reorder_scope.dart';
+import 'package:nai_launcher/presentation/selection/card_selection_scope.dart';
 
 import '../../../helpers/light_theme_contrast.dart';
 
@@ -122,6 +123,43 @@ void main() {
     final entries = container.read(tagLibraryPageNotifierProvider).entries;
     expect(entries.firstWhere((e) => e.id == 'x1').categoryId, 'y');
     expect(_displayed(container), ['x2', 'y1', 'x1']);
+  });
+
+  testWidgets('分组视图跨组多选按屏幕顺序整组移动', (tester) async {
+    final container = await _pump(
+      tester,
+      viewMode: TagLibraryViewMode.grouped,
+      categories: [_category('x', 0), _category('y', 1), _category('z', 2)],
+      entries: [
+        _entry('a', 2, category: 'x'),
+        _entry('b', 0, category: 'y'),
+        _entry('c', 1, category: 'z'),
+      ],
+    );
+    final selectionScope = CardSelectionScope.maybeOf(
+      tester.element(_tile('a')),
+    )!;
+    expect(selectionScope.orderedIds, [
+      'a',
+      'b',
+      'c',
+    ], reason: '范围选择与拖动都按分组后的显示顺序');
+    container.read(tagLibrarySelectionNotifierProvider.notifier)
+      ..enterAndSelect('a')
+      ..toggle('b');
+    await tester.pump();
+
+    final gesture = await _longPressDragTo(
+      tester,
+      _tile('a'),
+      _rightPart(tester, _tile('c')),
+    );
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    final entries = container.read(tagLibraryPageNotifierProvider).entries;
+    expect(entries.map((e) => e.categoryId), everyElement('z'));
+    expect(_displayed(container), ['c', 'a', 'b']);
   });
 
   testWidgets('非自定义排序下长按仍进入多选，不出现插入线', (tester) async {
