@@ -70,7 +70,8 @@ class DetailMetadataPanel extends ConsumerStatefulWidget {
 
 class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
   late bool _isExpanded;
-  Future<NaiImageMetadata?>? _metadataFuture;
+  int _metadataRequest = 0;
+  bool _isLoadingMetadata = false;
   NaiImageMetadata? _loadedMetadata;
   (int, int)? _actualImageSize;
   FileInfo? _fileInfo;
@@ -93,10 +94,13 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
 
   /// 同步读到有内容的元数据就直接用，否则交给数据源前台高优先级解析
   void _startMetadataLoading() {
+    final request = ++_metadataRequest;
     final image = widget.currentImage;
     if (image == null) {
       _actualImageSize = null;
       _fileInfo = null;
+      _loadedMetadata = null;
+      _isLoadingMetadata = false;
       AppLogger.w(
         '[MetadataFlow] _startMetadataLoading: image is null',
         'DetailMetadataPanel',
@@ -126,7 +130,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
         'DetailMetadataPanel',
       );
       _loadedMetadata = syncMetadata;
-      _metadataFuture = null;
+      _isLoadingMetadata = false;
       return;
     }
 
@@ -136,28 +140,32 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     );
     // 切图后加载期间不能沿用上一张的元数据，上一张晚到的结果也不能盖掉这一张
     _loadedMetadata = null;
-    _metadataFuture = image
-        .getMetadataAsync()
-        .then((metadata) {
-          AppLogger.i(
-            '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
-            'DetailMetadataPanel',
-          );
-          if (mounted &&
-              widget.currentImage?.identifier == image.identifier) {
-            setState(() => _loadedMetadata = metadata);
-          }
-          return metadata;
-        })
-        .catchError((e, stack) {
-          AppLogger.e(
-            '[MetadataFlow] Async load failed',
-            e,
-            stack,
-            'DetailMetadataPanel',
-          );
-          throw e;
-        });
+    _isLoadingMetadata = true;
+    unawaited(_loadMetadataAsync(image, request));
+  }
+
+  // 无元数据的图片解析结果就是 null，读取失败也按无元数据收尾
+  Future<void> _loadMetadataAsync(ImageDetailData image, int request) async {
+    NaiImageMetadata? metadata;
+    try {
+      metadata = await image.getMetadataAsync();
+      AppLogger.i(
+        '[MetadataFlow] Async load completed: hasData=${metadata?.hasData}, prompt length=${metadata?.fullPrompt.length ?? 0}',
+        'DetailMetadataPanel',
+      );
+    } catch (error, stack) {
+      AppLogger.e(
+        '[MetadataFlow] Async load failed',
+        error,
+        stack,
+        'DetailMetadataPanel',
+      );
+    }
+    if (!mounted || request != _metadataRequest) return;
+    setState(() {
+      _loadedMetadata = metadata;
+      _isLoadingMetadata = false;
+    });
   }
 
   Future<void> _loadFileInfo(ImageDetailData image) async {
@@ -285,7 +293,6 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
     final l10n = context.l10n;
     final metadata = _currentMetadata;
     final fixedTagsState = ref.watch(fixedTagsNotifierProvider);
-    final isLoading = _metadataFuture != null && _loadedMetadata == null;
     final colorScheme = theme.colorScheme;
 
     return Column(
@@ -302,7 +309,7 @@ class _DetailMetadataPanelState extends ConsumerState<DetailMetadataPanel> {
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   ),
                 )
-              : isLoading
+              : _isLoadingMetadata
               ? _buildLoadingState(theme)
               : metadata != null && metadata.hasData
               ? SingleChildScrollView(
