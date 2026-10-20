@@ -120,6 +120,24 @@ void main() {
     expect(service.loadedPages, [0, 0]);
   });
 
+  test('分组视图下收录新图后分组列表包含新图', () async {
+    final container = createContainer();
+    final notifier = notifierOf(container);
+    await notifier.initialize();
+    await notifier.setGroupedView(true);
+    expect(container.read(localGalleryNotifierProvider).groupedImages, isEmpty);
+
+    await notifier.addNewlySavedImages([r'G:\gallery\new.png']);
+
+    expect(
+      container
+          .read(localGalleryNotifierProvider)
+          .groupedImages
+          .map((record) => record.path),
+      [r'G:\gallery\new.png'],
+    );
+  });
+
   group('缓存统计失效', () {
     final statistics = useGalleryStatisticsProbe();
 
@@ -169,6 +187,7 @@ void main() {
 class _RecordingGalleryService extends Mock implements LocalGalleryService {
   final List<String> admitted = <String>[];
   final List<int> loadedPages = <int>[];
+  final List<LocalImageRecord> _records = <LocalImageRecord>[];
   GalleryIndexAdmission nextAdmission = GalleryIndexAdmission.added;
   int _totalCount = 0;
 
@@ -190,14 +209,19 @@ class _RecordingGalleryService extends Mock implements LocalGalleryService {
     NaiImageMetadata? metadata,
   }) async {
     admitted.add(filePath);
-    if (nextAdmission == GalleryIndexAdmission.added) _totalCount++;
+    if (nextAdmission == GalleryIndexAdmission.added) {
+      _totalCount++;
+      _records.add(
+        LocalImageRecord(path: filePath, size: 0, modifiedAt: DateTime(2026)),
+      );
+    }
     return nextAdmission;
   }
 
   @override
   Future<List<LocalImageRecord>> getPage(int page, {int? pageSize}) async {
     loadedPages.add(page);
-    return const <LocalImageRecord>[];
+    return page == 0 ? List.of(_records) : const <LocalImageRecord>[];
   }
 
   @override
