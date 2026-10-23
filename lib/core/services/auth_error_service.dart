@@ -11,6 +11,7 @@ enum AuthErrorCode {
   credentialsLoginUnavailable,
   endpointIncompatible,
   serverError,
+  secureStorageUnavailable,
   unknown,
 }
 
@@ -71,6 +72,9 @@ class AuthErrorService {
           return l10n.api_error_503;
         }
         return l10n.api_error_500;
+      case AuthErrorCode.secureStorageUnavailable:
+        AppLogger.d('Secure storage unavailable', 'AuthErrorService');
+        return l10n.common_secureStorageUnavailable;
       case AuthErrorCode.unknown:
         AppLogger.d('Unknown error', 'AuthErrorService');
         return l10n.auth_error_unknown;
@@ -138,6 +142,12 @@ class AuthErrorService {
           'AuthErrorService',
         );
         return l10n.api_error_500_hint;
+      case AuthErrorCode.secureStorageUnavailable:
+        AppLogger.d(
+          'Secure storage message already carries its recovery hint',
+          'AuthErrorService',
+        );
+        return null;
       case AuthErrorCode.unknown:
         AppLogger.d('No recovery hint for unknown error', 'AuthErrorService');
         return null;

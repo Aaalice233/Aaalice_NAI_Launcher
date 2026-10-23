@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
 import '../utils/app_logger.dart';
+import 'secure_storage_unavailable_exception.dart';
 
 part 'secure_storage_service.g.dart';
 
@@ -494,6 +495,9 @@ class SecureStorageService {
         _memoryCache[StorageKeys.mcpServerToken] = value;
       }
       return value;
+    } on SecureStorageUnavailableException {
+      // 读不到不等于没有：调用方拿到 null 会补发新令牌并作废已配置的客户端
+      rethrow;
     } catch (e) {
       AppLogger.w('Failed to read MCP server token: $e', 'SecureStorage');
       return null;

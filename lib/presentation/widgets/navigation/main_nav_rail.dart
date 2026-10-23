@@ -23,6 +23,7 @@ import '../../router/app_routes.dart';
 import '../../themes/theme_extension.dart';
 import '../auth/account_avatar.dart';
 import '../auth/login_form_container.dart';
+import '../auth/saved_account_token_reader.dart';
 import '../settings/account_profile_sheet.dart';
 
 import '../common/app_toast.dart';
@@ -1439,17 +1440,12 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
     final accounts = widget.ref.read(accountManagerNotifierProvider).accounts;
     final account = accounts.firstWhere((a) => a.id == accountId);
 
-    // 获取 Token
-    final token = await widget.ref
-        .read(accountManagerNotifierProvider.notifier)
-        .getAccountToken(account.id);
-
-    if (token == null) {
-      if (mounted) {
-        AppToast.info(context, context.l10n.auth_tokenNotFound);
-      }
-      return;
-    }
+    final token = await readSavedAccountTokenForSwitch(
+      context: context,
+      ref: widget.ref,
+      account: account,
+    );
+    if (token == null) return;
 
     // 使用 switchAccount（根据账号类型选择验证方式）
     final success = await widget.ref
@@ -1491,6 +1487,9 @@ class _AccountAvatarButtonState extends State<_AccountAvatarButton> {
             break;
           case AuthErrorCode.serverError:
             errorMessage = context.l10n.auth_error_serverError;
+            break;
+          case AuthErrorCode.secureStorageUnavailable:
+            errorMessage = context.l10n.common_secureStorageUnavailable;
             break;
           default:
             errorMessage = context.l10n.auth_loginFailed;

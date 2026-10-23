@@ -59,6 +59,7 @@
   "common_import": "匯入",
   "common_loading": "載入中...",
   "common_error": "錯誤",
+  "common_secureStorageUnavailable": "安全儲存暫時無法存取，可能正被防毒或同步軟體佔用，請稍後重試",
   "promptAssistant_completed": "提示詞助手處理完成",
   "common_success": "成功",
   "common_retry": "重試",

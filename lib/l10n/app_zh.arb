@@ -62,6 +62,7 @@
   "common_import": "导入",
   "common_loading": "加载中...",
   "common_error": "错误",
+  "common_secureStorageUnavailable": "安全存储暂时无法访问，可能正被杀毒或同步软件占用，请稍后重试",
   "promptAssistant_completed": "提示词助手处理完成",
   "common_success": "成功",
   "common_retry": "重试",

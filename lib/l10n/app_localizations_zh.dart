@@ -132,6 +132,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get common_error => '错误';
 
   @override
+  String get common_secureStorageUnavailable =>
+      '安全存储暂时无法访问，可能正被杀毒或同步软件占用，请稍后重试';
+
+  @override
   String get promptAssistant_completed => '提示词助手处理完成';
 
   @override
@@ -15649,6 +15653,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get common_error => '錯誤';
+
+  @override
+  String get common_secureStorageUnavailable =>
+      '安全儲存暫時無法存取，可能正被防毒或同步軟體佔用，請稍後重試';
 
   @override
   String get promptAssistant_completed => '提示詞助手處理完成';

@@ -20,6 +20,7 @@ import 'l10n/app_localizations_ja.dart';
 import 'l10n/app_localizations_zh.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
 import 'core/services/interactive_work_gate.dart';
+import 'core/storage/windows/launcher_windows_secure_storage.dart';
 import 'core/utils/app_error_reporter.dart';
 import 'core/utils/app_locale.dart';
 import 'core/utils/fatal_diagnostics.dart';
@@ -587,6 +588,7 @@ Future<void> _bootstrapApplication() async {
     enableFlutterDriverExtension(enableTextEntryEmulation: false);
   }
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isWindows) LauncherWindowsSecureStorage.register();
   WindowsClipboardHistoryKeyFix.instance.install();
   AppErrorReporter.installGlobalHandlers();
 

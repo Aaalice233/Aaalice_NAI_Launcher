@@ -62,6 +62,7 @@
   "common_import": "Import",
   "common_loading": "Loading...",
   "common_error": "Error",
+  "common_secureStorageUnavailable": "Secure storage is temporarily unavailable. Antivirus or sync software may be using it; please try again shortly.",
   "promptAssistant_completed": "Prompt assistant finished",
   "common_success": "Success",
   "common_retry": "Retry",

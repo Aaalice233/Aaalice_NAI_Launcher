@@ -134,6 +134,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get common_error => 'エラー';
 
   @override
+  String get common_secureStorageUnavailable =>
+      'セキュアストレージに一時的にアクセスできません。ウイルス対策ソフトや同期ソフトが使用中の可能性があります。しばらくしてから再試行してください。';
+
+  @override
   String get promptAssistant_completed => 'プロンプトアシスタントの処理が完了しました';
 
   @override

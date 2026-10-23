@@ -17,6 +17,7 @@ import '../../widgets/auth/account_avatar.dart';
 import '../../widgets/auth/login_form_container.dart';
 import '../../widgets/auth/network_troubleshooting_dialog.dart';
 import '../../widgets/auth/saved_account_removal_flow.dart';
+import '../../widgets/auth/saved_account_token_reader.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_divider.dart';
 import '../../widgets/common/update_notice_banner.dart';
@@ -263,13 +264,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // 如果已经认证，不执行
     if (ref.read(authNotifierProvider).isAuthenticated) return;
 
-    final token = await accountNotifier.getAccountToken(account.id);
-
-    if (!context.mounted) return;
-    if (token == null) {
-      AppToast.info(context, context.l10n.auth_tokenNotFound);
-      return;
-    }
+    final token = await readSavedAccountTokenForSwitch(
+      context: context,
+      ref: ref,
+      account: account,
+    );
+    if (token == null || !context.mounted) return;
 
     // 再次检查是否已认证
     if (ref.read(authNotifierProvider).isAuthenticated) return;

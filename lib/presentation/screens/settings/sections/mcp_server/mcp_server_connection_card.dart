@@ -10,6 +10,7 @@ import '../../../../widgets/common/app_toast.dart';
 import '../../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../../widgets/common/themed_input.dart';
 import '../../widgets/settings_card.dart';
+import 'mcp_token_actions.dart';
 
 const String _tokenMask = '••••••••';
 
@@ -81,24 +82,19 @@ class _McpServerConnectionCardState
       setState(() => _revealedToken = null);
       return;
     }
-    final token = await ref
-        .read(mcpServerNotifierProvider.notifier)
-        .readToken();
-    if (!mounted) return;
+    final token = await readMcpTokenOrNotify(context, ref);
+    if (token == null || !mounted) return;
     setState(() => _revealedToken = token);
   }
 
   Future<void> _copyToken() async {
-    final token = await ref
-        .read(mcpServerNotifierProvider.notifier)
-        .readToken();
-    if (!mounted) return;
+    final token = await readMcpTokenOrNotify(context, ref);
+    if (token == null || !mounted) return;
     await _copy(token);
   }
 
   Future<void> _regenerateToken() async {
     final l10n = context.l10n;
-    final notifier = ref.read(mcpServerNotifierProvider.notifier);
     final confirmed = await ThemedConfirmDialog.show(
       context: context,
       title: l10n.settings_mcpServerRegenerateTokenTitle,
@@ -107,9 +103,9 @@ class _McpServerConnectionCardState
       type: ThemedConfirmDialogType.warning,
       icon: Icons.vpn_key_outlined,
     );
-    if (!confirmed) return;
-    await notifier.regenerateToken();
-    if (!mounted) return;
+    if (!confirmed || !mounted) return;
+    final regenerated = await regenerateMcpTokenOrNotify(context, ref);
+    if (!regenerated || !mounted) return;
     setState(() => _revealedToken = null);
   }
 
