@@ -340,14 +340,19 @@ class FixedTagColumn extends StatelessWidget {
             suffixIcon: config.hasSearch
                 ? IconButton(
                     icon: const Icon(Icons.close_rounded, size: 16),
-                    onPressed: () =>
-                        config.controller.clearSearch(config.promptType),
+                    onPressed: () => config.controller.clearSearch(
+                      config.promptType,
+                      searchInList: config.compact,
+                    ),
                   )
                 : null,
             isDense: true,
           ),
-          onChanged: (value) =>
-              config.controller.setSearchQuery(config.promptType, value),
+          onChanged: (value) => config.controller.setSearchQuery(
+            config.promptType,
+            value,
+            searchInList: config.compact,
+          ),
         ),
       ),
       const SizedBox(height: 6),

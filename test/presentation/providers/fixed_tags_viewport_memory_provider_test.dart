@@ -121,6 +121,38 @@ void main() {
       expect(_browseList(tester, FixedTagPromptType.positive).offset, 500);
       expect(tester.takeException(), isNull);
     });
+
+    for (final size in [const Size(1180, 800), const Size(400, 800)]) {
+      testWidgets('closing through the presented route keeps the position '
+          '(${size.width.toInt()} wide)', (tester) async {
+        final harness = _Harness(tester, _dialogFixture());
+        await harness.show(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () => FixedTagsDialog.show(context),
+              child: const Text('open'),
+            ),
+          ),
+          size: size,
+        );
+        final open = find.text('open');
+
+        await tester.tap(open);
+        await tester.pumpAndSettle();
+        _browseList(tester, FixedTagPromptType.positive).jumpTo(450);
+        await tester.pump();
+        await tester.tap(find.byTooltip('关闭').last);
+        await tester.pumpAndSettle();
+        expect(_browseListFinder(FixedTagPromptType.positive), findsNothing);
+
+        await tester.tap(open);
+        await tester.pump();
+        expect(_browseList(tester, FixedTagPromptType.positive).offset, 450);
+        await tester.pumpAndSettle();
+        expect(_browseList(tester, FixedTagPromptType.positive).offset, 450);
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   group('sidebar', () {

@@ -78,18 +78,31 @@ class FixedTagsDialogController extends ChangeNotifier {
     return positions.last.pixels;
   }
 
-  void setSearchQuery(FixedTagPromptType promptType, String value) {
+  void setSearchQuery(
+    FixedTagPromptType promptType,
+    String value, {
+    bool searchInList = false,
+  }) {
+    final leavingSearch =
+        searchQueryFor(promptType).trim().isNotEmpty && value.trim().isEmpty;
     if (promptType == FixedTagPromptType.positive) {
       positiveSearchQuery = value;
     } else {
       negativeSearchQuery = value;
     }
+    // An in-list search field must stay in view: restoring a deeper offset
+    // lets EditableText scroll back to the caret and overwrite the memory.
+    if (searchInList && leavingSearch && !enabledOnly) {
+      _viewportMemory
+          .browseViewport(FixedTagsSurface.dialog, promptType)
+          .replace(0);
+    }
     notifyListeners();
   }
 
-  void clearSearch(FixedTagPromptType promptType) {
+  void clearSearch(FixedTagPromptType promptType, {bool searchInList = false}) {
     searchControllerFor(promptType).clear();
-    setSearchQuery(promptType, '');
+    setSearchQuery(promptType, '', searchInList: searchInList);
   }
 
   void toggleEnabledOnly() {
