@@ -26,6 +26,9 @@ class FixedTagsDialogController extends ChangeNotifier {
   final _browseListControllers = <FixedTagPromptType, OwnedScrollController>{};
   // Filtered results start at the top and never overwrite the browse memory.
   final _filteredListControllers = <FixedTagPromptType, ScrollController>{};
+  final _compactHeaderKeys = {
+    for (final promptType in FixedTagPromptType.values) promptType: GlobalKey(),
+  };
 
   final _positiveAnchors = <String, RenderBox>{};
   final _negativeAnchors = <String, RenderBox>{};
@@ -49,6 +52,9 @@ class FixedTagsDialogController extends ChangeNotifier {
 
   FixedTagPromptType get mobilePromptType =>
       _viewportMemory.dialogMobilePromptType;
+
+  GlobalKey compactHeaderKeyFor(FixedTagPromptType promptType) =>
+      _compactHeaderKeys[promptType]!;
 
   ScrollController listControllerFor(
     FixedTagPromptType promptType, {

@@ -368,7 +368,11 @@ class FixedTagColumn extends StatelessWidget {
       return _EntryList(
         config: config,
         showLinkAnchors: true,
-        header: Column(children: controls),
+        // 头部在列表里，列表换类型时靠全局 key 整体搬走，搜索框才不丢焦点。
+        header: KeyedSubtree(
+          key: config.controller.compactHeaderKeyFor(config.promptType),
+          child: Column(children: controls),
+        ),
       );
     }
 
