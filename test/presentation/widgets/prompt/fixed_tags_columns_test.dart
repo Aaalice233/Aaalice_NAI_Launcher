@@ -9,6 +9,7 @@ import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
+import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/fixed_tags_dialog.dart';
@@ -140,6 +141,57 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('entering and leaving compact search in one frame lands at '
+        'the top (${scenario.name})', (tester) async {
+      await _pumpDialog(tester, scenario);
+      await tester.showKeyboard(find.byType(EditableText));
+      await tester.pump();
+      _browseController(tester).jumpTo(600);
+      await tester.pump();
+
+      tester.testTextInput.enterText('alpha');
+      tester.testTextInput.enterText('');
+      await tester.pump();
+      expect(_browseController(tester).offset, 0);
+      await tester.pumpAndSettle();
+      expect(_browseController(tester).offset, 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('leaving search under enabled-only keeps the browse position '
+        'and the other tab untouched (${scenario.name})', (tester) async {
+      await _pumpDialog(tester, scenario);
+      await tester.tap(_tab('negative'));
+      await tester.pumpAndSettle();
+      _browseController(tester, 'negative').jumpTo(300);
+      await tester.pump();
+      await tester.tap(_tab('positive'));
+      await tester.pumpAndSettle();
+      _browseController(tester).jumpTo(600);
+      await tester.pump();
+
+      final enabledOnly = find.byKey(const ValueKey('fixed-tags-enabled-only'));
+      await tester.tap(enabledOnly);
+      await tester.pumpAndSettle();
+      await tester.showKeyboard(find.byType(EditableText));
+      tester.testTextInput.enterText('alpha');
+      await tester.pumpAndSettle();
+      tester.testTextInput.enterText('');
+      await tester.pumpAndSettle();
+      expect(_filteredList, findsOneWidget);
+
+      await tester.tap(enabledOnly);
+      await tester.pump();
+      expect(_browseController(tester).offset, 600);
+      await tester.pumpAndSettle();
+      expect(_browseController(tester).offset, 600);
+
+      await tester.tap(_tab('negative'));
+      await tester.pump();
+      expect(_browseController(tester, 'negative').offset, 300);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('enabled-only round trip still restores the browse position '
         '(${scenario.name})', (tester) async {
       await _pumpDialog(tester, scenario);
@@ -167,8 +219,17 @@ final _filteredList = find.byKey(
   const ValueKey('fixed-tags-positive-filtered-list'),
 );
 
-ScrollController _browseController(WidgetTester tester) =>
-    tester.widget<ReorderableListView>(_browseList).scrollController!;
+ScrollController _browseController(
+  WidgetTester tester, [
+  String promptType = 'positive',
+]) => tester
+    .widget<ReorderableListView>(
+      find.byKey(ValueKey('fixed-tags-$promptType-browse-list')),
+    )
+    .scrollController!;
+
+Finder _tab(String promptType) =>
+    find.byKey(ValueKey('fixed-tags-mobile-tab-$promptType'));
 
 Future<void> _pumpDialog(WidgetTester tester, _Scenario scenario) async {
   tester.view.devicePixelRatio = 1;
@@ -212,6 +273,13 @@ class _Storage extends LocalStorageService {
           enabled: index.isEven,
           sortOrder: index,
         ).toJson(),
+    for (var index = 0; index < 24; index++)
+      FixedTagEntry.create(
+        name: 'negative-$index',
+        content: 'lowres',
+        promptType: FixedTagPromptType.negative,
+        sortOrder: index,
+      ).toJson(),
   ]);
 
   @override

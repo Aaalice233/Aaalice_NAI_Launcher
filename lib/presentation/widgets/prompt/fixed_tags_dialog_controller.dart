@@ -93,11 +93,19 @@ class FixedTagsDialogController extends ChangeNotifier {
     // An in-list search field must stay in view: restoring a deeper offset
     // lets EditableText scroll back to the caret and overwrite the memory.
     if (searchInList && leavingSearch && !enabledOnly) {
-      _viewportMemory
-          .browseViewport(FixedTagsSurface.dialog, promptType)
-          .replace(0);
+      _returnBrowseListToTop(promptType);
     }
     notifyListeners();
+  }
+
+  void _returnBrowseListToTop(FixedTagPromptType promptType) {
+    _viewportMemory
+        .browseViewport(FixedTagsSurface.dialog, promptType)
+        .replace(0);
+    // Entering and leaving search within one frame keeps the browse list
+    // mounted, so its live position must move as well as the memory.
+    final browse = _browseListControllers[promptType]!;
+    if (browse.hasClients) browse.jumpTo(0);
   }
 
   void clearSearch(FixedTagPromptType promptType, {bool searchInList = false}) {
