@@ -5,7 +5,7 @@ import 'chrome_grease_brands.dart';
 /// 请求头对齐的 Chrome 稳定版大版本号。
 ///
 /// User-Agent 与 `sec-ch-ua` 都由它派生，两处不得各自写死版本号。
-const int chromeMajorVersion = 156;
+const int chromeMajorVersion = 157;
 
 /// Chrome 客户端提示识别的平台。
 enum ChromePlatform {
