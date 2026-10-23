@@ -3872,7 +3872,7 @@
       "error": {}
     }
   },
-  "settings_proxyRestartHint": "代理設定已更改，建議重啟應用",
+  "settings_proxyAppliedHint": "代理設定已套用，新請求立即生效",
   "tagLibrary_categoryNameExists": "該分類名稱已存在",
   "tagLibrary_addToLibrary": "收藏到詞庫",
   "tagLibrary_saveToLibrary": "儲存到詞庫",

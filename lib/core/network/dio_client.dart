@@ -35,7 +35,7 @@ BrowserHeadersInterceptor _browserHeadersInterceptor(Ref ref) {
 /// 不使用 Http2Adapter，避免协议回退缺口及取消后仍占用生成额度。
 @Riverpod(keepAlive: true)
 Dio dioClient(Ref ref) {
-  // HttpClient 创建时才读取 HttpOverrides.global，代理变化后仍需重建。
+  // 路由会即时更新；设置变化时也重建客户端，避免继续复用旧连接池。
   final proxyAddress = ref.watch(currentProxyAddressProvider);
 
   final dio = Dio(

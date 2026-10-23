@@ -3833,7 +3833,7 @@
       "error": {}
     }
   },
-  "settings_proxyRestartHint": "Proxy settings changed, restart recommended",
+  "settings_proxyAppliedHint": "Proxy settings applied to new requests",
 
   "tagLibrary_categoryNameExists": "Category name already exists",
   "tagLibrary_addToLibrary": "Add to Library",

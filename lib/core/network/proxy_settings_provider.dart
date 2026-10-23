@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/storage_keys.dart';
 import 'proxy_service.dart';
+import 'system_proxy_http_overrides.dart';
 import '../platform/platform_capabilities.dart';
 import '../storage/local_storage_service.dart';
 import '../../data/models/settings/proxy_settings.dart';
@@ -50,43 +51,39 @@ class ProxySettingsNotifier extends _$ProxySettingsNotifier {
 
   /// 设置是否启用代理
   Future<void> setEnabled(bool value) async {
-    state = state.copyWith(enabled: value);
+    _applySettings(state.copyWith(enabled: value));
     final storage = ref.read(localStorageServiceProvider);
     await storage.setSetting(StorageKeys.proxyEnabled, value);
-
-    // 触发 Dio 客户端重建
-    ref.invalidateSelf();
   }
 
   /// 设置代理模式
   Future<void> setMode(ProxyMode mode) async {
-    state = state.copyWith(mode: mode);
+    _applySettings(state.copyWith(mode: mode));
     final storage = ref.read(localStorageServiceProvider);
     await storage.setSetting(StorageKeys.proxyMode, mode.name);
-
-    // 触发 Dio 客户端重建
-    ref.invalidateSelf();
   }
 
   /// 设置手动代理地址
   Future<void> setManualProxy(String host, int port) async {
-    state = state.copyWith(manualHost: host, manualPort: port);
+    _applySettings(state.copyWith(manualHost: host, manualPort: port));
     final storage = ref.read(localStorageServiceProvider);
     await storage.setSetting(StorageKeys.proxyManualHost, host);
     await storage.setSetting(StorageKeys.proxyManualPort, port);
-
-    // 触发 Dio 客户端重建
-    ref.invalidateSelf();
   }
 
   /// 清除手动代理设置
   Future<void> clearManualProxy() async {
-    state = state.copyWith(manualHost: null, manualPort: null);
+    _applySettings(ProxySettings(enabled: state.enabled, mode: state.mode));
     final storage = ref.read(localStorageServiceProvider);
     await storage.deleteSetting(StorageKeys.proxyManualHost);
     await storage.deleteSetting(StorageKeys.proxyManualPort);
+  }
 
-    ref.invalidateSelf();
+  void _applySettings(ProxySettings settings) {
+    // 先更新实际路由，再通知依赖这些设置的客户端重建。
+    SystemProxyHttpOverrides.applyProxyAddress(settings.effectiveProxyAddress);
+    state = settings;
+    ref.invalidate(detectedSystemProxyProvider);
   }
 }
 

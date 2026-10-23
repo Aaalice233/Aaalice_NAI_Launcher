@@ -3860,7 +3860,7 @@
       "error": {}
     }
   },
-  "settings_proxyRestartHint": "代理设置已更改，建议重启应用",
+  "settings_proxyAppliedHint": "代理设置已应用，新请求立即生效",
 
   "tagLibrary_categoryNameExists": "该分类名称已存在",
   "tagLibrary_addToLibrary": "收藏到词库",

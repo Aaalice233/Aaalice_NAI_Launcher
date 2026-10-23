@@ -7913,7 +7913,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settings_proxyRestartHint => '代理设置已更改，建议重启应用';
+  String get settings_proxyAppliedHint => '代理设置已应用，新请求立即生效';
 
   @override
   String get tagLibrary_categoryNameExists => '该分类名称已存在';
@@ -23437,7 +23437,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settings_proxyRestartHint => '代理設定已更改，建議重啟應用';
+  String get settings_proxyAppliedHint => '代理設定已套用，新請求立即生效';
 
   @override
   String get tagLibrary_categoryNameExists => '該分類名稱已存在';
