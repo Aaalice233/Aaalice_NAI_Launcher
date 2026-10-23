@@ -3779,7 +3779,7 @@
       "error": {}
     }
   },
-  "settings_proxyRestartHint": "プロキシ設定が変更されました。再起動をお勧めします",
+  "settings_proxyAppliedHint": "プロキシ設定を適用しました。新しいリクエストから有効になります",
   "tagLibrary_categoryNameExists": "カテゴリ名はすでに存在します",
   "tagLibrary_addToLibrary": "ライブラリに追加",
   "tagLibrary_saveToLibrary": "ライブラリに保存",

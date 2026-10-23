@@ -8045,7 +8045,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get settings_proxyRestartHint => 'プロキシ設定が変更されました。再起動をお勧めします';
+  String get settings_proxyAppliedHint => 'プロキシ設定を適用しました。新しいリクエストから有効になります';
 
   @override
   String get tagLibrary_categoryNameExists => 'カテゴリ名はすでに存在します';

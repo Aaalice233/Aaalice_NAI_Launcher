@@ -89,7 +89,7 @@ class NetworkSettingsSectionState
                     AppToast.info(
                       // ignore: use_build_context_synchronously
                       context,
-                      l10n.settings_proxyRestartHint,
+                      l10n.settings_proxyAppliedHint,
                     );
                   }
                 },

@@ -14527,11 +14527,11 @@ abstract class AppLocalizations {
   /// **'Connection failed: {error}'**
   String settings_testFailed(Object error);
 
-  /// No description provided for @settings_proxyRestartHint.
+  /// No description provided for @settings_proxyAppliedHint.
   ///
   /// In en, this message translates to:
-  /// **'Proxy settings changed, restart recommended'**
-  String get settings_proxyRestartHint;
+  /// **'Proxy settings applied to new requests'**
+  String get settings_proxyAppliedHint;
 
   /// No description provided for @tagLibrary_categoryNameExists.
   ///

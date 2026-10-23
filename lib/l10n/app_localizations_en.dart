@@ -8251,8 +8251,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settings_proxyRestartHint =>
-      'Proxy settings changed, restart recommended';
+  String get settings_proxyAppliedHint =>
+      'Proxy settings applied to new requests';
 
   @override
   String get tagLibrary_categoryNameExists => 'Category name already exists';

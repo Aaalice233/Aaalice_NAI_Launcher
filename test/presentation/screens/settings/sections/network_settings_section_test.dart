@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +13,44 @@ import 'package:nai_launcher/presentation/screens/settings/sections/network_sett
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
 void main() {
+  testWidgets('代理开关即时应用，不再提示重启', (tester) async {
+    final previousOverrides = HttpOverrides.current;
+    addTearDown(() => HttpOverrides.global = previousOverrides);
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.proxyEnabled: false,
+      StorageKeys.proxyMode: 'manual',
+      StorageKeys.proxyManualHost: '127.0.0.1',
+      StorageKeys.proxyManualPort: 7890,
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          detectedSystemProxyProvider.overrideWith((ref) => null),
+        ],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: NetworkSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(storage.values[StorageKeys.proxyEnabled], isTrue);
+    expect(find.text('代理设置已应用，新请求立即生效'), findsOneWidget);
+    expect(find.textContaining('建议重启'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets(
     'proxy settings disclose that authenticated API traffic uses the configured proxy',
     (tester) async {

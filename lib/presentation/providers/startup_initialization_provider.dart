@@ -293,8 +293,8 @@ void _configureSystemProxy(Box<dynamic> settingsBox) {
   if (!capabilities.isDesktop && !capabilities.isMobile) return;
 
   final proxyAddress = resolveStartupProxyAddress(settingsBox, capabilities);
+  SystemProxyHttpOverrides.applyProxyAddress(proxyAddress);
   if (proxyAddress != null && proxyAddress.isNotEmpty) {
-    HttpOverrides.global = SystemProxyHttpOverrides('PROXY $proxyAddress');
     AppLogger.i('Applied proxy: $proxyAddress', 'NETWORK');
   } else {
     AppLogger.d('No proxy applied (disabled or no address)', 'NETWORK');
@@ -303,9 +303,8 @@ void _configureSystemProxy(Box<dynamic> settingsBox) {
 
 /// 启动时要注入 [HttpOverrides.global] 的代理地址，未启用或拿不到时返回 null。
 ///
-/// 这是唯一写 [HttpOverrides.global] 的地方，移动端同样要走到这里，否则设置页
-/// 的代理开关能保存却从不生效。模式按 [resolveProxyMode] 折算：移动端读不到
-/// 系统代理，只使用手动地址。
+/// 启动时初始化全局路由，后续设置修改由 ProxySettingsNotifier 即时应用。
+/// 模式按 [resolveProxyMode] 折算：移动端读不到系统代理，只使用手动地址。
 @visibleForTesting
 String? resolveStartupProxyAddress(
   Box<dynamic> settingsBox,
