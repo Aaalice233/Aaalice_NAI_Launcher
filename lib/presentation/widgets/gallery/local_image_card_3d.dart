@@ -493,13 +493,17 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           hasSeed: metadata?.seed != null,
           isKritaConnected: widget.isKritaConnected,
           watermarkEnabled: watermarkEnabled,
-          isWatermarkDerivative: WatermarkDerivativeRegistry(
-            storage,
-          ).isDerivative(widget.record.path),
+          isWatermarkDerivative:
+              watermarkEnabled &&
+              WatermarkDerivativeRegistry(
+                storage,
+              ).isDerivative(widget.record.path),
           mosaicEnabled: mosaicEnabled,
-          isMosaicDerivative: MosaicDerivativeRegistry(
-            storage,
-          ).isDerivative(widget.record.path),
+          isMosaicDerivative:
+              mosaicEnabled &&
+              MosaicDerivativeRegistry(
+                storage,
+              ).isDerivative(widget.record.path),
         ).where(
           (a) =>
               widget.enableAddToAgent || a.id != ImageCardActionId.addToAgent,

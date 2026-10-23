@@ -204,6 +204,7 @@ class _DetailTopBarActions extends ConsumerWidget {
       watermarkSettingsProvider.select((state) => state.configuration.enabled),
     );
     final isWatermarkDerivative =
+        watermarkEnabled &&
         currentImage is LocalImageDetailData &&
         WatermarkDerivativeRegistry(
           ref.read(localStorageServiceProvider),
@@ -215,6 +216,7 @@ class _DetailTopBarActions extends ConsumerWidget {
       mosaicSettingsProvider.select((state) => state.configuration.enabled),
     );
     final isMosaicDerivative =
+        mosaicEnabled &&
         currentImage is LocalImageDetailData &&
         MosaicDerivativeRegistry(
           ref.read(localStorageServiceProvider),

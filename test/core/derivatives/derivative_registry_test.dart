@@ -204,19 +204,77 @@ void main() {
         expect(registry.find(p.join(directory.path, 'anything.png')), isNull);
       });
 
-      test(
-        'path keys ignore case on Windows',
-        () async {
-          final output = p.join(directory.path, 'Cased${variant.suffix}.PNG');
-          await registry.register(
-            outputPath: output,
-            sourcePath: p.join(directory.path, 'source.png'),
-          );
+      test('repeated lookups decode the stored registry once', () async {
+        final output = p.join(directory.path, 'cached${variant.suffix}.png');
+        final plain = p.join(directory.path, 'plain.png');
+        await registry.register(
+          outputPath: output,
+          sourcePath: p.join(directory.path, 'source.png'),
+        );
+        expect(variant.create(storage).isDerivative(plain), isFalse);
 
-          expect(registry.find(output.toLowerCase()), isNotNull);
+        final decodes = DerivativeRegistry.debugDecodeCount;
+        for (var lookup = 0; lookup < 10; lookup++) {
+          expect(variant.create(storage).isDerivative(output), isTrue);
+          expect(variant.create(storage).isDerivative(plain), isFalse);
+        }
+        expect(DerivativeRegistry.debugDecodeCount, decodes);
+
+        await registry.register(
+          outputPath: plain,
+          sourcePath: p.join(directory.path, 'source.png'),
+        );
+        expect(variant.create(storage).isDerivative(plain), isTrue);
+        expect(DerivativeRegistry.debugDecodeCount, decodes + 1);
+
+        await registry.remove(plain);
+        expect(variant.create(storage).isDerivative(plain), isFalse);
+        expect(registry.find(output), isNotNull);
+      });
+
+      test(
+        'relocating a source rewrites cached entries without touching others',
+        () async {
+          final source = p.join(directory.path, 'source.png');
+          final movedSource = p.join(directory.path, 'album', 'source.png');
+          final linked = p.join(directory.path, 'linked${variant.suffix}.png');
+          final other = p.join(directory.path, 'other${variant.suffix}.png');
+          await registry.register(outputPath: linked, sourcePath: source);
+          await registry.register(
+            outputPath: other,
+            sourcePath: p.join(directory.path, 'other_source.png'),
+          );
+          final reader = variant.create(storage);
+          final otherBefore = reader.find(other)!;
+          final linkedBefore = reader.find(linked)!;
+          final decodes = DerivativeRegistry.debugDecodeCount;
+
+          await registry.relocatePath(oldPath: source, newPath: movedSource);
+
+          final linkedAfter = reader.find(linked)!;
+          expect(linkedAfter.sourcePath, p.normalize(movedSource));
+          expect(linkedAfter.createdAt, linkedBefore.createdAt);
+          final otherAfter = reader.find(other)!;
+          expect(otherAfter.sourcePath, otherBefore.sourcePath);
+          expect(otherAfter.createdAt, otherBefore.createdAt);
+          expect(DerivativeRegistry.debugDecodeCount, decodes + 1);
+
+          await registry.remove(linked);
+          expect(reader.find(linked), isNull);
+          expect(reader.find(other)?.sourcePath, otherBefore.sourcePath);
+          expect(DerivativeRegistry.debugDecodeCount, decodes + 2);
         },
-        skip: Platform.isWindows ? null : 'Windows-only path casing',
       );
+
+      test('path keys ignore case on Windows', () async {
+        final output = p.join(directory.path, 'Cased${variant.suffix}.PNG');
+        await registry.register(
+          outputPath: output,
+          sourcePath: p.join(directory.path, 'source.png'),
+        );
+
+        expect(registry.find(output.toLowerCase()), isNotNull);
+      }, skip: Platform.isWindows ? null : 'Windows-only path casing');
     });
   }
 
