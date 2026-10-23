@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import '../constants/storage_keys.dart';
 import '../storage/local_storage_service.dart';
 import '../utils/file_name_sanitizer.dart';
+import '../utils/json_value_copy.dart';
 
 class DerivativeLink {
   const DerivativeLink({
@@ -66,11 +68,19 @@ class DerivativeRegistry {
 
   static const _maxEntries = 500;
 
+  // Gallery cards and the detail top bar query on every build.
+  static final Map<String, ({String encoded, Map<String, Object?> entries})>
+  _decodedByKey = {};
+  static int _decodeCount = 0;
+
+  @visibleForTesting
+  static int get debugDecodeCount => _decodeCount;
+
   final LocalStorageService _storage;
   final DerivativeKind _kind;
 
   DerivativeLink? find(String outputPath) {
-    final entries = _read();
+    final entries = _entries();
     final outputKey = _pathKey(outputPath);
     final value = entries[outputKey] ?? entries[outputPath];
     if (value is! Map) return null;
@@ -172,17 +182,29 @@ class DerivativeRegistry {
     return _storage.setSetting(_kind.storageKey, jsonEncode(bounded));
   }
 
-  Map<String, Object?> _read() {
+  Map<String, Object?> _read() => deepMutableJsonMap(_entries());
+
+  Map<String, Object?> _entries() {
     final encoded = _storage.getSetting<Object?>(_kind.storageKey);
-    if (encoded is! String || encoded.isEmpty) return {};
+    if (encoded is! String || encoded.isEmpty) return const {};
+    final cached = _decodedByKey[_kind.storageKey];
+    if (cached != null && cached.encoded == encoded) return cached.entries;
+    final entries = _decode(encoded);
+    _decodedByKey[_kind.storageKey] = (encoded: encoded, entries: entries);
+    return entries;
+  }
+
+  static Map<String, Object?> _decode(String encoded) {
+    _decodeCount++;
     try {
       final decoded = jsonDecode(encoded);
-      if (decoded is! Map) return {};
-      return Map<String, Object?>.from(decoded);
+      if (decoded is! Map) return const {};
+      // Shared by every lookup until the stored text changes.
+      return deepFrozenJsonMap(decoded);
     } on FormatException {
-      return {};
+      return const {};
     } on TypeError {
-      return {};
+      return const {};
     }
   }
 
