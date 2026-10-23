@@ -145,12 +145,16 @@ class FixedTagsLinkLayer extends StatelessWidget {
     super.key,
     required this.positiveEntries,
     required this.negativeEntries,
+    required this.positiveFiltered,
+    required this.negativeFiltered,
     required this.data,
     required this.controller,
   });
 
   final List<FixedTagEntry> positiveEntries;
   final List<FixedTagEntry> negativeEntries;
+  final bool positiveFiltered;
+  final bool negativeFiltered;
   final FixedTagsDialogViewData data;
   final FixedTagsDialogController controller;
 
@@ -179,9 +183,11 @@ class FixedTagsLinkLayer extends StatelessWidget {
                 negativeAnchorX: columnWidth + fixedTagColumnGap + _anchorInset,
                 positiveScrollOffset: controller.scrollOffsetFor(
                   FixedTagPromptType.positive,
+                  filtered: positiveFiltered,
                 ),
                 negativeScrollOffset: controller.scrollOffsetFor(
                   FixedTagPromptType.negative,
+                  filtered: negativeFiltered,
                 ),
               ),
             ),

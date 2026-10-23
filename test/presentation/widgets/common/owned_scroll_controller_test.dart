@@ -77,6 +77,44 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  for (final shrinkWrap in [false, true]) {
+    testWidgets(
+      'an offset beyond shrunken content restores at the end without a '
+      'spring back (shrinkWrap: $shrinkWrap)',
+      (tester) async {
+        final viewport = OwnedViewportOffset()..replace(5000);
+        final controller = OwnedScrollController(viewport: viewport);
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                height: 300,
+                child: ListView.builder(
+                  controller: controller,
+                  shrinkWrap: shrinkWrap,
+                  itemExtent: 50,
+                  itemCount: 20,
+                  itemBuilder: (_, index) => Text('item $index'),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(controller.offset, 700);
+        expect(controller.position.isScrollingNotifier.value, isFalse);
+        expect(find.text('item 19'), findsOneWidget);
+        await tester.pumpAndSettle();
+        expect(controller.offset, 700);
+        await tester.pumpWidget(const SizedBox.shrink());
+        expect(viewport.pixels, 700);
+      },
+    );
+  }
+
   test('zero viewport never replaces a valid offset', () {
     final viewport = OwnedViewportOffset()..replace(640);
 
