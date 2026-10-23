@@ -68,6 +68,16 @@ class FixedTagsColumns extends StatelessWidget {
       positives: positives,
       negatives: negatives,
     );
+    final positiveConfig = _configFor(
+      context,
+      FixedTagPromptType.positive,
+      entries: positives,
+    );
+    final negativeConfig = _configFor(
+      context,
+      FixedTagPromptType.negative,
+      entries: negatives,
+    );
     return ClipRect(
       child: Stack(
         children: [
@@ -75,21 +85,15 @@ class FixedTagsColumns extends StatelessWidget {
             child: FixedTagsLinkLayer(
               positiveEntries: positives,
               negativeEntries: negatives,
+              positiveFiltered: positiveConfig.isFiltered,
+              negativeFiltered: negativeConfig.isFiltered,
               data: data,
               controller: controller,
             ),
           ),
           Row(
             children: [
-              Expanded(
-                child: FixedTagColumn(
-                  config: _configFor(
-                    context,
-                    FixedTagPromptType.positive,
-                    entries: positives,
-                  ),
-                ),
-              ),
+              Expanded(child: FixedTagColumn(config: positiveConfig)),
               VerticalDivider(
                 key: const ValueKey('fixed-tags-column-divider'),
                 width: fixedTagColumnGap,
@@ -100,15 +104,7 @@ class FixedTagsColumns extends StatelessWidget {
                   context,
                 ).colorScheme.outlineVariant.withValues(alpha: 0.24),
               ),
-              Expanded(
-                child: FixedTagColumn(
-                  config: _configFor(
-                    context,
-                    FixedTagPromptType.negative,
-                    entries: negatives,
-                  ),
-                ),
-              ),
+              Expanded(child: FixedTagColumn(config: negativeConfig)),
             ],
           ),
         ],
@@ -176,7 +172,6 @@ class FixedTagsColumns extends StatelessWidget {
       libraryEntries: data.libraryEntries,
       searchController: controller.searchControllerFor(promptType),
       searchQuery: searchQuery ?? controller.searchQueryFor(promptType),
-      scrollController: controller.listControllerFor(promptType),
       controller: controller,
       commands: commands,
       data: data,
@@ -195,7 +190,6 @@ class FixedTagColumnConfig {
     required this.libraryEntries,
     required this.searchController,
     required this.searchQuery,
-    required this.scrollController,
     required this.controller,
     required this.commands,
     required this.data,
@@ -209,7 +203,6 @@ class FixedTagColumnConfig {
   final List<TagLibraryEntry> libraryEntries;
   final TextEditingController searchController;
   final String searchQuery;
-  final ScrollController scrollController;
   final FixedTagsDialogController controller;
   final FixedTagsDialogCommands commands;
   final FixedTagsDialogViewData data;
@@ -218,6 +211,8 @@ class FixedTagColumnConfig {
   bool get hasSearch => searchQuery.trim().isNotEmpty;
   bool get isFiltered => hasSearch || controller.enabledOnly;
   int get enabledCount => allEntries.where((entry) => entry.enabled).length;
+  ScrollController get scrollController =>
+      controller.listControllerFor(promptType, filtered: isFiltered);
 }
 
 class FixedTagColumn extends StatelessWidget {
@@ -468,8 +463,12 @@ class _EntryList extends StatelessWidget {
       );
     }
 
+    // 同一 Scrollable 换 controller 会带走旧像素，正负与筛选视图必须各自重建。
+    final mode = config.isFiltered ? 'filtered' : 'browse';
+    final listKey = ValueKey('fixed-tags-${config.promptType.name}-$mode-list');
     if (config.isFiltered) {
       return ListView.builder(
+        key: listKey,
         controller: config.scrollController,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
@@ -482,6 +481,7 @@ class _EntryList extends StatelessWidget {
       );
     }
     return ReorderableListView.builder(
+      key: listKey,
       scrollController: config.scrollController,
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),

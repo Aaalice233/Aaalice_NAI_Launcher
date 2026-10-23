@@ -2659,11 +2659,18 @@ void main() {
       await tester.enterText(find.byType(TextField), 'section-0-');
       await tester.pumpAndSettle();
 
-      final filteredMax = controller.position.maxScrollExtent;
+      final filteredController = tester
+          .widget<CustomScrollView>(
+            find.byKey(
+              const ValueKey('fixed-tags-positive-filtered-group-list'),
+            ),
+          )
+          .controller!;
+      final filteredMax = filteredController.position.maxScrollExtent;
       expect(filteredMax, lessThanOrEqualTo(12));
       expect(filteredMax, lessThan(initialMax));
       await tester.pump(const Duration(milliseconds: 200));
-      expect(controller.position.maxScrollExtent, filteredMax);
+      expect(filteredController.position.maxScrollExtent, filteredMax);
       expect(tester.takeException(), isNull);
     },
   );

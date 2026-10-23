@@ -10,12 +10,14 @@ import '../../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../../../data/models/tag_library/tag_library_category.dart';
 import '../../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../providers/fixed_tags_provider.dart';
+import '../../../providers/fixed_tags_viewport_memory_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/tag_library_page_provider.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../themes/core/layered_surface_style.dart';
 import '../../../widgets/common/app_toast.dart';
+import '../../../widgets/common/owned_scroll_controller.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/tile_action_button.dart';
 import '../../../widgets/prompt/fixed_tag_edit_dialog.dart';
@@ -90,8 +92,12 @@ class FixedTagsSidebar extends ConsumerStatefulWidget {
 
 class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   final _searchController = TextEditingController();
-  final _positiveScrollController = ScrollController();
-  final _negativeScrollController = ScrollController();
+  late final FixedTagsViewportMemory _viewportMemory;
+  late final OwnedScrollController _positiveScrollController;
+  late final OwnedScrollController _negativeScrollController;
+  // 筛选结果从顶部开始，也不覆盖完整列表的浏览位置。
+  final _positiveFilteredScrollController = ScrollController();
+  final _negativeFilteredScrollController = ScrollController();
   final _positiveGroupsKey = GlobalKey<_GroupedFixedTagCollectionState>();
   final _negativeGroupsKey = GlobalKey<_GroupedFixedTagCollectionState>();
   final _linkLayerKey = GlobalKey();
@@ -114,8 +120,22 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   @override
   void initState() {
     super.initState();
-    _positiveScrollController.addListener(_scheduleLinkRepaint);
-    _negativeScrollController.addListener(_scheduleLinkRepaint);
+    _viewportMemory = ref.read(fixedTagsViewportMemoryProvider);
+    _positiveScrollController = OwnedScrollController(
+      viewport: _viewportMemory.browseViewport(
+        FixedTagsSurface.sidebar,
+        FixedTagPromptType.positive,
+      ),
+    );
+    _negativeScrollController = OwnedScrollController(
+      viewport: _viewportMemory.browseViewport(
+        FixedTagsSurface.sidebar,
+        FixedTagPromptType.negative,
+      ),
+    );
+    for (final controller in _listControllers) {
+      controller.addListener(_scheduleLinkRepaint);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(fixedTagsNotifierProvider.notifier).inferCategoriesFromLibrary();
@@ -126,9 +146,38 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
   @override
   void dispose() {
     _searchController.dispose();
-    _positiveScrollController.dispose();
-    _negativeScrollController.dispose();
+    for (final controller in _listControllers) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  List<ScrollController> get _listControllers => [
+    _positiveScrollController,
+    _negativeScrollController,
+    _positiveFilteredScrollController,
+    _negativeFilteredScrollController,
+  ];
+
+  bool _isFiltered(FixedTagPromptType promptType) =>
+      _searchQuery.trim().isNotEmpty ||
+      switch (promptType) {
+        FixedTagPromptType.positive => _showOnlyEnabledPositive,
+        FixedTagPromptType.negative => _showOnlyEnabledNegative,
+      };
+
+  ScrollController _listControllerFor(FixedTagPromptType promptType) {
+    final filtered = _isFiltered(promptType);
+    return switch (promptType) {
+      FixedTagPromptType.positive =>
+        filtered
+            ? _positiveFilteredScrollController
+            : _positiveScrollController,
+      FixedTagPromptType.negative =>
+        filtered
+            ? _negativeFilteredScrollController
+            : _negativeScrollController,
+    };
   }
 
   @override
@@ -561,7 +610,16 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         sections: sections,
         isListMode: isListMode,
         forceExpanded: _searchQuery.trim().isNotEmpty,
-        controller: _positiveScrollController,
+        filtered: _isFiltered(FixedTagPromptType.positive),
+        controller: _listControllerFor(FixedTagPromptType.positive),
+        initialCollapsedSectionIds: _viewportMemory.collapsedSidebarSections(
+          FixedTagPromptType.positive,
+        ),
+        onCollapsedSectionsChanged: (sectionIds) =>
+            _viewportMemory.rememberCollapsedSidebarSections(
+              FixedTagPromptType.positive,
+              sectionIds,
+            ),
         emptyText: _searchQuery.isNotEmpty
             ? context.l10n.fixedTags_noMatchingEnabled
             : _showOnlyEnabledPositive
@@ -853,7 +911,16 @@ class _FixedTagsSidebarState extends ConsumerState<FixedTagsSidebar> {
         sections: sections,
         isListMode: isListMode,
         forceExpanded: _searchQuery.trim().isNotEmpty,
-        controller: _negativeScrollController,
+        filtered: _isFiltered(FixedTagPromptType.negative),
+        controller: _listControllerFor(FixedTagPromptType.negative),
+        initialCollapsedSectionIds: _viewportMemory.collapsedSidebarSections(
+          FixedTagPromptType.negative,
+        ),
+        onCollapsedSectionsChanged: (sectionIds) =>
+            _viewportMemory.rememberCollapsedSidebarSections(
+              FixedTagPromptType.negative,
+              sectionIds,
+            ),
         emptyText: _searchQuery.isNotEmpty
             ? context.l10n.fixedTags_noMatchingNegative
             : _showOnlyEnabledNegative
@@ -1414,7 +1481,10 @@ class _GroupedFixedTagCollection extends StatefulWidget {
     required this.sections,
     required this.isListMode,
     required this.forceExpanded,
+    required this.filtered,
     required this.controller,
+    required this.initialCollapsedSectionIds,
+    required this.onCollapsedSectionsChanged,
     required this.emptyText,
     required this.listPrototypeBuilder,
     required this.entryBuilder,
@@ -1426,7 +1496,10 @@ class _GroupedFixedTagCollection extends StatefulWidget {
   final List<_TagSection> sections;
   final bool isListMode;
   final bool forceExpanded;
+  final bool filtered;
   final ScrollController controller;
+  final Set<String> initialCollapsedSectionIds;
+  final ValueChanged<Set<String>> onCollapsedSectionsChanged;
   final String emptyText;
   final _FixedTagListPrototypeBuilder listPrototypeBuilder;
   final _FixedTagGroupEntryBuilder entryBuilder;
@@ -1440,15 +1513,28 @@ class _GroupedFixedTagCollection extends StatefulWidget {
 
 class _GroupedFixedTagCollectionState
     extends State<_GroupedFixedTagCollection> {
-  final _collapsedSectionIds = <String>{};
+  late final Set<String> _collapsedSectionIds;
   // 条目在重排后会换 index，索引无关的 key 才能让 tile 的 hover 与动画状态跟着条目走。
   final _entryItemKeys = <String, GlobalKey>{};
 
   @override
+  void initState() {
+    super.initState();
+    _collapsedSectionIds = {...widget.initialCollapsedSectionIds};
+  }
+
+  @override
   void didUpdateWidget(covariant _GroupedFixedTagCollection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final availableIds = widget.sections.map((section) => section.id).toSet();
-    _collapsedSectionIds.removeWhere((id) => !availableIds.contains(id));
+    // 筛选只是暂时藏起分组，此时清理会丢掉完整列表的折叠状态。
+    if (!widget.filtered) {
+      final availableIds = widget.sections.map((section) => section.id).toSet();
+      final collapsedCount = _collapsedSectionIds.length;
+      _collapsedSectionIds.removeWhere((id) => !availableIds.contains(id));
+      if (_collapsedSectionIds.length != collapsedCount) {
+        _rememberCollapsedSections();
+      }
+    }
     final entryIds = <String>{
       for (final section in widget.sections)
         for (final entry in section.entries) entry.id,
@@ -1464,6 +1550,7 @@ class _GroupedFixedTagCollectionState
         _collapsedSectionIds.remove(sectionId);
       }
     });
+    _rememberCollapsedSections();
     widget.onVisibilityChanged();
   }
 
@@ -1477,8 +1564,12 @@ class _GroupedFixedTagCollectionState
         _collapsedSectionIds.clear();
       }
     });
+    _rememberCollapsedSections();
     widget.onVisibilityChanged();
   }
+
+  void _rememberCollapsedSections() =>
+      widget.onCollapsedSectionsChanged(_collapsedSectionIds);
 
   @override
   Widget build(BuildContext context) {
@@ -1498,8 +1589,13 @@ class _GroupedFixedTagCollectionState
       );
     }
 
+    // 同一 Scrollable 换 controller 会带走旧像素，筛选视图必须另起一个。
     return CustomScrollView(
-      key: ValueKey('${widget.keyPrefix}-group-list'),
+      key: ValueKey(
+        widget.filtered
+            ? '${widget.keyPrefix}-filtered-group-list'
+            : '${widget.keyPrefix}-group-list',
+      ),
       controller: widget.controller,
       slivers: [
         SliverPadding(

@@ -112,12 +112,25 @@ class _OwnedScrollPosition extends ScrollPositionWithSingleContext {
     required super.initialPixels,
     required this.controller,
     super.oldPosition,
-  }) : super(keepScrollOffset: false);
+  }) : _restoringInitialOffset = oldPosition == null,
+       super(keepScrollOffset: false);
 
   final OwnedScrollController controller;
+  bool _restoringInitialOffset;
 
   @override
   bool applyContentDimensions(double minScrollExtent, double maxScrollExtent) {
+    // Clamp before super, or super springs back from a stale restored offset.
+    if (_restoringInitialOffset && viewportDimension > 0) {
+      final restored = pixels
+          .clamp(minScrollExtent, maxScrollExtent)
+          .toDouble();
+      if (restored != pixels) {
+        correctPixels(restored);
+        return false;
+      }
+      _restoringInitialOffset = false;
+    }
     final accepted = super.applyContentDimensions(
       minScrollExtent,
       maxScrollExtent,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../adaptive/adaptive_presenter.dart';
 import '../../providers/fixed_tags_provider.dart';
+import '../../providers/fixed_tags_viewport_memory_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import 'fixed_tags_dialog_controller.dart';
 import 'fixed_tags_dialog_coordinator.dart';
@@ -39,7 +40,9 @@ class _FixedTagsDialogState extends ConsumerState<FixedTagsDialog> {
   @override
   void initState() {
     super.initState();
-    _controller = FixedTagsDialogController();
+    _controller = FixedTagsDialogController(
+      viewportMemory: ref.read(fixedTagsViewportMemoryProvider),
+    );
   }
 
   @override

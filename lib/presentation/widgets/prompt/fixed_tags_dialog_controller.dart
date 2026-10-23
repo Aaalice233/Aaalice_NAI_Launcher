@@ -2,17 +2,30 @@ import 'package:flutter/material.dart';
 
 import '../../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
+import '../../providers/fixed_tags_viewport_memory_provider.dart';
+import '../common/owned_scroll_controller.dart';
 
 class FixedTagsDialogController extends ChangeNotifier {
-  FixedTagsDialogController() {
-    positiveListController.addListener(_handleScroll);
-    negativeListController.addListener(_handleScroll);
+  FixedTagsDialogController({FixedTagsViewportMemory? viewportMemory})
+    : _viewportMemory = viewportMemory ?? FixedTagsViewportMemory() {
+    for (final promptType in FixedTagPromptType.values) {
+      _browseListControllers[promptType] = OwnedScrollController(
+        viewport: _viewportMemory.browseViewport(
+          FixedTagsSurface.dialog,
+          promptType,
+        ),
+      )..addListener(_handleScroll);
+      _filteredListControllers[promptType] = ScrollController()
+        ..addListener(_handleScroll);
+    }
   }
 
+  final FixedTagsViewportMemory _viewportMemory;
   final positiveSearchController = TextEditingController();
   final negativeSearchController = TextEditingController();
-  final positiveListController = ScrollController();
-  final negativeListController = ScrollController();
+  final _browseListControllers = <FixedTagPromptType, OwnedScrollController>{};
+  // Filtered results start at the top and never overwrite the browse memory.
+  final _filteredListControllers = <FixedTagPromptType, ScrollController>{};
 
   final _positiveAnchors = <String, RenderBox>{};
   final _negativeAnchors = <String, RenderBox>{};
@@ -20,7 +33,6 @@ class FixedTagsDialogController extends ChangeNotifier {
   String positiveSearchQuery = '';
   String negativeSearchQuery = '';
   bool enabledOnly = false;
-  FixedTagPromptType mobilePromptType = FixedTagPromptType.positive;
   int? _scheduledGeometryHash;
   bool _scrollRepaintScheduled = false;
   bool _disposed = false;
@@ -35,13 +47,24 @@ class FixedTagsDialogController extends ChangeNotifier {
       ? positiveSearchController
       : negativeSearchController;
 
-  ScrollController listControllerFor(FixedTagPromptType promptType) =>
-      promptType == FixedTagPromptType.positive
-      ? positiveListController
-      : negativeListController;
+  FixedTagPromptType get mobilePromptType =>
+      _viewportMemory.dialogMobilePromptType;
 
-  double scrollOffsetFor(FixedTagPromptType promptType) {
-    final positions = listControllerFor(promptType).positions;
+  ScrollController listControllerFor(
+    FixedTagPromptType promptType, {
+    required bool filtered,
+  }) => filtered
+      ? _filteredListControllers[promptType]!
+      : _browseListControllers[promptType]!;
+
+  double scrollOffsetFor(
+    FixedTagPromptType promptType, {
+    required bool filtered,
+  }) {
+    final positions = listControllerFor(
+      promptType,
+      filtered: filtered,
+    ).positions;
     if (positions.isEmpty) return 0;
     // A responsive rebuild can briefly keep the outgoing list attached while
     // mounting its replacement. The newest position belongs to the incoming
@@ -70,7 +93,7 @@ class FixedTagsDialogController extends ChangeNotifier {
 
   void selectMobilePromptType(FixedTagPromptType promptType) {
     if (mobilePromptType == promptType) return;
-    mobilePromptType = promptType;
+    _viewportMemory.dialogMobilePromptType = promptType;
     notifyListeners();
   }
 
@@ -148,12 +171,16 @@ class FixedTagsDialogController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    positiveListController.removeListener(_handleScroll);
-    negativeListController.removeListener(_handleScroll);
+    for (final listController in [
+      ..._browseListControllers.values,
+      ..._filteredListControllers.values,
+    ]) {
+      listController
+        ..removeListener(_handleScroll)
+        ..dispose();
+    }
     positiveSearchController.dispose();
     negativeSearchController.dispose();
-    positiveListController.dispose();
-    negativeListController.dispose();
     _positiveAnchors.clear();
     _negativeAnchors.clear();
     _linkLayer = null;
