@@ -35,6 +35,9 @@ dependencies:
   flutter_appauth: ^12.0.2
   google_sign_in: ^7.2.0
   flutter_secure_storage: ^9.2.4
+  # Windows 端用自有实现替换插件的 DPAPI 文件存储
+  flutter_secure_storage_platform_interface: ^1.1.2
+  win32: ^5.15.0
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   shared_preferences: ^2.2.3
@@ -162,6 +165,8 @@ dev_dependencies:
   path_provider_platform_interface: any
   plugin_platform_interface: any
   sqlite3: ^2.9.4
+  # 安全存储兼容测试以插件原实现为对照，确认新旧版本读写同一文件
+  flutter_secure_storage_windows: ^3.1.2
 dependency_overrides:
   # 上游 Windows 原生插件注册时就订阅定位，应用一启动即占用定位；
   # Baseflow/flutter-permission-handler#1394 修复后移除

@@ -294,6 +294,8 @@ class _ThirdPartyApiLoginCardState
       AuthErrorCode.endpointIncompatible =>
         context.l10n.auth_error_endpointIncompatible,
       AuthErrorCode.serverError => context.l10n.auth_error_serverError,
+      AuthErrorCode.secureStorageUnavailable =>
+        context.l10n.common_secureStorageUnavailable,
       AuthErrorCode.unknown || null => context.l10n.auth_error_unknown,
     };
   }

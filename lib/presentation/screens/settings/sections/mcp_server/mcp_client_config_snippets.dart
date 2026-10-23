@@ -6,10 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../../core/mcp/cli/mcp_client_config_printer.dart';
 import '../../../../../core/mcp/mcp_cli_path.dart';
 import '../../../../../core/utils/localization_extension.dart';
-import '../../../../mcp/providers/mcp_server_notifier.dart';
 import '../../../../themes/core/layered_surface_style.dart';
 import '../../../../themes/design_tokens.dart';
 import '../../../../widgets/common/app_toast.dart';
+import 'mcp_token_actions.dart';
 
 const String _previewTokenMask = '••••';
 
@@ -30,10 +30,8 @@ class _McpClientConfigSnippetsState
   late final bool _cliExists = bundledMcpCliExists();
 
   Future<void> _copyConfig(McpClientKind kind) async {
-    final token = await ref
-        .read(mcpServerNotifierProvider.notifier)
-        .readToken();
-    if (!mounted) return;
+    final token = await readMcpTokenOrNotify(context, ref);
+    if (token == null || !mounted) return;
     await Clipboard.setData(
       ClipboardData(
         text: renderMcpClientConfig(

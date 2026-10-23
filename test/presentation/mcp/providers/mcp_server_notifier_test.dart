@@ -13,6 +13,7 @@ import 'package:nai_launcher/core/mcp/mcp_server_host.dart';
 import 'package:nai_launcher/core/mcp/mcp_session_registry.dart';
 import 'package:nai_launcher/core/mcp/mcp_tool_executor.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/core/storage/secure_storage_unavailable_exception.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_image_observation_ledger.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/mcp/providers/mcp_server_notifier.dart';
@@ -228,6 +229,42 @@ void main() {
     expect(await tokens.read(), hosts.last.startedToken);
     expect(settings.enabledWrites, [true]);
   });
+
+  test(
+    'readToken surfaces unavailable storage without minting a token',
+    () async {
+      final notifier = build();
+      addTearDown(notifier.dispose);
+      tokens.readFailure = const SecureStorageUnavailableException(
+        SecureStorageStep.readFile,
+        osErrorCode: 32,
+      );
+
+      await expectLater(
+        notifier.readToken(),
+        throwsA(isA<SecureStorageUnavailableException>()),
+      );
+      expect(tokens.writes, 0);
+    },
+  );
+
+  test(
+    'enable fails instead of rotating the token when storage is unavailable',
+    () async {
+      final notifier = build();
+      addTearDown(notifier.dispose);
+      tokens.readFailure = const SecureStorageUnavailableException(
+        SecureStorageStep.readFile,
+        osErrorCode: 32,
+      );
+
+      await notifier.enable();
+
+      expect(notifier.state.status, McpServerStatus.error);
+      expect(notifier.state.errorCode, 'start_failed');
+      expect(tokens.writes, 0);
+    },
+  );
 
   test('a bound port reports port_in_use instead of listening', () async {
     final notifier = build(bindFailurePort: McpServerDefaults.port);
@@ -461,12 +498,21 @@ class _MemorySettingsStore implements McpServerSettingsStore {
 
 class _MemoryTokenStore implements McpServerTokenStore {
   String? _token;
+  Object? readFailure;
+  int writes = 0;
 
   @override
-  Future<String?> read() async => _token;
+  Future<String?> read() async {
+    final failure = readFailure;
+    if (failure != null) throw failure;
+    return _token;
+  }
 
   @override
-  Future<void> write(String token) async => _token = token;
+  Future<void> write(String token) async {
+    writes++;
+    _token = token;
+  }
 
   @override
   Future<void> delete() async => _token = null;

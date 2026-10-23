@@ -12,6 +12,7 @@ import '../../../data/services/auth_provider.dart';
 import '../../../data/services/saved_account_removal_service.dart';
 import '../auth/account_avatar.dart';
 import '../auth/saved_account_removal_flow.dart';
+import '../auth/saved_account_token_reader.dart';
 import '../common/app_toast.dart';
 import '../common/themed_divider.dart';
 import 'nickname_edit_dialog.dart';
@@ -215,29 +216,23 @@ class _AccountProfileBottomSheetState
 
   /// 切换到指定账号
   Future<void> _switchToAccount(SavedAccount account) async {
-    // 关闭底部面板
+    // 面板关闭后会卸载，读取 Token 可能因存储重试持续数秒，await 之后不能再碰 ref
+    final authNotifier = ref.read(authNotifierProvider.notifier);
     Navigator.of(context).pop();
 
-    // 切换账号
-    final token = await ref
-        .read(accountManagerNotifierProvider.notifier)
-        .getAccountToken(account.id);
+    final token = await readSavedAccountTokenForSwitch(
+      context: context,
+      ref: ref,
+      account: account,
+    );
+    if (token == null) return;
 
-    if (token == null) {
-      if (mounted) {
-        AppToast.error(context, context.l10n.auth_tokenNotFound);
-      }
-      return;
-    }
-
-    final success = await ref
-        .read(authNotifierProvider.notifier)
-        .switchAccount(
-          account.id,
-          token,
-          displayName: account.displayName,
-          accountType: account.accountType,
-        );
+    final success = await authNotifier.switchAccount(
+      account.id,
+      token,
+      displayName: account.displayName,
+      accountType: account.accountType,
+    );
 
     if (!success && mounted) {
       AppToast.error(context, context.l10n.auth_loginFailed);

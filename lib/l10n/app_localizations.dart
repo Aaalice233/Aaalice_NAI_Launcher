@@ -335,6 +335,12 @@ abstract class AppLocalizations {
   /// **'Error'**
   String get common_error;
 
+  /// No description provided for @common_secureStorageUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Secure storage is temporarily unavailable. Antivirus or sync software may be using it; please try again shortly.'**
+  String get common_secureStorageUnavailable;
+
   /// No description provided for @promptAssistant_completed.
   ///
   /// In en, this message translates to:

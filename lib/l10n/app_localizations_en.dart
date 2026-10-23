@@ -137,6 +137,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get common_error => 'Error';
 
   @override
+  String get common_secureStorageUnavailable =>
+      'Secure storage is temporarily unavailable. Antivirus or sync software may be using it; please try again shortly.';
+
+  @override
   String get promptAssistant_completed => 'Prompt assistant finished';
 
   @override

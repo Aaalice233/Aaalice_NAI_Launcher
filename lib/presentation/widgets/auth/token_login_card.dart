@@ -317,6 +317,8 @@ class _TokenLoginCardState extends ConsumerState<TokenLoginCard> {
         return context.l10n.auth_error_credentialsLoginUnavailable;
       case AuthErrorCode.serverError:
         return context.l10n.auth_error_serverError;
+      case AuthErrorCode.secureStorageUnavailable:
+        return context.l10n.common_secureStorageUnavailable;
       case AuthErrorCode.unknown:
       default:
         return context.l10n.auth_error_unknown;

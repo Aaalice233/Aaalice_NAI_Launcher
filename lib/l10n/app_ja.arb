@@ -58,6 +58,7 @@
   "common_import": "インポート",
   "common_loading": "読み込み中...",
   "common_error": "エラー",
+  "common_secureStorageUnavailable": "セキュアストレージに一時的にアクセスできません。ウイルス対策ソフトや同期ソフトが使用中の可能性があります。しばらくしてから再試行してください。",
   "promptAssistant_completed": "プロンプトアシスタントの処理が完了しました",
   "common_success": "成功",
   "common_retry": "再試行",

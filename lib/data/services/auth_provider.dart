@@ -10,6 +10,7 @@ import '../../core/network/nai_api_endpoint.dart';
 import '../../core/network/nai_api_endpoint_service.dart';
 import '../../core/services/auth_error_service.dart';
 import '../../core/storage/secure_storage_service.dart';
+import '../../core/storage/secure_storage_unavailable_exception.dart';
 import '../../core/utils/app_logger.dart';
 import '../datasources/remote/nai_auth_api_service.dart';
 import '../models/auth/saved_account.dart';
@@ -150,6 +151,10 @@ class AuthState {
 
   /// 从异常解析错误码
   static (AuthErrorCode, int?) parseError(Object e) {
+    if (e is SecureStorageUnavailableException) {
+      return (AuthErrorCode.secureStorageUnavailable, null);
+    }
+
     if (e is NaiEndpointIncompatibleException) {
       return (AuthErrorCode.endpointIncompatible, e.statusCode);
     }
@@ -271,6 +276,16 @@ class AuthNotifier extends _$AuthNotifier {
 
   /// 检查已存储的认证状态
   Future<void> _checkExistingAuth() async {
+    try {
+      await _restoreStoredSession();
+    } on SecureStorageUnavailableException catch (error) {
+      // 凭据读不到不等于已登出，保留为可重试的失败状态，避免清掉仍然有效的会话
+      AppLogger.w('Auto-login paused: $error', 'Auth');
+      state = autoLoginFailureState(error);
+    }
+  }
+
+  Future<void> _restoreStoredSession() async {
     // 0. 检查自动登录设置（默认启用，确保重启后自动恢复登录）
     final prefs = await SharedPreferences.getInstance();
     final autoLogin = prefs.getBool(_autoLoginKey) ?? true;
@@ -380,6 +395,8 @@ class AuthNotifier extends _$AuthNotifier {
           endpointService.resetToOfficial();
         }
         await storage.clearAuth();
+      } on SecureStorageUnavailableException {
+        rethrow;
       } catch (e) {
         // Token 无效，清除后尝试自动登录
         AppLogger.w('Stored token invalid, trying auto-login...');
@@ -1052,7 +1069,12 @@ class AuthNotifier extends _$AuthNotifier {
     );
 
     final storage = ref.read(secureStorageServiceProvider);
-    await storage.clearAuth();
+    try {
+      await storage.clearAuth();
+    } on SecureStorageUnavailableException catch (error) {
+      // 内存会话已清除；磁盘残留只影响下次启动的自动登录，不能因此卡住登出
+      AppLogger.w('[AuthNotifier] stored auth not cleared: $error', 'AUTH');
+    }
     ref.read(naiApiEndpointServiceProvider).resetToOfficial();
 
     if (errorCode != null) {
