@@ -576,13 +576,8 @@ class AuthNotifier extends _$AuthNotifier {
 
       final apiService = ref.read(naiAuthApiServiceProvider);
       final storage = ref.read(secureStorageServiceProvider);
-      endpointService.resetToOfficial();
 
-      // 2. 先清除可能已污染的存储 token，确保验证使用干净的 token
-      AppLogger.auth('Clearing old token before validation...');
-      await storage.clearAuth();
-
-      // 3. 验证 Token 有效性
+      // 2. 验证请求显式携带新 Token，成功前保留当前会话凭据与端点。
       AppLogger.auth('Validating token...');
       final validation = await apiService.validateToken(
         token,
@@ -593,12 +588,12 @@ class AuthNotifier extends _$AuthNotifier {
       // 3. 保存 Token 到全局存储（用于 API 调用）
       // Persistent Token 不会过期，设置一个远期过期时间
       AppLogger.auth('Saving token to storage, length: ${token.length}');
+      endpointService.resetToOfficial();
       await storage.saveAuth(
         accessToken: token,
         expiry: DateTime.now().add(const Duration(days: 365 * 10)),
         email: displayName ?? 'Token User',
       );
-
       // 验证 token 确实被保存了
       final savedToken = await storage.getAccessToken();
       AppLogger.auth(
