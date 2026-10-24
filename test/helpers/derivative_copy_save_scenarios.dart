@@ -131,7 +131,6 @@ void defineDerivativeCopySaveTests<R extends DerivativeRenderedCopy>({
     expect(editor, findsNothing);
 
     pending.indexing.complete(GalleryIndexAdmission.failed);
-    pending.rescanning.complete('refreshFailed');
     pending.publishing.completeError(StateError('media store'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));

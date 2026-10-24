@@ -1,6 +1,7 @@
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../utils/app_logger.dart';
+import '../single_message_transaction.dart';
 import 'gallery_database_gateway.dart';
 import 'gallery_store_context.dart';
 import 'gallery_tables.dart';
@@ -25,6 +26,11 @@ class SqliteGalleryFavoriteTagRepository
     required this.gateway,
     required this.context,
   });
+
+  static const _recountUsageSql =
+      'UPDATE ${GalleryTables.tags} SET usage_count = ('
+      'SELECT COUNT(*) FROM ${GalleryTables.imageTags} it '
+      'WHERE it.tag_id = ${GalleryTables.tags}.id)';
 
   final GalleryDatabaseGateway gateway;
   final GalleryStoreContext context;
@@ -193,29 +199,20 @@ class SqliteGalleryFavoriteTagRepository
     final tagId = _generateTagId(normalizedTag);
 
     await gateway.execute('addTag', (db) async {
-      await db.transaction((txn) async {
-        await txn.insert(GalleryTables.tags, {
+      await db.applyAtomically((batch) {
+        batch.insert(GalleryTables.tags, {
           'id': tagId,
           'name': normalizedTag,
           'usage_count': 0,
         }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
-        await txn.insert(GalleryTables.imageTags, {
+        batch.insert(GalleryTables.imageTags, {
           'image_id': imageId,
           'tag_id': tagId,
         }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
-        await txn.rawUpdate(
-          '''
-          UPDATE ${GalleryTables.tags}
-          SET usage_count = (
-            SELECT COUNT(*) FROM ${GalleryTables.imageTags} WHERE tag_id = ?
-          )
-          WHERE id = ?
-          ''',
-          [tagId, tagId],
-        );
-      });
+        batch.rawUpdate('$_recountUsageSql WHERE id = ?', [tagId]);
+      }, noResult: true);
 
       AppLogger.d('Added tag "$normalizedTag" to image $imageId', 'GalleryDS');
     });
@@ -231,24 +228,15 @@ class SqliteGalleryFavoriteTagRepository
     final tagId = _generateTagId(normalizedTag);
 
     await gateway.execute('removeTag', (db) async {
-      await db.transaction((txn) async {
-        await txn.delete(
+      await db.applyAtomically((batch) {
+        batch.delete(
           GalleryTables.imageTags,
           where: 'image_id = ? AND tag_id = ?',
           whereArgs: [imageId, tagId],
         );
 
-        await txn.rawUpdate(
-          '''
-          UPDATE ${GalleryTables.tags}
-          SET usage_count = (
-            SELECT COUNT(*) FROM ${GalleryTables.imageTags} WHERE tag_id = ?
-          )
-          WHERE id = ?
-          ''',
-          [tagId, tagId],
-        );
-      });
+        batch.rawUpdate('$_recountUsageSql WHERE id = ?', [tagId]);
+      }, noResult: true);
 
       AppLogger.d(
         'Removed tag "$normalizedTag" from image $imageId',
@@ -337,21 +325,23 @@ class SqliteGalleryFavoriteTagRepository
         .toList();
 
     await gateway.execute('setImageTags', (db) async {
-      await db.transaction((txn) async {
-        final currentTagsResult = await txn.rawQuery(
+      await db.applyAtomically((batch) {
+        // 旧标签按去掉本图后的数量先算好：关联删除后就无法再经本图找到它们
+        batch.rawUpdate(
           '''
-          SELECT t.id
-          FROM ${GalleryTables.tags} t
-          INNER JOIN ${GalleryTables.imageTags} it ON t.id = it.tag_id
-          WHERE it.image_id = ?
+          UPDATE ${GalleryTables.tags}
+          SET usage_count = (
+            SELECT COUNT(*) FROM ${GalleryTables.imageTags} it
+            WHERE it.tag_id = ${GalleryTables.tags}.id AND it.image_id != ?
+          )
+          WHERE id IN (
+            SELECT tag_id FROM ${GalleryTables.imageTags} WHERE image_id = ?
+          )
           ''',
-          [imageId],
+          [imageId, imageId],
         );
-        final oldTagIds = currentTagsResult
-            .map((row) => row['id'] as String)
-            .toSet();
 
-        await txn.delete(
+        batch.delete(
           GalleryTables.imageTags,
           where: 'image_id = ?',
           whereArgs: [imageId],
@@ -360,36 +350,24 @@ class SqliteGalleryFavoriteTagRepository
         for (final tagName in normalizedTags) {
           final tagId = _generateTagId(tagName);
 
-          await txn.insert(GalleryTables.tags, {
+          batch.insert(GalleryTables.tags, {
             'id': tagId,
             'name': tagName,
             'usage_count': 0,
           }, conflictAlgorithm: ConflictAlgorithm.ignore);
 
-          await txn.insert(GalleryTables.imageTags, {
+          batch.insert(GalleryTables.imageTags, {
             'image_id': imageId,
             'tag_id': tagId,
           }, conflictAlgorithm: ConflictAlgorithm.ignore);
         }
 
-        final allTagIds = <String>{...oldTagIds};
-        for (final tagName in normalizedTags) {
-          allTagIds.add(_generateTagId(tagName));
-        }
-
-        for (final tagId in allTagIds) {
-          await txn.rawUpdate(
-            '''
-            UPDATE ${GalleryTables.tags}
-            SET usage_count = (
-              SELECT COUNT(*) FROM ${GalleryTables.imageTags} WHERE tag_id = ?
-            )
-            WHERE id = ?
-            ''',
-            [tagId, tagId],
-          );
-        }
-      });
+        batch.rawUpdate(
+          '$_recountUsageSql WHERE id IN ('
+          'SELECT tag_id FROM ${GalleryTables.imageTags} WHERE image_id = ?)',
+          [imageId],
+        );
+      }, noResult: true);
 
       AppLogger.d(
         'Set ${normalizedTags.length} tags for image $imageId',

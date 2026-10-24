@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' show Database;
 
 import 'data_source_cache_provider.dart';
 import '../../services/danbooru_tags_lazy_service.dart';
@@ -8,6 +9,7 @@ import '../connection_pool_lifecycle_manager.dart';
 import '../database.dart';
 import '../gate/database_access_gate.dart';
 import '../operations/atomic_clear_operation.dart';
+import '../single_message_transaction.dart';
 import '../state/database_state.dart';
 import '../state/database_state_machine.dart';
 
@@ -129,25 +131,24 @@ class DatabaseStatusNotifier extends _$DatabaseStatusNotifier {
 
     return operation.execute(
       clearTables: () async {
-        final db = await lifecycle.acquireConnection();
+        final Database db = await lifecycle.acquireConnection();
         try {
           const tables = ['danbooru_tags'];
-          final stats = <String, int>{};
-
-          await db.execute('BEGIN TRANSACTION');
-          try {
+          final results = await db.applyAtomically((batch) {
             for (final table in tables) {
-              final countResult =
-                  await db.rawQuery('SELECT COUNT(*) as count FROM $table');
-              stats[table] = (countResult.first['count'] as num?)?.toInt() ?? 0;
-              await db.execute('DELETE FROM $table');
+              batch.rawQuery('SELECT COUNT(*) as count FROM $table');
             }
-            await db.execute('COMMIT');
-            return stats;
-          } catch (e) {
-            await db.execute('ROLLBACK');
-            rethrow;
+            for (final table in tables) {
+              batch.execute('DELETE FROM $table');
+            }
+          });
+
+          final stats = <String, int>{};
+          for (final (index, table) in tables.indexed) {
+            final countRow = batchQueryRows(results[index]).first;
+            stats[table] = (countRow['count'] as num?)?.toInt() ?? 0;
           }
+          return stats;
         } finally {
           await lifecycle.releaseConnection(db);
         }

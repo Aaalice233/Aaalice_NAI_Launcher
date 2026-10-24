@@ -4,7 +4,9 @@ import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../utils/app_logger.dart';
 import '../database_error_summary.dart';
+import '../single_message_transaction.dart';
 import 'gallery_database_gateway.dart';
+import 'gallery_fts_index.dart';
 import 'gallery_image_repository.dart';
 import 'gallery_records.dart';
 import 'gallery_store_context.dart';
@@ -27,52 +29,22 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
     required this.gateway,
     required this.context,
     required this.images,
+    required this.ftsIndex,
   });
 
   final GalleryDatabaseGateway gateway;
   final GalleryStoreContext context;
   final GalleryImageRepository images;
+  final GalleryFtsIndex ftsIndex;
   @override
   Future<void> upsertMetadata(int imageId, NaiImageMetadata metadata) async {
     try {
-      final fullPromptText = _buildFullPromptText(metadata);
-
       await gateway.execute(
         'upsertMetadata',
-        (db) async {
-          await db.insert(GalleryTables.metadata, {
-            'image_id': imageId,
-            'prompt': metadata.prompt,
-            'negative_prompt': metadata.negativePrompt,
-            'seed': metadata.seed,
-            'sampler': metadata.sampler,
-            'steps': metadata.steps,
-            'cfg_scale': metadata.scale,
-            'width': metadata.width,
-            'height': metadata.height,
-            'model': metadata.model,
-            'smea': metadata.smea == true ? 1 : 0,
-            'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
-            'noise_schedule': metadata.noiseSchedule,
-            'cfg_rescale': metadata.cfgRescale,
-            'uc_preset': metadata.ucPreset,
-            'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
-            'is_img2img': metadata.isImg2Img ? 1 : 0,
-            'strength': metadata.strength,
-            'noise': metadata.noise,
-            'software': metadata.software,
-            'source': metadata.source,
-            'version': metadata.version,
-            'raw_json': metadata.rawJson,
-            'has_metadata': metadata.hasData ? 1 : 0,
-            'full_prompt_text': fullPromptText,
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
-        },
+        (db) => _writeMetadata(db, [MapEntry(imageId, metadata)]),
         timeout: const Duration(seconds: 30),
         maxRetries: 3,
       );
-
-      await _updateFtsIndex(imageId, fullPromptText);
       context.markDataChanged();
 
       // 【优化】高频操作不记录，避免日志刷屏
@@ -112,34 +84,6 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
     return buffer.toString();
   }
 
-  Future<void> _updateFtsIndex(int imageId, String promptText) async {
-    await gateway.execute(
-      '_updateFtsIndex',
-      (db) async {
-        try {
-          await db.delete(
-            GalleryTables.ftsIndex,
-            where: 'image_id = ?',
-            whereArgs: [imageId],
-          );
-
-          await db.insert(GalleryTables.ftsIndex, {
-            'image_id': imageId,
-            'prompt_text': promptText,
-          });
-        } catch (e) {
-          AppLogger.w(
-            'Failed to update FTS index for image $imageId: '
-            '${databaseErrorSummary(e)}',
-            'GalleryDS',
-          );
-        }
-      },
-      timeout: const Duration(seconds: 5),
-      maxRetries: 1,
-    );
-  }
-
   @override
   Future<void> batchUpsertMetadata(
     List<MapEntry<int, NaiImageMetadata>> metadataList, {
@@ -154,49 +98,9 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
       final batch = metadataList.sublist(i, end);
       final batchIndex = i ~/ batchSize;
 
-      await gateway.executeTransaction(
+      await gateway.execute(
         'batchUpsertMetadata#batch$batchIndex',
-        (txn) async {
-          final ftsUpdates = <int, String>{};
-
-          for (final entry in batch) {
-            final imageId = entry.key;
-            final metadata = entry.value;
-            final fullPromptText = _buildFullPromptText(metadata);
-
-            await txn.insert(GalleryTables.metadata, {
-              'image_id': imageId,
-              'prompt': metadata.prompt,
-              'negative_prompt': metadata.negativePrompt,
-              'seed': metadata.seed,
-              'sampler': metadata.sampler,
-              'steps': metadata.steps,
-              'cfg_scale': metadata.scale,
-              'width': metadata.width,
-              'height': metadata.height,
-              'model': metadata.model,
-              'smea': metadata.smea == true ? 1 : 0,
-              'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
-              'noise_schedule': metadata.noiseSchedule,
-              'cfg_rescale': metadata.cfgRescale,
-              'uc_preset': metadata.ucPreset,
-              'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
-              'is_img2img': metadata.isImg2Img ? 1 : 0,
-              'strength': metadata.strength,
-              'noise': metadata.noise,
-              'software': metadata.software,
-              'source': metadata.source,
-              'version': metadata.version,
-              'raw_json': metadata.rawJson,
-              'has_metadata': metadata.hasData ? 1 : 0,
-              'full_prompt_text': fullPromptText,
-            }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-            ftsUpdates[imageId] = fullPromptText;
-          }
-
-          await _batchUpdateFtsIndex(txn, ftsUpdates);
-        },
+        (db) => _writeMetadata(db, batch),
         timeout: const Duration(seconds: 60),
       );
 
@@ -213,35 +117,67 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
     );
   }
 
-  Future<void> _batchUpdateFtsIndex(
-    Transaction txn,
-    Map<int, String> updates,
+  /// 元数据整批一条消息写入，再按 rowid 覆盖全文索引；索引写入失败只记日志，不拖累元数据。
+  Future<void> _writeMetadata(
+    Database db,
+    List<MapEntry<int, NaiImageMetadata>> entries,
   ) async {
-    if (updates.isEmpty) return;
+    final promptTexts = <int, String>{};
+    await db.applyAtomically((batch) {
+      for (final MapEntry(key: imageId, value: metadata) in entries) {
+        final fullPromptText = _buildFullPromptText(metadata);
+        batch.insert(
+          GalleryTables.metadata,
+          _metadataRow(imageId, metadata, fullPromptText),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        promptTexts[imageId] = fullPromptText;
+      }
+    }, noResult: true);
 
     try {
-      for (final entries in _chunk(updates.entries.toList(), 900)) {
-        final placeholders = List.filled(entries.length, '?').join(',');
-        await txn.rawDelete(
-          'DELETE FROM ${GalleryTables.ftsIndex} WHERE image_id IN ($placeholders)',
-          entries.map((entry) => entry.key).toList(),
-        );
-
-        final batch = txn.batch();
-        for (final entry in entries) {
-          batch.insert(GalleryTables.ftsIndex, {
-            'image_id': entry.key,
-            'prompt_text': entry.value,
-          });
-        }
-        await batch.commit(noResult: true);
-      }
+      await ftsIndex.replaceRows(db, promptTexts);
     } catch (e) {
       AppLogger.w(
-        'Failed to batch update FTS index: ${databaseErrorSummary(e)}',
+        'Failed to update FTS index for ${promptTexts.length} image(s): '
+        '${databaseErrorSummary(e)}',
         'GalleryDS',
       );
     }
+  }
+
+  Map<String, Object?> _metadataRow(
+    int imageId,
+    NaiImageMetadata metadata,
+    String fullPromptText,
+  ) {
+    return {
+      'image_id': imageId,
+      'prompt': metadata.prompt,
+      'negative_prompt': metadata.negativePrompt,
+      'seed': metadata.seed,
+      'sampler': metadata.sampler,
+      'steps': metadata.steps,
+      'cfg_scale': metadata.scale,
+      'width': metadata.width,
+      'height': metadata.height,
+      'model': metadata.model,
+      'smea': metadata.smea == true ? 1 : 0,
+      'smea_dyn': metadata.smeaDyn == true ? 1 : 0,
+      'noise_schedule': metadata.noiseSchedule,
+      'cfg_rescale': metadata.cfgRescale,
+      'uc_preset': metadata.ucPreset,
+      'quality_toggle': metadata.qualityToggle == true ? 1 : 0,
+      'is_img2img': metadata.isImg2Img ? 1 : 0,
+      'strength': metadata.strength,
+      'noise': metadata.noise,
+      'software': metadata.software,
+      'source': metadata.source,
+      'version': metadata.version,
+      'raw_json': metadata.rawJson,
+      'has_metadata': metadata.hasData ? 1 : 0,
+      'full_prompt_text': fullPromptText,
+    };
   }
 
   @override
