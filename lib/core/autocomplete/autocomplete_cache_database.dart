@@ -18,6 +18,7 @@ class CachedAutocompletePayload {
 class AutocompleteCacheDatabase {
   Database? _database;
   Future<void>? _initialization;
+  int _aiTranslationClearGeneration = 0;
 
   Future<void> initialize() {
     if (_database != null) return Future.value();
@@ -143,7 +144,12 @@ class AutocompleteCacheDatabase {
     return _database!.delete('remote_queries');
   }
 
+  /// Bumped synchronously by every [clearAiTranslationCache]; writers capture
+  /// it before translating and drop results that straddle a clear.
+  int get aiTranslationClearGeneration => _aiTranslationClearGeneration;
+
   Future<int> clearAiTranslationCache() async {
+    _aiTranslationClearGeneration++;
     await initialize();
     return _database!.delete('ai_translations');
   }

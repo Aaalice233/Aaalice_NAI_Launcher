@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_cache_database.dart';
 import 'package:nai_launcher/core/autocomplete/llm_translation_resolver.dart';
 import 'package:nai_launcher/core/autocomplete/tag_translation_port.dart';
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   test('resolveCached reads every cached tag without calling AI', () async {
@@ -64,10 +67,92 @@ void main() {
     expect(await result, isEmpty);
     expect(cache.writes, isEmpty);
   });
+
+  group('clearing the AI translation cache', () {
+    late Directory supportDirectory;
+    late PathProviderPlatform originalPathProvider;
+    late AutocompleteCacheDatabase cache;
+    late _MockTagTranslationPort service;
+
+    setUpAll(sqfliteFfiInit);
+
+    setUp(() async {
+      supportDirectory = await Directory.systemTemp.createTemp(
+        'llm_translation_clear_',
+      );
+      originalPathProvider = PathProviderPlatform.instance;
+      PathProviderPlatform.instance = _SupportPathProvider(
+        supportDirectory.path,
+      );
+      cache = AutocompleteCacheDatabase();
+      service = _MockTagTranslationPort();
+      when(service.routeFingerprint).thenReturn('test-route');
+      when(() => service.promptVersion).thenReturn(1);
+    });
+
+    tearDown(() async {
+      await cache.dispose();
+      PathProviderPlatform.instance = originalPathProvider;
+      await supportDirectory.delete(recursive: true);
+    });
+
+    test(
+      'a translation in flight across the clear is never written back',
+      () async {
+        final response = Completer<Map<String, String>>();
+        final requestStarted = Completer<void>();
+        when(
+          () =>
+              service.translateTags(any(), sessionId: any(named: 'sessionId')),
+        ).thenAnswer((_) {
+          requestStarted.complete();
+          return response.future;
+        });
+        final scope = LlmTranslationResolver(
+          service: service,
+          cache: cache,
+          isEnabled: () => true,
+        ).createScope();
+
+        final result = scope.resolve(['blue_eyes'], locale: 'zh-CN');
+        await requestStarted.future;
+        await cache.clearAiTranslationCache();
+        response.complete(const {'blue_eyes': '蓝眼睛'});
+
+        expect(await result, const {'blue_eyes': '蓝眼睛'});
+        expect(await cache.aiTranslationCount(), 0);
+      },
+    );
+
+    test('a translation started after the clear is cached again', () async {
+      when(
+        () => service.translateTags(any(), sessionId: any(named: 'sessionId')),
+      ).thenAnswer((_) async => const {'blue_eyes': '蓝眼睛'});
+      final resolver = LlmTranslationResolver(
+        service: service,
+        cache: cache,
+        isEnabled: () => true,
+      );
+
+      await cache.clearAiTranslationCache();
+      await resolver.resolve(['blue_eyes'], locale: 'zh-CN');
+
+      expect(await cache.aiTranslationCount(), 1);
+    });
+  });
 }
 
 class _MockTagTranslationPort extends Mock
     implements TagTranslationPort {}
+
+class _SupportPathProvider extends PathProviderPlatform {
+  _SupportPathProvider(this.supportPath);
+
+  final String supportPath;
+
+  @override
+  Future<String?> getApplicationSupportPath() async => supportPath;
+}
 
 class _FakeAutocompleteCacheDatabase extends AutocompleteCacheDatabase {
   _FakeAutocompleteCacheDatabase([this.cached = const {}]);
