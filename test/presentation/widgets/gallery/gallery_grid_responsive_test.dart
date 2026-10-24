@@ -1,26 +1,16 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/draggable_image_card.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_grid.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
-  late Duration previousVisibilityInterval;
-
-  setUp(() {
-    previousVisibilityInterval =
-        VisibilityDetectorController.instance.updateInterval;
-    VisibilityDetectorController.instance.updateInterval = Duration.zero;
-  });
-
-  tearDown(() {
-    VisibilityDetectorController.instance.updateInterval =
-        previousVisibilityInterval;
-  });
-
   const cases = <(double, int)>[
     (320, 2),
     (360, 2),
@@ -90,6 +80,78 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('scrolling keeps mounted cards without rebuilding the grid', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _pumpGrid(tester, columns: 3);
+    final before = _mountedCardsByPath(tester);
+
+    await tester.drag(find.byType(GridView), const Offset(0, -120));
+    // 跨过可见性检测的默认 500ms 批次
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    final after = _mountedCardsByPath(tester);
+    final retained = before.keys.where(after.containsKey).toList();
+    expect(retained, isNotEmpty);
+    for (final path in retained) {
+      expect(after[path], same(before[path]), reason: path);
+    }
+    expect(find.byType(VisibilityDetector, skipOffstage: false), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('scrolled cards keep their index, keyboard activation and drag', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final taps = <(String, int)>[];
+
+    await _pumpGrid(
+      tester,
+      columns: 3,
+      enableDrag: true,
+      onTap: (record, index) => taps.add((record.path, index)),
+    );
+    await tester.drag(find.byType(GridView), const Offset(0, -900));
+    await tester.pump();
+
+    final tapped = _cardFor('G:/gallery/image-13.png');
+    await tester.tap(tapped);
+    await tester.pump(kDoubleTapTimeout);
+    expect(taps.last, ('G:/gallery/image-13.png', 13));
+
+    final focused = _cardFor('G:/gallery/image-14.png');
+    final focusTarget = find.descendant(
+      of: find.descendant(
+        of: focused,
+        matching: find.byType(FocusableActionDetector),
+      ),
+      matching: find.byType(GestureDetector),
+    );
+    Focus.of(tester.element(focusTarget.first)).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(taps.last, ('G:/gallery/image-14.png', 14));
+
+    for (final path in ['G:/gallery/image-13.png', 'G:/gallery/image-14.png']) {
+      final drag = tester.widget<DraggableImageCard>(
+        find.descendant(
+          of: _cardFor(path),
+          matching: find.byType(DraggableImageCard),
+        ),
+      );
+      expect(drag.record.path, path);
+    }
+    expect(taps, hasLength(2));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('grid scroll state survives switching to grouped-list mode', (
     tester,
   ) async {
@@ -132,10 +194,23 @@ void main() {
   });
 }
 
+Map<String, LocalImageCard3D> _mountedCardsByPath(WidgetTester tester) => {
+  for (final card in tester.widgetList<LocalImageCard3D>(
+    find.byType(LocalImageCard3D, skipOffstage: false),
+  ))
+    card.record.path: card,
+};
+
+Finder _cardFor(String path) => find.byWidgetPredicate(
+  (widget) => widget is LocalImageCard3D && widget.record.path == path,
+);
+
 Future<void> _pumpGrid(
   WidgetTester tester, {
   required int columns,
   Set<int>? selectedIndices,
+  bool enableDrag = false,
+  void Function(LocalImageRecord record, int index)? onTap,
 }) async {
   final images = List.generate(
     60,
@@ -159,7 +234,8 @@ Future<void> _pumpGrid(
             spacing: 12,
             padding: const EdgeInsets.all(12),
             selectedIndices: selectedIndices,
-            enableDrag: false,
+            enableDrag: enableDrag,
+            onTap: onTap,
           ),
         ),
       ),

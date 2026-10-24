@@ -4,20 +4,7 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../data/models/gallery/local_image_record.dart';
-
-enum ImageDateGroup { today, yesterday, thisWeek, earlier }
-
-class ImageGroup {
-  const ImageGroup({
-    required this.category,
-    required this.images,
-    required this.title,
-  });
-
-  final ImageDateGroup category;
-  final List<LocalImageRecord> images;
-  final String title;
-}
+import '../utils/image_date_grouping.dart';
 
 /// 按日期分组的网格视图组件
 class GroupedGridView extends ConsumerStatefulWidget {
@@ -28,6 +15,7 @@ class GroupedGridView extends ConsumerStatefulWidget {
     required this.itemWidth,
     required this.buildCard,
     this.onScrollToGroup,
+    @visibleForTesting this.clock = DateTime.now,
   });
 
   final List<LocalImageRecord> images;
@@ -35,6 +23,7 @@ class GroupedGridView extends ConsumerStatefulWidget {
   final double itemWidth;
   final Widget Function(LocalImageRecord record) buildCard;
   final void Function(ImageDateGroup category)? onScrollToGroup;
+  final DateTime Function() clock;
 
   @override
   ConsumerState<GroupedGridView> createState() => GroupedGridViewState();
@@ -43,6 +32,12 @@ class GroupedGridView extends ConsumerStatefulWidget {
 class GroupedGridViewState extends ConsumerState<GroupedGridView> {
   final ScrollController _scrollController = ScrollController();
   final Map<ImageDateGroup, GlobalKey> _groupKeys = {};
+  List<LocalImageRecord>? _groupedSource;
+  (int, int, int)? _groupedDay;
+  List<ImageGroup> _groups = const [];
+
+  @visibleForTesting
+  List<ImageGroup> get debugGroups => _groups;
 
   @override
   void initState() {
@@ -58,53 +53,38 @@ class GroupedGridViewState extends ConsumerState<GroupedGridView> {
     super.dispose();
   }
 
-  List<ImageGroup> _groupImagesByDate(List<LocalImageRecord> images) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
-
-    final groups = <ImageDateGroup, List<LocalImageRecord>>{
-      for (final category in ImageDateGroup.values) category: [],
-    };
-
-    for (final image in images) {
-      final imageDate = DateTime(
-        image.modifiedAt.year,
-        image.modifiedAt.month,
-        image.modifiedAt.day,
-      );
-
-      if (imageDate == today) {
-        groups[ImageDateGroup.today]!.add(image);
-      } else if (imageDate == yesterday) {
-        groups[ImageDateGroup.yesterday]!.add(image);
-      } else if (imageDate.isAfter(thisWeekStart) &&
-          imageDate.isBefore(today)) {
-        groups[ImageDateGroup.thisWeek]!.add(image);
-      } else {
-        groups[ImageDateGroup.earlier]!.add(image);
-      }
+  List<ImageGroup> _currentGroups() {
+    final now = widget.clock();
+    final day = (now.year, now.month, now.day);
+    final source = widget.images;
+    if (day != _groupedDay || !_hasSameRecords(_groupedSource, source)) {
+      _groups = groupImagesByDate(source, now);
+      _groupedSource = source;
+      _groupedDay = day;
     }
-
-    final l10n = AppLocalizations.of(context)!;
-    final groupConfigs = [
-      (ImageDateGroup.today, l10n.localGallery_group_today),
-      (ImageDateGroup.yesterday, l10n.localGallery_group_yesterday),
-      (ImageDateGroup.thisWeek, l10n.localGallery_group_thisWeek),
-      (ImageDateGroup.earlier, l10n.localGallery_group_earlier),
-    ];
-
-    return [
-      for (final (category, title) in groupConfigs)
-        if (groups[category]!.isNotEmpty)
-          ImageGroup(
-            category: category,
-            images: groups[category]!,
-            title: title,
-          ),
-    ];
+    return _groups;
   }
+
+  // freezed 的列表 getter 每次返回新视图，只能逐项比较记录实例
+  static bool _hasSameRecords(
+    List<LocalImageRecord>? previous,
+    List<LocalImageRecord> next,
+  ) {
+    if (identical(previous, next)) return true;
+    if (previous == null || previous.length != next.length) return false;
+    for (var index = 0; index < next.length; index++) {
+      if (!identical(previous[index], next[index])) return false;
+    }
+    return true;
+  }
+
+  String _titleOf(AppLocalizations l10n, ImageDateGroup category) =>
+      switch (category) {
+        ImageDateGroup.today => l10n.localGallery_group_today,
+        ImageDateGroup.yesterday => l10n.localGallery_group_yesterday,
+        ImageDateGroup.thisWeek => l10n.localGallery_group_thisWeek,
+        ImageDateGroup.earlier => l10n.localGallery_group_earlier,
+      };
 
   void scrollToGroup(ImageDateGroup category) {
     final key = _groupKeys[category];
@@ -120,9 +100,11 @@ class GroupedGridViewState extends ConsumerState<GroupedGridView> {
 
   @override
   Widget build(BuildContext context) {
-    final groups = _groupImagesByDate(widget.images);
+    final groups = _currentGroups();
 
     if (groups.isEmpty) return const SizedBox.shrink();
+
+    final l10n = AppLocalizations.of(context)!;
 
     final lastIndex = groups.length - 1;
 
@@ -137,7 +119,7 @@ class GroupedGridViewState extends ConsumerState<GroupedGridView> {
             sliver: SliverToBoxAdapter(
               child: _GroupHeader(
                 key: _groupKeys[group.category],
-                title: group.title,
+                title: _titleOf(l10n, group.category),
                 count: group.images.length,
               ),
             ),

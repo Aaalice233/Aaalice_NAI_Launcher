@@ -1,13 +1,8 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 
-import '../../../core/cache/local_gallery_thumbnail_provider.dart';
-import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/encoded_image_dimensions.dart';
+import '../../../core/cache/gallery_aspect_ratio_cache.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -26,39 +21,8 @@ import '../common/image_detail/image_detail_data.dart';
 import '../common/shimmer_skeleton.dart';
 import 'gallery_grid.dart';
 import 'gallery_state_views.dart';
+import 'grouped_gallery_card.dart';
 import 'local_image_context_menu.dart';
-
-/// 画廊项目构建函数类型
-typedef GalleryItemBuilder<T> =
-    Widget Function(
-      BuildContext context,
-      T item,
-      int index,
-      GalleryItemConfig config,
-    );
-
-/// 画廊项目配置
-class GalleryItemConfig {
-  final bool selectionMode;
-  final bool isSelected;
-  final double itemWidth;
-  final double aspectRatio;
-  final bool isVisible;
-  final VoidCallback? onTap;
-  final VoidCallback? onSelectionToggle;
-  final VoidCallback? onLongPress;
-
-  const GalleryItemConfig({
-    required this.selectionMode,
-    required this.isSelected,
-    required this.itemWidth,
-    required this.aspectRatio,
-    this.isVisible = false,
-    this.onTap,
-    this.onSelectionToggle,
-    this.onLongPress,
-  });
-}
 
 /// 通用画廊状态接口
 abstract class GalleryState<T> {
@@ -67,7 +31,6 @@ abstract class GalleryState<T> {
   bool get isGroupedView;
   bool get isPageLoading;
   bool get isGroupedLoading;
-  int get currentPage;
   bool get hasFilters;
   List<T> get filteredFiles;
 }
@@ -80,12 +43,10 @@ abstract class SelectionState {
 
 /// 画廊内容视图（含分组/3D/瀑布流切换）- 泛型版本
 class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
-  final bool use3DCardView;
   final int columns;
   final double itemWidth;
   final GalleryState<T> state;
   final SelectionState selectionState;
-  final GalleryItemBuilder<T> itemBuilder;
   final String Function(T item) idExtractor;
   final void Function(T item, int index)? onTap;
   final void Function(T item, int index)? onDoubleTap;
@@ -94,10 +55,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final void Function(T item)? onFavoriteToggle;
   final void Function(T item)? onSelectionToggle;
   final void Function(T item)? onEnterSelection;
-  final VoidCallback? onDeleted;
   final VoidCallback? onClearFilters;
-  final VoidCallback? onRefresh;
-  final void Function(int page)? onLoadPage;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
   final Gallery3DViewConfig<T>? view3DConfig;
   final Future<void> Function(
@@ -112,12 +70,10 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
 
   const GenericGalleryContentView({
     super.key,
-    this.use3DCardView = true,
     required this.columns,
     required this.itemWidth,
     required this.state,
     required this.selectionState,
-    required this.itemBuilder,
     required this.idExtractor,
     this.onTap,
     this.onDoubleTap,
@@ -126,10 +82,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onFavoriteToggle,
     this.onSelectionToggle,
     this.onEnterSelection,
-    this.onDeleted,
     this.onClearFilters,
-    this.onRefresh,
-    this.onLoadPage,
     this.groupedGridViewKey,
     this.view3DConfig,
     this.onSendAction,
@@ -158,9 +111,8 @@ class Gallery3DViewConfig<T> {
 class _GenericGalleryContentViewState<T>
     extends ConsumerState<GenericGalleryContentView<T>>
     with TickerProviderStateMixin {
-  final Map<LocalGallerySourceIdentity, double> _aspectRatioCache = {};
+  final GalleryAspectRatioCache _aspectRatios = GalleryAspectRatioCache();
   bool _showSkeleton = false;
-  final Set<int> _visibleIndices = {};
   late final AnimationController _emptyStateController;
   late final Animation<double> _emptyStateAnimation;
   bool _motionPreferenceInitialized = false;
@@ -294,102 +246,40 @@ class _GenericGalleryContentViewState<T>
       images: state.groupedImages,
       columns: widget.columns,
       itemWidth: widget.itemWidth,
-      buildCard: (record) {
-        final isSelected = selectionState.selectedIds.contains(record.path);
-        final aspectRatio = _getCachedAspectRatio(record);
-        final index = state.groupedImages.indexOf(record);
-        final isVisible = _visibleIndices.contains(index);
-
-        return VisibilityDetector(
-          key: ValueKey('grouped_visibility_${record.path}_$index'),
-          onVisibilityChanged: (visibilityInfo) {
-            final isNowVisible = visibilityInfo.visibleFraction > 0.05;
-            final wasVisible = _visibleIndices.contains(index);
-
-            if (isNowVisible != wasVisible && mounted) {
-              setState(() {
-                if (isNowVisible) {
-                  _visibleIndices.add(index);
-                } else {
-                  _visibleIndices.remove(index);
-                }
-              });
+      buildCard: (record) => GroupedGalleryCard(
+        key: ValueKey(record.path),
+        record: record,
+        aspectRatios: _aspectRatios,
+        builder: (context, aspectRatio) => LocalImageCard3D(
+          record: record,
+          width: widget.itemWidth,
+          height: widget.itemWidth / aspectRatio,
+          isSelected: selectionState.selectedIds.contains(record.path),
+          onTap: () {
+            if (selectionState.isActive) {
+              widget.onSelectionToggle?.call(record as T);
             }
           },
-          child: LocalImageCard3D(
-            record: record,
-            width: widget.itemWidth,
-            height: widget.itemWidth / aspectRatio,
-            isSelected: isSelected,
-            isVisible: isVisible,
-            priority: isVisible ? 1 : 5,
-            onTap: () {
-              if (selectionState.isActive) {
-                widget.onSelectionToggle?.call(record as T);
-              }
-            },
-            onLongPress: () {
-              if (!selectionState.isActive) {
-                widget.onEnterSelection?.call(record as T);
-              }
-            },
-            onSecondaryTapUp: widget.onContextMenu != null
-                ? (details) =>
-                      widget.onContextMenu!(record as T, details.globalPosition)
-                : null,
-            onFavoriteToggle: () {
-              widget.onFavoriteToggle?.call(record as T);
-            },
-            onSendAction: widget.onSendAction != null
-                ? (action) => widget.onSendAction!(record, action)
-                : null,
-            enableAddToAgent: !selectionState.isActive,
-            isKritaConnected: widget.isKritaConnected,
-          ),
-        );
-      },
+          onLongPress: () {
+            if (!selectionState.isActive) {
+              widget.onEnterSelection?.call(record as T);
+            }
+          },
+          onSecondaryTapUp: widget.onContextMenu != null
+              ? (details) =>
+                    widget.onContextMenu!(record as T, details.globalPosition)
+              : null,
+          onFavoriteToggle: () {
+            widget.onFavoriteToggle?.call(record as T);
+          },
+          onSendAction: widget.onSendAction != null
+              ? (action) => widget.onSendAction!(record, action)
+              : null,
+          enableAddToAgent: !selectionState.isActive,
+          isKritaConnected: widget.isKritaConnected,
+        ),
+      ),
     );
-  }
-
-  double _getCachedAspectRatio(LocalImageRecord record) {
-    final source = LocalGallerySourceIdentity.fromRecord(
-      path: record.path,
-      size: record.size,
-      modifiedAt: record.modifiedAt,
-    );
-    final cached = _aspectRatioCache[source];
-    if (cached != null) return cached;
-
-    _calculateAspectRatioForRecord(record).then((value) {
-      if (mounted && value != _aspectRatioCache[source]) {
-        setState(() => _aspectRatioCache[source] = value);
-      }
-    });
-
-    return 1.0;
-  }
-
-  Future<double> _calculateAspectRatioForRecord(LocalImageRecord record) async {
-    final metadata = record.metadata;
-    if (metadata?.width != null && metadata?.height != null) {
-      final width = metadata!.width!;
-      final height = metadata.height!;
-      if (width > 0 && height > 0) return width / height;
-    }
-
-    try {
-      final (width, height) = await readEncodedImageDimensions(
-        await ui.ImmutableBuffer.fromFilePath(record.path),
-      );
-      if (width > 0 && height > 0) return width / height;
-    } catch (e) {
-      AppLogger.d(
-        'Failed to read gallery image aspect ratio: $e',
-        'GalleryContent',
-      );
-    }
-
-    return 1.0;
   }
 
   Widget _buildLoadingSkeleton() {
@@ -510,9 +400,6 @@ class _LocalGalleryStateAdapter implements GalleryState<LocalImageRecord> {
   bool get isGroupedLoading => _state.isGroupedLoading;
 
   @override
-  int get currentPage => _state.currentPage;
-
-  @override
   bool get hasFilters => _state.hasFilters;
 
   @override
@@ -535,7 +422,6 @@ class _LocalSelectionStateAdapter implements SelectionState {
 
 /// 本地画廊内容视图
 class LocalGalleryContentView extends ConsumerWidget {
-  final bool use3DCardView;
   final int columns;
   final double itemWidth;
   final void Function(LocalImageRecord record)? onReuseMetadata;
@@ -545,18 +431,15 @@ class LocalGalleryContentView extends ConsumerWidget {
     LocalImageContextAction action,
   )?
   onSendAction;
-  final VoidCallback? onDeleted;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
 
   const LocalGalleryContentView({
     super.key,
-    this.use3DCardView = true,
     required this.columns,
     required this.itemWidth,
     this.onReuseMetadata,
     this.onContextMenu,
     this.onSendAction,
-    this.onDeleted,
     this.groupedGridViewKey,
   });
 
@@ -643,30 +526,11 @@ class LocalGalleryContentView extends ConsumerWidget {
     }
 
     return GenericGalleryContentView<LocalImageRecord>(
-      use3DCardView: use3DCardView,
       columns: columns,
       itemWidth: itemWidth,
       state: _LocalGalleryStateAdapter(state),
       selectionState: _LocalSelectionStateAdapter(selectionState),
       idExtractor: (record) => record.path,
-      itemBuilder: (context, record, index, config) => LocalImageCard3D(
-        record: record,
-        width: config.itemWidth,
-        height: config.itemWidth / config.aspectRatio,
-        isSelected: config.isSelected,
-        isVisible: config.isVisible,
-        priority: config.isVisible ? 1 : 5,
-        onTap: config.selectionMode ? config.onSelectionToggle : config.onTap,
-        onLongPress: config.onLongPress,
-        onFavoriteToggle: () => ref
-            .read(localGalleryNotifierProvider.notifier)
-            .toggleFavorite(record.path),
-        onSendAction: onSendAction != null
-            ? (action) => onSendAction!(record, action)
-            : null,
-        enableAddToAgent: !config.selectionMode,
-        isKritaConnected: isKritaConnected,
-      ),
       onSelectionToggle: (record) => ref
           .read(localGallerySelectionNotifierProvider.notifier)
           .toggle(record.path),
@@ -677,13 +541,8 @@ class LocalGalleryContentView extends ConsumerWidget {
           .read(localGalleryNotifierProvider.notifier)
           .toggleFavorite(record.path),
       onContextMenu: onContextMenu,
-      onDeleted: onDeleted,
       onClearFilters: () =>
           ref.read(localGalleryNotifierProvider.notifier).clearAllFilters(),
-      onRefresh: () =>
-          ref.read(localGalleryNotifierProvider.notifier).refresh(),
-      onLoadPage: (page) =>
-          ref.read(localGalleryNotifierProvider.notifier).loadPage(page),
       groupedGridViewKey: groupedGridViewKey,
       view3DConfig: Gallery3DViewConfig<LocalImageRecord>(
         images: state.currentImages,
