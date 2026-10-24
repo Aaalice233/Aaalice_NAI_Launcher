@@ -233,6 +233,11 @@ List<Message> _sanitizeReplayableMessages(List<Message> messages) {
 
     discardIncompleteToolCallBatch();
     if (message is AssistantMessage) {
+      // 失败请求的半截回复不回放，重试从最后的有效状态重来；用户中断的
+      // aborted 半截回复仍需回放，续写才能接上。
+      if (message.stopReason == StopReason.error) {
+        continue;
+      }
       final normalized = _normalizeAssistantMessage(message);
       if (!isReplayableAssistantMessage(normalized)) {
         continue;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../widgets/common/model_family_icon.dart';
 
@@ -26,9 +28,12 @@ class AgentChatStatus extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (state.retryStatus case final retryStatus?)
+          AgentChatRetryNotice(status: retryStatus),
         if (state.error.isNotEmpty)
           _AgentChatErrorCard(
             error: state.error,
+            retryAttempts: state.errorRetryAttempts,
             canRetry:
                 state.status != AgentChatRunStatus.running &&
                 state.messages.any((message) => message is UserMessage),
@@ -70,15 +75,162 @@ class AgentChatStatus extends StatelessWidget {
   }
 }
 
+final _httpStatusPattern = RegExp(
+  r'(?:HTTP(?: status)?[: ]+|status code of )(\d{3})',
+  caseSensitive: false,
+);
+final _networkErrorPattern = RegExp(r'network.?error', caseSensitive: false);
+
+/// 能归类的请求失败给出本地化摘要，归不了类返回 null。
+String? _requestFailureSummary(BuildContext context, String error) {
+  if (_httpStatusPattern.firstMatch(error) case final match?) {
+    return context.l10n.networkError_requestFailed(int.parse(match.group(1)!));
+  }
+  if (_networkErrorPattern.hasMatch(error)) {
+    return context.l10n.networkError_connection;
+  }
+  return null;
+}
+
+/// 自动重试退避期间的提示；最终失败时由错误卡片接替。
+class AgentChatRetryNotice extends StatefulWidget {
+  const AgentChatRetryNotice({super.key, required this.status});
+
+  final AgentChatRetryStatus status;
+
+  @override
+  State<AgentChatRetryNotice> createState() => _AgentChatRetryNoticeState();
+}
+
+class _AgentChatRetryNoticeState extends State<AgentChatRetryNotice> {
+  Timer? _ticker;
+
+  int get _remainingSeconds {
+    final remainingMs =
+        widget.status.resumesAtMs - DateTime.now().millisecondsSinceEpoch;
+    return remainingMs <= 0 ? 0 : (remainingMs / 1000).ceil();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant AgentChatRetryNotice oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.status, widget.status)) _syncTicker();
+  }
+
+  void _syncTicker() {
+    _ticker?.cancel();
+    _ticker = null;
+    if (_remainingSeconds == 0) return;
+    _ticker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {});
+      if (_remainingSeconds == 0) {
+        timer.cancel();
+        _ticker = null;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final status = widget.status;
+    final seconds = _remainingSeconds;
+    final title = seconds > 0
+        ? l10n.agentChat_autoRetryCountdown(
+            status.attempt,
+            status.maxAttempts,
+            seconds,
+          )
+        : l10n.agentChat_autoRetryStarting(status.attempt, status.maxAttempts);
+    final reason =
+        _requestFailureSummary(context, status.errorMessage) ??
+        status.errorMessage;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalMargin = constraints.maxWidth < 600 ? 12.0 : 10.0;
+        return Container(
+          key: const ValueKey('agent-chat-retry-notice'),
+          margin: EdgeInsets.fromLTRB(horizontalMargin, 4, horizontalMargin, 4),
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.7,
+                    value: MediaQuery.disableAnimationsOf(context)
+                        ? 0.75
+                        : null,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      key: const ValueKey('agent-chat-retry-notice-title'),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      reason,
+                      key: const ValueKey('agent-chat-retry-notice-reason'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _AgentChatErrorCard extends StatefulWidget {
   const _AgentChatErrorCard({
     required this.error,
+    required this.retryAttempts,
     required this.canRetry,
     required this.onDismiss,
     required this.onRetry,
   });
 
   final String error;
+  final int retryAttempts;
   final bool canRetry;
   final VoidCallback onDismiss;
   final VoidCallback onRetry;
@@ -90,18 +242,9 @@ class _AgentChatErrorCard extends StatefulWidget {
 class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
   bool _detailsExpanded = false;
 
-  String _summary(BuildContext context) {
-    final status = RegExp(
-      r'(?:HTTP(?: status)?[: ]+|status code of )(\d{3})',
-      caseSensitive: false,
-    ).firstMatch(widget.error);
-    if (status case final match?) {
-      return context.l10n.networkError_requestFailed(
-        int.parse(match.group(1)!),
-      );
-    }
-    return context.l10n.agentChat_requestFailed;
-  }
+  String _summary(BuildContext context) =>
+      _requestFailureSummary(context, widget.error) ??
+      context.l10n.agentChat_requestFailed;
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +309,17 @@ class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
                   ),
                 ],
               ),
+              if (widget.retryAttempts > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(26, 0, 8, 2),
+                  child: Text(
+                    l10n.agentChat_autoRetryExhausted(widget.retryAttempts),
+                    key: const ValueKey('agent-chat-error-retry-attempts'),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: foreground.withValues(alpha: 0.78),
+                    ),
+                  ),
+                ),
               if (_detailsExpanded)
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 140),
@@ -183,8 +337,8 @@ class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
                     ),
                   ),
                 ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
                 children: [
                   TextButton.icon(
                     key: const ValueKey('agent-chat-error-details-toggle'),
@@ -295,6 +449,7 @@ class AgentChatWorkStatus extends StatelessWidget {
         AgentChatWorkPhase.awaitingApproval =>
           context.l10n.agentChat_phaseAwaitingApproval,
         AgentChatWorkPhase.compacting => context.l10n.agentChat_compacting,
+        AgentChatWorkPhase.retrying => context.l10n.common_retry,
         AgentChatWorkPhase.stopping => context.l10n.agentChat_phaseStopping,
         AgentChatWorkPhase.failed => context.l10n.common_error,
         AgentChatWorkPhase.idle => '',
@@ -307,6 +462,7 @@ class AgentChatWorkStatus extends StatelessWidget {
     AgentChatWorkPhase.usingTools => Icons.build_circle_outlined,
     AgentChatWorkPhase.awaitingApproval => Icons.gpp_maybe_outlined,
     AgentChatWorkPhase.compacting => Icons.compress_rounded,
+    AgentChatWorkPhase.retrying => Icons.refresh_rounded,
     AgentChatWorkPhase.stopping => Icons.stop_circle_outlined,
     AgentChatWorkPhase.failed => Icons.error_outline_rounded,
     AgentChatWorkPhase.idle => Icons.circle_outlined,
