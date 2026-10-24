@@ -197,8 +197,8 @@ class DataSourceCacheSettings extends ConsumerWidget {
                   OutlinedButton.icon(
                     onPressed: () async {
                       final count = await ref
-                          .read(autocompleteCacheDatabaseProvider)
-                          .clearDanbooruCache();
+                          .read(danbooruCompletionSourceProvider)
+                          .clearCache();
                       ref.invalidate(autocompleteCacheStatisticsProvider);
                       if (context.mounted) {
                         AppToast.success(

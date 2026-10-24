@@ -51,6 +51,7 @@ class LlmTranslationResolver
   }) async {
     _cancelActiveSession();
     final generation = ++_generation;
+    final clearGeneration = _cache.aiTranslationClearGeneration;
     if (!_isEnabled() || !locale.toLowerCase().startsWith('zh')) {
       return const {};
     }
@@ -81,12 +82,16 @@ class LlmTranslationResolver
         sessionId: sessionId,
       );
       if (generation != _generation) return const {};
-      await _cache.putAiTranslations(
-        translations: translated,
-        locale: locale,
-        routeFingerprint: route,
-        promptVersion: _service.promptVersion,
-      );
+      // Compare right before issuing the insert: sqflite runs statements in
+      // order, so an insert issued first is wiped by a later clear's delete.
+      if (clearGeneration == _cache.aiTranslationClearGeneration) {
+        await _cache.putAiTranslations(
+          translations: translated,
+          locale: locale,
+          routeFingerprint: route,
+          promptVersion: _service.promptVersion,
+        );
+      }
       if (generation != _generation) return const {};
       return {...cached, ...translated};
     } finally {

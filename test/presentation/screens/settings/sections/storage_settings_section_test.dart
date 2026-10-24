@@ -7,8 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_cache_database.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
 import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_service.dart';
+import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
 import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
@@ -377,6 +380,30 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('清除 Danbooru 缓存经由补全源清空内存与磁盘两层', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final source = _RecordingDanbooruSource();
+    final clearDanbooru = find.text('清除 Danbooru 缓存');
+
+    for (final width in const [320.0, 1180.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 1400));
+      await tester.pumpWidget(_buildSubject(storage, danbooruSource: source));
+      await tester.pump();
+
+      await tester.ensureVisible(clearDanbooru);
+      await tester.pump();
+      await tester.tap(clearDanbooru);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('已清除 7 条缓存'), findsOneWidget, reason: 'width=$width');
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      await tester.pump(const Duration(seconds: 5));
+    }
+
+    expect(source.clears, 2);
+  });
+
   testWidgets('数据源缓存卡片与主设置卡片宽度一致', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -405,9 +432,16 @@ Widget _buildSubject(
   CooccurrenceDataPackService? cooccurrenceService,
   EdgeInsets padding = EdgeInsets.zero,
   EdgeInsets viewInsets = EdgeInsets.zero,
+  DanbooruCompletionSource? danbooruSource,
 }) {
   return ProviderScope(
     overrides: [
+      if (danbooruSource != null) ...[
+        danbooruCompletionSourceProvider.overrideWithValue(danbooruSource),
+        autocompleteCacheStatisticsProvider.overrideWith(
+          (ref) async => const {'danbooruCache': 0, 'aiTranslations': 0},
+        ),
+      ],
       localStorageServiceProvider.overrideWith((ref) => storage),
       localOnnxModelServiceProvider.overrideWith(
         (ref) => onnxService ?? LocalOnnxModelService(storage),
@@ -452,6 +486,18 @@ Widget _buildSubject(
       ),
     ),
   );
+}
+
+class _RecordingDanbooruSource extends DanbooruCompletionSource {
+  _RecordingDanbooruSource() : super(cache: AutocompleteCacheDatabase());
+
+  var clears = 0;
+
+  @override
+  Future<int> clearCache() async {
+    clears++;
+    return 7;
+  }
 }
 
 class _ReadyCooccurrenceService extends CooccurrenceDataPackService {

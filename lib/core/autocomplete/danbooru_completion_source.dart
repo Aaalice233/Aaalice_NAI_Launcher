@@ -44,6 +44,7 @@ class DanbooruCompletionSource implements CompletionSource {
     maxWeight: memoryMaxCandidates,
     weigher: (entry) => entry.candidates.length,
   );
+  int _cacheGeneration = 0;
   CancelToken? _cancelToken;
   DateTime? _lastRequestAt;
   DateTime? _breakerOpenUntil;
@@ -63,6 +64,15 @@ class DanbooruCompletionSource implements CompletionSource {
   void cancelPending() {
     _cancelToken?.cancel('Autocomplete query replaced');
     _cancelToken = null;
+  }
+
+  /// 清空内存与磁盘两层，返回删除的磁盘行数。
+  /// 之前发起的请求一律作废，包括其他输入框的在途补全。
+  Future<int> clearCache() {
+    _cacheGeneration++;
+    cancelPending();
+    _memory.clear();
+    return _cache.clearDanbooruCache();
   }
 
   List<CompletionCandidate>? _readMemory(String key, DateTime now) {
@@ -91,6 +101,7 @@ class DanbooruCompletionSource implements CompletionSource {
     if (query.isChinese || token.length < 2) return const [];
     final key =
         'tags:$token:${query.categoryFilter?.value ?? 'all'}:${query.limit}';
+    final generation = _cacheGeneration;
     final now = _now();
     final memory = _readMemory(key, now);
     if (memory != null) {
@@ -102,7 +113,7 @@ class DanbooruCompletionSource implements CompletionSource {
     if (disk != null &&
         now.toUtc().difference(disk.fetchedAt) < const Duration(days: 7)) {
       final candidates = _decodeCandidates(disk.payload);
-      _writeMemory(key, candidates, _now());
+      if (generation == _cacheGeneration) _writeMemory(key, candidates, _now());
       _lastError = null;
       return candidates;
     }
@@ -149,7 +160,7 @@ class DanbooruCompletionSource implements CompletionSource {
       }
       _consecutiveFailures = 0;
       _lastError = null;
-      await _storeFetched(key, candidates);
+      await _storeFetched(key, candidates, generation);
       return candidates;
     } on DioException catch (error, stack) {
       if (CancelToken.isCancel(error)) return const [];
@@ -185,6 +196,7 @@ class DanbooruCompletionSource implements CompletionSource {
         ? 500
         : limit.clamp(1, 500);
     final key = 'related:v3:$normalized:$requestedLimit';
+    final generation = _cacheGeneration;
     final now = _now();
     final memory = _readMemory(key, now);
     if (memory != null) {
@@ -195,7 +207,7 @@ class DanbooruCompletionSource implements CompletionSource {
     if (disk != null &&
         now.toUtc().difference(disk.fetchedAt) < const Duration(days: 7)) {
       final candidates = _decodeCandidates(disk.payload);
-      _writeMemory(key, candidates, _now());
+      if (generation == _cacheGeneration) _writeMemory(key, candidates, _now());
       _lastError = null;
       return candidates;
     }
@@ -221,7 +233,7 @@ class DanbooruCompletionSource implements CompletionSource {
         response.data,
         requestedLimit,
       );
-      await _storeFetched(key, candidates);
+      await _storeFetched(key, candidates, generation);
       _consecutiveFailures = 0;
       _lastError = null;
       return candidates;
@@ -246,8 +258,12 @@ class DanbooruCompletionSource implements CompletionSource {
   Future<void> _storeFetched(
     String key,
     List<CompletionCandidate> candidates,
+    int generation,
   ) async {
+    // 必须在 insert 前同步比对：sqflite 串行执行，已发出的 insert 会先于之后清除的 delete
+    if (generation != _cacheGeneration) return;
     await _cache.putRemote(key, candidates.map(_encodeCandidate).toList());
+    if (generation != _cacheGeneration) return;
     _writeMemory(key, candidates, _now());
   }
 

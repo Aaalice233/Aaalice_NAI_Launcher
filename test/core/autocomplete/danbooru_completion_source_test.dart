@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -353,6 +354,139 @@ void main() {
     });
   });
 
+  group('clearCache', () {
+    test('empties memory and disk so both lookups fetch again', () async {
+      final adapter = _QueueAdapter([
+        _jsonResponse('[{"name":"1girl","category":0,"post_count":100}]'),
+        _jsonResponse('{"related_tags":[{"tag":{"name":"solo"}}]}'),
+        _jsonResponse('[{"name":"1girl","category":0,"post_count":100}]'),
+        _jsonResponse('{"related_tags":[{"tag":{"name":"solo"}}]}'),
+      ]);
+      final cache = _MemoryCache();
+      final source = DanbooruCompletionSource(
+        dio: Dio()..httpClientAdapter = adapter,
+        cache: cache,
+      );
+
+      await source.search(_query('1g'));
+      await source.relatedTags('1girl');
+      expect(source.memoryEntryCount, 2);
+
+      expect(await source.clearCache(), 2);
+      expect(cache.values, isEmpty);
+      expect(source.memoryEntryCount, 0);
+
+      expect(await source.search(_query('1g')), hasLength(1));
+      expect(await source.relatedTags('1girl'), hasLength(1));
+      expect(adapter.requests, hasLength(4));
+    });
+
+    test('a disk read that straddles the clear never refills memory', () async {
+      final cache = _GatedCache()
+        ..seed(_tagKey('blue'), _payload('blue', 4))
+        ..seed('related:v3:blue:20', _payload('related', 3))
+        ..holdReads();
+      final source = DanbooruCompletionSource(
+        dio: Dio()..httpClientAdapter = _QueueAdapter([]),
+        cache: cache,
+      );
+
+      final search = source.search(_query('blue'));
+      final related = source.relatedTags('blue');
+      await source.clearCache();
+      cache.releaseReads();
+
+      expect(await search, hasLength(4));
+      expect(await related, hasLength(3));
+      expect(source.memoryEntryCount, 0);
+      expect(cache.values, isEmpty);
+    });
+
+    test(
+      'a disk write that straddles the clear never refills memory',
+      () async {
+        final adapter = _QueueAdapter([
+          _jsonResponse('[{"name":"blue_eyes","category":0,"post_count":9}]'),
+          _jsonResponse('{"related_tags":[{"tag":{"name":"solo"}}]}'),
+          _jsonResponse('[{"name":"blue_eyes","category":0,"post_count":9}]'),
+        ]);
+        final cache = _GatedCache()..holdWrites();
+        final source = DanbooruCompletionSource(
+          dio: Dio()..httpClientAdapter = adapter,
+          cache: cache,
+        );
+
+        final search = source.search(_query('blue'));
+        await cache.nextWriteStarted();
+        await source.clearCache();
+        cache.releaseWrites();
+        expect(await search, hasLength(1));
+
+        cache.holdWrites();
+        final related = source.relatedTags('blue');
+        await cache.nextWriteStarted();
+        await source.clearCache();
+        cache.releaseWrites();
+        expect(await related, hasLength(1));
+
+        expect(source.memoryEntryCount, 0);
+        expect(cache.values, isEmpty);
+        await source.search(_query('blue'));
+        expect(adapter.requests, hasLength(3));
+      },
+    );
+
+    test('a fetch that starts after the clear never writes to disk', () async {
+      final adapter = _QueueAdapter([
+        _jsonResponse('[{"name":"blue_eyes","category":0,"post_count":9}]'),
+        _jsonResponse('{"related_tags":[{"tag":{"name":"solo"}}]}'),
+      ]);
+      final cache = _GatedCache()..holdReads();
+      final source = DanbooruCompletionSource(
+        dio: Dio()..httpClientAdapter = adapter,
+        cache: cache,
+      );
+
+      final search = source.search(_query('blue'));
+      await source.clearCache();
+      cache.releaseReads();
+      expect(await search, hasLength(1));
+
+      cache.holdReads();
+      final related = source.relatedTags('blue');
+      await source.clearCache();
+      cache.releaseReads();
+      expect(await related, hasLength(1));
+
+      expect(adapter.requests, hasLength(2));
+      expect(cache.putRemoteCalls, 0);
+      expect(cache.values, isEmpty);
+      expect(source.memoryEntryCount, 0);
+    });
+
+    test('a request still on the wire is cancelled and never cached', () async {
+      final adapter = _GatedAdapter(
+        '[{"name":"blue_eyes","category":0,"post_count":9}]',
+      );
+      final cache = _MemoryCache();
+      final source = DanbooruCompletionSource(
+        dio: Dio(BaseOptions(baseUrl: 'https://danbooru.donmai.us'))
+          ..httpClientAdapter = adapter,
+        cache: cache,
+      );
+
+      final search = source.search(_query('blue'));
+      await adapter.requestStarted.future;
+      await source.clearCache();
+      adapter.release();
+
+      expect(await search, isEmpty);
+      expect(cache.putRemoteCalls, 0);
+      expect(cache.values, isEmpty);
+      expect(source.memoryEntryCount, 0);
+    });
+  });
+
   test('dropped connections never quote the request URI into the log', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://danbooru.donmai.us'))
       ..httpClientAdapter = _DroppedConnectionAdapter();
@@ -367,6 +501,14 @@ void main() {
     expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
 }
+
+ResponseBody _jsonResponse(String body) => ResponseBody.fromString(
+  body,
+  200,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
 
 CompletionQuery _query(String token, {int limit = 20}) => CompletionQuery(
   fullText: 'secret prompt, $token',
@@ -407,12 +549,57 @@ class _MemoryCache extends AutocompleteCacheDatabase {
     return values[key];
   }
 
+  int putRemoteCalls = 0;
+
   @override
   Future<void> putRemote(String key, List<Map<String, dynamic>> payload) async {
+    putRemoteCalls++;
     values[key] = CachedAutocompletePayload(
       payload: payload,
       fetchedAt: DateTime.now().toUtc(),
     );
+  }
+
+  @override
+  Future<int> clearDanbooruCache() async {
+    final removed = values.length;
+    values.clear();
+    return removed;
+  }
+}
+
+class _GatedCache extends _MemoryCache {
+  Completer<void>? _readGate;
+  Completer<void>? _writeGate;
+  Completer<void> _writeStarted = Completer<void>();
+
+  void holdReads() => _readGate = Completer<void>();
+
+  void releaseReads() => _readGate!.complete();
+
+  void holdWrites() {
+    _writeGate = Completer<void>();
+    _writeStarted = Completer<void>();
+  }
+
+  void releaseWrites() => _writeGate!.complete();
+
+  Future<void> nextWriteStarted() => _writeStarted.future;
+
+  @override
+  Future<CachedAutocompletePayload?> getRemote(String key) async {
+    getRemoteCalls++;
+    final snapshot = values[key];
+    await _readGate?.future;
+    return snapshot;
+  }
+
+  // 与 sqflite 串行一致：先发出的 insert 先落盘，随后的清除会把它删掉
+  @override
+  Future<void> putRemote(String key, List<Map<String, dynamic>> payload) async {
+    await super.putRemote(key, payload);
+    if (!_writeStarted.isCompleted) _writeStarted.complete();
+    await _writeGate?.future;
   }
 }
 
@@ -434,6 +621,30 @@ class _DroppedConnectionAdapter implements HttpClientAdapter {
       'Connection closed before full header was received',
       uri: options.uri,
     );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+class _GatedAdapter implements HttpClientAdapter {
+  _GatedAdapter(this.body);
+
+  final String body;
+  final requestStarted = Completer<void>();
+  final _gate = Completer<void>();
+
+  void release() => _gate.complete();
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    if (!requestStarted.isCompleted) requestStarted.complete();
+    await _gate.future;
+    return _jsonResponse(body);
   }
 
   @override
