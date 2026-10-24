@@ -2364,7 +2364,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorPrompt => '追加のプロンプト';
 
   @override
-  String get img2img_directorPromptHint => 'ターゲットの感情や色の方向など、必要に応じてガイダンスを追加します';
+  String get img2img_directorPromptHint => '任意。求める仕上がりを補足します';
 
   @override
   String img2img_directorRun(Object tool) {
@@ -2449,7 +2449,7 @@ class AppLocalizationsJa extends AppLocalizations {
       '値が大きいほど感情が弱くなります (0 = 通常、5 = 最も弱い)';
 
   @override
-  String get img2img_directorEmotionPresets => 'プリセット';
+  String get img2img_directorEmotionMood => '感情';
 
   @override
   String get img2img_directorEmotionNeutral => '普通';

@@ -992,7 +992,7 @@
   "img2img_directorTools": "ディレクターツール",
   "img2img_directorToolsHint": "ディレクターツールを通じて現在のソース イメージを送信します。結果の準備ができたら、それを新しいソース イメージとして再度適用できます。",
   "img2img_directorPrompt": "追加のプロンプト",
-  "img2img_directorPromptHint": "ターゲットの感情や色の方向など、必要に応じてガイダンスを追加します",
+  "img2img_directorPromptHint": "任意。求める仕上がりを補足します",
   "img2img_directorRun": "{tool} を実行します",
   "@img2img_directorRun": {
     "placeholders": {
@@ -1072,7 +1072,7 @@
   "img2img_directorDefryHint": "結果のノイズまたは過飽和を低減します (0 = オフ、5 = 最大)",
   "img2img_directorEmotionLevel": "感情レベル",
   "img2img_directorEmotionLevelHint": "値が大きいほど感情が弱くなります (0 = 通常、5 = 最も弱い)",
-  "img2img_directorEmotionPresets": "プリセット",
+  "img2img_directorEmotionMood": "感情",
   "img2img_directorEmotionNeutral": "普通",
   "img2img_directorEmotionHappy": "嬉しい",
   "img2img_directorEmotionSad": "悲しい",

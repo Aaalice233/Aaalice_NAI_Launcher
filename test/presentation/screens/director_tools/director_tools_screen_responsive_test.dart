@@ -487,7 +487,7 @@ void main() {
           name: '840 ja with 3x text',
         ),
       ]) {
-    testWidgets('all emotion presets stay readable at ${scenario.name}', (
+    testWidgets('all emotions stay readable at ${scenario.name}', (
       tester,
     ) async {
       await _pumpScreen(
@@ -504,17 +504,35 @@ void main() {
       );
 
       final l10n = lookupAppLocalizations(scenario.locale);
-      expect(emotionPresets, hasLength(24));
-      for (final preset in emotionPresets) {
-        final label = preset.emotion.label(l10n);
+      expect(DirectorEmotion.values, hasLength(24));
+      for (final emotion in DirectorEmotion.values) {
+        final label = emotion.label(l10n);
         await _scrollControlIntoView(tester, find.text(label));
         expect(find.text(label), findsOneWidget, reason: label);
-        _expectTextNotClipped(tester, label);
         final chip = find.ancestor(
           of: find.text(label),
           matching: find.byType(ChoiceChip),
         );
-        expect(tester.getSize(chip).height, greaterThanOrEqualTo(44));
+        // 未选中与选中两态都要完整，选中标识不得挤占标签。
+        for (final selected in <bool>[false, true]) {
+          if (selected) {
+            await tester.ensureVisible(chip);
+            await tester.pump();
+            await tester.tap(chip);
+            await tester.pump();
+          }
+          expect(
+            tester.widget<ChoiceChip>(chip).selected,
+            emotion == DirectorEmotion.neutral || selected,
+            reason: label,
+          );
+          _expectTextNotClipped(tester, label);
+          expect(
+            tester.getSize(chip).height,
+            greaterThanOrEqualTo(44),
+            reason: label,
+          );
+        }
       }
       expect(tester.takeException(), isNull);
     });
@@ -943,7 +961,7 @@ class _ScenarioDirectorToolsNotifier extends DirectorToolsNotifier {
   DirectorToolsState build() => initialState;
 
   @override
-  Future<void> init(Uint8List sourceImage, {String? initialPrompt}) async {
+  Future<void> init(Uint8List sourceImage) async {
     state = initialState.copyWith(sourceImage: sourceImage);
   }
 

@@ -932,7 +932,7 @@
   "img2img_directorTools": "导演工具",
   "img2img_directorToolsHint": "将当前源图送入导演工具处理。处理完成后，可以把结果回填为新的源图继续生成。",
   "img2img_directorPrompt": "附加提示词",
-  "img2img_directorPromptHint": "需要时补充描述，例如目标情绪或上色方向",
+  "img2img_directorPromptHint": "可选，补充想要的效果描述",
   "img2img_directorRun": "运行 {tool}",
   "@img2img_directorRun": {
     "placeholders": {
@@ -1012,7 +1012,7 @@
   "img2img_directorDefryHint": "降低结果中的噪声或过饱和程度（0 = 关闭，5 = 最强）",
   "img2img_directorEmotionLevel": "表情等级",
   "img2img_directorEmotionLevelHint": "数值越大，表情越弱（0 = 正常，5 = 最弱）",
-  "img2img_directorEmotionPresets": "快速预设",
+  "img2img_directorEmotionMood": "情绪",
   "img2img_directorEmotionNeutral": "平静",
   "img2img_directorEmotionHappy": "开心",
   "img2img_directorEmotionSad": "悲伤",

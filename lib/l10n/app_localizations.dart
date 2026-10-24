@@ -4409,7 +4409,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_directorPromptHint.
   ///
   /// In en, this message translates to:
-  /// **'Add guidance when needed, such as target emotion or color direction'**
+  /// **'Optional. Describe the effect you want'**
   String get img2img_directorPromptHint;
 
   /// No description provided for @img2img_directorRun.
@@ -4534,11 +4534,11 @@ abstract class AppLocalizations {
   /// **'Higher values make the emotion weaker (0 = normal, 5 = weakest)'**
   String get img2img_directorEmotionLevelHint;
 
-  /// No description provided for @img2img_directorEmotionPresets.
+  /// No description provided for @img2img_directorEmotionMood.
   ///
   /// In en, this message translates to:
-  /// **'Presets'**
-  String get img2img_directorEmotionPresets;
+  /// **'Emotion'**
+  String get img2img_directorEmotionMood;
 
   /// No description provided for @img2img_directorEmotionNeutral.
   ///

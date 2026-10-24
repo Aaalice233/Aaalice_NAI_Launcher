@@ -925,7 +925,7 @@
   "img2img_directorTools": "導演工具",
   "img2img_directorToolsHint": "將當前源圖送入導演工具處理。處理完成後，可以把結果回填為新的源圖繼續生成。",
   "img2img_directorPrompt": "附加提示詞",
-  "img2img_directorPromptHint": "需要時補充描述，例如目標情緒或上色方向",
+  "img2img_directorPromptHint": "選填，補充想要的效果描述",
   "img2img_directorRun": "執行 {tool}",
   "@img2img_directorRun": {
     "placeholders": {
@@ -1005,7 +1005,7 @@
   "img2img_directorDefryHint": "降低結果中的噪聲或過飽和程度（0 = 關閉，5 = 最強）",
   "img2img_directorEmotionLevel": "表情等級",
   "img2img_directorEmotionLevelHint": "數值越大，表情越弱（0 = 正常，5 = 最弱）",
-  "img2img_directorEmotionPresets": "快速預設",
+  "img2img_directorEmotionMood": "情緒",
   "img2img_directorEmotionNeutral": "平靜",
   "img2img_directorEmotionHappy": "開心",
   "img2img_directorEmotionSad": "悲傷",
