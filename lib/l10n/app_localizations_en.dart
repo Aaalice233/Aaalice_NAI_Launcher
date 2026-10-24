@@ -13868,6 +13868,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get autocomplete_cacheClearFailed =>
+      'The cache could not be cleared. Try again later.';
+
+  @override
   String get autocomplete_baseCatalog => 'Base Danbooru catalog';
 
   @override
