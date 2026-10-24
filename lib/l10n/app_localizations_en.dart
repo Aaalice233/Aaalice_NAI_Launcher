@@ -1882,8 +1882,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get generation_opusUsageRefill =>
-      'The allowance refills automatically over time';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return 'Currently refills at $percent% per day (~$count images)';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused =>
+      'Recovery is paused above 100%';
 
   @override
   String get generation_opusUsageExhausted =>
@@ -1894,7 +1899,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String generation_opusUsageRegularPool(Object percent) {
-    return 'Regular: $percent% (refills over time)';
+    return 'Regular: $percent%';
   }
 
   @override
