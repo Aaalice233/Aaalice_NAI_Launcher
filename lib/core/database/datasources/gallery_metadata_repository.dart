@@ -4,6 +4,7 @@ import '../../../data/models/gallery/nai_image_metadata.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../utils/app_logger.dart';
 import '../database_error_summary.dart';
+import '../single_message_transaction.dart';
 import 'gallery_database_gateway.dart';
 import 'gallery_fts_index.dart';
 import 'gallery_image_repository.dart';
@@ -97,9 +98,9 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
       final batch = metadataList.sublist(i, end);
       final batchIndex = i ~/ batchSize;
 
-      await gateway.executeTransaction(
+      await gateway.execute(
         'batchUpsertMetadata#batch$batchIndex',
-        (txn) => _writeMetadata(txn, batch),
+        (db) => _writeMetadata(db, batch),
         timeout: const Duration(seconds: 60),
       );
 
@@ -116,24 +117,26 @@ class SqliteGalleryMetadataRepository implements GalleryMetadataRepository {
     );
   }
 
-  /// 先写元数据再按 rowid 覆盖全文索引；索引写入失败只记日志，不拖累元数据。
+  /// 元数据整批一条消息写入，再按 rowid 覆盖全文索引；索引写入失败只记日志，不拖累元数据。
   Future<void> _writeMetadata(
-    DatabaseExecutor executor,
+    Database db,
     List<MapEntry<int, NaiImageMetadata>> entries,
   ) async {
     final promptTexts = <int, String>{};
-    for (final MapEntry(key: imageId, value: metadata) in entries) {
-      final fullPromptText = _buildFullPromptText(metadata);
-      await executor.insert(
-        GalleryTables.metadata,
-        _metadataRow(imageId, metadata, fullPromptText),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-      promptTexts[imageId] = fullPromptText;
-    }
+    await db.applyAtomically((batch) {
+      for (final MapEntry(key: imageId, value: metadata) in entries) {
+        final fullPromptText = _buildFullPromptText(metadata);
+        batch.insert(
+          GalleryTables.metadata,
+          _metadataRow(imageId, metadata, fullPromptText),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        promptTexts[imageId] = fullPromptText;
+      }
+    }, noResult: true);
 
     try {
-      await ftsIndex.replaceRows(executor, promptTexts);
+      await ftsIndex.replaceRows(db, promptTexts);
     } catch (e) {
       AppLogger.w(
         'Failed to update FTS index for ${promptTexts.length} image(s): '

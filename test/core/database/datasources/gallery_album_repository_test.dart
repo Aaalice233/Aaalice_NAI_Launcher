@@ -32,15 +32,6 @@ class _TrackingGateway implements GalleryDatabaseGateway {
       activeCalls--;
     }
   }
-
-  @override
-  Future<T> executeTransaction<T>(
-    String operationName,
-    Future<T> Function(Transaction txn) operation, {
-    Duration? timeout,
-  }) {
-    return database.transaction(operation);
-  }
 }
 
 /// 相簿数据访问层单元测试

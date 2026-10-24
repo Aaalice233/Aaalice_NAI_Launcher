@@ -1,6 +1,7 @@
 import '../../utils/app_logger.dart';
 import '../base_data_source.dart';
 import '../data_source.dart';
+import '../single_message_transaction.dart';
 
 /// 标签分类枚举
 enum TagCategory {
@@ -376,21 +377,19 @@ class DanbooruTagDataSource extends EnhancedBaseDataSource {
     if (records.isEmpty) return;
 
     await execute('upsertBatch', (db) async {
-      final batch = db.batch();
-
-      for (final record in records) {
-        batch.rawInsert(
-          'INSERT OR REPLACE INTO $_tableName (tag, category, post_count, last_updated) VALUES (?, ?, ?, ?)',
-          [
-            record.tag.toLowerCase().trim(),
-            record.category,
-            record.postCount,
-            record.lastUpdated,
-          ],
-        );
-      }
-
-      await batch.commit(noResult: true);
+      await db.applyAtomically((batch) {
+        for (final record in records) {
+          batch.rawInsert(
+            'INSERT OR REPLACE INTO $_tableName (tag, category, post_count, last_updated) VALUES (?, ?, ?, ?)',
+            [
+              record.tag.toLowerCase().trim(),
+              record.category,
+              record.postCount,
+              record.lastUpdated,
+            ],
+          );
+        }
+      }, noResult: true);
 
       _hotTagsCache = null;
     });

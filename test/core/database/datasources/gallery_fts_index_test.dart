@@ -158,15 +158,6 @@ class _RecordingGateway implements GalleryDatabaseGateway {
     Duration? timeout,
     int? maxRetries,
   }) => operation(_RecordingDatabase(db, statements));
-
-  @override
-  Future<T> executeTransaction<T>(
-    String operationName,
-    Future<T> Function(Transaction txn) operation, {
-    Duration? timeout,
-  }) => db.transaction(
-    (txn) => operation(_RecordingTransaction(txn, statements)),
-  );
 }
 
 abstract class _RecordingExecutor implements DatabaseExecutor {
@@ -260,10 +251,6 @@ class _RecordingDatabase extends _RecordingExecutor implements Database {
   _RecordingDatabase(Database super.inner, super.statements);
 }
 
-class _RecordingTransaction extends _RecordingExecutor implements Transaction {
-  _RecordingTransaction(Transaction super.inner, super.statements);
-}
-
 class _RecordingBatch implements Batch {
   _RecordingBatch(this._inner, this._record);
 
@@ -280,6 +267,22 @@ class _RecordingBatch implements Batch {
   void execute(String sql, [List<Object?>? arguments]) {
     _record(sql, arguments);
     _inner.execute(sql, arguments);
+  }
+
+  @override
+  void insert(
+    String table,
+    Map<String, Object?> values, {
+    String? nullColumnHack,
+    ConflictAlgorithm? conflictAlgorithm,
+  }) {
+    _record('INSERT INTO $table', null);
+    _inner.insert(
+      table,
+      values,
+      nullColumnHack: nullColumnHack,
+      conflictAlgorithm: conflictAlgorithm,
+    );
   }
 
   @override
