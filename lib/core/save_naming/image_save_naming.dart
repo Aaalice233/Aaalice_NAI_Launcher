@@ -83,17 +83,16 @@ final class ImageSaveNaming {
       !_compiled.fileName.readsDate &&
       _compiled.fileName.tokens.contains(SaveNameToken.time);
 
-  /// [preferredFileName] 用于派生副本等沿用来源文件名的保存，只套用子文件夹规则；
-  /// 截短时 [protectedSuffix] 原样保留。
+  /// [preferredFileName] 用于派生副本等沿用来源文件名的保存，只套用子文件夹规则，
+  /// 来源文件名应已带 [SaveNameContext.fileNameSuffix]，截短时原样保留。
   GalleryFileTarget resolve(
     SaveNameContext context, {
     String? preferredFileName,
-    String protectedSuffix = '',
   }) => GalleryFileTarget(
     folders: folderSegments(context),
     stem: preferredFileName == null
         ? fileStem(context)
-        : _preferredStem(preferredFileName, context, protectedSuffix),
+        : _preferredStem(preferredFileName, context),
   );
 
   List<String> folderSegments(SaveNameContext context) => [
@@ -103,22 +102,25 @@ final class ImageSaveNaming {
         segment,
   ];
 
+  /// 按规则渲染的文件名，末尾追加 [SaveNameContext.fileNameSuffix]。
   String fileStem(SaveNameContext context) {
-    final stem = FileNameSanitizer.segment(_compiled.fileName.render(context));
-    if (stem.isNotEmpty) return stem;
-    return FileNameSanitizer.segment(_defaultFileName.render(context));
+    final rendered = FileNameSanitizer.segment(
+      _compiled.fileName.render(context),
+    );
+    final stem = rendered.isNotEmpty
+        ? rendered
+        : FileNameSanitizer.segment(_defaultFileName.render(context));
+    final suffix = context.fileNameSuffix;
+    if (suffix.isEmpty) return stem;
+    return FileNameSanitizer.segment('$stem$suffix', protectedSuffix: suffix);
   }
 
-  String _preferredStem(
-    String fileName,
-    SaveNameContext context,
-    String protectedSuffix,
-  ) {
+  String _preferredStem(String fileName, SaveNameContext context) {
     final leaf = fileName.split(RegExp(r'[/\\]')).last;
     final dot = leaf.lastIndexOf('.');
     final stem = FileNameSanitizer.segment(
       dot > 0 ? leaf.substring(0, dot) : leaf,
-      protectedSuffix: protectedSuffix,
+      protectedSuffix: context.fileNameSuffix,
     );
     return stem.isNotEmpty ? stem : fileStem(context);
   }

@@ -51,6 +51,7 @@ class GenerationSaveService {
       preserveOriginalBytes: latest.preserveOriginalBytesOnSave,
       createdAt: latest.createdAt,
       imageId: latest.id,
+      fileNameSuffix: latest.fileNameSuffix,
     );
   }
 
@@ -98,6 +99,7 @@ class GenerationSaveService {
         preserveOriginalBytes: image.preserveOriginalBytesOnSave,
         createdAt: generated?.createdAt,
         imageId: generated?.id,
+        fileNameSuffix: generated?.fileNameSuffix ?? image.fileNameSuffix,
       ),
       naming: ref.read(imageSaveSettingsNotifierProvider).naming,
       preventOverwrite: AssetProtectionGuard.shouldPreventOverwrite(ref),

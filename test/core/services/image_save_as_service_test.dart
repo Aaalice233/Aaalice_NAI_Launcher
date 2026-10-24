@@ -181,6 +181,21 @@ void main() {
       ]);
     });
 
+    test('keeps the image file name suffix like a gallery save', () async {
+      final output = await ImageSaveAsService.writeToDirectory(
+        ImageSaveAsSource(
+          bytes: plainPng,
+          metadata: seededMetadata,
+          createdAt: now,
+          fileNameSuffix: '_masked',
+        ),
+        directory: exportDirectory.path,
+        naming: ImageSaveNaming.standard,
+      );
+
+      expect(p.basename(output), '08-05-03-42_masked.png');
+    });
+
     test('rejects empty image bytes', () async {
       await expectLater(
         ImageSaveAsService.writeToDirectory(

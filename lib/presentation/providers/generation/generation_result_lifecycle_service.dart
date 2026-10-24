@@ -126,6 +126,8 @@ class GenerationResultLifecycleService {
     ImageComparisonSource? comparisonSource,
     FixedTagUsageSnapshot? fixedTagUsageSnapshot,
     required bool embedNaiMetadata,
+    String fileNameSuffix = '',
+    DateTime? createdAt,
   }) async {
     final size =
         _resolveImageSize(bytes, width: width, height: height) ??
@@ -147,9 +149,11 @@ class GenerationResultLifecycleService {
         normalized,
         width: size.$1,
         height: size.$2,
+        createdAt: createdAt,
         comparisonSource: comparisonSource,
         fixedTagUsageSnapshot: fixedTagUsageSnapshot,
         preserveOriginalBytesOnSave: !embedNaiMetadata,
+        fileNameSuffix: fileNameSuffix,
       ),
       params: effectiveParams,
     );
@@ -192,6 +196,7 @@ class GenerationResultLifecycleService {
             index: index,
             width: image.width,
             height: image.height,
+            fileNameSuffix: image.fileNameSuffix,
           ),
           metadata: image.metadata,
           fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,

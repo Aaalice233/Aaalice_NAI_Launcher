@@ -19,6 +19,7 @@ class ImageSaveAsSource {
     bool preserveOriginalBytes = false,
     DateTime? createdAt,
     String? imageId,
+    String fileNameSuffix = '',
   }) : this.deferred(
          loadBytes: () async => bytes,
          filePath: filePath,
@@ -26,6 +27,7 @@ class ImageSaveAsSource {
          preserveOriginalBytes: preserveOriginalBytes,
          createdAt: createdAt,
          imageId: imageId,
+         fileNameSuffix: fileNameSuffix,
        );
 
   const ImageSaveAsSource.deferred({
@@ -35,6 +37,7 @@ class ImageSaveAsSource {
     this.preserveOriginalBytes = false,
     this.createdAt,
     this.imageId,
+    this.fileNameSuffix = '',
   });
 
   final Future<Uint8List> Function() loadBytes;
@@ -46,6 +49,9 @@ class ImageSaveAsSource {
   /// export time stands in when unknown.
   final DateTime? createdAt;
   final String? imageId;
+
+  /// Appended to the suggested name like a gallery save of the same image.
+  final String fileNameSuffix;
 }
 
 /// Exports copies to user-chosen locations without touching the gallery or
@@ -146,6 +152,7 @@ class ImageSaveAsService {
                 createdAt: source.createdAt ?? DateTime.now(),
                 imageId: source.imageId,
                 index: index,
+                fileNameSuffix: source.fileNameSuffix,
               ),
             ),
           );

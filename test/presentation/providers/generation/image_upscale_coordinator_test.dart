@@ -549,6 +549,8 @@ final class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
     bool addToDisplay = false,
     bool replaceCurrentDisplay = false,
     bool embedNaiMetadata = true,
+    String fileNameSuffix = '',
+    DateTime? createdAt,
   }) async {
     events.add('register');
     this.width = width;

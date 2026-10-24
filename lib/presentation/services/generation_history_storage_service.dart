@@ -158,6 +158,7 @@ class GenerationHistoryStorageService {
           ? null
           : jsonEncode(image.fixedTagUsageSnapshot!.toJson()),
       'preserveOriginalBytesOnSave': image.preserveOriginalBytesOnSave,
+      'fileNameSuffix': image.fileNameSuffix,
       'filePath': image.filePath,
     };
   }
@@ -220,6 +221,7 @@ class GenerationHistoryStorageService {
       fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       preserveOriginalBytesOnSave:
           raw['preserveOriginalBytesOnSave'] as bool? ?? false,
+      fileNameSuffix: raw['fileNameSuffix'] as String? ?? '',
       filePath: raw['filePath'] as String?,
     );
   }

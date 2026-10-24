@@ -408,7 +408,8 @@ class ImageSaveUtils {
   /// 失败清理都在一个方法内完成，调用方无需感知占位文件。
   /// - [context] 的元数据应取自最终字节；缺失且规则用到时从 [bytes] 解析
   /// - [preferredFileName] 存在时沿用清理后的文件名，只套用子文件夹规则；适用于
-  ///   水印等派生副本，路径过长需要截短时 [protectedSuffix] 原样保留
+  ///   水印等派生副本
+  /// - [SaveNameContext.fileNameSuffix] 在路径过长需要截短时原样保留
   /// - 独占创建原子保留路径，并发保存不会拿到同一路径后相互覆盖
   /// - 写入失败时删除占位文件后重新抛出，不留空 PNG 进图库扫描
   /// - 仅名称冲突（候选已存在）才追加 -2、-3 序号；目录只读、磁盘满等
@@ -419,7 +420,6 @@ class ImageSaveUtils {
     required ImageSaveNaming naming,
     required SaveNameContext context,
     String? preferredFileName,
-    String protectedSuffix = '',
     int? maxPathLength,
   }) async {
     final resolved = await resolveNamingContext(
@@ -431,7 +431,6 @@ class ImageSaveUtils {
     final target = naming.resolve(
       resolved,
       preferredFileName: preferredFileName,
-      protectedSuffix: protectedSuffix,
     );
     final dir = Directory(p.joinAll([rootPath, ...target.folders]));
     if (!await dir.exists()) {
@@ -440,7 +439,7 @@ class ImageSaveUtils {
     final baseName = _fitPathLength(
       dir.path,
       target.stem,
-      protectedSuffix: protectedSuffix,
+      protectedSuffix: resolved.fileNameSuffix,
       maxPathLength: maxPathLength ?? _platformMaxPathLength,
     );
     var candidate = p.join(dir.path, '$baseName.png');
@@ -649,6 +648,7 @@ class PreparedResultImage {
     index: base.index,
     width: base.width,
     height: base.height,
+    fileNameSuffix: base.fileNameSuffix,
   );
 }
 

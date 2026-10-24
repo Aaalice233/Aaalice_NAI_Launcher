@@ -864,7 +864,10 @@ void main() {
     final root = await Directory.systemTemp.createTemp('named-image-save');
     addTearDown(() => root.delete(recursive: true));
     final bytes = Uint8List.fromList([1, 2, 3, 4]);
-    final context = SaveNameContext(createdAt: DateTime(2026, 8, 31, 12, 30));
+    final context = SaveNameContext(
+      createdAt: DateTime(2026, 8, 31, 12, 30),
+      fileNameSuffix: '_watermarked',
+    );
 
     Future<String> save() => ImageSaveUtils.saveBytesToGallery(
       rootPath: root.path,
@@ -872,7 +875,6 @@ void main() {
       naming: const ImageSaveNaming(fileNameTemplate: 'ignored-{time}'),
       context: context,
       preferredFileName: 'portrait:*_watermarked.png',
-      protectedSuffix: '_watermarked',
     );
     final first = await save();
     final second = await save();
@@ -994,6 +996,11 @@ void main() {
       createdAt: DateTime(2026, 10, 12),
       metadata: NaiImageMetadata(prompt: 'a' * 300, seed: 5),
     );
+    SaveNameContext suffixed(String suffix) => SaveNameContext(
+      createdAt: context.createdAt,
+      metadata: context.metadata,
+      fileNameSuffix: suffix,
+    );
     final limit = p.join(root.path, '2026-10-12').length + 120;
     const collisionReserve = '-999';
 
@@ -1008,9 +1015,8 @@ void main() {
       rootPath: root.path,
       bytes: Uint8List.fromList([1]),
       naming: ImageSaveNaming.standard,
-      context: context,
+      context: suffixed('_redacted'),
       preferredFileName: '${'b' * 200}_redacted.png',
-      protectedSuffix: '_redacted',
       maxPathLength: limit,
     );
 
@@ -1023,6 +1029,19 @@ void main() {
       lessThanOrEqualTo(limit),
     );
     expect(p.basenameWithoutExtension(derived), endsWith('_redacted'));
+
+    final variant = await ImageSaveUtils.saveBytesToGallery(
+      rootPath: root.path,
+      bytes: Uint8List.fromList([1]),
+      naming: const ImageSaveNaming(fileNameTemplate: '{prompt|first:300}'),
+      context: suffixed('_generated'),
+      maxPathLength: limit,
+    );
+    expect(
+      variant.length + collisionReserve.length,
+      lessThanOrEqualTo(limit),
+    );
+    expect(p.basenameWithoutExtension(variant), endsWith('_generated'));
   });
 
   group('ImageSaveUtils effort and furry mode', () {

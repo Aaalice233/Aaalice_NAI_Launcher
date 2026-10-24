@@ -88,6 +88,34 @@ void main() {
     },
   );
 
+  test(
+    'restores the file name suffix and defaults it for older records',
+    () async {
+      final service = GenerationHistoryStorageService();
+      final source = image('masked');
+      final suffixed = GeneratedImage(
+        id: source.id,
+        bytes: source.bytes,
+        width: source.width,
+        height: source.height,
+        createdAt: source.createdAt,
+        fileNameSuffix: '_masked',
+      );
+      await service.persistImages(changedImages: [suffixed], order: ['masked']);
+      await service.flush();
+      expect((await service.load()).single.fileNameSuffix, '_masked');
+
+      final record = Map<dynamic, dynamic>.from(
+        historyBox.values.whereType<Map<dynamic, dynamic>>().single,
+      )..remove('fileNameSuffix');
+      final recordKey = historyBox.keys.firstWhere(
+        (key) => historyBox.get(key) is Map,
+      );
+      await historyBox.put(recordKey, record);
+      expect((await service.load()).single.fileNameSuffix, isEmpty);
+    },
+  );
+
   test('comparison source is not persisted or restored with history', () async {
     final sourceBytes = Uint8List.fromList(
       img.encodePng(img.Image(width: 32, height: 48)),

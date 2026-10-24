@@ -9,11 +9,15 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 void main() {
   final createdAt = DateTime(2026, 3, 4, 5, 6, 7);
 
-  SaveNameContext context({NaiImageMetadata? metadata}) => SaveNameContext(
+  SaveNameContext context({
+    NaiImageMetadata? metadata,
+    String fileNameSuffix = '',
+  }) => SaveNameContext(
     createdAt: createdAt,
     metadata: metadata,
     imageId: 'image-1',
     index: 2,
+    fileNameSuffix: fileNameSuffix,
   );
 
   group('presets', () {
@@ -103,6 +107,42 @@ void main() {
         expect(target.stem, 'source_watermarked');
       },
     );
+
+    test('file name suffixes follow the rendered name and survive limits', () {
+      final seeded = context(
+        metadata: const NaiImageMetadata(seed: 99),
+        fileNameSuffix: '_masked',
+      );
+      expect(
+        ImageSaveNaming.standard.resolve(seeded).relativeFileName,
+        '2026-03-04/05-06-07-99_masked.png',
+      );
+      expect(ImageSaveNaming.standard.fileStem(seeded), '05-06-07-99_masked');
+      expect(
+        ImageSaveNaming.standard.fileStem(seeded.copyWith(width: 8)),
+        '05-06-07-99_masked',
+      );
+
+      final longPrompt =
+          const ImageSaveNaming(fileNameTemplate: '{prompt|first:400}').resolve(
+            context(
+              metadata: NaiImageMetadata(prompt: 'p' * 400),
+              fileNameSuffix: '_blend',
+            ),
+          );
+      expect(longPrompt.stem, endsWith('_blend'));
+      expect(longPrompt.stem.length, lessThan(400));
+    });
+
+    test('a preferred file name keeps its suffix without repeating it', () {
+      final target = const ImageSaveNaming(fileNameTemplate: '{prompt}')
+          .resolve(
+            context(fileNameSuffix: '_watermarked'),
+            preferredFileName: '${'s' * 400}_watermarked.png',
+          );
+      expect(target.stem, endsWith('s_watermarked'));
+      expect(target.stem, isNot(contains('_watermarked_watermarked')));
+    });
   });
 
   group('fields', () {
