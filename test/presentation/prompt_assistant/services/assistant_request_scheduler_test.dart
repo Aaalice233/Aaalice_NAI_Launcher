@@ -5,6 +5,8 @@ import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart';
+import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/assistant_execution_settings.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/assistant_request_scheduler.dart';
@@ -33,6 +35,24 @@ AssistantRequestScheduler _scheduler(
   now: time.getClock(start ?? DateTime(2026)).now,
   random: _ScriptedRandom(jitter),
 );
+
+/// Retry lines the scheduler writes at the level release builds keep.
+List<String> _retryLogsDuring(void Function() body) {
+  final lines = <String>[];
+  AppLogger.debugSetMinimumLevelForTesting(Level.warning);
+  try {
+    runZoned(
+      body,
+      zoneSpecification: ZoneSpecification(
+        print: (_, _, _, line) => lines.add(line),
+      ),
+    );
+  } finally {
+    AppLogger.debugSetMinimumLevelForTesting(null);
+  }
+  final retryLine = RegExp(r'\[PromptAssistant\] retry \d');
+  return lines.where(retryLine.hasMatch).toList();
+}
 
 ProviderConfig provider(String id, {int? manual}) => ProviderConfig(
   id: id,
@@ -771,5 +791,83 @@ void main() {
       time.flushMicrotasks();
       expect(time.pendingTimers, isEmpty);
     });
+  });
+
+  test('each retry is logged with its cause, attempt and wait only', () {
+    const relay = ProviderConfig(
+      id: 'relay',
+      name: 'relay',
+      baseUrl: 'https://relay.invalid/v1?key=sk-secret',
+    );
+    const leaks = ['sk-secret', 'relay.invalid', 'body-secret', 'completions'];
+    late _Probe flaky;
+    late _Probe rateLimited;
+    late _Probe exhausted;
+    final logs = _retryLogsDuring(() {
+      fakeAsync((time) {
+        final scheduler = _scheduler(time, jitter: [0.5, 0, 0.5, 0]);
+        flaky = _Probe(scheduler, relay, [
+          limited(status: 502, detail: 'body-secret'),
+          transport(DioExceptionType.connectionError),
+        ]);
+        rateLimited = _Probe(scheduler, provider('limited'), [
+          limited(retryAfter: '10', detail: 'body-secret'),
+        ]);
+        exhausted = _Probe(scheduler, provider('down', manual: 1), [
+          for (var i = 0; i < 3; i++) limited(status: 504),
+        ]);
+        time.elapse(const Duration(minutes: 1));
+        scheduler.dispose();
+        time.flushMicrotasks();
+      });
+    });
+    expect(flaky.result, 'ok');
+    expect(rateLimited.result, 'ok');
+    expect(exhausted.attempts, 3);
+    expect(exhausted.caught, isA<DioException>());
+    expect(logs, hasLength(5));
+    expect(logs.where((log) => log.contains('provider=relay ')), [
+      contains(
+        'retry 1/2 in 1250ms: transient status=502 type=badResponse '
+        'provider=relay protocol=openaiChatCompletions',
+      ),
+      contains(
+        'retry 2/2 in 2000ms: transient status=none type=connectionError '
+        'provider=relay protocol=openaiChatCompletions',
+      ),
+    ]);
+    expect(logs.where((log) => log.contains('provider=limited ')), [
+      contains(
+        'retry 1/2 in 10000ms: congestion status=429 type=badResponse '
+        'provider=limited',
+      ),
+    ]);
+    expect(logs.where((log) => log.contains('provider=down ')), [
+      contains('retry 1/2 in 1000ms: transient status=504'),
+      contains('retry 2/2 in 2500ms: transient status=504'),
+    ]);
+    for (final log in logs) {
+      for (final leak in leaks) {
+        expect(log, isNot(contains(leak)));
+      }
+    }
+  });
+
+  test('a rate-limit retry logs the longer pause already in force', () {
+    final logs = _retryLogsDuring(() {
+      fakeAsync((time) {
+        final scheduler = _scheduler(time);
+        final config = provider('shared');
+        _Probe(scheduler, config, [limited(retryAfter: '10')]);
+        _Probe(scheduler, config, [limited(retryAfter: '2')]);
+        time.elapse(const Duration(seconds: 10));
+        scheduler.dispose();
+        time.flushMicrotasks();
+      });
+    });
+    expect(logs, [
+      contains('retry 1/2 in 10000ms: congestion'),
+      contains('retry 1/2 in 10000ms: congestion'),
+    ]);
   });
 }

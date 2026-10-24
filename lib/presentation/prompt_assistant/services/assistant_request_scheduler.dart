@@ -28,7 +28,14 @@ class AssistantRequestScheduler {
     if (_disposed) throw StateError('Assistant request scheduler is disposed');
     cancelToken.throwIfCancelled();
     final key = '${provider.id}/${provider.protocol.name}/${provider.baseUrl}';
-    final queue = _queues.putIfAbsent(key, () => _ProviderQueue(_now, _random));
+    final queue = _queues.putIfAbsent(
+      key,
+      () => _ProviderQueue(
+        _now,
+        _random,
+        'provider=${provider.id} protocol=${provider.protocol.name}',
+      ),
+    );
     queue.configure(provider.concurrency);
     return queue.add(request, cancelToken);
   }
@@ -59,10 +66,12 @@ class _QueuedRequest {
 }
 
 class _ProviderQueue {
-  _ProviderQueue(this._now, this._random);
+  _ProviderQueue(this._now, this._random, this._providerLabel);
   static const _maxRetries = 2;
   final DateTime Function() _now;
   final math.Random _random;
+  // Diagnostic logs are user-exported, so the base URL and its query stay out.
+  final String _providerLabel;
   final Queue<_QueuedRequest> _pending = Queue();
   final Set<_QueuedRequest> _running = {};
   final Set<_QueuedRequest> _backingOff = {};
@@ -172,11 +181,40 @@ class _ProviderQueue {
     }
     if (job.retries++ >= _maxRetries || job.result.isCompleted) {
       _fail(job, error, stack);
-    } else if (failure == LlmRequestFailureKind.congestion) {
+      return;
+    }
+    final congested = failure == LlmRequestFailureKind.congestion;
+    _logRetry(
+      job.retries,
+      failure,
+      error,
+      congested ? _pauseRemaining(delay) : delay,
+    );
+    if (congested) {
       _pending.add(job);
     } else {
       _scheduleBackoff(job, delay);
     }
+  }
+
+  void _logRetry(
+    int retry,
+    LlmRequestFailureKind failure,
+    DioException error,
+    Duration wait,
+  ) {
+    AppLogger.w(
+      'retry $retry/$_maxRetries in ${wait.inMilliseconds}ms: '
+          '${failure.name} status=${error.response?.statusCode ?? 'none'} '
+          'type=${error.type.name} $_providerLabel',
+      'PromptAssistant',
+    );
+  }
+
+  // Another request may already have paused the queue for longer.
+  Duration _pauseRemaining(Duration fallback) {
+    final remaining = _resumeAt?.difference(_now()) ?? fallback;
+    return remaining.isNegative ? Duration.zero : remaining;
   }
 
   void _fail(_QueuedRequest job, Object error, StackTrace stack) {
