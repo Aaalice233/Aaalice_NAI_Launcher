@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -404,6 +405,77 @@ void main() {
     expect(source.clears, 2);
   });
 
+  testWidgets('清除缓存完成前离开设置页不再使用已卸载的 ref', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final danbooruCleared = Completer<int>();
+    final aiCleared = Completer<int>();
+    final showSection = ValueNotifier(true);
+    addTearDown(showSection.dispose);
+
+    await tester.pumpWidget(
+      _buildSubject(
+        storage,
+        danbooruSource: _RecordingDanbooruSource(danbooruCleared.future),
+        autocompleteCache: _GatedAutocompleteCache(aiCleared.future),
+        showSection: showSection,
+      ),
+    );
+    await tester.pump();
+    for (final label in const ['清除 Danbooru 缓存', '清除 AI 汉化缓存']) {
+      await tester.ensureVisible(find.text(label));
+      await tester.pump();
+      await tester.tap(find.text(label));
+      await tester.pump();
+    }
+
+    showSection.value = false;
+    await tester.pump();
+    danbooruCleared.complete(3);
+    aiCleared.complete(4);
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('已清除'), findsNothing);
+  });
+
+  testWidgets('开启共现推荐后离开设置页仍按原意图下载数据包', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final gatedStorage = _GatedLocalStorageService({
+      StorageKeys.onnxTaggerModelDirectory: r'C:\models\onnx_tagger',
+      StorageKeys.enableCooccurrenceRecommendation: false,
+    });
+    final dataPack = _RecordingInstallCooccurrenceService(tempDir);
+    final showSection = ValueNotifier(true);
+    addTearDown(showSection.dispose);
+    final relatedTags = find.text('共现与相关标签推荐');
+
+    await tester.pumpWidget(
+      _buildSubject(
+        gatedStorage,
+        cooccurrenceService: dataPack,
+        showSection: showSection,
+      ),
+    );
+    await tester.pump();
+    await tester.ensureVisible(relatedTags);
+    await tester.pump();
+    final saved = gatedStorage.holdWrites();
+    await tester.tap(relatedTags);
+    await tester.pump();
+
+    showSection.value = false;
+    await tester.pump();
+    saved.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(dataPack.installs, 1);
+  });
+
   testWidgets('数据源缓存卡片与主设置卡片宽度一致', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -433,7 +505,10 @@ Widget _buildSubject(
   EdgeInsets padding = EdgeInsets.zero,
   EdgeInsets viewInsets = EdgeInsets.zero,
   DanbooruCompletionSource? danbooruSource,
+  AutocompleteCacheDatabase? autocompleteCache,
+  ValueListenable<bool>? showSection,
 }) {
+  const section = SingleChildScrollView(child: StorageSettingsSection());
   return ProviderScope(
     overrides: [
       if (danbooruSource != null) ...[
@@ -442,6 +517,8 @@ Widget _buildSubject(
           (ref) async => const {'danbooruCache': 0, 'aiTranslations': 0},
         ),
       ],
+      if (autocompleteCache != null)
+        autocompleteCacheDatabaseProvider.overrideWithValue(autocompleteCache),
       localStorageServiceProvider.overrideWith((ref) => storage),
       localOnnxModelServiceProvider.overrideWith(
         (ref) => onnxService ?? LocalOnnxModelService(storage),
@@ -481,22 +558,51 @@ Widget _buildSubject(
         ),
         child: child!,
       ),
-      home: const Scaffold(
-        body: SingleChildScrollView(child: StorageSettingsSection()),
+      home: Scaffold(
+        body: showSection == null
+            ? section
+            : ValueListenableBuilder<bool>(
+                valueListenable: showSection,
+                builder: (context, show, _) =>
+                    show ? section : const SizedBox.shrink(),
+              ),
       ),
     ),
   );
 }
 
 class _RecordingDanbooruSource extends DanbooruCompletionSource {
-  _RecordingDanbooruSource() : super(cache: AutocompleteCacheDatabase());
+  _RecordingDanbooruSource([this._cleared])
+    : super(cache: AutocompleteCacheDatabase());
 
+  final Future<int>? _cleared;
   var clears = 0;
 
   @override
   Future<int> clearCache() async {
     clears++;
-    return 7;
+    return _cleared ?? 7;
+  }
+}
+
+class _GatedAutocompleteCache extends AutocompleteCacheDatabase {
+  _GatedAutocompleteCache(this._cleared);
+
+  final Future<int> _cleared;
+
+  @override
+  Future<int> clearAiTranslationCache() => _cleared;
+}
+
+class _RecordingInstallCooccurrenceService extends CooccurrenceDataPackService {
+  _RecordingInstallCooccurrenceService(Directory directory)
+    : super(supportDirectoryLoader: () async => directory);
+
+  var installs = 0;
+
+  @override
+  Future<void> install({bool force = false}) async {
+    installs++;
   }
 }
 
@@ -643,6 +749,20 @@ class _MemoryLocalStorageService extends LocalStorageService {
   bool getAutoSaveImages() {
     return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: false) ??
         false;
+  }
+}
+
+class _GatedLocalStorageService extends _MemoryLocalStorageService {
+  _GatedLocalStorageService(super.values);
+
+  Completer<void>? _writeGate;
+
+  Completer<void> holdWrites() => _writeGate = Completer<void>();
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    await super.setSetting(key, value);
+    await _writeGate?.future;
   }
 }
 
