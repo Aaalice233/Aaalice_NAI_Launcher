@@ -1697,6 +1697,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentChat_errorDetails => 'Error details';
 
   @override
+  String agentChat_autoRetryCountdown(
+    int attempt,
+    int maxAttempts,
+    int seconds,
+  ) {
+    return 'Retrying ($attempt/$maxAttempts) in ${seconds}s';
+  }
+
+  @override
+  String agentChat_autoRetryStarting(int attempt, int maxAttempts) {
+    return 'Retrying ($attempt/$maxAttempts)…';
+  }
+
+  @override
+  String agentChat_autoRetryExhausted(int count) {
+    return 'Automatic retries: $count';
+  }
+
+  @override
   String get agentChat_modelLabel => 'Model';
 
   @override

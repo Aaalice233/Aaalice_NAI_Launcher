@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/harness/llm_helpers.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_stream_bridge.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 
@@ -160,6 +161,10 @@ void main() {
     expect(events.whereType<AmDone>(), isEmpty);
     expect(result.text, 'partial response');
     expect(result.stopReason, StopReason.error);
-    expect(result.errorMessage, contains('terminal event'));
+    expect(
+      result.errorMessage,
+      'openai stream ended without a terminal event.',
+    );
+    expect(isRetryableAssistantError(result), isTrue);
   });
 }

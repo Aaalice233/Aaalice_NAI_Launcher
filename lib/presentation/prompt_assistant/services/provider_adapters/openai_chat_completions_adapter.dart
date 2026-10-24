@@ -258,7 +258,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
 
     if (!sawDone && finishReason == null) {
       yield const AgentWireError(
-        'OpenAI-compatible stream ended before its terminal event.',
+        'OpenAI-compatible stream ended without finish_reason.',
       );
       return;
     }
