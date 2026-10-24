@@ -3452,11 +3452,17 @@ abstract class AppLocalizations {
   /// **'About {count} images left'**
   String generation_opusUsageEstimate(Object count);
 
-  /// No description provided for @generation_opusUsageRefill.
+  /// No description provided for @generation_opusUsageRefillRate.
   ///
   /// In en, this message translates to:
-  /// **'The allowance refills automatically over time'**
-  String get generation_opusUsageRefill;
+  /// **'Currently refills at {percent}% per day (~{count} images)'**
+  String generation_opusUsageRefillRate(Object percent, Object count);
+
+  /// No description provided for @generation_opusUsageRefillPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery is paused above 100%'**
+  String get generation_opusUsageRefillPaused;
 
   /// No description provided for @generation_opusUsageExhausted.
   ///
@@ -3473,7 +3479,7 @@ abstract class AppLocalizations {
   /// No description provided for @generation_opusUsageRegularPool.
   ///
   /// In en, this message translates to:
-  /// **'Regular: {percent}% (refills over time)'**
+  /// **'Regular: {percent}%'**
   String generation_opusUsageRegularPool(Object percent);
 
   /// No description provided for @generation_opusUsageExtraPool.

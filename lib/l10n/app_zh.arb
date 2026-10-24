@@ -709,10 +709,11 @@
   },
   "generation_opusUsageRemaining": "Opus 免费生成剩余 {percent}%",
   "generation_opusUsageEstimate": "约可再生成 {count} 张",
-  "generation_opusUsageRefill": "额度会随时间自动恢复",
+  "generation_opusUsageRefillRate": "当前每天恢复 {percent}%（约 {count} 张）",
+  "generation_opusUsageRefillPaused": "超过 100% 时暂停恢复",
   "generation_opusUsageExhausted": "Opus 免费额度已用完，V5 生成将消耗 Anlas，额度会随时间自动恢复",
   "generation_opusUsagePoolsTitle": "Opus 免费生成剩余额度",
-  "generation_opusUsageRegularPool": "常规额度 {percent}%（随时间自动恢复）",
+  "generation_opusUsageRegularPool": "常规额度 {percent}%",
   "generation_opusUsageExtraPool": "额外用量 +{percent}%（不会自动恢复）",
   "generation_opusUsageCombinedEstimate": "两项合计约可再生成 {count} 张",
   "generation_imageSize": "图像尺寸",
@@ -6077,6 +6078,12 @@
   },
   "@generation_opusUsageEstimate": {
     "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_opusUsageRefillRate": {
+    "placeholders": {
+      "percent": {},
       "count": {}
     }
   },

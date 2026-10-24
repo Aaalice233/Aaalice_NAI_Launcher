@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/user/user_subscription.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/subscription_provider.dart';
@@ -144,24 +145,53 @@ class OpusUsageChip extends ConsumerWidget {
     required int quotaUnits,
   }) {
     final l10n = context.l10n;
-    if (exhausted) return l10n.generation_opusUsageExhausted;
+    final refill = _buildRefillLine(l10n, usage, quotaUnits: quotaUnits);
+    if (exhausted) {
+      return [l10n.generation_opusUsageExhausted, refill].join('\n');
+    }
 
-    // 与网页端一致按两池合计估算；大图一张消耗多份配额，张数随之缩减。
-    final estimatedImages =
-        (usage.availablePercent * _imagesPerPercent / quotaUnits).round();
+    // 与网页端一致按两池合计估算。
+    final estimatedImages = _estimateImages(
+      usage.availablePercent,
+      quotaUnits: quotaUnits,
+    ).toString();
     final regularPercent = usage.regularDisplayPercent.round().toString();
     if (!showExtra) {
       return [
         l10n.generation_opusUsageRemaining(regularPercent),
-        l10n.generation_opusUsageEstimate(estimatedImages.toString()),
-        l10n.generation_opusUsageRefill,
+        l10n.generation_opusUsageEstimate(estimatedImages),
+        refill,
       ].join('\n');
     }
     return [
       l10n.generation_opusUsagePoolsTitle,
       l10n.generation_opusUsageRegularPool(regularPercent),
+      refill,
       l10n.generation_opusUsageExtraPool(usage.extraDisplayPercent.toString()),
-      l10n.generation_opusUsageCombinedEstimate(estimatedImages.toString()),
+      l10n.generation_opusUsageCombinedEstimate(estimatedImages),
     ].join('\n');
   }
+
+  static String _buildRefillLine(
+    AppLocalizations l10n,
+    OpusUsageInfo usage, {
+    required int quotaUnits,
+  }) {
+    if (usage.isRefillPaused) return l10n.generation_opusUsageRefillPaused;
+    final rate = usage.refillPercentPerDay;
+    return l10n.generation_opusUsageRefillRate(
+      _formatRefillPercent(rate),
+      _estimateImages(rate, quotaUnits: quotaUnits).toString(),
+    );
+  }
+
+  /// 大图一张消耗多份配额，张数随之缩减。
+  static int _estimateImages(double percent, {required int quotaUnits}) =>
+      (percent * _imagesPerPercent / quotaUnits).round();
+
+  /// 与网页端数字直出一致：整数不带小数位，其余保留一位。
+  static String _formatRefillPercent(double rate) =>
+      rate == rate.truncateToDouble()
+      ? rate.toInt().toString()
+      : rate.toStringAsFixed(1);
 }

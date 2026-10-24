@@ -182,6 +182,49 @@ void main() {
       );
     });
 
+    test('derives the daily refill rate like the web client', () {
+      expect(
+        const OpusUsageInfo(timeUntilNextPercent: 4800).refillPercentPerDay,
+        18,
+      );
+      expect(
+        const OpusUsageInfo(timeUntilNextPercent: 6048).refillPercentPerDay,
+        14.3,
+      );
+      expect(const OpusUsageInfo().refillPercentPerDay, 0);
+      expect(
+        const OpusUsageInfo(timeUntilNextPercent: -30).refillPercentPerDay,
+        0,
+      );
+    });
+
+    test('pauses refill at 100% or without a refill interval', () {
+      for (final (usage, paused) in [
+        (const OpusUsageInfo(percent: 99.9, timeUntilNextPercent: 4800), false),
+        (const OpusUsageInfo(percent: 100, timeUntilNextPercent: 4800), true),
+        (const OpusUsageInfo(percent: 192, timeUntilNextPercent: 4800), true),
+        (const OpusUsageInfo(percent: 40), true),
+        (
+          const OpusUsageInfo(
+            percent: 130,
+            isNegative: true,
+            timeUntilNextPercent: 4800,
+          ),
+          false,
+        ),
+        (
+          const OpusUsageInfo(
+            percent: 192,
+            purchasedPercent: 100,
+            timeUntilNextPercent: 4800,
+          ),
+          true,
+        ),
+      ]) {
+        expect(usage.isRefillPaused, paused, reason: '$usage');
+      }
+    });
+
     test('round-trips purchasedPercent through toJson', () {
       const usage = OpusUsageInfo(percent: 12, purchasedPercent: 300);
 

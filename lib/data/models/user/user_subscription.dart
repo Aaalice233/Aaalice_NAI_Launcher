@@ -145,6 +145,16 @@ class OpusUsageInfo with _$OpusUsageInfo {
 
   /// 两池合计可用百分比，用于估算剩余可生成张数。
   double get availablePercent => regularDisplayPercent + extraPercent;
+
+  /// 常规配额每天回充的百分比，保留一位小数；服务端未给出回充间隔时为 0。
+  double get refillPercentPerDay => timeUntilNextPercent > 0
+      ? (Duration.secondsPerDay / timeUntilNextPercent * 10).roundToDouble() /
+            10
+      : 0;
+
+  /// 常规配额达到 100% 或没有回充速率时，网页端显示“暂停回充”而非速率。
+  bool get isRefillPaused =>
+      refillPercentPerDay <= 0 || regularDisplayPercent >= 100;
 }
 
 /// Anlas 训练步数信息

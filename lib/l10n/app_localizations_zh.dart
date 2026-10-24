@@ -1809,7 +1809,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get generation_opusUsageRefill => '额度会随时间自动恢复';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return '当前每天恢复 $percent%（约 $count 张）';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused => '超过 100% 时暂停恢复';
 
   @override
   String get generation_opusUsageExhausted =>
@@ -1820,7 +1825,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String generation_opusUsageRegularPool(Object percent) {
-    return '常规额度 $percent%（随时间自动恢复）';
+    return '常规额度 $percent%';
   }
 
   @override
@@ -17351,7 +17356,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get generation_opusUsageRefill => '額度會隨時間自動恢復';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return '目前每天恢復 $percent%（約 $count 張）';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused => '超過 100% 時暫停恢復';
 
   @override
   String get generation_opusUsageExhausted =>
@@ -17362,7 +17372,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String generation_opusUsageRegularPool(Object percent) {
-    return '一般額度 $percent%（會隨時間自動恢復）';
+    return '一般額度 $percent%';
   }
 
   @override

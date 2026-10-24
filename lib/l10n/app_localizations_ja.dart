@@ -1834,7 +1834,12 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get generation_opusUsageRefill => '上限は時間経過で自動回復します';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return '現在は 1 日あたり $percent% 回復（約 $count 枚）';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused => '最大 100% まで自動回復します';
 
   @override
   String get generation_opusUsageExhausted =>
@@ -1845,7 +1850,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String generation_opusUsageRegularPool(Object percent) {
-    return '通常枠 $percent%（時間経過で回復）';
+    return '通常枠 $percent%';
   }
 
   @override
