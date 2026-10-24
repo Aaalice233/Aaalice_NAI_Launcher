@@ -49,6 +49,7 @@ void main() {
   late ProviderContainer container;
   late AgentTool tool;
   late List<Map<String, dynamic>> requests;
+  late List<DioException> failures;
 
   setUp(() async {
     final temporaryRoot = await Directory('tool/.tmp').create(recursive: true);
@@ -68,6 +69,7 @@ void main() {
       ],
     );
     requests = [];
+    failures = [];
     final dio = _Dio();
     when(
       () => dio.post<dynamic>(
@@ -80,6 +82,7 @@ void main() {
       requests.add(
         Map<String, dynamic>.from(call.namedArguments[#data] as Map),
       );
+      if (failures.isNotEmpty) throw failures.removeAt(0);
       return Response<dynamic>(
         requestOptions: RequestOptions(path: '/v1/chat/completions'),
         statusCode: 200,
@@ -242,6 +245,31 @@ void main() {
       },
     );
   }
+
+  test('a relay 502 is retried with the same image upload', () async {
+    final options = RequestOptions(path: '/v1/chat/completions');
+    failures.add(
+      DioException(
+        requestOptions: options,
+        response: Response<dynamic>(
+          requestOptions: options,
+          statusCode: 502,
+          headers: Headers.fromMap({
+            'retry-after': ['0'],
+          }),
+        ),
+        type: DioExceptionType.badResponse,
+      ),
+    );
+    final result = await tool.execute('test', {'attachment_index': 1});
+    expect(result.isError, isFalse, reason: result.content.toString());
+    expect(
+      result.content.whereType<ToolResultTextContent>().single.text,
+      '1girl, blue sky',
+    );
+    expect(requests, hasLength(2));
+    expect(jsonEncode(requests.last), jsonEncode(requests.first));
+  });
 
   for (final args in <Map<String, dynamic>>[
     {},

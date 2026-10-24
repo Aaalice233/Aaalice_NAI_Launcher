@@ -1,19 +1,22 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'assistant_cancellation.dart';
+import 'llm_request_retry_policy.dart';
 
 /// One queue per configured endpoint, shared by every prompt-assistant task.
 class AssistantRequestScheduler {
-  AssistantRequestScheduler({DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  AssistantRequestScheduler({DateTime Function()? now, math.Random? random})
+    : _now = now ?? DateTime.now,
+      _random = random ?? math.Random();
   final DateTime Function() _now;
+  final math.Random _random;
   final Map<String, _ProviderQueue> _queues = {};
   bool _disposed = false;
 
@@ -25,7 +28,14 @@ class AssistantRequestScheduler {
     if (_disposed) throw StateError('Assistant request scheduler is disposed');
     cancelToken.throwIfCancelled();
     final key = '${provider.id}/${provider.protocol.name}/${provider.baseUrl}';
-    final queue = _queues.putIfAbsent(key, () => _ProviderQueue(_now));
+    final queue = _queues.putIfAbsent(
+      key,
+      () => _ProviderQueue(
+        _now,
+        _random,
+        'provider=${provider.id} protocol=${provider.protocol.name}',
+      ),
+    );
     queue.configure(provider.concurrency);
     return queue.add(request, cancelToken);
   }
@@ -52,13 +62,19 @@ class _QueuedRequest {
   final CancelToken cancelToken;
   final Completer<String> result = Completer<String>();
   int retries = 0;
+  Timer? backoff;
 }
 
 class _ProviderQueue {
-  _ProviderQueue(this._now);
+  _ProviderQueue(this._now, this._random, this._providerLabel);
+  static const _maxRetries = 2;
   final DateTime Function() _now;
+  final math.Random _random;
+  // Diagnostic logs are user-exported, so the base URL and its query stay out.
+  final String _providerLabel;
   final Queue<_QueuedRequest> _pending = Queue();
   final Set<_QueuedRequest> _running = {};
+  final Set<_QueuedRequest> _backingOff = {};
   AssistantConcurrencySettings _settings = const AssistantConcurrencySettings();
   int limit = AssistantConcurrencySettings.initialAutomaticConcurrency;
   int _successes = 0;
@@ -84,6 +100,7 @@ class _ProviderQueue {
     unawaited(
       token.whenCancel.then((error) {
         _pending.remove(job);
+        _stopBackoff(job);
         if (!job.result.isCompleted) job.result.completeError(error);
         _pump();
       }),
@@ -129,30 +146,15 @@ class _ProviderQueue {
         _successes = 0;
       }
     } catch (error, stack) {
-      final delay = error is DioException
-          ? _retryDelay(error, job.retries)
-          : null;
-      if (delay != null && !job.cancelToken.isCancelled) {
-        if (epoch == _congestionEpoch) {
-          _congestionEpoch++;
-          _successes = 0;
-          if (_settings.mode == AssistantConcurrencyMode.automatic) {
-            limit = math.max(1, limit ~/ 2);
-          }
-        }
-        final resumeAt = _now().add(delay);
-        if (_resumeAt == null || resumeAt.isAfter(_resumeAt!)) {
-          _resumeAt = resumeAt;
-          _cooldown?.cancel();
-          _cooldown = null;
-        }
-        if (job.retries++ < 2 && !job.result.isCompleted) {
-          _pending.add(job);
-        } else if (!job.result.isCompleted) {
-          job.result.completeError(error, stack);
-        }
-      } else if (!job.result.isCompleted) {
-        job.result.completeError(error, stack);
+      try {
+        _retryOrFail(job, epoch, error, stack);
+      } catch (inspectionError) {
+        // An escaped exception here would leave the caller waiting forever.
+        _fail(job, error, stack);
+        AppLogger.w(
+          'retry inspection failed: ${inspectionError.runtimeType}',
+          'PromptAssistant',
+        );
       }
     } finally {
       _running.remove(job);
@@ -160,34 +162,108 @@ class _ProviderQueue {
     }
   }
 
-  Duration? _retryDelay(DioException error, int retries) {
-    final response = error.response;
-    if (response?.statusCode != 429 && response?.statusCode != 503) return null;
-    final detail = response?.data.toString().toLowerCase() ?? '';
-    if (RegExp(
-      r'insufficient_quota|insufficient.balance|billing|daily.quota',
-    ).hasMatch(detail)) {
-      return null;
+  void _retryOrFail(
+    _QueuedRequest job,
+    int epoch,
+    Object error,
+    StackTrace stack,
+  ) {
+    final failure = job.cancelToken.isCancelled
+        ? LlmRequestFailureKind.terminal
+        : classifyLlmRequestFailure(error);
+    if (error is! DioException || failure == LlmRequestFailureKind.terminal) {
+      _fail(job, error, stack);
+      return;
     }
-    final retryAfter = response?.headers.value('retry-after');
-    if (retryAfter != null) {
-      final seconds = double.tryParse(retryAfter);
-      if (seconds != null && seconds.isFinite && seconds >= 0) {
-        return Duration(milliseconds: (seconds * 1000).ceil());
-      }
-      try {
-        final delay = HttpDate.parse(retryAfter).difference(_now());
-        return delay.isNegative ? Duration.zero : delay;
-      } on FormatException {
-        // Malformed optional headers do not replace the original HTTP failure.
-      }
+    final delay = _retryDelay(error, job.retries);
+    if (failure == LlmRequestFailureKind.congestion) {
+      _throttle(epoch, delay);
     }
-    return Duration(seconds: 1 << math.min(retries, 2));
+    if (job.retries++ >= _maxRetries || job.result.isCompleted) {
+      _fail(job, error, stack);
+      return;
+    }
+    final congested = failure == LlmRequestFailureKind.congestion;
+    _logRetry(
+      job.retries,
+      failure,
+      error,
+      congested ? _pauseRemaining(delay) : delay,
+    );
+    if (congested) {
+      _pending.add(job);
+    } else {
+      _scheduleBackoff(job, delay);
+    }
   }
+
+  void _logRetry(
+    int retry,
+    LlmRequestFailureKind failure,
+    DioException error,
+    Duration wait,
+  ) {
+    AppLogger.w(
+      'retry $retry/$_maxRetries in ${wait.inMilliseconds}ms: '
+          '${failure.name} status=${error.response?.statusCode ?? 'none'} '
+          'type=${error.type.name} $_providerLabel',
+      'PromptAssistant',
+    );
+  }
+
+  // Another request may already have paused the queue for longer.
+  Duration _pauseRemaining(Duration fallback) {
+    final remaining = _resumeAt?.difference(_now()) ?? fallback;
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  void _fail(_QueuedRequest job, Object error, StackTrace stack) {
+    if (!job.result.isCompleted) job.result.completeError(error, stack);
+  }
+
+  void _throttle(int epoch, Duration delay) {
+    if (epoch == _congestionEpoch) {
+      _congestionEpoch++;
+      _successes = 0;
+      if (_settings.mode == AssistantConcurrencyMode.automatic) {
+        limit = math.max(1, limit ~/ 2);
+      }
+    }
+    final resumeAt = _now().add(delay);
+    if (_resumeAt == null || resumeAt.isAfter(_resumeAt!)) {
+      _resumeAt = resumeAt;
+      _cooldown?.cancel();
+      _cooldown = null;
+    }
+  }
+
+  // Transient failures neither shrink concurrency nor pause the queue.
+  void _scheduleBackoff(_QueuedRequest job, Duration delay) {
+    _backingOff.add(job);
+    job.backoff = Timer(delay, () {
+      job.backoff = null;
+      _backingOff.remove(job);
+      if (job.result.isCompleted) return;
+      _pending.add(job);
+      _pump();
+    });
+  }
+
+  void _stopBackoff(_QueuedRequest job) {
+    job.backoff?.cancel();
+    job.backoff = null;
+    _backingOff.remove(job);
+  }
+
+  Duration _retryDelay(DioException error, int retries) =>
+      llmRetryAfter(error.response, now: _now()) ??
+      llmRetryBackoff(retries, jitter: _random.nextDouble());
 
   void dispose() {
     _cooldown?.cancel();
-    for (final job in [..._pending, ..._running]) {
+    final jobs = [..._pending, ..._running, ..._backingOff];
+    for (final job in jobs) {
+      _stopBackoff(job);
       job.cancelToken.cancel('assistant scheduler disposed');
     }
     _pending.clear();
