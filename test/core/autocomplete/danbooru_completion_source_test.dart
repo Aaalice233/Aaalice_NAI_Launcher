@@ -253,6 +253,106 @@ void main() {
     expect(logs.where((line) => line.contains('lighthouse')), isEmpty);
   });
 
+  group('memory cache bounds', () {
+    test('evicts the least recently used entry beyond the entry cap', () async {
+      final cache = _MemoryCache();
+      String token(int index) => 'aa${index.toString().padLeft(3, '0')}';
+      for (var index = 0; index <= 64; index++) {
+        cache.seed(_tagKey(token(index)), _payload(token(index), 1));
+      }
+      final source = DanbooruCompletionSource(
+        dio: Dio()..httpClientAdapter = _QueueAdapter([]),
+        cache: cache,
+      );
+
+      for (var index = 0; index < 64; index++) {
+        await source.search(_query(token(index)));
+      }
+      await source.search(_query(token(0)));
+      await source.search(_query(token(64)));
+      final readsBeforeRevisit = cache.getRemoteCalls;
+
+      await source.search(_query(token(0)));
+      await source.search(_query(token(64)));
+      expect(cache.getRemoteCalls, readsBeforeRevisit);
+
+      await source.search(_query(token(1)));
+      expect(cache.getRemoteCalls, readsBeforeRevisit + 1);
+    });
+
+    test('keeps the total candidate count within the memory budget', () async {
+      final cache = _MemoryCache()
+        ..seed(_tagKey('first'), _payload('first', 20000))
+        ..seed(_tagKey('second'), _payload('second', 20000))
+        ..seed(_tagKey('third'), _payload('third', 20000));
+      final source = DanbooruCompletionSource(
+        dio: Dio()..httpClientAdapter = _QueueAdapter([]),
+        cache: cache,
+      );
+
+      await source.search(_query('first'));
+      await source.search(_query('second'));
+      await source.search(_query('third'));
+      final readsBeforeRevisit = cache.getRemoteCalls;
+
+      expect(await source.search(_query('third')), hasLength(20000));
+      expect(await source.search(_query('second')), hasLength(20000));
+      expect(cache.getRemoteCalls, readsBeforeRevisit);
+
+      expect(await source.search(_query('first')), hasLength(20000));
+      expect(cache.getRemoteCalls, readsBeforeRevisit + 1);
+    });
+
+    test(
+      'never keeps a single result larger than the budget in memory',
+      () async {
+        final cache = _MemoryCache()
+          ..seed(_tagKey('huge'), _payload('huge', 50001));
+        final source = DanbooruCompletionSource(
+          dio: Dio()..httpClientAdapter = _QueueAdapter([]),
+          cache: cache,
+        );
+
+        expect(await source.search(_query('huge')), hasLength(50001));
+        expect(await source.search(_query('huge')), hasLength(50001));
+
+        expect(cache.getRemoteCalls, 2);
+      },
+    );
+
+    test('deletes expired entries instead of only skipping them', () async {
+      var now = DateTime.now();
+      final cache = _MemoryCache()
+        ..seed(_tagKey('first'), _payload('first', 3))
+        ..seed(_tagKey('second'), _payload('second', 2))
+        ..seed('related:v3:unseen:20', _payload('unseen', 1));
+      final source = DanbooruCompletionSource(
+        dio: Dio()..httpClientAdapter = _QueueAdapter([]),
+        cache: cache,
+        now: () => now,
+      );
+
+      await source.search(_query('first'));
+      expect(source.memoryEntryCount, 1);
+      expect(source.memoryCandidateCount, 3);
+
+      now = now.add(DanbooruCompletionSource.memoryTtl);
+      await source.search(_query('second'));
+      expect(source.memoryEntryCount, 1);
+      expect(source.memoryCandidateCount, 2);
+
+      final readsBeforeExpiry = cache.getRemoteCalls;
+      await source.search(_query('second'));
+      expect(cache.getRemoteCalls, readsBeforeExpiry);
+      now = now.add(DanbooruCompletionSource.memoryTtl);
+      await source.relatedTags('unseen');
+      expect(source.memoryEntryCount, 1);
+      expect(source.memoryCandidateCount, 1);
+      await source.search(_query('second'));
+      expect(cache.getRemoteCalls, readsBeforeExpiry + 2);
+    });
+  });
+
   test('dropped connections never quote the request URI into the log', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://danbooru.donmai.us'))
       ..httpClientAdapter = _DroppedConnectionAdapter();
@@ -278,11 +378,34 @@ CompletionQuery _query(String token, {int limit = 20}) => CompletionQuery(
   locale: 'en',
 );
 
+String _tagKey(String token, {int limit = 20}) => 'tags:$token:all:$limit';
+
+List<Map<String, dynamic>> _payload(String prefix, int count) => [
+  for (var index = 0; index < count; index++)
+    {
+      'tag': '${prefix}_$index',
+      'category': 0,
+      'postCount': count - index,
+      'matchKind': CompletionMatchKind.fullText.name,
+    },
+];
+
 class _MemoryCache extends AutocompleteCacheDatabase {
   final Map<String, CachedAutocompletePayload> values = {};
+  int getRemoteCalls = 0;
+
+  void seed(String key, List<Map<String, dynamic>> payload) {
+    values[key] = CachedAutocompletePayload(
+      payload: payload,
+      fetchedAt: DateTime.now().toUtc(),
+    );
+  }
 
   @override
-  Future<CachedAutocompletePayload?> getRemote(String key) async => values[key];
+  Future<CachedAutocompletePayload?> getRemote(String key) async {
+    getRemoteCalls++;
+    return values[key];
+  }
 
   @override
   Future<void> putRemote(String key, List<Map<String, dynamic>> payload) async {
