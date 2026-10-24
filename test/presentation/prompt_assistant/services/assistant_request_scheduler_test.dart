@@ -20,7 +20,12 @@ ProviderConfig provider(String id, {int? manual}) => ProviderConfig(
   ),
 );
 
-DioException limited({int status = 429, String? retryAfter, Object? detail}) {
+DioException limited({
+  int status = 429,
+  String? retryAfter,
+  Object? detail,
+  Map<String, List<String>> headers = const {},
+}) {
   final options = RequestOptions(path: '/chat/completions');
   return DioException(
     requestOptions: options,
@@ -28,6 +33,7 @@ DioException limited({int status = 429, String? retryAfter, Object? detail}) {
       requestOptions: options,
       statusCode: status,
       headers: Headers.fromMap({
+        ...headers,
         if (retryAfter != null) 'retry-after': [retryAfter],
       }),
       data: detail,
@@ -41,18 +47,25 @@ class _UnprintableBody {
   String toString() => throw StateError('body cannot be rendered');
 }
 
+DioException transport(DioExceptionType type, {Object? cause}) => DioException(
+  requestOptions: RequestOptions(path: '/chat/completions'),
+  type: type,
+  error: cause,
+);
+
 /// One scheduled request whose attempts throw [failures] in order, then succeed.
 class _Probe {
   _Probe(
     AssistantRequestScheduler scheduler,
     ProviderConfig config,
-    List<Object> failures,
-  ) {
+    List<Object> failures, {
+    CancelToken? cancelToken,
+  }) {
     unawaited(
       scheduler
           .run(
             provider: config,
-            cancelToken: CancelToken(),
+            cancelToken: cancelToken ?? CancelToken(),
             request: () async {
               final failure = attempts < failures.length
                   ? failures[attempts]
@@ -300,6 +313,214 @@ void main() {
     });
   });
 
+  test('a dropped connection is retried without throttling', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final config = provider('auto');
+      final probe = _Probe(scheduler, config, [
+        transport(DioExceptionType.connectionError),
+      ]);
+      time.flushMicrotasks();
+      expect(probe.attempts, 1);
+      expect(scheduler.concurrencyFor(config), 5);
+      time.elapse(const Duration(milliseconds: 999));
+      expect(probe.attempts, 1);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(probe.attempts, 2);
+      expect(probe.result, 'ok');
+      expect(probe.caught, isNull);
+      expect(scheduler.concurrencyFor(config), 5);
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  for (final status in [502, 504]) {
+    test('persistent HTTP $status ends with the original error', () {
+      fakeAsync((time) {
+        final scheduler = AssistantRequestScheduler(
+          now: time.getClock(DateTime(2026)).now,
+        );
+        final failure = limited(status: status);
+        final probe = _Probe(scheduler, provider('a'), [
+          failure,
+          failure,
+          failure,
+        ]);
+        time.flushMicrotasks();
+        expect(probe.attempts, 1);
+        time.elapse(const Duration(seconds: 1));
+        expect(probe.attempts, 2);
+        time.elapse(const Duration(seconds: 2));
+        expect(probe.attempts, 3);
+        time.elapse(const Duration(minutes: 1));
+        expect(probe.attempts, 3);
+        expect(probe.caught, same(failure));
+        expect(time.pendingTimers, isEmpty);
+        scheduler.dispose();
+        time.flushMicrotasks();
+      });
+    });
+  }
+
+  test('every approved transport failure and overload status is retried', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final failures = <Object>[
+        transport(DioExceptionType.connectionError),
+        transport(
+          DioExceptionType.connectionError,
+          cause: const HttpException(
+            'Connection closed before full header was received',
+          ),
+        ),
+        transport(DioExceptionType.connectionTimeout),
+        transport(DioExceptionType.sendTimeout),
+        transport(
+          DioExceptionType.unknown,
+          cause: const SocketException('Connection reset by peer'),
+        ),
+        transport(
+          DioExceptionType.unknown,
+          cause: const HttpException('Connection closed while receiving data'),
+        ),
+        transport(
+          DioExceptionType.unknown,
+          cause: const HandshakeException(
+            'Connection terminated during handshake',
+          ),
+        ),
+        limited(status: 429),
+        limited(status: 502),
+        limited(status: 503),
+        limited(status: 504),
+        limited(status: 529),
+      ];
+      final probes = [
+        for (var i = 0; i < failures.length; i++)
+          _Probe(scheduler, provider('p$i', manual: 1), [failures[i]]),
+      ];
+      time.elapse(const Duration(seconds: 1));
+      for (var i = 0; i < failures.length; i++) {
+        expect(probes[i].attempts, 2, reason: '${failures[i]}');
+        expect(probes[i].result, 'ok');
+      }
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('receive timeout, HTTP 500, cancellation and bad TLS fail at once', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final failures = <Object>[
+        transport(DioExceptionType.receiveTimeout),
+        transport(DioExceptionType.cancel),
+        transport(DioExceptionType.badCertificate),
+        transport(
+          DioExceptionType.unknown,
+          cause: const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+        ),
+        transport(DioExceptionType.unknown),
+        transport(
+          DioExceptionType.unknown,
+          cause: const HttpException(
+            'Header value exceeds the 1048576 size limit',
+          ),
+        ),
+        transport(
+          DioExceptionType.unknown,
+          cause: const HttpException(
+            'Invalid proxy configuration PROXY 127.0.0.1',
+          ),
+        ),
+        limited(status: 500),
+        limited(status: 400),
+        TimeoutException('local'),
+        StateError('parse'),
+      ];
+      final probes = [
+        for (final failure in failures)
+          _Probe(scheduler, provider('a', manual: 20), [failure]),
+      ];
+      time.elapse(const Duration(minutes: 2));
+      for (var i = 0; i < failures.length; i++) {
+        expect(probes[i].attempts, 1, reason: '${failures[i]}');
+        expect(probes[i].caught, same(failures[i]));
+      }
+      expect(time.pendingTimers, isEmpty);
+      scheduler.dispose();
+      time.flushMicrotasks();
+    });
+  });
+
+  test('transient backoff frees its slot and keeps the provider open', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final config = provider('manual', manual: 1);
+      final failing = _Probe(scheduler, config, [limited(status: 502)]);
+      final queued = _Probe(scheduler, config, const []);
+      time.flushMicrotasks();
+      expect(failing.attempts, 1);
+      expect(queued.attempts, 1);
+      expect(queued.result, 'ok');
+      time.elapse(const Duration(seconds: 1));
+      expect(failing.attempts, 2);
+      expect(failing.result, 'ok');
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('cancel during transient backoff ends without another attempt', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final token = CancelToken();
+      final probe = _Probe(scheduler, provider('a'), [
+        transport(DioExceptionType.connectionTimeout),
+      ], cancelToken: token);
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isNotEmpty);
+      token.cancel('user');
+      time.flushMicrotasks();
+      expect(probe.caught, isA<DioException>());
+      expect(time.pendingTimers, isEmpty);
+      time.elapse(const Duration(minutes: 1));
+      expect(probe.attempts, 1);
+      scheduler.dispose();
+      time.flushMicrotasks();
+    });
+  });
+
+  test('dispose during transient backoff fails the request', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final probe = _Probe(scheduler, provider('a'), [limited(status: 504)]);
+      time.flushMicrotasks();
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(probe.caught, isA<DioException>());
+      expect(time.pendingTimers, isEmpty);
+      time.elapse(const Duration(minutes: 1));
+      expect(probe.attempts, 1);
+    });
+  });
+
   test('Retry-After beyond sixty seconds waits sixty seconds', () {
     fakeAsync((time) {
       final scheduler = AssistantRequestScheduler(
@@ -320,6 +541,120 @@ void main() {
       time.elapse(const Duration(seconds: 1));
       expect([seconds.attempts, date.attempts], [2, 2]);
       expect([seconds.result, date.result], ['ok', 'ok']);
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('retry-after-ms takes precedence and 529 throttles like 429', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final config = provider('auto');
+      final options = RequestOptions(path: '/v1/messages');
+      final overloaded = DioException(
+        requestOptions: options,
+        response: Response<dynamic>(
+          requestOptions: options,
+          statusCode: 529,
+          headers: Headers.fromMap({
+            'retry-after-ms': ['1500'],
+            'retry-after': ['30'],
+          }),
+        ),
+        type: DioExceptionType.badResponse,
+      );
+      final probe = _Probe(scheduler, config, [overloaded]);
+      time.flushMicrotasks();
+      expect(scheduler.concurrencyFor(config), 2);
+      time.elapse(const Duration(milliseconds: 1499));
+      expect(probe.attempts, 1);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(probe.attempts, 2);
+      expect(probe.result, 'ok');
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('HTTP 502 waits its Retry-After without throttling the provider', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final config = provider('auto');
+      final probe = _Probe(scheduler, config, [
+        limited(status: 502, retryAfter: '5'),
+      ]);
+      time.flushMicrotasks();
+      expect(probe.attempts, 1);
+      expect(scheduler.concurrencyFor(config), 5);
+      time.elapse(const Duration(milliseconds: 4999));
+      expect(probe.attempts, 1);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(probe.attempts, 2);
+      expect(probe.result, 'ok');
+      expect(scheduler.concurrencyFor(config), 5);
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('repeated retry headers still retry and settle the request', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final rateLimited = _Probe(scheduler, provider('a'), [
+        limited(
+          headers: {
+            'retry-after': ['5', '7'],
+          },
+        ),
+      ]);
+      final gateway = _Probe(scheduler, provider('b'), [
+        limited(
+          status: 502,
+          headers: {
+            'retry-after-ms': ['1', '2'],
+          },
+        ),
+      ]);
+      final unreadableRateLimit = _Probe(scheduler, provider('c'), [
+        limited(
+          headers: {
+            'retry-after': ['soon', 'later'],
+          },
+        ),
+      ]);
+      final unreadableGateway = _Probe(scheduler, provider('d'), [
+        limited(
+          status: 502,
+          headers: {
+            'retry-after-ms': ['soon', 'later'],
+          },
+        ),
+      ]);
+      final defaults = [unreadableRateLimit, unreadableGateway];
+      time.flushMicrotasks();
+      time.elapse(const Duration(milliseconds: 1));
+      expect(gateway.attempts, 2);
+      time.elapse(const Duration(milliseconds: 998));
+      expect(defaults.map((probe) => probe.attempts), [1, 1]);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(defaults.map((probe) => probe.attempts), [2, 2]);
+      time.elapse(const Duration(milliseconds: 3999));
+      expect(rateLimited.attempts, 1);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(rateLimited.attempts, 2);
+      for (final probe in [rateLimited, gateway, ...defaults]) {
+        expect(probe.result, 'ok');
+        expect(probe.caught, isNull);
+      }
       scheduler.dispose();
       time.flushMicrotasks();
       expect(time.pendingTimers, isEmpty);
