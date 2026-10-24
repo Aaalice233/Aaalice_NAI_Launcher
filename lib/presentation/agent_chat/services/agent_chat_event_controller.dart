@@ -6,6 +6,7 @@ import '../../../core/agent/harness/session/session_types.dart'
     as session_types;
 import '../models/agent_chat_prompt_envelope.dart';
 import '../providers/agent_chat_state.dart';
+import 'agent_chat_auto_retry.dart';
 import 'agent_chat_session_controller.dart';
 import 'agent_tool_permission_controller.dart';
 
@@ -13,21 +14,27 @@ class AgentChatEventController {
   AgentChatEventController({
     required AgentChatSessionController sessionController,
     required AgentToolPermissionController permissionController,
+    required AgentChatAutoRetry autoRetry,
     required AgentChatState Function() readState,
     required void Function(AgentChatState state) writeState,
     required bool Function() isMounted,
   }) : _sessionController = sessionController,
        _permissionController = permissionController,
+       _autoRetry = autoRetry,
        _readState = readState,
        _writeState = writeState,
        _isMounted = isMounted;
 
   final AgentChatSessionController _sessionController;
   final AgentToolPermissionController _permissionController;
+  final AgentChatAutoRetry _autoRetry;
   final AgentChatState Function() _readState;
   final void Function(AgentChatState) _writeState;
   final bool Function() _isMounted;
   final Queue<_AgentRunTurnContext> _runContexts = Queue();
+
+  /// Operation left open because an automatic retry follows its failure.
+  String? _deferredTurnId;
 
   _AgentRunTurnContext? get _currentRunContext =>
       _runContexts.isEmpty ? null : _runContexts.last;
@@ -43,6 +50,7 @@ class AgentChatEventController {
     if (!_isMounted()) return;
     switch (event) {
       case AgentEventAgentStart():
+        _deferredTurnId = null;
         final turnId = await _sessionController.startTurn();
         if (turnId != null) {
           _runContexts.add(_AgentRunTurnContext(turnId));
@@ -71,6 +79,9 @@ class AgentChatEventController {
         }
       case AgentEventMessageEnd():
         final message = event.message;
+        if (message is AssistantMessage) {
+          _autoRetry.recordAssistantMessage(message);
+        }
         final shouldPersist =
             message is! AssistantMessage ||
             message.content.any(
@@ -191,6 +202,15 @@ class AgentChatEventController {
       case AgentEventAgentEnd():
         final runContext = _runContexts.isEmpty ? null : _runContexts.first;
         final turnId = runContext?.currentTurnId ?? runContext?.lastTurnId;
+        if (_autoRetry.willRetryAfter(event.messages)) {
+          // The retried continuation belongs to the same operation, and input
+          // queued during the failed attempt is delivered to it.
+          if (runContext != null) {
+            _runContexts.remove(runContext);
+          }
+          _deferredTurnId = turnId ?? _sessionController.activeTurnId;
+          break;
+        }
         AssistantMessage? lastAssistant;
         for (final message in event.messages.reversed) {
           if (message is AssistantMessage) {
@@ -200,36 +220,19 @@ class AgentChatEventController {
         }
         final failed = lastAssistant?.stopReason == StopReason.error;
         final aborted = lastAssistant?.stopReason == StopReason.aborted;
-        final agent = _sessionController.agent;
-        if (agent != null) {
-          final unconsumed = _queuedMessages(agent);
-          for (final queued in unconsumed) {
-            await _sessionController.cancelQueuedPrompt(queued.message);
-          }
-          agent.clearAllQueues();
-        }
-        if (turnId != null) {
-          await _sessionController.finishTurn(
-            turnId: turnId,
-            outcome: failed
-                ? session_types.OperationOutcomeKind.failed
-                : aborted
-                ? session_types.OperationOutcomeKind.aborted
-                : session_types.OperationOutcomeKind.completed,
-            error: failed ? lastAssistant?.errorMessage : null,
-          );
-        }
+        await _finishRun(
+          turnId: turnId,
+          outcome: failed
+              ? session_types.OperationOutcomeKind.failed
+              : aborted
+              ? session_types.OperationOutcomeKind.aborted
+              : session_types.OperationOutcomeKind.completed,
+          error: failed ? lastAssistant?.errorMessage : null,
+        );
         if (runContext != null) {
           _runContexts.remove(runContext);
         }
-        _writeState(
-          _readState().copyWith(
-            activities: const [],
-            sessions: await _sessionController.listSessions(),
-            queuedMessages: agent == null ? const [] : _queuedMessages(agent),
-            workPhase: AgentChatWorkPhase.idle,
-          ),
-        );
+        await _writeSettledState();
       case AgentEventTurnEnd():
         final message = event.message;
         // A Pi run operation spans the complete Agent lifecycle. Individual
@@ -237,10 +240,14 @@ class AgentChatEventController {
         // follow-up input, so only AgentEnd may persist operation_finished.
         if (message is AssistantMessage &&
             message.errorMessage != null &&
-            message.stopReason == StopReason.error) {
-          _writeState(_readState().copyWith(error: message.errorMessage));
+            message.stopReason == StopReason.error &&
+            !_autoRetry.willRetryAfter([message])) {
           _writeState(
-            _readState().copyWith(workPhase: AgentChatWorkPhase.failed),
+            _readState().copyWith(
+              error: message.errorMessage,
+              errorRetryAttempts: _autoRetry.attempt,
+              workPhase: AgentChatWorkPhase.failed,
+            ),
           );
         }
       case AgentEventTurnStart():
@@ -265,6 +272,54 @@ class AgentChatEventController {
           );
         }
     }
+  }
+
+  /// Settles an operation deferred for a retry that never continued, because
+  /// it was cancelled or failed to start. No-op when nothing is deferred.
+  Future<void> settleDeferredRun({
+    required session_types.OperationOutcomeKind outcome,
+    String? error,
+  }) async {
+    final turnId = _deferredTurnId;
+    _deferredTurnId = null;
+    if (turnId == null || !_isMounted()) return;
+    await _finishRun(turnId: turnId, outcome: outcome, error: error);
+    await _writeSettledState();
+  }
+
+  Future<void> _finishRun({
+    required String? turnId,
+    required session_types.OperationOutcomeKind outcome,
+    String? error,
+  }) async {
+    final agent = _sessionController.agent;
+    if (agent != null) {
+      final unconsumed = _queuedMessages(agent);
+      for (final queued in unconsumed) {
+        await _sessionController.cancelQueuedPrompt(queued.message);
+      }
+      agent.clearAllQueues();
+    }
+    if (turnId != null) {
+      await _sessionController.finishTurn(
+        turnId: turnId,
+        outcome: outcome,
+        error: error,
+      );
+    }
+  }
+
+  Future<void> _writeSettledState() async {
+    final sessions = await _sessionController.listSessions();
+    final agent = _sessionController.agent;
+    _writeState(
+      _readState().copyWith(
+        activities: const [],
+        sessions: sessions,
+        queuedMessages: agent == null ? const [] : _queuedMessages(agent),
+        workPhase: AgentChatWorkPhase.idle,
+      ),
+    );
   }
 
   String _resultPreview(AgentToolResult result) => result.content

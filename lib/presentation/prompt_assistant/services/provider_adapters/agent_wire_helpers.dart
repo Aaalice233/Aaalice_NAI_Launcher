@@ -86,33 +86,35 @@ class AgentSseParser {
   }
 }
 
+// 自动重试只按错误文本分类，Dart 传输异常的原文（含本地化的系统错误）不在
+// 分类词表里，需显式标注。
+const _networkErrorLabel = 'network error';
+
 /// 把 dio/网络异常映射为线错误事件。
 AgentWireError agentWireErrorFrom(Object error, ProviderConfig provider) {
+  final networkLabel = _isTransientConnectionError(error)
+      ? ': $_networkErrorLabel'
+      : '';
   if (error is DioException) {
     if (error.type == DioExceptionType.cancel) {
       return const AgentWireError('aborted');
     }
     final status = error.response?.statusCode;
-    final detail = _extractDetail(error.response?.data) ?? error.message ?? '';
-    final transient =
-        status == 429 ||
-        (status != null && status >= 500) ||
-        error.type == DioExceptionType.receiveTimeout ||
-        error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.connectionError;
-    final lowered = detail.toLowerCase();
-    final overloaded =
-        lowered.contains('overloaded') || lowered.contains('rate limit');
+    final detail =
+        _extractDetail(error.response?.data) ??
+        error.message ??
+        error.error?.toString() ??
+        '';
     return AgentWireError(
       'LLM request failed'
       '${status != null ? ': HTTP $status' : ''}'
+      '$networkLabel'
       ': provider=${provider.name}'
       '${detail.trim().isNotEmpty ? ': $detail' : ''}',
-      transient: transient || overloaded,
     );
   }
   return AgentWireError(
-    'LLM request failed: provider=${provider.name}: '
+    'LLM request failed$networkLabel: provider=${provider.name}: '
     '${error.toString()}',
   );
 }
@@ -216,8 +218,14 @@ bool _isTransientConnectionError(Object error) {
       'connection terminated during handshake',
     );
   }
+  if (error is HttpException) {
+    // Other HttpException messages are protocol violations, not dropped links.
+    return _droppedConnectionPrefixes.any(error.message.startsWith);
+  }
   return error is SocketException || error is TimeoutException;
 }
+
+const _droppedConnectionPrefixes = ['Connection closed', 'Socket closed'];
 
 Future<void> _waitForRetry(Duration delay, CancelToken cancelToken) async {
   final ready = Completer<void>();

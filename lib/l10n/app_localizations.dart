@@ -3143,6 +3143,28 @@ abstract class AppLocalizations {
   /// **'Error details'**
   String get agentChat_errorDetails;
 
+  /// No description provided for @agentChat_autoRetryCountdown.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying ({attempt}/{maxAttempts}) in {seconds}s'**
+  String agentChat_autoRetryCountdown(
+    int attempt,
+    int maxAttempts,
+    int seconds,
+  );
+
+  /// No description provided for @agentChat_autoRetryStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'Retrying ({attempt}/{maxAttempts})…'**
+  String agentChat_autoRetryStarting(int attempt, int maxAttempts);
+
+  /// No description provided for @agentChat_autoRetryExhausted.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic retries: {count}'**
+  String agentChat_autoRetryExhausted(int count);
+
   /// No description provided for @agentChat_modelLabel.
   ///
   /// In en, this message translates to:

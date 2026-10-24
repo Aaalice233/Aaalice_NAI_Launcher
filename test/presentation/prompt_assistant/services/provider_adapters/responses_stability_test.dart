@@ -215,6 +215,27 @@ void main() {
     expect(transport.attempts, 2);
   });
 
+  test('a connection dropped before headers retries', () async {
+    final transport = _Transport((options, attempt) async {
+      if (attempt == 1) {
+        throw const HttpException(
+          'Connection closed before full header was received',
+        );
+      }
+      return ResponseBody.fromString('ok', 200);
+    });
+    expect(await _read(transport), isNotEmpty);
+    expect(transport.attempts, 2);
+  });
+
+  test('a malformed HTTP response is not a network retry', () async {
+    final transport = _Transport((options, attempt) async {
+      throw const HttpException('Invalid response status code with 1');
+    });
+    await expectLater(_read(transport), throwsA(isA<DioException>()));
+    expect(transport.attempts, 1);
+  });
+
   test('an unknown programming error is not a network retry', () async {
     final transport = _Transport((options, attempt) async {
       throw StateError('invalid local state');

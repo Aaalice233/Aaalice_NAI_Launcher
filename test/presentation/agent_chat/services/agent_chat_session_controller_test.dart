@@ -11,6 +11,7 @@ import 'package:nai_launcher/core/agent/resources/agent_chat_resource_draft_stor
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_auto_retry.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_draft_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_event_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_session_controller.dart';
@@ -517,6 +518,11 @@ void main() {
         chargeConfirmThreshold: () => null,
         onApprovalChanged: (_) {},
         isMounted: () => true,
+      ),
+      autoRetry: AgentChatAutoRetry(
+        onRetryStart: (_) {},
+        onRetryEnd: (_) {},
+        omitFailedAttempt: (_) {},
       ),
       readState: () => state,
       writeState: (next) => state = next,
