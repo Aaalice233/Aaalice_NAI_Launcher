@@ -2430,7 +2430,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_directorPromptHint =>
-      'Add guidance when needed, such as target emotion or color direction';
+      'Optional. Describe the effect you want';
 
   @override
   String img2img_directorRun(Object tool) {
@@ -2457,8 +2457,50 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String img2img_directorResultSaveFailed(Object tool) {
+    return '$tool completed, but the result could not be saved';
+  }
+
+  @override
+  String img2img_directorResultSelectedSaveFailed(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool completed, but the selected result could not be saved ($failed of $total failed)';
+  }
+
+  @override
+  String img2img_directorResultPartiallySaved(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool completed, but $failed of $total results could not be saved';
+  }
+
+  @override
   String get img2img_directorApplied =>
       'Applied the Director Tool result as the new source image';
+
+  @override
+  String get img2img_directorResultMasked => 'Masked';
+
+  @override
+  String get img2img_directorResultGenerated => 'Generated';
+
+  @override
+  String get img2img_directorResultBlend => 'Blend';
+
+  @override
+  String img2img_directorResultNumbered(int index) {
+    return 'Result $index';
+  }
+
+  @override
+  String img2img_directorResultWithVariant(String result, String variant) {
+    return '$result · $variant';
+  }
 
   @override
   String get img2img_directorDefry => 'Defry';
@@ -2472,10 +2514,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_directorEmotionLevelHint =>
-      'How strongly the emotion is applied (0 = subtle, 5 = strong)';
+      'Higher values make the emotion weaker (0 = normal, 5 = weakest)';
 
   @override
-  String get img2img_directorEmotionPresets => 'Presets';
+  String get img2img_directorEmotionMood => 'Emotion';
+
+  @override
+  String get img2img_directorEmotionNeutral => 'Neutral';
+
+  @override
+  String get img2img_directorEmotionHappy => 'Happy';
+
+  @override
+  String get img2img_directorEmotionSad => 'Sad';
+
+  @override
+  String get img2img_directorEmotionAngry => 'Angry';
+
+  @override
+  String get img2img_directorEmotionScared => 'Scared';
+
+  @override
+  String get img2img_directorEmotionSurprised => 'Surprised';
+
+  @override
+  String get img2img_directorEmotionTired => 'Tired';
+
+  @override
+  String get img2img_directorEmotionExcited => 'Excited';
+
+  @override
+  String get img2img_directorEmotionNervous => 'Nervous';
+
+  @override
+  String get img2img_directorEmotionThinking => 'Thinking';
+
+  @override
+  String get img2img_directorEmotionConfused => 'Confused';
+
+  @override
+  String get img2img_directorEmotionShy => 'Shy';
+
+  @override
+  String get img2img_directorEmotionDisgusted => 'Disgusted';
+
+  @override
+  String get img2img_directorEmotionSmug => 'Smug';
+
+  @override
+  String get img2img_directorEmotionBored => 'Bored';
+
+  @override
+  String get img2img_directorEmotionLaughing => 'Laughing';
+
+  @override
+  String get img2img_directorEmotionIrritated => 'Irritated';
+
+  @override
+  String get img2img_directorEmotionAroused => 'Aroused';
+
+  @override
+  String get img2img_directorEmotionEmbarrassed => 'Embarrassed';
+
+  @override
+  String get img2img_directorEmotionWorried => 'Worried';
+
+  @override
+  String get img2img_directorEmotionLove => 'Love';
+
+  @override
+  String get img2img_directorEmotionDetermined => 'Determined';
+
+  @override
+  String get img2img_directorEmotionHurt => 'Hurt';
+
+  @override
+  String get img2img_directorEmotionPlayful => 'Playful';
 
   @override
   String get img2img_directorApplyAsSource => 'Use as Source';

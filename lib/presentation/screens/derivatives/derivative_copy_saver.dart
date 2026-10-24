@@ -22,7 +22,6 @@ typedef DerivativeGalleryWriter =
       required ImageSaveNaming naming,
       required SaveNameContext context,
       String? preferredFileName,
-      String protectedSuffix,
     });
 
 typedef DerivativeRegistration =
@@ -116,9 +115,11 @@ class DerivativeCopySaver {
     rootPath: rootPath,
     bytes: bytes,
     naming: _resolveNaming(),
-    context: SaveNameContext(createdAt: DateTime.now()),
+    context: SaveNameContext(
+      createdAt: DateTime.now(),
+      fileNameSuffix: kind.fileNameSuffix,
+    ),
     preferredFileName: fileName,
-    protectedSuffix: kind.fileNameSuffix,
   );
 
   /// 各步骤立即并行开始、互不等待：图库扫描排队或后台计算拥堵只拖慢自己那一步。

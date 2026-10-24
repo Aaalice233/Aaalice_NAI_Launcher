@@ -2364,7 +2364,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorPrompt => '追加のプロンプト';
 
   @override
-  String get img2img_directorPromptHint => 'ターゲットの感情や色の方向など、必要に応じてガイダンスを追加します';
+  String get img2img_directorPromptHint => '任意。求める仕上がりを補足します';
 
   @override
   String img2img_directorRun(Object tool) {
@@ -2391,7 +2391,49 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String img2img_directorResultSaveFailed(Object tool) {
+    return '$tool が完了しましたが、結果を保存できませんでした';
+  }
+
+  @override
+  String img2img_directorResultSelectedSaveFailed(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool が完了しましたが、選択中の結果を保存できませんでした ($total 件中 $failed 件失敗)';
+  }
+
+  @override
+  String img2img_directorResultPartiallySaved(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool が完了しましたが、$total 件中 $failed 件の結果を保存できませんでした';
+  }
+
+  @override
   String get img2img_directorApplied => 'ディレクターツールの結果を新しいソース イメージとして適用しました';
+
+  @override
+  String get img2img_directorResultMasked => 'マスク切り抜き';
+
+  @override
+  String get img2img_directorResultGenerated => '生成';
+
+  @override
+  String get img2img_directorResultBlend => 'ブレンド';
+
+  @override
+  String img2img_directorResultNumbered(int index) {
+    return '結果 $index';
+  }
+
+  @override
+  String img2img_directorResultWithVariant(String result, String variant) {
+    return '$result · $variant';
+  }
 
   @override
   String get img2img_directorDefry => 'デフライ';
@@ -2403,10 +2445,83 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorEmotionLevel => '感情レベル';
 
   @override
-  String get img2img_directorEmotionLevelHint => '感情が適用される強さ (0 = 微妙、5 = 強い)';
+  String get img2img_directorEmotionLevelHint =>
+      '値が大きいほど感情が弱くなります (0 = 通常、5 = 最も弱い)';
 
   @override
-  String get img2img_directorEmotionPresets => 'プリセット';
+  String get img2img_directorEmotionMood => '感情';
+
+  @override
+  String get img2img_directorEmotionNeutral => '普通';
+
+  @override
+  String get img2img_directorEmotionHappy => '嬉しい';
+
+  @override
+  String get img2img_directorEmotionSad => '悲しい';
+
+  @override
+  String get img2img_directorEmotionAngry => '怒り';
+
+  @override
+  String get img2img_directorEmotionScared => '怖い';
+
+  @override
+  String get img2img_directorEmotionSurprised => '驚き';
+
+  @override
+  String get img2img_directorEmotionTired => '疲れ';
+
+  @override
+  String get img2img_directorEmotionExcited => 'ワクワク';
+
+  @override
+  String get img2img_directorEmotionNervous => '緊張';
+
+  @override
+  String get img2img_directorEmotionThinking => '考え中';
+
+  @override
+  String get img2img_directorEmotionConfused => '困惑';
+
+  @override
+  String get img2img_directorEmotionShy => '照れ';
+
+  @override
+  String get img2img_directorEmotionDisgusted => '嫌悪';
+
+  @override
+  String get img2img_directorEmotionSmug => 'ドヤ顔';
+
+  @override
+  String get img2img_directorEmotionBored => '退屈';
+
+  @override
+  String get img2img_directorEmotionLaughing => '大笑い';
+
+  @override
+  String get img2img_directorEmotionIrritated => 'イライラ';
+
+  @override
+  String get img2img_directorEmotionAroused => '興奮';
+
+  @override
+  String get img2img_directorEmotionEmbarrassed => '恥ずかしい';
+
+  @override
+  String get img2img_directorEmotionWorried => '心配';
+
+  @override
+  String get img2img_directorEmotionLove => '愛情';
+
+  @override
+  String get img2img_directorEmotionDetermined => '決意';
+
+  @override
+  String get img2img_directorEmotionHurt => '傷つく';
+
+  @override
+  String get img2img_directorEmotionPlayful => 'いたずら';
 
   @override
   String get img2img_directorApplyAsSource => 'ソースとして使用';

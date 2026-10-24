@@ -49,6 +49,9 @@ abstract class ImageDetailData {
   /// 保存时是否必须保持当前图像字节不变。
   bool get preserveOriginalBytesOnSave;
 
+  /// 按命名规则保存时追加在文件名末尾的后缀。
+  String get fileNameSuffix => '';
+
   /// 完整元数据，同步读不到时再解析图像；默认就是 [metadata]
   Future<NaiImageMetadata?> getMetadataAsync() async => metadata;
 
@@ -193,6 +196,8 @@ class GeneratedImageDetailData extends ImageDetailData {
   final FixedTagUsageSnapshot? fixedTagUsageSnapshot;
   @override
   final bool preserveOriginalBytesOnSave;
+  @override
+  final String fileNameSuffix;
 
   GeneratedImageDetailData({
     required this.imageBytes,
@@ -202,6 +207,7 @@ class GeneratedImageDetailData extends ImageDetailData {
     bool showCopyButton = true,
     bool showSaveAsButton = true,
     this.preserveOriginalBytesOnSave = false,
+    this.fileNameSuffix = '',
     this.fixedTagUsageSnapshot,
   }) : _metadata = metadata,
        _id = id ?? imageBytes.hashCode.toString(),

@@ -986,6 +986,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   ///
   /// [comparisonSourceImage] is supplied by single-source transformations such
   /// as NovelAI upscale and local upscale so their result can be compared.
+  /// [fileNameSuffix] stays on the entry and is appended to the name produced
+  /// by the save naming rule on every save, so sibling outputs of one
+  /// operation stay distinguishable.
+  /// [createdAt] defaults to now; sibling outputs of one operation pass the
+  /// same instant so time-based file names keep them grouped.
   Future<String?> registerExternalImage(
     Uint8List imageBytes, {
     required ImageParams params,
@@ -998,6 +1003,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     bool addToDisplay = false,
     bool replaceCurrentDisplay = false,
     bool embedNaiMetadata = true,
+    String fileNameSuffix = '',
+    DateTime? createdAt,
   }) async {
     final image = await registerExternalImageEntry(
       imageBytes,
@@ -1011,6 +1018,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       addToDisplay: addToDisplay,
       replaceCurrentDisplay: replaceCurrentDisplay,
       embedNaiMetadata: embedNaiMetadata,
+      fileNameSuffix: fileNameSuffix,
+      createdAt: createdAt,
     );
     return image?.filePath;
   }
@@ -1032,6 +1041,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     bool addToDisplay = false,
     bool replaceCurrentDisplay = false,
     bool embedNaiMetadata = true,
+    String fileNameSuffix = '',
+    DateTime? createdAt,
   }) async {
     assert(!addToDisplay || !replaceCurrentDisplay);
     if (_isDisposed) return null;
@@ -1051,6 +1062,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             )
           : null,
       embedNaiMetadata: embedNaiMetadata,
+      fileNameSuffix: fileNameSuffix,
+      createdAt: createdAt,
     );
     if (!_isCurrentLifecycle(epoch)) return null;
     var image = prepared.image;

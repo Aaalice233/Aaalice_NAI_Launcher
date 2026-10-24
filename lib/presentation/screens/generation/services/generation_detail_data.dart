@@ -27,6 +27,7 @@ class GenerationDetailData {
       showCopyButton: image.canSave,
       showSaveAsButton: image.canSave,
       preserveOriginalBytesOnSave: image.preserveOriginalBytesOnSave,
+      fileNameSuffix: image.fileNameSuffix,
       fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
     );
   }

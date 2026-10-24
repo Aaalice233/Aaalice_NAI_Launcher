@@ -15,6 +15,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/decoded_image_size.dart';
 import '../../../core/utils/exif_orientation.dart';
 import '../../../core/utils/zip_utils.dart';
+import '../../models/director/director_tool_output.dart';
 
 part 'nai_image_enhancement_api_service.g.dart';
 
@@ -209,7 +210,18 @@ class NAIImageEnhancementApiService {
   }
 
   // ==================== 图像增强 API ====================
-  Future<Uint8List> augmentImage(
+
+  /// 只有背景移除返回多张命名结果；不在表里的工具只取第一张。
+  static const Map<String, List<DirectorResultVariant>>
+  _resultVariantsByReqType = {
+    _reqTypeBgRemoval: [
+      DirectorResultVariant.masked,
+      DirectorResultVariant.generated,
+      DirectorResultVariant.blend,
+    ],
+  };
+
+  Future<DirectorToolOutput> augmentImage(
     Uint8List image, {
     required String reqType,
     String? prompt,
@@ -251,7 +263,17 @@ class NAIImageEnhancementApiService {
         throw Exception('No images found in augment response');
       }
 
-      return images.first;
+      final variants = _resultVariantsByReqType[reqType];
+      final expectedCount = variants?.length ?? 1;
+      if (images.length != expectedCount) {
+        AppLogger.w(
+          'Augment $reqType returned ${images.length} images, '
+              'expected $expectedCount',
+          'NAIEnhancement',
+        );
+      }
+      if (variants == null) return DirectorToolOutput.single(images.first);
+      return DirectorToolOutput.labelled(images, variants: variants);
     } on DioException catch (e) {
       AppLogger.w('Augment image failed: ${e.message}', 'NAIEnhancement');
       throw Exception('图像增强失败: ${_mapDioError(e)}');
@@ -260,7 +282,7 @@ class NAIImageEnhancementApiService {
     }
   }
 
-  Future<Uint8List> fixEmotion(
+  Future<DirectorToolOutput> fixEmotion(
     Uint8List image, {
     required String prompt,
     int defry = 0,
@@ -271,10 +293,10 @@ class NAIImageEnhancementApiService {
     defry: defry,
   );
 
-  Future<Uint8List> removeBackground(Uint8List image) =>
+  Future<DirectorToolOutput> removeBackground(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeBgRemoval);
 
-  Future<Uint8List> colorize(
+  Future<DirectorToolOutput> colorize(
     Uint8List image, {
     String? prompt,
     int defry = 0,
@@ -285,13 +307,13 @@ class NAIImageEnhancementApiService {
     defry: defry,
   );
 
-  Future<Uint8List> declutter(Uint8List image) =>
+  Future<DirectorToolOutput> declutter(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeDeclutter);
 
-  Future<Uint8List> extractLineArt(Uint8List image) =>
+  Future<DirectorToolOutput> extractLineArt(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeLineArt);
 
-  Future<Uint8List> toSketch(Uint8List image) =>
+  Future<DirectorToolOutput> toSketch(Uint8List image) =>
       augmentImage(image, reqType: _reqTypeSketch);
 
   // ==================== 图像标注 API ====================

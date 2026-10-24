@@ -925,7 +925,7 @@
   "img2img_directorTools": "導演工具",
   "img2img_directorToolsHint": "將當前源圖送入導演工具處理。處理完成後，可以把結果回填為新的源圖繼續生成。",
   "img2img_directorPrompt": "附加提示詞",
-  "img2img_directorPromptHint": "需要時補充描述，例如目標情緒或上色方向",
+  "img2img_directorPromptHint": "選填，補充想要的效果描述",
   "img2img_directorRun": "執行 {tool}",
   "@img2img_directorRun": {
     "placeholders": {
@@ -948,12 +948,88 @@
       "tool": {}
     }
   },
+  "img2img_directorResultSaveFailed": "{tool} 處理完成，但結果儲存失敗",
+  "@img2img_directorResultSaveFailed": {
+    "placeholders": {
+      "tool": {}
+    }
+  },
+  "img2img_directorResultSelectedSaveFailed": "{tool} 處理完成，但目前選取的結果儲存失敗（{failed}/{total} 張失敗）",
+  "@img2img_directorResultSelectedSaveFailed": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultPartiallySaved": "{tool} 處理完成，{failed}/{total} 張結果儲存失敗",
+  "@img2img_directorResultPartiallySaved": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "img2img_directorApplied": "已將導演工具結果設為新的源圖",
+  "img2img_directorResultMasked": "蒙版摳圖",
+  "img2img_directorResultGenerated": "生成",
+  "img2img_directorResultBlend": "混合",
+  "img2img_directorResultNumbered": "結果 {index}",
+  "@img2img_directorResultNumbered": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultWithVariant": "{result} · {variant}",
+  "@img2img_directorResultWithVariant": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      },
+      "variant": {
+        "type": "String"
+      }
+    }
+  },
   "img2img_directorDefry": "Defry",
   "img2img_directorDefryHint": "降低結果中的噪聲或過飽和程度（0 = 關閉，5 = 最強）",
-  "img2img_directorEmotionLevel": "表情強度",
-  "img2img_directorEmotionLevelHint": "AI 改變表情的力度（0 = 輕微，5 = 強烈）",
-  "img2img_directorEmotionPresets": "快速預設",
+  "img2img_directorEmotionLevel": "表情等級",
+  "img2img_directorEmotionLevelHint": "數值越大，表情越弱（0 = 正常，5 = 最弱）",
+  "img2img_directorEmotionMood": "情緒",
+  "img2img_directorEmotionNeutral": "平靜",
+  "img2img_directorEmotionHappy": "開心",
+  "img2img_directorEmotionSad": "悲傷",
+  "img2img_directorEmotionAngry": "生氣",
+  "img2img_directorEmotionScared": "害怕",
+  "img2img_directorEmotionSurprised": "驚訝",
+  "img2img_directorEmotionTired": "疲憊",
+  "img2img_directorEmotionExcited": "興奮",
+  "img2img_directorEmotionNervous": "緊張",
+  "img2img_directorEmotionThinking": "思考",
+  "img2img_directorEmotionConfused": "困惑",
+  "img2img_directorEmotionShy": "害羞",
+  "img2img_directorEmotionDisgusted": "厭惡",
+  "img2img_directorEmotionSmug": "得意",
+  "img2img_directorEmotionBored": "無聊",
+  "img2img_directorEmotionLaughing": "大笑",
+  "img2img_directorEmotionIrritated": "煩躁",
+  "img2img_directorEmotionAroused": "情動",
+  "img2img_directorEmotionEmbarrassed": "尷尬",
+  "img2img_directorEmotionWorried": "擔心",
+  "img2img_directorEmotionLove": "愛意",
+  "img2img_directorEmotionDetermined": "堅定",
+  "img2img_directorEmotionHurt": "受傷/難過",
+  "img2img_directorEmotionPlayful": "調皮",
   "img2img_directorApplyAsSource": "設為源圖",
   "img2img_directorSourceImage": "源圖",
   "img2img_variationsStarted": "正在生成變體...",

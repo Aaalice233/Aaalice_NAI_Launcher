@@ -117,6 +117,49 @@ void main() {
     expect(result.images.map((image) => image.filePath), result.savedPaths);
   });
 
+  test('每张图按自带的后缀接在命名规则生成的名字之后', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'nai_generation_suffix_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final bytes = Uint8List.fromList(
+      image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
+    );
+    GeneratedImage image(String suffix, int second) => GeneratedImage.create(
+      bytes,
+      width: 2,
+      height: 2,
+      createdAt: DateTime(2026, 10, 12, 9, 8, second),
+      preserveOriginalBytesOnSave: true,
+      fileNameSuffix: suffix,
+    );
+
+    final result = await _serviceSavingTo(
+      directory,
+      naming: const ImageSaveNaming(
+        folderTemplate: '',
+        fileNameTemplate: '{date}_{time}',
+      ),
+    ).saveImages([image('_masked', 1), image('_generated', 2), image('', 3)]);
+
+    expect(
+      [
+        for (final path in result.savedPaths)
+          p.relative(path, from: directory.path),
+      ],
+      [
+        '2026-10-12_09-08-01_masked.png',
+        '2026-10-12_09-08-02_generated.png',
+        '2026-10-12_09-08-03.png',
+      ],
+    );
+    expect(result.images.map((image) => image.fileNameSuffix).toList(), [
+      '_masked',
+      '_generated',
+      '',
+    ]);
+  });
+
   test('系统相册发布失败不回滚应用图库自动保存', () async {
     final directory = await Directory.systemTemp.createTemp(
       'nai_generation_media_store_failure_',

@@ -23,6 +23,7 @@ class GenerationResultSaveRequest {
     this.metadata,
     this.fixedTagUsageSnapshot,
     this.savedPath,
+    this.fileNameSuffix = '',
   });
 
   factory GenerationResultSaveRequest.fromImage(GeneratedImage image) =>
@@ -34,6 +35,7 @@ class GenerationResultSaveRequest {
         metadata: image.metadata,
         fixedTagUsageSnapshot: image.fixedTagUsageSnapshot,
         savedPath: image.filePath,
+        fileNameSuffix: image.fileNameSuffix,
       );
 
   /// [createdAt] 取对应生成结果的生成时间，找不到结果时用当前时间。
@@ -51,6 +53,7 @@ class GenerationResultSaveRequest {
         ? detail.fixedTagUsageSnapshot
         : null,
     savedPath: savedPath,
+    fileNameSuffix: detail.fileNameSuffix,
   );
 
   final String imageId;
@@ -64,6 +67,9 @@ class GenerationResultSaveRequest {
 
   /// 这条结果此前记录的文件路径。
   final String? savedPath;
+
+  /// 见 [GeneratedImage.fileNameSuffix]。
+  final String fileNameSuffix;
 }
 
 /// 一条生成结果在图库里对应的文件。
@@ -223,6 +229,7 @@ class GenerationResultSaver {
         createdAt: request.createdAt,
         imageId: request.imageId,
         index: index,
+        fileNameSuffix: request.fileNameSuffix,
       ),
       metadata: request.metadata,
       fixedTagUsageSnapshot: request.fixedTagUsageSnapshot,

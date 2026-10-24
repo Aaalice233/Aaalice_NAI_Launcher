@@ -80,9 +80,11 @@ class PendingDerivativeCopySaver {
     required ImageSaveNaming naming,
     required SaveNameContext context,
     String? preferredFileName,
-    String protectedSuffix = '',
   }) async {
-    final path = p.join(rootPath, preferredFileName ?? 'copy$protectedSuffix');
+    final path = p.join(
+      rootPath,
+      preferredFileName ?? 'copy${context.fileNameSuffix}',
+    );
     writeRequests.add(path);
     if (holdWrites) await writing.future;
     writes.add(path);

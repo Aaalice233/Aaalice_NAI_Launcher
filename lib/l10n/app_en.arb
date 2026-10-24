@@ -1002,7 +1002,7 @@
   "img2img_directorTools": "Director Tools",
   "img2img_directorToolsHint": "Send the current source image through a Director Tool. When the result is ready, you can apply it back as the new source image.",
   "img2img_directorPrompt": "Extra Prompt",
-  "img2img_directorPromptHint": "Add guidance when needed, such as target emotion or color direction",
+  "img2img_directorPromptHint": "Optional. Describe the effect you want",
   "img2img_directorRun": "Run {tool}",
   "@img2img_directorRun": {
     "placeholders": {
@@ -1025,12 +1025,88 @@
       "tool": {}
     }
   },
+  "img2img_directorResultSaveFailed": "{tool} completed, but the result could not be saved",
+  "@img2img_directorResultSaveFailed": {
+    "placeholders": {
+      "tool": {}
+    }
+  },
+  "img2img_directorResultSelectedSaveFailed": "{tool} completed, but the selected result could not be saved ({failed} of {total} failed)",
+  "@img2img_directorResultSelectedSaveFailed": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultPartiallySaved": "{tool} completed, but {failed} of {total} results could not be saved",
+  "@img2img_directorResultPartiallySaved": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "img2img_directorApplied": "Applied the Director Tool result as the new source image",
+  "img2img_directorResultMasked": "Masked",
+  "img2img_directorResultGenerated": "Generated",
+  "img2img_directorResultBlend": "Blend",
+  "img2img_directorResultNumbered": "Result {index}",
+  "@img2img_directorResultNumbered": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultWithVariant": "{result} · {variant}",
+  "@img2img_directorResultWithVariant": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      },
+      "variant": {
+        "type": "String"
+      }
+    }
+  },
   "img2img_directorDefry": "Defry",
   "img2img_directorDefryHint": "Reduce noise or over-saturation in the result (0 = off, 5 = max)",
   "img2img_directorEmotionLevel": "Emotion Level",
-  "img2img_directorEmotionLevelHint": "How strongly the emotion is applied (0 = subtle, 5 = strong)",
-  "img2img_directorEmotionPresets": "Presets",
+  "img2img_directorEmotionLevelHint": "Higher values make the emotion weaker (0 = normal, 5 = weakest)",
+  "img2img_directorEmotionMood": "Emotion",
+  "img2img_directorEmotionNeutral": "Neutral",
+  "img2img_directorEmotionHappy": "Happy",
+  "img2img_directorEmotionSad": "Sad",
+  "img2img_directorEmotionAngry": "Angry",
+  "img2img_directorEmotionScared": "Scared",
+  "img2img_directorEmotionSurprised": "Surprised",
+  "img2img_directorEmotionTired": "Tired",
+  "img2img_directorEmotionExcited": "Excited",
+  "img2img_directorEmotionNervous": "Nervous",
+  "img2img_directorEmotionThinking": "Thinking",
+  "img2img_directorEmotionConfused": "Confused",
+  "img2img_directorEmotionShy": "Shy",
+  "img2img_directorEmotionDisgusted": "Disgusted",
+  "img2img_directorEmotionSmug": "Smug",
+  "img2img_directorEmotionBored": "Bored",
+  "img2img_directorEmotionLaughing": "Laughing",
+  "img2img_directorEmotionIrritated": "Irritated",
+  "img2img_directorEmotionAroused": "Aroused",
+  "img2img_directorEmotionEmbarrassed": "Embarrassed",
+  "img2img_directorEmotionWorried": "Worried",
+  "img2img_directorEmotionLove": "Love",
+  "img2img_directorEmotionDetermined": "Determined",
+  "img2img_directorEmotionHurt": "Hurt",
+  "img2img_directorEmotionPlayful": "Playful",
   "img2img_directorApplyAsSource": "Use as Source",
   "img2img_directorSourceImage": "Source Image",
   "img2img_variationsStarted": "Generating variations...",
