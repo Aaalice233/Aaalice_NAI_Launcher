@@ -155,7 +155,8 @@ AssistantMessageEventStream agentWireEventStream(
         }
       }
       if (!sawFinish) {
-        errorMessage = 'LLM stream ended before a terminal event.';
+        errorMessage = '${provider ?? 'LLM'} stream ended without a terminal '
+            'event.';
         stopReason = StopReason.error;
         emitStart();
         stream.push(AmError(partial: finalMessage(), error: errorMessage));

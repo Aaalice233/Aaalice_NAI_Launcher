@@ -163,12 +163,9 @@ class AgentWireFinish extends AgentWireEvent {
 }
 
 class AgentWireError extends AgentWireEvent {
-  const AgentWireError(this.message, {this.transient = false});
+  const AgentWireError(this.message);
 
   final String message;
-
-  /// 瞬时错误（429/5xx/超时/overloaded），可重试。
-  final bool transient;
 }
 
 /// 用户消息内联图片的便捷提取（适配器构造 payload 用）。

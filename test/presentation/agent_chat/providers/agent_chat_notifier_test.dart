@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart' show ThinkingLevel;
 import 'package:nai_launcher/core/agent/harness/harness_types.dart';
+import 'package:nai_launcher/core/agent/harness/llm_helpers.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -27,6 +28,13 @@ const _testSkill = HarnessSkill(
   description: 'A skill used by the slash command tests',
   content: 'SKILL BODY',
   filePath: '/skills/test-skill/SKILL.md',
+);
+
+const _fastRetry = RetryPolicy(enabled: true, maxRetries: 3, baseDelayMs: 1);
+
+const _droppedStream = AgentWireError(
+  'LLM request failed: network error: provider=DeepSeek: HttpException: '
+  'Connection closed while receiving data',
 );
 
 const _mixedCaseSkill = HarnessSkill(
@@ -323,6 +331,7 @@ User instructions.
           presetSkills: const [_testSkill, _mixedCaseSkill],
           sessionRepo: sessionRepo,
           completeRequest: (request) => wireCompletion(request),
+          retryPolicy: _fastRetry,
         );
       });
       container = ProviderContainer(
@@ -879,6 +888,195 @@ User instructions.
       );
     });
 
+    group('auto retry', () {
+      test('transient failure continues the same operation', () async {
+        await _selectChatModel(container);
+        wireCompletion = (request) async* {
+          requests.add(request);
+          if (requests.length == 1) {
+            yield const AgentWireTextDelta('half an ans');
+            yield _droppedStream;
+          } else {
+            yield AgentWireTextDelta(
+              requests.length == 2 ? 'Recovered' : 'Next answer',
+            );
+            yield const AgentWireFinish(stopReason: StopReason.stop);
+          }
+        };
+        final phases = <AgentChatWorkPhase>[];
+        final retryStatuses = <AgentChatRetryStatus>[];
+        final errors = <String>[];
+        final subscription = container.listen(provider, (_, next) {
+          phases.add(next.workPhase);
+          if (next.retryStatus case final status?) retryStatuses.add(status);
+          if (next.error.isNotEmpty) errors.add(next.error);
+        });
+        addTearDown(subscription.close);
+        final notifier = container.read(provider.notifier);
+
+        await notifier.send('Test');
+
+        expect(requests, hasLength(2));
+        expect(requests[1].messages, hasLength(requests[0].messages.length));
+        expect(requests[1].messages.whereType<AssistantMessage>(), isEmpty);
+        expect(retryStatuses.first.attempt, 1);
+        expect(retryStatuses.first.maxAttempts, 3);
+        expect(phases, contains(AgentChatWorkPhase.retrying));
+        expect(errors, isEmpty);
+        final state = container.read(provider);
+        expect(state.retryStatus, isNull);
+        expect(state.status, AgentChatRunStatus.idle);
+        expect(state.messages.whereType<AssistantMessage>().map((m) => m.text), [
+          'half an ans',
+          'Recovered',
+        ]);
+        final records = await _sessionRecords(
+          sessionRepo,
+          state.activeSessionId,
+        );
+        expect(records.whereType<OperationStartedRecord>(), hasLength(1));
+        expect(
+          records.whereType<OperationFinishedRecord>().single.outcome,
+          OperationOutcomeKind.completed,
+        );
+
+        await notifier.send('Next');
+        final replayed = requests[2].messages
+            .whereType<AssistantMessage>()
+            .map((m) => m.text);
+        expect(replayed, ['Recovered']);
+      });
+
+      test('exhausted retries surface the final error and count', () async {
+        await _selectChatModel(container);
+        wireCompletion = (request) {
+          requests.add(request);
+          return Stream<AgentWireEvent>.value(
+            const AgentWireError(
+              'LLM request failed: HTTP 503: provider=DeepSeek: overloaded',
+            ),
+          );
+        };
+
+        await container.read(provider.notifier).send('Test');
+
+        expect(requests, hasLength(4));
+        final state = container.read(provider);
+        expect(state.error, contains('HTTP 503'));
+        expect(state.errorRetryAttempts, 3);
+        expect(state.retryStatus, isNull);
+        expect(state.status, AgentChatRunStatus.idle);
+        final records = await _sessionRecords(
+          sessionRepo,
+          state.activeSessionId,
+        );
+        expect(records.whereType<OperationStartedRecord>(), hasLength(1));
+        final finished = records.whereType<OperationFinishedRecord>().single;
+        expect(finished.outcome, OperationOutcomeKind.failed);
+        expect(finished.error?.message, contains('HTTP 503'));
+      });
+
+      test('deterministic failure is reported without retrying', () async {
+        await _selectChatModel(container);
+        wireCompletion = (request) {
+          requests.add(request);
+          return Stream<AgentWireEvent>.value(
+            const AgentWireError(
+              'LLM request failed: HTTP 401: provider=DeepSeek: bad key',
+            ),
+          );
+        };
+
+        await container.read(provider.notifier).send('Test');
+
+        expect(requests, hasLength(1));
+        final state = container.read(provider);
+        expect(state.error, contains('HTTP 401'));
+        expect(state.errorRetryAttempts, 0);
+      });
+
+      test('stopping during backoff cancels the retry cleanly', () async {
+        await _selectChatModel(container);
+        wireCompletion = (request) {
+          requests.add(request);
+          return Stream<AgentWireEvent>.value(_droppedStream);
+        };
+        final notifier = container.read(provider.notifier);
+        Future<void>? stopping;
+        final subscription = container.listen(provider, (_, next) {
+          if (next.retryStatus != null && stopping == null) {
+            stopping = Future<void>.microtask(notifier.abort);
+          }
+        });
+        addTearDown(subscription.close);
+
+        await notifier.send('Test');
+        await stopping;
+
+        expect(requests, hasLength(1));
+        final state = container.read(provider);
+        expect(state.error, isEmpty);
+        expect(state.retryStatus, isNull);
+        expect(state.status, AgentChatRunStatus.idle);
+        expect(state.workPhase, AgentChatWorkPhase.idle);
+        final records = await _sessionRecords(
+          sessionRepo,
+          state.activeSessionId,
+        );
+        expect(records.whereType<OperationStartedRecord>(), hasLength(1));
+        expect(
+          records.whereType<OperationFinishedRecord>().single.outcome,
+          OperationOutcomeKind.aborted,
+        );
+
+        wireCompletion = (request) {
+          requests.add(request);
+          return Stream<AgentWireEvent>.fromIterable(const [
+            AgentWireTextDelta('fresh'),
+            AgentWireFinish(stopReason: StopReason.stop),
+          ]);
+        };
+        await notifier.send('Again');
+        expect(requests, hasLength(2));
+      });
+
+      test('a retried tool loop finishes before the send settles', () async {
+        await _selectChatModel(container);
+        wireCompletion = (request) async* {
+          requests.add(request);
+          switch (requests.length) {
+            case 1:
+              yield _droppedStream;
+            case 2:
+              yield const AgentWireTextDelta('Looking that up now.');
+              yield const AgentWireToolCallDone(
+                id: 'call_1',
+                name: 'read_skill',
+                arguments: {'name': 'test-skill'},
+              );
+              yield const AgentWireFinish(stopReason: StopReason.toolUse);
+            default:
+              yield AgentWireTextDelta('Answer ${requests.length}.');
+              yield const AgentWireFinish(stopReason: StopReason.stop);
+          }
+        };
+        final notifier = container.read(provider.notifier);
+
+        await notifier.send('Test');
+
+        expect(requests, hasLength(3));
+        expect(
+          requests[2].messages.whereType<ToolResultMessage>().single.toolCallId,
+          'call_1',
+        );
+        final state = container.read(provider);
+        expect(state.status, AgentChatRunStatus.idle);
+        expect(state.error, isEmpty);
+        await notifier.send('Follow-up');
+        expect(requests, hasLength(4));
+      });
+    });
+
     test('persists steering and follow-up input before delivery', () async {
       final configNotifier = container.read(
         promptAssistantConfigProvider.notifier,
@@ -1347,6 +1545,16 @@ Future<void> _selectChatModel(ProviderContainer container) async {
         ),
       );
   await Future<void>.delayed(const Duration(milliseconds: 10));
+}
+
+Future<List<LaneRecord>> _sessionRecords(
+  JsonlSessionRepo repo,
+  String sessionId,
+) async {
+  final metadata = (await repo.list()).firstWhere(
+    (item) => item.id == sessionId,
+  );
+  return (await repo.open(metadata)).findRecords();
 }
 
 Future<void> _writeProjectSkill(Directory project, String name) async {

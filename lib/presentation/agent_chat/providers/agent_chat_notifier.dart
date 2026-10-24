@@ -39,6 +39,7 @@ import '../../providers/tag_library_page_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router_config.dart';
 import '../services/agent_api_client.dart';
+import '../services/agent_chat_auto_retry.dart';
 import '../services/agent_chat_draft_controller.dart';
 import '../services/agent_chat_event_controller.dart';
 import '../services/agent_chat_session_controller.dart';
@@ -83,6 +84,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     Directory? workspaceDir,
     JsonlSessionRepo? sessionRepo,
     AgentWireCompletion? completeRequest,
+    RetryPolicy retryPolicy = agentChatRetryPolicy,
     Map<String, String>? skillEnvironment,
     Future<Directory?> Function()? imageProjectDirectoryResolver,
     bool initializeImmediately = true,
@@ -90,6 +92,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
        _providedWorkspaceDir = workspaceDir,
        _providedSessionRepo = sessionRepo,
        _completeRequest = completeRequest,
+       _retryPolicy = retryPolicy,
        _skillEnvironment = skillEnvironment,
        _imageProjectDirectoryResolver = imageProjectDirectoryResolver,
        super(const AgentChatState()) {
@@ -126,6 +129,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   final Directory? _providedWorkspaceDir;
   final JsonlSessionRepo? _providedSessionRepo;
   final AgentWireCompletion? _completeRequest;
+  final RetryPolicy _retryPolicy;
   final Map<String, String>? _skillEnvironment;
   final Future<Directory?> Function()? _imageProjectDirectoryResolver;
   late final List<HarnessSkill>? _presetSkills;
@@ -134,6 +138,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   late AgentChatDraftController _draftController;
   bool _draftControllerInitialized = false;
   late AgentChatEventController _eventController;
+  late final AgentChatAutoRetry _autoRetry = AgentChatAutoRetry(
+    onRetryStart: _handleRetryStart,
+    onRetryEnd: _handleRetryEnd,
+    omitFailedAttempt: _omitFailedAttempt,
+    contextWindow: () =>
+        _modelCapability(_activeRoute ?? _routeCache).model.contextWindow,
+    policy: _retryPolicy,
+  );
   AgentChatSessionController? _sessionControllerValue;
   AgentToolPermissionController? _permissionController;
   AgentUserQuestionController? _questionController;
@@ -282,6 +294,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     _eventController = AgentChatEventController(
       sessionController: _sessionController,
       permissionController: _permissionController!,
+      autoRetry: _autoRetry,
       readState: () => state,
       writeState: (next) => state = next,
       isMounted: () => mounted,
@@ -545,6 +558,8 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
           contextWindow: contextWindow,
         ),
         signal: signal,
+        retry: _autoRetry.policy,
+        callbacks: _compactionRetryCallbacks(),
       );
       final compactResult = result.valueOrNull;
       state = state.copyWith(compacting: false);
@@ -612,6 +627,27 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       return (messages: messages, outcome: AgentChatCompactionFailed('$e'));
     }
   }
+
+  RetryCallbacks _compactionRetryCallbacks() => RetryCallbacks(
+    onRetryScheduled: (attempt, maxAttempts, delayMs, errorMessage) {
+      if (!mounted) return;
+      state = state.copyWith(
+        retryStatus: AgentChatRetryStatus(
+          attempt: attempt,
+          maxAttempts: maxAttempts,
+          delayMs: delayMs,
+          errorMessage: errorMessage,
+          resumesAtMs: DateTime.now().millisecondsSinceEpoch + delayMs,
+        ),
+      );
+    },
+    onRetryAttemptStart: () {
+      if (mounted) state = state.copyWith(clearRetryStatus: true);
+    },
+    onRetryFinished: (success, attempt, finalError) {
+      if (mounted) state = state.copyWith(clearRetryStatus: true);
+    },
+  );
 
   /// compaction 是否真有历史要折叠。
   bool _hasSummarizableHistory(CompactionPreparation preparation) =>
@@ -1191,6 +1227,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
       ownsRun = true;
       _preparingRun = true;
+      _autoRetry.beginRun();
       state = state.copyWith(
         status: AgentChatRunStatus.running,
         error: '',
@@ -1297,13 +1334,20 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
     if (run == null || runAgent == null) return false;
     var succeeded = true;
+    Object? runError;
     try {
       await run;
+      while (await _autoRetry.takeRetry()) {
+        await runAgent.continueRun();
+      }
     } catch (e, stackTrace) {
       succeeded = false;
+      runError = e;
       AppLogger.e('Agent run failed', e, stackTrace, 'AgentChat');
       state = state.copyWith(error: e.toString());
     } finally {
+      _autoRetry.endRun();
+      if (!await _settleDeferredRun(runError)) succeeded = false;
       if (!await _releaseForegroundTask(releaseForeground)) succeeded = false;
       _activePermissionMode = null;
       _activeAgentSettings = null;
@@ -1312,6 +1356,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         state = state.copyWith(
           status: AgentChatRunStatus.idle,
           clearStreamingMessage: true,
+          clearRetryStatus: true,
           queuedMessages: _queuedMessages(runAgent),
           workPhase: AgentChatWorkPhase.idle,
         );
@@ -1319,6 +1364,67 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       if (_settingsApplyPending) _queueSettingsRefresh();
     }
     return succeeded;
+  }
+
+  /// 失败后已推迟结算、却没有续跑成功的 operation：没有异常即是重试被取消。
+  Future<bool> _settleDeferredRun(Object? runError) async {
+    try {
+      await _eventController.settleDeferredRun(
+        outcome: runError == null
+            ? session_types.OperationOutcomeKind.aborted
+            : session_types.OperationOutcomeKind.failed,
+        error: runError?.toString(),
+      );
+      return true;
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Agent deferred run settlement failed',
+        error,
+        stackTrace,
+        'AgentChat',
+      );
+      if (mounted) state = state.copyWith(error: error.toString());
+      return false;
+    }
+  }
+
+  void _handleRetryStart(AgentChatRetryStatus status) {
+    if (!mounted) return;
+    state = state.copyWith(
+      workPhase: AgentChatWorkPhase.retrying,
+      retryStatus: status,
+      clearStreamingMessage: true,
+    );
+  }
+
+  void _handleRetryEnd(AgentChatRetryEnd end) {
+    if (!mounted) return;
+    state = state.copyWith(clearRetryStatus: true);
+  }
+
+  /// 失败回合留在会话历史里，但不能留在续跑的上下文中：同时剔除它与其工具
+  /// 调用对应的结果，否则孤立的结果会让下一次请求失败。
+  void _omitFailedAttempt(AssistantMessage failed) {
+    final agent = _sessionControllerValue?.agent;
+    if (agent == null) return;
+    final messages = agent.state.messages;
+    final index = messages.indexWhere(
+      (message) => identical(message, failed),
+    );
+    if (index < 0) return;
+    final toolCallIds = {for (final call in failed.toolCalls) call.id};
+    final omitted = <AgentMessage>[failed];
+    for (final message in messages.skip(index + 1)) {
+      if (message is AssistantMessage) break;
+      if (message is ToolResultMessage &&
+          toolCallIds.contains(message.toolCallId)) {
+        omitted.add(message);
+      }
+    }
+    agent.state.messages = [
+      for (final message in messages)
+        if (!omitted.any((target) => identical(target, message))) message,
+    ];
   }
 
   Future<bool> _releaseForegroundTask(Future<void> Function()? release) async {
@@ -1396,6 +1502,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       return;
     }
     state = state.copyWith(workPhase: AgentChatWorkPhase.stopping);
+    _autoRetry.requestAbort();
     agent.abort();
     _permissionController?.cancelApproval();
     _questionController?.cancel();
@@ -1428,6 +1535,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   @override
   void dispose() {
+    _autoRetry.requestAbort();
     _sessionControllerValue?.agent?.abort();
     _questionController?.cancel();
     _permissionController?.dispose();

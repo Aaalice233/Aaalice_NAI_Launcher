@@ -1630,6 +1630,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentChat_errorDetails => '错误详情';
 
   @override
+  String agentChat_autoRetryCountdown(
+    int attempt,
+    int maxAttempts,
+    int seconds,
+  ) {
+    return '第 $attempt/$maxAttempts 次自动重试，$seconds 秒后开始';
+  }
+
+  @override
+  String agentChat_autoRetryStarting(int attempt, int maxAttempts) {
+    return '正在进行第 $attempt/$maxAttempts 次自动重试';
+  }
+
+  @override
+  String agentChat_autoRetryExhausted(int count) {
+    return '已自动重试 $count 次';
+  }
+
+  @override
   String get agentChat_modelLabel => '模型';
 
   @override
@@ -17152,6 +17171,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get agentChat_errorDetails => '錯誤詳情';
+
+  @override
+  String agentChat_autoRetryCountdown(
+    int attempt,
+    int maxAttempts,
+    int seconds,
+  ) {
+    return '第 $attempt/$maxAttempts 次自動重試，$seconds 秒後開始';
+  }
+
+  @override
+  String agentChat_autoRetryStarting(int attempt, int maxAttempts) {
+    return '正在進行第 $attempt/$maxAttempts 次自動重試';
+  }
+
+  @override
+  String agentChat_autoRetryExhausted(int count) {
+    return '已自動重試 $count 次';
+  }
 
   @override
   String get agentChat_modelLabel => '模型';

@@ -279,7 +279,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     }
     if (!sawTerminalEvent) {
       yield const AgentWireError(
-        'OpenAI Responses stream ended before its terminal event.',
+        'OpenAI Responses stream ended before a terminal response event.',
       );
       return;
     }

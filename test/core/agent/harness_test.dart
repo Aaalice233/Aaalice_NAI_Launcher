@@ -101,6 +101,44 @@ void main() {
       expect(llm.whereType<AssistantMessage>().single.text, 'partial answer');
     });
 
+    test('never replays failed requests but keeps interrupted text', () {
+      final failedCall = AssistantMessage(
+        content: const [
+          AssistantTextContent('half of a failed'),
+          ToolCallContent(id: 'failed-call', name: 'read', arguments: {}),
+        ],
+        stopReason: StopReason.error,
+        errorMessage: 'terminated',
+      );
+      final interrupted = AssistantMessage(
+        content: const [AssistantTextContent('interrupted answer')],
+        stopReason: StopReason.aborted,
+      );
+
+      final llm = harnessConvertToLlm([
+        UserMessage.text('first'),
+        failedCall,
+        ToolResultMessage(
+          toolCallId: 'failed-call',
+          toolName: 'read',
+          content: const [ToolResultTextContent('orphan')],
+        ),
+        AssistantMessage(
+          content: const [AssistantTextContent('retried answer')],
+          stopReason: StopReason.stop,
+        ),
+        UserMessage.text('second'),
+        interrupted,
+        UserMessage.text('continue'),
+      ]);
+
+      expect(llm.whereType<ToolResultMessage>(), isEmpty);
+      expect(llm.whereType<AssistantMessage>().map((m) => m.text), [
+        'retried answer',
+        'interrupted answer',
+      ]);
+    });
+
     test('keeps complete tool calls and removes broken tool history', () {
       final completeCall = AssistantMessage(
         content: const [

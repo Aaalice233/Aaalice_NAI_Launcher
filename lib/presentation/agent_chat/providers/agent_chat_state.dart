@@ -26,6 +26,8 @@ class AgentChatState {
     this.routeReady = false,
     this.routeError = '',
     this.error = '',
+    this.errorRetryAttempts = 0,
+    this.retryStatus,
     this.compacting = false,
     this.sessionTransitioning = false,
     this.sessionContentLoading = false,
@@ -62,6 +64,10 @@ class AgentChatState {
   final bool routeReady;
   final String routeError;
   final String error;
+
+  /// [error] 出现前已自动重试的次数。
+  final int errorRetryAttempts;
+  final AgentChatRetryStatus? retryStatus;
   final bool compacting;
   final bool sessionTransitioning;
   final bool sessionContentLoading;
@@ -101,6 +107,9 @@ class AgentChatState {
     bool? routeReady,
     String? routeError,
     String? error,
+    int? errorRetryAttempts,
+    AgentChatRetryStatus? retryStatus,
+    bool clearRetryStatus = false,
     bool? compacting,
     bool? sessionTransitioning,
     bool? sessionContentLoading,
@@ -142,6 +151,11 @@ class AgentChatState {
       routeReady: routeReady ?? this.routeReady,
       routeError: routeError ?? this.routeError,
       error: error ?? this.error,
+      // 新错误默认不继承上一条错误的重试次数。
+      errorRetryAttempts:
+          errorRetryAttempts ??
+          (error == null ? this.errorRetryAttempts : 0),
+      retryStatus: clearRetryStatus ? null : retryStatus ?? this.retryStatus,
       compacting: compacting ?? this.compacting,
       sessionTransitioning: sessionTransitioning ?? this.sessionTransitioning,
       sessionContentLoading:
@@ -187,8 +201,28 @@ enum AgentChatWorkPhase {
   usingTools,
   awaitingApproval,
   compacting,
+  retrying,
   stopping,
   failed,
+}
+
+/// 自动重试的退避状态。
+class AgentChatRetryStatus {
+  const AgentChatRetryStatus({
+    required this.attempt,
+    required this.maxAttempts,
+    required this.delayMs,
+    required this.errorMessage,
+    required this.resumesAtMs,
+  });
+
+  final int attempt;
+  final int maxAttempts;
+  final int delayMs;
+  final String errorMessage;
+
+  /// 退避结束、重试开始的时刻（毫秒时间戳）。
+  final int resumesAtMs;
 }
 
 enum AgentQueuedMessageKind { steering, followUp }
