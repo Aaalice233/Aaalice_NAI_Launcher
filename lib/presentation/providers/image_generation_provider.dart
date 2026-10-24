@@ -141,7 +141,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         resolveGalleryRootPath: GalleryFolderRepository.instance.getRootPath,
         saveNaming: saveSettings.naming,
         addGalleryImages: gallery.addNewlySavedImages,
-        refreshGallery: gallery.refresh,
         removeGalleryImages: gallery.removeDeletedImages,
         deleteGalleryFile: GalleryImageFileDeleter(
           ref.read(localStorageServiceProvider),

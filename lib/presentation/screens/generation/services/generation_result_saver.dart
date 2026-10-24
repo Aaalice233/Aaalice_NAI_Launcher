@@ -143,7 +143,6 @@ class GenerationResultSaver {
     required this.systemGallery,
     required this.recordSavedPath,
     required this.addGalleryImages,
-    required this.refreshGallery,
   });
 
   final Future<String?> Function() resolveGalleryRootPath;
@@ -152,7 +151,6 @@ class GenerationResultSaver {
   final void Function(String imageId, String path) recordSavedPath;
   final Future<GalleryIndexAdmission> Function(List<String> paths)
   addGalleryImages;
-  final Future<void> Function() refreshGallery;
 
   /// 单张保存，失败直接抛出；图库根目录未设置时返回 null，不落盘。
   Future<GenerationResultFile?> save(
@@ -193,10 +191,8 @@ class GenerationResultSaver {
       for (final file in files)
         if (file is GenerationResultNewlySaved) file.path,
     ];
-    if (newPaths.isNotEmpty) {
-      final admission = await addGalleryImages(newPaths);
-      if (admission.requiresFullRescan) await refreshGallery();
-    }
+    // 收录失败已由图库服务按单张重试并记录，全量重扫修不了单张写不进去的图
+    if (newPaths.isNotEmpty) await addGalleryImages(newPaths);
     return GenerationResultSaveReport(
       rootPath: rootPath,
       files: files,

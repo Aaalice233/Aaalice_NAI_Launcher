@@ -52,7 +52,6 @@ void main() {
           indexedPaths = paths;
           return GalleryIndexAdmission.added;
         },
-        refreshGallery: () async {},
         removeGalleryImages: _unexpectedGalleryRemoval,
         deleteGalleryFile: _unexpectedFileDeletion,
         incrementStatistics: (count) async => statisticsCount += count,
@@ -136,7 +135,6 @@ void main() {
           indexedCount = paths.length;
           return GalleryIndexAdmission.added;
         },
-        refreshGallery: () async {},
         removeGalleryImages: _unexpectedGalleryRemoval,
         deleteGalleryFile: _unexpectedFileDeletion,
         incrementStatistics: (_) async {},
@@ -315,29 +313,32 @@ void main() {
     });
   });
 
-  group('图库索引结果决定是否全量重扫', () {
-    Future<int> refreshCountFor(GalleryIndexAdmission admission) async {
-      final directory = await Directory.systemTemp.createTemp(
-        'nai_generation_index_admission_',
-      );
-      addTearDown(() => directory.delete(recursive: true));
+  group('图库收录结果不改变保存结果', () {
+    for (final admission in GalleryIndexAdmission.values) {
+      test('${admission.name} 时照常交出路径并计入统计', () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'nai_generation_index_admission_',
+        );
+        addTearDown(() => directory.delete(recursive: true));
 
-      var refreshCount = 0;
-      final service = GenerationResultLifecycleService(
-        GenerationResultLifecycleDependencies(
-          historyStorage: GenerationHistoryStorageService(enabled: false),
-          resolveGalleryRootPath: () async => directory.path,
-          saveNaming: ImageSaveNaming.standard,
-          addGalleryImages: (_) async => admission,
-          refreshGallery: () async => refreshCount++,
-          removeGalleryImages: _unexpectedGalleryRemoval,
-          deleteGalleryFile: _unexpectedFileDeletion,
-          incrementStatistics: (_) async {},
-        ),
-      );
+        final admitted = <List<String>>[];
+        var statisticsCount = 0;
+        final service = GenerationResultLifecycleService(
+          GenerationResultLifecycleDependencies(
+            historyStorage: GenerationHistoryStorageService(enabled: false),
+            resolveGalleryRootPath: () async => directory.path,
+            saveNaming: ImageSaveNaming.standard,
+            addGalleryImages: (paths) async {
+              admitted.add(paths);
+              return admission;
+            },
+            removeGalleryImages: _unexpectedGalleryRemoval,
+            deleteGalleryFile: _unexpectedFileDeletion,
+            incrementStatistics: (count) async => statisticsCount += count,
+          ),
+        );
 
-      final result = await service.saveImages(
-        [
+        final result = await service.saveImages([
           GeneratedImage.create(
             Uint8List.fromList(
               image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
@@ -346,28 +347,13 @@ void main() {
             height: 2,
             preserveOriginalBytesOnSave: true,
           ),
-        ],
-      );
-      expect(result.savedPaths, hasLength(1));
-      return refreshCount;
+        ]);
+
+        expect(result.savedPaths, hasLength(1));
+        expect(admitted, [result.savedPaths]);
+        expect(statisticsCount, 1);
+      });
     }
-
-    // 全量重扫要枚举整个图库根目录，只有索引与磁盘对不上才允许付这个代价。
-    test('新入索引不重扫', () async {
-      expect(await refreshCountFor(GalleryIndexAdmission.added), 0);
-    });
-
-    test('扫描器抢先收录不重扫', () async {
-      expect(await refreshCountFor(GalleryIndexAdmission.alreadyIndexed), 0);
-    });
-
-    test('图库未初始化不重扫', () async {
-      expect(await refreshCountFor(GalleryIndexAdmission.deferred), 0);
-    });
-
-    test('索引与磁盘不一致才重扫', () async {
-      expect(await refreshCountFor(GalleryIndexAdmission.failed), 1);
-    });
   });
 
   group('GalleryIndexAdmission', () {
@@ -392,16 +378,6 @@ void main() {
       );
     });
 
-    test('只有 failed 需要全量重扫', () {
-      for (final admission in GalleryIndexAdmission.values) {
-        expect(
-          admission.requiresFullRescan,
-          admission == GalleryIndexAdmission.failed,
-          reason: '$admission',
-        );
-      }
-    });
-
     test('索引已包含新图时才重取当前页', () {
       expect(GalleryIndexAdmission.added.isIndexed, isTrue);
       expect(GalleryIndexAdmission.alreadyIndexed.isIndexed, isTrue);
@@ -420,7 +396,6 @@ void main() {
         resolveGalleryRootPath: () async => null,
         saveNaming: ImageSaveNaming.standard,
         addGalleryImages: (_) async => GalleryIndexAdmission.added,
-        refreshGallery: _unexpectedGalleryRefresh,
         removeGalleryImages: removeGalleryImages,
         deleteGalleryFile: deleteGalleryFile,
         incrementStatistics: (_) async {},
@@ -493,7 +468,6 @@ GenerationResultLifecycleService _serviceSavingTo(
         resolveGalleryRootPath: () async => directory.path,
         saveNaming: naming,
         addGalleryImages: (_) async => GalleryIndexAdmission.added,
-        refreshGallery: () async {},
         removeGalleryImages: _unexpectedGalleryRemoval,
         deleteGalleryFile: _unexpectedFileDeletion,
         incrementStatistics: (_) async {},
@@ -502,9 +476,6 @@ GenerationResultLifecycleService _serviceSavingTo(
 
 Future<bool> _unexpectedFileDeletion(String path) =>
     throw StateError('unexpected gallery file deletion: $path');
-
-Future<void> _unexpectedGalleryRefresh() =>
-    throw StateError('deleting files must not re-enumerate the gallery');
 
 Future<void> _unexpectedGalleryRemoval(List<String> paths) =>
     throw StateError('unexpected gallery removal: $paths');
