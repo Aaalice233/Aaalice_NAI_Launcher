@@ -611,9 +611,9 @@ Future<void> _bootstrapApplication() async {
 
   // 移动端必须给解码图、WebView、视频与 ONNX 留出足够内存余量。
   final isMobile = Platform.isAndroid || Platform.isIOS;
-  PaintingBinding.instance.imageCache.maximumSize = isMobile ? 120 : 500;
+  PaintingBinding.instance.imageCache.maximumSize = isMobile ? 120 : 150;
   PaintingBinding.instance.imageCache.maximumSizeBytes =
-      (isMobile ? 64 : 200) << 20;
+      (isMobile ? 64 : 80) << 20;
 
   // FFI 注册本身不打开数据库，需在数据库调用方出现前完成。
   await SqfliteBootstrapService.instance.ensureInitialized();

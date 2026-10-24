@@ -573,7 +573,10 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
 
       final transform = ref.read(copyDragWatermarkProvider);
       for (final image in draggableImages) {
-        if (transform != null && !_isHistoryImageVisible(image.id)) continue;
+        if ((stripMetadata || transform != null) &&
+            !_isHistoryImageVisible(image.id)) {
+          continue;
+        }
         _sharePreparationService.enqueue(
           imageId: image.id,
           imageBytes: image.bytes,

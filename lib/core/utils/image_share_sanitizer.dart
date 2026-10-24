@@ -119,6 +119,7 @@ class ShareImageTransferCache {
         transform: transform,
       );
       final file = await _writeTempFile(prepared);
+      _preparedImages.remove(key);
       _temporaryFiles[key] = file;
       return file;
     });
@@ -129,6 +130,8 @@ class ShareImageTransferCache {
   }
 
   Future<void> dispose() async {
+    _preparedImages.clear();
+    _preparedFiles.clear();
     for (final file in _temporaryFiles.values) {
       if (await file.exists()) {
         try {
@@ -621,7 +624,7 @@ class ImageShareSanitizer {
     }
 
     final transferableBytes = TransferableTypedData.fromList([bytes]);
-    return ComputeGate().runIsolate(() {
+    return ComputeGate.singleTask().runIsolate(() {
       final materializedBytes = transferableBytes.materialize().asUint8List();
       return prepareForCopyOrDrag(
         materializedBytes,

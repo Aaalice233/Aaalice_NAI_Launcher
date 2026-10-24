@@ -165,7 +165,7 @@ class _DesktopGenerationLayoutState
       overlayableLeading: const FixedTagsSidebarSlot(),
       overlayableLeadingWidth: fixedTagsWidth,
       leading: [
-        LeftPanel(isResizing: _isResizingLeft),
+        RepaintBoundary(child: LeftPanel(isResizing: _isResizingLeft)),
         if (layoutState.leftPanelExpanded)
           ResizeHandle(
             onDragStart: () => setState(() => _isResizingLeft = true),
@@ -212,10 +212,12 @@ class _DesktopGenerationLayoutState
               .setRightPanelWidth(newWidth);
         },
       ),
-      rightPanelBuilder: (allocation) => RightPanel(
-        isResizing: _isResizingRight,
-        allocation: allocation,
-        historyViewport: widget.historyViewport,
+      rightPanelBuilder: (allocation) => RepaintBoundary(
+        child: RightPanel(
+          isResizing: _isResizingRight,
+          allocation: allocation,
+          historyViewport: widget.historyViewport,
+        ),
       ),
     );
   }

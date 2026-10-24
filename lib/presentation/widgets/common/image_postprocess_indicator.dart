@@ -62,25 +62,27 @@ class _ImagePostprocessIndicatorState extends State<ImagePostprocessIndicator>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AnimatedBuilder(
-                animation: _animation,
-                builder: (context, child) => ShaderMask(
-                  blendMode: BlendMode.srcIn,
-                  shaderCallback: (bounds) => SweepGradient(
-                    transform: GradientRotation(_animation.value * math.pi * 2),
-                    colors: const [
-                      Colors.white38,
-                      Colors.white,
-                      Colors.white38,
-                    ],
-                  ).createShader(bounds),
-                  child: child,
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 32,
-                  color: Colors.white,
-                  shadows: [Shadow(color: Colors.white54, blurRadius: 14)],
+              RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _animation,
+                  builder: (context, child) => ShaderMask(
+                    blendMode: BlendMode.srcIn,
+                    shaderCallback: (bounds) => SweepGradient(
+                      transform: GradientRotation(_animation.value * math.pi * 2),
+                      colors: const [
+                        Colors.white38,
+                        Colors.white,
+                        Colors.white38,
+                      ],
+                    ).createShader(bounds),
+                    child: child,
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 32,
+                    color: Colors.white,
+                    shadows: [Shadow(color: Colors.white54, blurRadius: 14)],
+                  ),
                 ),
               ),
               const SizedBox(height: 10),

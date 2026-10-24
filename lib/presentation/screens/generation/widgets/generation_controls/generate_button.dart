@@ -69,7 +69,7 @@ class GenerateButtonWithCost extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final primaryButton = _buildPrimaryButton(context);
+    final primaryButton = RepaintBoundary(child: _buildPrimaryButton(context));
 
     final skipButton = ThemedButton(
       onPressed: onSkipCurrent,
@@ -206,11 +206,15 @@ class GenerateButtonSpinner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 16,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: IconTheme.of(context).color,
+    final reducedMotion = MediaQuery.disableAnimationsOf(context);
+    return RepaintBoundary(
+      child: SizedBox.square(
+        dimension: 16,
+        child: CircularProgressIndicator(
+          value: reducedMotion ? 0.72 : null,
+          strokeWidth: 2,
+          color: IconTheme.of(context).color,
+        ),
       ),
     );
   }

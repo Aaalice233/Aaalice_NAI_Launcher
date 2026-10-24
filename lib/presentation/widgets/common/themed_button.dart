@@ -95,12 +95,16 @@ class _ThemedButtonContent extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final hasLeading = isLoading || icon != null;
+        final reducedMotion = MediaQuery.disableAnimationsOf(context);
         final leading = isLoading
-            ? SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: loadingColor,
+            ? RepaintBoundary(
+                child: SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(
+                    value: reducedMotion ? 0.72 : null,
+                    strokeWidth: 2,
+                    color: loadingColor,
+                  ),
                 ),
               )
             : icon;
