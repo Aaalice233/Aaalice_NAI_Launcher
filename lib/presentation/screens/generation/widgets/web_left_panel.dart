@@ -10,6 +10,7 @@ import '../../../providers/generation/generation_panel_expansion_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../widgets/character/inline_character_section.dart';
+import '../../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'collapsed_panel.dart';
 import 'generation_controls/generation_controls.dart';
 import 'generation_param_sections.dart';
@@ -166,13 +167,15 @@ class _WebLeftPanelState extends ConsumerState<WebLeftPanel>
 
     // Keep the same subtree while dragging: replacing the container reparents
     // the keyed prompt and its active OverlayPortal during layout.
-    return AnimatedContainer(
-      duration: widget.isResizing || MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 200),
-      width: width,
-      decoration: decoration,
-      child: child,
+    return RasterCacheBoundary(
+      child: AnimatedContainer(
+        duration: widget.isResizing || MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 200),
+        width: width,
+        decoration: decoration,
+        child: child,
+      ),
     );
   }
 
