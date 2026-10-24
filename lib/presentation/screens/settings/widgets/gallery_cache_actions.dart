@@ -193,43 +193,40 @@ class _GalleryCacheActionsState extends ConsumerState<GalleryCacheActions>
       children: [
         // 重新扫描按钮（与自动扫描使用同一套逻辑）
         ListTile(
-          leading: AnimatedBuilder(
-            animation: _scanController,
-            builder: (context, child) {
-              return RotationTransition(
-                turns: _isScanning
-                    ? _scanController
-                    : const AlwaysStoppedAnimation(0),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.green.withValues(alpha: 0.2),
-                        Colors.lightGreen.withValues(alpha: 0.1),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _isScanning
-                          ? Colors.green
-                          : Colors.green.withValues(alpha: 0.3),
-                      width: _isScanning ? 2 : 1,
-                    ),
+          leading: RepaintBoundary(
+            child: RotationTransition(
+              turns: _isScanning
+                  ? _scanController
+                  : const AlwaysStoppedAnimation(0),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.green.withValues(alpha: 0.2),
+                      Colors.lightGreen.withValues(alpha: 0.1),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  child: Icon(
-                    Icons.refresh_rounded,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
                     color: _isScanning
                         ? Colors.green
-                        : Colors.green.withValues(alpha: 0.8),
-                    size: 22,
+                        : Colors.green.withValues(alpha: 0.3),
+                    width: _isScanning ? 2 : 1,
                   ),
                 ),
-              );
-            },
+                child: Icon(
+                  Icons.refresh_rounded,
+                  color: _isScanning
+                      ? Colors.green
+                      : Colors.green.withValues(alpha: 0.8),
+                  size: 22,
+                ),
+              ),
+            ),
           ),
           title: Text(
             context.l10n.galleryCache_rescan,

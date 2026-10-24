@@ -18,6 +18,7 @@ import '../../../themes/core/layered_surface_style.dart';
 import '../../../widgets/common/ink_host.dart';
 import '../../../widgets/common/owned_scroll_controller.dart';
 import '../../../widgets/common/resizable_split.dart';
+import '../../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'collapsed_panel.dart';
 import 'generation_workspace_row.dart';
 import 'history_panel.dart';
@@ -62,10 +63,12 @@ class _RightPanelState extends ConsumerState<RightPanel>
   );
   late final Widget _chatPane = KeyedSubtree(
     key: GlobalKey(debugLabel: 'docked-agent-chat-pane'),
-    child: AgentChatPanel(
-      onClose: () => unawaited(_dock.collapsePane(AgentChatDockPane.chat)),
-      onPopOut: () => unawaited(_dock.popOut()),
-      focusRequest: _surfaces.dockedFocus,
+    child: RasterCacheBoundary(
+      child: AgentChatPanel(
+        onClose: () => unawaited(_dock.collapsePane(AgentChatDockPane.chat)),
+        onPopOut: () => unawaited(_dock.popOut()),
+        focusRequest: _surfaces.dockedFocus,
+      ),
     ),
   );
   bool _fitsExpanded = true;

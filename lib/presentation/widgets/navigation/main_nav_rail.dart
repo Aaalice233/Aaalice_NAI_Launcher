@@ -28,6 +28,7 @@ import '../settings/account_profile_sheet.dart';
 
 import '../common/app_toast.dart';
 import '../common/menu_action_label.dart';
+import '../raster_cache/raster_cache_boundary.dart';
 
 Duration _boundedMotionDuration(
   BuildContext context,
@@ -428,7 +429,7 @@ class _NavRailWidthTransitionState extends State<_NavRailWidthTransition>
             alignment: Alignment.centerLeft,
             minWidth: widget.expandedWidth,
             maxWidth: widget.expandedWidth,
-            child: RepaintBoundary(
+            child: RasterCacheBoundary(
               child: SizedBox(
                 key: const Key('main-nav-rail-content'),
                 width: widget.expandedWidth,

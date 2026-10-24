@@ -7,6 +7,7 @@ import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../themes/theme_extension.dart';
 import '../../widgets/common/keyboard_dismiss_region.dart';
+import '../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_gestures.dart';
 import 'mobile_generation_view_data.dart';
@@ -104,14 +105,16 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                               child: Column(
                                 children: [
                                   Expanded(
-                                    child: Padding(
-                                      key: controller.embeddedPromptKey,
-                                      padding: const EdgeInsets.all(12),
-                                      child: PromptInputWidget(
-                                        key: widget.promptInputKey,
-                                        controller:
-                                            widget.promptInputController,
-                                        compact: true,
+                                    child: RasterCacheBoundary(
+                                      child: Padding(
+                                        key: controller.embeddedPromptKey,
+                                        padding: const EdgeInsets.all(12),
+                                        child: PromptInputWidget(
+                                          key: widget.promptInputKey,
+                                          controller:
+                                              widget.promptInputController,
+                                          compact: true,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -142,16 +145,18 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                           const Expanded(child: ImagePreviewWidget()),
                           if (data.batchStatus.isGenerating)
                             const MobileGenerationProgressBar(),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                            child: MobileCollapsedPromptLauncher(
-                              key: _collapsedPromptLauncherKey,
-                              prompt: data.promptSummary,
-                              characterCount: data.enabledCharacterCount,
-                              qualityEnabled: data.qualityEnabled,
-                              negativePresetLabel: data.negativePresetLabel,
-                              fixedTagCount: data.fixedTagCount,
-                              onTap: controller.openPromptEditor,
+                          RasterCacheBoundary(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                              child: MobileCollapsedPromptLauncher(
+                                key: _collapsedPromptLauncherKey,
+                                prompt: data.promptSummary,
+                                characterCount: data.enabledCharacterCount,
+                                qualityEnabled: data.qualityEnabled,
+                                negativePresetLabel: data.negativePresetLabel,
+                                fixedTagCount: data.fixedTagCount,
+                                onTap: controller.openPromptEditor,
+                              ),
                             ),
                           ),
                         ],

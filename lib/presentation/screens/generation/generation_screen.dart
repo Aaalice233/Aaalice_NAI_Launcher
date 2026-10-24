@@ -10,6 +10,7 @@ import '../../providers/image_generation_provider.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/drop/global_drop_handler.dart';
+import '../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'desktop_layout.dart';
 import 'mobile_layout.dart';
 import 'web_style_layout.dart';
@@ -115,7 +116,9 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
                   key: const Key('generation-fixed-tags-overlay'),
                   color: Theme.of(context).colorScheme.surfaceContainerLow,
                   elevation: 12,
-                  child: const SafeArea(child: FixedTagsSidebar()),
+                  child: const SafeArea(
+                    child: RasterCacheBoundary(child: FixedTagsSidebar()),
+                  ),
                 ),
               ),
             ],
@@ -133,15 +136,17 @@ class _GenerationScreenState extends ConsumerState<GenerationScreen> {
         return Row(
           children: [
             Expanded(child: mobileLayout),
-            Container(
-              width: sidebarWidth,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border(
-                  left: BorderSide(color: Theme.of(context).dividerColor),
+            RasterCacheBoundary(
+              child: Container(
+                width: sidebarWidth,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  border: Border(
+                    left: BorderSide(color: Theme.of(context).dividerColor),
+                  ),
                 ),
+                child: const FixedTagsSidebar(),
               ),
-              child: const FixedTagsSidebar(),
             ),
           ],
         );

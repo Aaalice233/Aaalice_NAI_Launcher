@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../providers/layout_state_provider.dart';
+import '../../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'fixed_tags_sidebar.dart';
 import 'resize_handle.dart';
 
@@ -31,12 +32,14 @@ class FixedTagsSidebarSlot extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              border: Border(right: BorderSide(color: theme.dividerColor)),
+          child: RasterCacheBoundary(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                border: Border(right: BorderSide(color: theme.dividerColor)),
+              ),
+              child: const FixedTagsSidebar(),
             ),
-            child: const FixedTagsSidebar(),
           ),
         ),
         ResizeHandle(
