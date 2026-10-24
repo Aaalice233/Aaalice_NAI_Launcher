@@ -9,11 +9,13 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/generation_layout_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/workflow_panel_reveal_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/desktop_layout.dart';
 import 'package:nai_launcher/presentation/screens/generation/generation_screen.dart';
@@ -21,6 +23,8 @@ import 'package:nai_launcher/presentation/screens/generation/mobile_layout.dart'
 import 'package:nai_launcher/presentation/screens/generation/web_style_layout.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_sidebar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/resize_handle.dart';
+import 'package:nai_launcher/presentation/widgets/anlas/anlas_balance_chip.dart';
+import 'package:nai_launcher/presentation/widgets/anlas/opus_usage_chip.dart';
 
 import '../../../helpers/flutter_error_collector.dart';
 
@@ -495,6 +499,88 @@ void main() {
     },
   );
 
+  testWidgets(
+    'mobile balance group keeps the extra usage chip intact at 320 and 3x',
+    (tester) async {
+      final flutterErrors = FlutterErrorCollector.install(tester);
+      addTearDown(flutterErrors.restoreAndAssertNoErrors);
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.android,
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      for (final scenario in const [
+        (width: 320.0, textScale: 1.0),
+        (width: 320.0, textScale: 3.0),
+        (width: 600.0, textScale: 3.0),
+      ]) {
+        final reason =
+            'width=${scenario.width}, textScale=${scenario.textScale}';
+        final container = ProviderContainer(
+          overrides: [
+            shortcutConfigNotifierProvider.overrideWith(
+              _FakeShortcutConfigNotifier.new,
+            ),
+            subscriptionNotifierProvider.overrideWith(
+              _ExtraUsageSubscriptionNotifier.new,
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.binding.setSurfaceSize(Size(scenario.width, 760));
+        await _pumpGeneration(
+          tester,
+          container: container,
+          textScaler: TextScaler.linear(scenario.textScale),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.byType(MobileGenerationLayout), findsOneWidget);
+        flutterErrors.expectNoErrors(reason: reason);
+        final barRect = tester
+            .getRect(find.byKey(const ValueKey('generation-mobile-bottom-bar')))
+            .inflate(0.01);
+        final groupRect = tester
+            .getRect(
+              find.byKey(const ValueKey('generation-mobile-balance-group')),
+            )
+            .inflate(0.01);
+        for (final part in [
+          find.byType(OpusUsageChip),
+          find.byType(AnlasBalanceChip),
+          find.text('+200%'),
+        ]) {
+          final rect = tester.getRect(part);
+          expect(
+            groupRect.contains(rect.topLeft) &&
+                groupRect.contains(rect.bottomRight) &&
+                barRect.contains(rect.topLeft) &&
+                barRect.contains(rect.bottomRight),
+            isTrue,
+            reason: '$reason clipped $part at $rect',
+          );
+        }
+        expect(find.text('45%'), findsOneWidget, reason: reason);
+        expect(
+          find.text('+200%').hitTestable(),
+          findsOneWidget,
+          reason: reason,
+        );
+        expect(
+          find
+              .byKey(const ValueKey('generation-add-current-to-queue'))
+              .hitTestable(),
+          findsOneWidget,
+          reason: reason,
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        // 容器在测试结束前不释放，提示词计数的 400ms 防抖必须先走完。
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+    },
+  );
+
   testWidgets('fixed-tags state survives overlay to side-panel transition', (
     tester,
   ) async {
@@ -605,6 +691,18 @@ class _FixedLayoutModeNotifier extends GenerationLayoutModeNotifier {
 
   @override
   GenerationLayoutMode build() => mode;
+}
+
+class _ExtraUsageSubscriptionNotifier extends SubscriptionNotifier {
+  @override
+  SubscriptionState build() => const SubscriptionState.loaded(
+    UserSubscription(
+      tier: 3,
+      active: true,
+      trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+      usage: OpusUsageInfo(percent: 45, purchasedPercent: 200),
+    ),
+  );
 }
 
 class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {

@@ -3464,6 +3464,30 @@ abstract class AppLocalizations {
   /// **'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.'**
   String get generation_opusUsageExhausted;
 
+  /// No description provided for @generation_opusUsagePoolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Opus Generations remaining'**
+  String get generation_opusUsagePoolsTitle;
+
+  /// No description provided for @generation_opusUsageRegularPool.
+  ///
+  /// In en, this message translates to:
+  /// **'Regular: {percent}% (refills over time)'**
+  String generation_opusUsageRegularPool(Object percent);
+
+  /// No description provided for @generation_opusUsageExtraPool.
+  ///
+  /// In en, this message translates to:
+  /// **'Extra Usage: +{percent}% (does not refill)'**
+  String generation_opusUsageExtraPool(Object percent);
+
+  /// No description provided for @generation_opusUsageCombinedEstimate.
+  ///
+  /// In en, this message translates to:
+  /// **'About {count} images left across both'**
+  String generation_opusUsageCombinedEstimate(Object count);
+
   /// No description provided for @generation_imageSize.
   ///
   /// In en, this message translates to:

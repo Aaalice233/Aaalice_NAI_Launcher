@@ -36,24 +36,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-          localStorageServiceProvider.overrideWith((ref) => storage),
-          kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
-          ),
-          replicationQueueNotifierProvider.overrideWith(
-            _TestReplicationQueueNotifier.new,
-          ),
-          queueExecutionNotifierProvider.overrideWith(
-            _TestQueueExecutionNotifier.new,
-          ),
-          subscriptionNotifierProvider.overrideWith(
-            _TestSubscriptionNotifier.new,
-          ),
-          estimatedCostProvider.overrideWith((ref) => 0),
-          isFreeGenerationProvider.overrideWith((ref) => true),
-        ],
+        overrides: _footerOverrides(storage: storage),
         child: const MaterialApp(
           locale: Locale('zh'),
           supportedLocales: AppLocalizations.supportedLocales,
@@ -115,24 +98,7 @@ void main() {
       ]) {
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [
-              authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-              localStorageServiceProvider.overrideWith((ref) => storage),
-              kritaBridgeNotifierProvider.overrideWith(
-                (ref) => _TestKritaBridgeNotifier(),
-              ),
-              replicationQueueNotifierProvider.overrideWith(
-                _TestReplicationQueueNotifier.new,
-              ),
-              queueExecutionNotifierProvider.overrideWith(
-                _TestQueueExecutionNotifier.new,
-              ),
-              subscriptionNotifierProvider.overrideWith(
-                _TestSubscriptionNotifier.new,
-              ),
-              estimatedCostProvider.overrideWith((ref) => 0),
-              isFreeGenerationProvider.overrideWith((ref) => true),
-            ],
+            overrides: _footerOverrides(storage: storage),
             child: MaterialApp(
               locale: const Locale('zh'),
               supportedLocales: AppLocalizations.supportedLocales,
@@ -285,27 +251,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-          imageGenerationNotifierProvider.overrideWith(
-            _TestImageGenerationNotifier.new,
-          ),
-          localStorageServiceProvider.overrideWith((ref) => storage),
-          kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
-          ),
-          replicationQueueNotifierProvider.overrideWith(
-            _TestReplicationQueueNotifier.new,
-          ),
-          queueExecutionNotifierProvider.overrideWith(
-            _TestQueueExecutionNotifier.new,
-          ),
-          subscriptionNotifierProvider.overrideWith(
-            _TestSubscriptionNotifier.new,
-          ),
-          estimatedCostProvider.overrideWith((ref) => 0),
-          isFreeGenerationProvider.overrideWith((ref) => true),
-        ],
+        overrides: _footerOverrides(
+          storage: storage,
+          imageGeneration: _TestImageGenerationNotifier.new,
+        ),
         child: Consumer(
           builder: (context, ref, _) {
             container = ProviderScope.containerOf(context);
@@ -392,27 +341,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-          imageGenerationNotifierProvider.overrideWith(
-            _TestImageGenerationNotifier.new,
-          ),
-          localStorageServiceProvider.overrideWith((ref) => storage),
-          kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
-          ),
-          replicationQueueNotifierProvider.overrideWith(
-            _TestReplicationQueueNotifier.new,
-          ),
-          queueExecutionNotifierProvider.overrideWith(
-            _TestQueueExecutionNotifier.new,
-          ),
-          subscriptionNotifierProvider.overrideWith(
-            _TestSubscriptionNotifier.new,
-          ),
-          estimatedCostProvider.overrideWith((ref) => 0),
-          isFreeGenerationProvider.overrideWith((ref) => true),
-        ],
+        overrides: _footerOverrides(
+          storage: storage,
+          imageGeneration: _TestImageGenerationNotifier.new,
+        ),
         child: Consumer(
           builder: (context, ref, _) {
             container = ProviderScope.containerOf(context);
@@ -619,24 +551,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
-          localStorageServiceProvider.overrideWith((ref) => storage),
-          kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
-          ),
-          replicationQueueNotifierProvider.overrideWith(
-            _TestReplicationQueueNotifier.new,
-          ),
-          queueExecutionNotifierProvider.overrideWith(
-            _TestQueueExecutionNotifier.new,
-          ),
-          subscriptionNotifierProvider.overrideWith(
-            _TestSubscriptionNotifier.new,
-          ),
-          estimatedCostProvider.overrideWith((ref) => 0),
-          isFreeGenerationProvider.overrideWith((ref) => true),
-        ],
+        overrides: _footerOverrides(
+          storage: storage,
+          authStatus: AuthStatus.unauthenticated,
+        ),
         child: MaterialApp.router(
           locale: const Locale('zh'),
           supportedLocales: AppLocalizations.supportedLocales,
@@ -667,24 +585,10 @@ void main() {
     for (final width in const [497.0, 520.0, 590.0]) {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-            localStorageServiceProvider.overrideWith((ref) => storage),
-            kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
-            ),
-            replicationQueueNotifierProvider.overrideWith(
-              _TestReplicationQueueNotifier.new,
-            ),
-            queueExecutionNotifierProvider.overrideWith(
-              _TestQueueExecutionNotifier.new,
-            ),
-            subscriptionNotifierProvider.overrideWith(
-              _OpusSubscriptionNotifier.new,
-            ),
-            estimatedCostProvider.overrideWith((ref) => 0),
-            isFreeGenerationProvider.overrideWith((ref) => true),
-          ],
+          overrides: _footerOverrides(
+            storage: storage,
+            subscription: _opusSubscription,
+          ),
           child: MaterialApp(
             locale: const Locale('zh'),
             supportedLocales: AppLocalizations.supportedLocales,
@@ -730,24 +634,10 @@ void main() {
     for (final width in const [320.0, 360.0, 400.0]) {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-            localStorageServiceProvider.overrideWith((ref) => storage),
-            kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
-            ),
-            replicationQueueNotifierProvider.overrideWith(
-              _TestReplicationQueueNotifier.new,
-            ),
-            queueExecutionNotifierProvider.overrideWith(
-              _TestQueueExecutionNotifier.new,
-            ),
-            subscriptionNotifierProvider.overrideWith(
-              _OpusSubscriptionNotifier.new,
-            ),
-            estimatedCostProvider.overrideWith((ref) => 0),
-            isFreeGenerationProvider.overrideWith((ref) => true),
-          ],
+          overrides: _footerOverrides(
+            storage: storage,
+            subscription: _opusSubscription,
+          ),
           child: MaterialApp(
             locale: const Locale('zh'),
             supportedLocales: AppLocalizations.supportedLocales,
@@ -786,6 +676,99 @@ void main() {
       }
       expect(find.text('生成'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('额外用量追加显示后底栏在窄屏与大字号下仍完整可达', (tester) async {
+    final storage = _MemoryLocalStorageService({
+      StorageKeys.autoSaveImages: false,
+      StorageKeys.showRandomPromptTools: true,
+    });
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final scenario in const [
+      (width: 320.0, textScale: 1.0, compact: true),
+      (width: 400.0, textScale: 1.0, compact: true),
+      (width: 600.0, textScale: 1.0, compact: true),
+      (width: 840.0, textScale: 1.0, compact: true),
+      (width: 320.0, textScale: 3.0, compact: true),
+      (width: 600.0, textScale: 3.0, compact: true),
+      (width: 840.0, textScale: 3.0, compact: true),
+      (width: 840.0, textScale: 1.0, compact: false),
+      (width: 1180.0, textScale: 1.0, compact: false),
+      (width: 1600.0, textScale: 1.0, compact: false),
+      (width: 840.0, textScale: 3.0, compact: false),
+      (width: 1180.0, textScale: 3.0, compact: false),
+      (width: 1600.0, textScale: 3.0, compact: false),
+    ]) {
+      await tester.binding.setSurfaceSize(Size(scenario.width, 900));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _footerOverrides(
+            storage: storage,
+            subscription: _opusExtraUsageSubscription,
+          ),
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scenario.textScale)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  key: const ValueKey('footer-test-bounds'),
+                  width: scenario.width,
+                  height: 600,
+                  child: GenerationControls(compact: scenario.compact),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final reason =
+          'width=${scenario.width}, textScale=${scenario.textScale}, '
+          'compact=${scenario.compact}';
+      final footerRect = tester
+          .getRect(find.byKey(const ValueKey('footer-test-bounds')))
+          .inflate(0.01);
+      final primary = find.byKey(
+        const ValueKey('generation-footer-primary-action'),
+      );
+      final actions = <Finder>[
+        primary,
+        find.byType(OpusUsageChip),
+        find.byType(AnlasBalanceChip),
+        find.byType(RandomModeToggle),
+        find.byType(DraggableNumberInput),
+        if (scenario.compact) ...[
+          find.byType(AutoSaveToggleChip),
+          find.byType(BatchSettingsButton),
+        ],
+      ];
+
+      expect(find.text('45%'), findsOneWidget, reason: reason);
+      expect(find.text('+200%').hitTestable(), findsOneWidget, reason: reason);
+      expect(find.text('生成'), findsOneWidget, reason: reason);
+      for (final action in actions) {
+        final rect = tester.getRect(action);
+        expect(
+          footerRect.contains(rect.topLeft) &&
+              footerRect.contains(rect.bottomRight),
+          isTrue,
+          reason: '$reason clipped $action at $rect',
+        );
+        expect(action.hitTestable(), findsOneWidget, reason: '$reason $action');
+      }
+      expect(tester.takeException(), isNull, reason: reason);
     }
   });
 }
@@ -828,25 +811,10 @@ Future<_TestImageGenerationNotifier> _pumpLargeTextBatchControls(
     StorageKeys.showRandomPromptTools: true,
   });
   final container = ProviderContainer(
-    overrides: [
-      authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
-      imageGenerationNotifierProvider.overrideWith(
-        _TestImageGenerationNotifier.new,
-      ),
-      localStorageServiceProvider.overrideWith((ref) => storage),
-      kritaBridgeNotifierProvider.overrideWith(
-        (ref) => _TestKritaBridgeNotifier(),
-      ),
-      replicationQueueNotifierProvider.overrideWith(
-        _TestReplicationQueueNotifier.new,
-      ),
-      queueExecutionNotifierProvider.overrideWith(
-        _TestQueueExecutionNotifier.new,
-      ),
-      subscriptionNotifierProvider.overrideWith(_TestSubscriptionNotifier.new),
-      estimatedCostProvider.overrideWith((ref) => 0),
-      isFreeGenerationProvider.overrideWith((ref) => true),
-    ],
+    overrides: _footerOverrides(
+      storage: storage,
+      imageGeneration: _TestImageGenerationNotifier.new,
+    ),
   );
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -880,14 +848,13 @@ Future<_TestImageGenerationNotifier> _pumpLargeTextBatchControls(
       as _TestImageGenerationNotifier;
 }
 
-class _AuthenticatedAuthNotifier extends AuthNotifier {
-  @override
-  AuthState build() => const AuthState(status: AuthStatus.authenticated);
-}
+class _FixedAuthNotifier extends AuthNotifier {
+  _FixedAuthNotifier(this.status);
 
-class _UnauthenticatedAuthNotifier extends AuthNotifier {
+  final AuthStatus status;
+
   @override
-  AuthState build() => const AuthState(status: AuthStatus.unauthenticated);
+  AuthState build() => AuthState(status: status);
 }
 
 class _TestImageGenerationNotifier extends ImageGenerationNotifier {
@@ -958,26 +925,54 @@ class _TestQueueExecutionNotifier extends QueueExecutionNotifier {
   QueueExecutionState build() => const QueueExecutionState();
 }
 
-class _TestSubscriptionNotifier extends SubscriptionNotifier {
+class _FixedSubscriptionNotifier extends SubscriptionNotifier {
+  _FixedSubscriptionNotifier(this.subscription);
+
+  final UserSubscription subscription;
+
   @override
-  SubscriptionState build() => const SubscriptionState.loaded(
-    UserSubscription(
-      tier: 1,
-      active: true,
-      trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
-    ),
-  );
+  SubscriptionState build() => SubscriptionState.loaded(subscription);
 }
 
+const _plainSubscription = UserSubscription(
+  tier: 1,
+  active: true,
+  trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+);
+
 /// tier 3 且带配额，才会让 Opus 徽章真正占位（默认模型 V5 有配额上限）。
-class _OpusSubscriptionNotifier extends SubscriptionNotifier {
-  @override
-  SubscriptionState build() => const SubscriptionState.loaded(
-    UserSubscription(
-      tier: 3,
-      active: true,
-      trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
-      usage: OpusUsageInfo(percent: 67),
-    ),
-  );
-}
+const _opusSubscription = UserSubscription(
+  tier: 3,
+  active: true,
+  trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+  usage: OpusUsageInfo(percent: 67),
+);
+
+const _opusExtraUsageSubscription = UserSubscription(
+  tier: 3,
+  active: true,
+  trainingStepsLeft: TrainingStepsInfo(fixedTrainingStepsLeft: 7384),
+  usage: OpusUsageInfo(percent: 45, purchasedPercent: 200),
+);
+
+List<Override> _footerOverrides({
+  required LocalStorageService storage,
+  AuthStatus authStatus = AuthStatus.authenticated,
+  UserSubscription subscription = _plainSubscription,
+  ImageGenerationNotifier Function()? imageGeneration,
+}) => [
+  authNotifierProvider.overrideWith(() => _FixedAuthNotifier(authStatus)),
+  if (imageGeneration != null)
+    imageGenerationNotifierProvider.overrideWith(imageGeneration),
+  localStorageServiceProvider.overrideWith((ref) => storage),
+  kritaBridgeNotifierProvider.overrideWith((ref) => _TestKritaBridgeNotifier()),
+  replicationQueueNotifierProvider.overrideWith(
+    _TestReplicationQueueNotifier.new,
+  ),
+  queueExecutionNotifierProvider.overrideWith(_TestQueueExecutionNotifier.new),
+  subscriptionNotifierProvider.overrideWith(
+    () => _FixedSubscriptionNotifier(subscription),
+  ),
+  estimatedCostProvider.overrideWith((ref) => 0),
+  isFreeGenerationProvider.overrideWith((ref) => true),
+];

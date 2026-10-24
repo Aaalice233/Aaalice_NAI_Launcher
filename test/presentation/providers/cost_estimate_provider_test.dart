@@ -153,6 +153,44 @@ void main() {
       expect(container.read(estimatedCostProvider), 0);
     });
 
+    test('should price V5 by the server quota flag, not the extra pool', () {
+      final subscription = container.read(
+        subscriptionNotifierProvider.notifier,
+      );
+      final paramsNotifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      paramsNotifier.updateModel(
+        ImageModels.animeDiffusionV5Curated,
+        persist: false,
+        followDefaults: false,
+      );
+      paramsNotifier.updateSize(832, 1216);
+      paramsNotifier.updateSteps(28);
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(
+          tier: AnlasCalculator.opusTier,
+          active: true,
+          usage: OpusUsageInfo(percent: 0, purchasedPercent: 200),
+        ),
+      );
+      expect(container.read(estimatedCostProvider), 0);
+
+      subscription.state = const SubscriptionState.loaded(
+        UserSubscription(
+          tier: AnlasCalculator.opusTier,
+          active: true,
+          usage: OpusUsageInfo(
+            percent: -1,
+            isNegative: true,
+            purchasedPercent: 200,
+          ),
+        ),
+      );
+      expect(container.read(estimatedCostProvider), greaterThan(0));
+    });
+
     test('should share the max enhance billing size with quota estimates', () {
       final billingSize = resolveGenerationBillingSize(
         width: 832,
