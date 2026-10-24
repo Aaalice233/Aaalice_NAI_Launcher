@@ -157,6 +157,7 @@ class _GenerationOutputSettingsSection extends ConsumerWidget {
               child: DraggableNumberInput(
                 value: nSamples,
                 min: 1,
+                max: 6,
                 prefix: '×',
                 onChanged: (value) => ref
                     .read(generationParamsNotifierProvider.notifier)
