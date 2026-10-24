@@ -2472,10 +2472,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_directorEmotionLevelHint =>
-      'How strongly the emotion is applied (0 = subtle, 5 = strong)';
+      'Higher values make the emotion weaker (0 = normal, 5 = weakest)';
 
   @override
   String get img2img_directorEmotionPresets => 'Presets';
+
+  @override
+  String get img2img_directorEmotionNeutral => 'Neutral';
+
+  @override
+  String get img2img_directorEmotionHappy => 'Happy';
+
+  @override
+  String get img2img_directorEmotionSad => 'Sad';
+
+  @override
+  String get img2img_directorEmotionAngry => 'Angry';
+
+  @override
+  String get img2img_directorEmotionScared => 'Scared';
+
+  @override
+  String get img2img_directorEmotionSurprised => 'Surprised';
+
+  @override
+  String get img2img_directorEmotionTired => 'Tired';
+
+  @override
+  String get img2img_directorEmotionExcited => 'Excited';
+
+  @override
+  String get img2img_directorEmotionNervous => 'Nervous';
+
+  @override
+  String get img2img_directorEmotionThinking => 'Thinking';
+
+  @override
+  String get img2img_directorEmotionConfused => 'Confused';
+
+  @override
+  String get img2img_directorEmotionShy => 'Shy';
+
+  @override
+  String get img2img_directorEmotionDisgusted => 'Disgusted';
+
+  @override
+  String get img2img_directorEmotionSmug => 'Smug';
+
+  @override
+  String get img2img_directorEmotionBored => 'Bored';
+
+  @override
+  String get img2img_directorEmotionLaughing => 'Laughing';
+
+  @override
+  String get img2img_directorEmotionIrritated => 'Irritated';
+
+  @override
+  String get img2img_directorEmotionAroused => 'Aroused';
+
+  @override
+  String get img2img_directorEmotionEmbarrassed => 'Embarrassed';
+
+  @override
+  String get img2img_directorEmotionWorried => 'Worried';
+
+  @override
+  String get img2img_directorEmotionLove => 'Love';
+
+  @override
+  String get img2img_directorEmotionDetermined => 'Determined';
+
+  @override
+  String get img2img_directorEmotionHurt => 'Hurt';
+
+  @override
+  String get img2img_directorEmotionPlayful => 'Playful';
 
   @override
   String get img2img_directorApplyAsSource => 'Use as Source';

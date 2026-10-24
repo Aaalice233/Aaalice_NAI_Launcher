@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/common/decoded_memory_image.dart';
 import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/director/director_emotion.dart';
 import '../../../data/models/director/director_tool_type.dart';
 import '../../adaptive/adaptive_layout.dart';
 import '../../adaptive/interaction_policy.dart';
@@ -413,9 +414,9 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
         runSpacing: 8,
         children: emotionPresets.map((preset) {
           final notifier = ref.read(directorToolsNotifierProvider.notifier);
-          final isActive = notifier.activePreset?.mood == preset.mood;
+          final isActive = notifier.activePreset?.emotion == preset.emotion;
           return ChoiceChip(
-            label: Text(preset.label),
+            label: Text(preset.emotion.label(context.l10n)),
             selected: isActive,
             onSelected: (_) {
               notifier.applyEmotionPreset(preset);

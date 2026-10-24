@@ -2367,13 +2367,85 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_directorDefryHint => '降低结果中的噪声或过饱和程度（0 = 关闭，5 = 最强）';
 
   @override
-  String get img2img_directorEmotionLevel => '表情强度';
+  String get img2img_directorEmotionLevel => '表情等级';
 
   @override
-  String get img2img_directorEmotionLevelHint => 'AI 改变表情的力度（0 = 轻微，5 = 强烈）';
+  String get img2img_directorEmotionLevelHint => '数值越大，表情越弱（0 = 正常，5 = 最弱）';
 
   @override
   String get img2img_directorEmotionPresets => '快速预设';
+
+  @override
+  String get img2img_directorEmotionNeutral => '平静';
+
+  @override
+  String get img2img_directorEmotionHappy => '开心';
+
+  @override
+  String get img2img_directorEmotionSad => '悲伤';
+
+  @override
+  String get img2img_directorEmotionAngry => '生气';
+
+  @override
+  String get img2img_directorEmotionScared => '害怕';
+
+  @override
+  String get img2img_directorEmotionSurprised => '惊讶';
+
+  @override
+  String get img2img_directorEmotionTired => '疲惫';
+
+  @override
+  String get img2img_directorEmotionExcited => '兴奋';
+
+  @override
+  String get img2img_directorEmotionNervous => '紧张';
+
+  @override
+  String get img2img_directorEmotionThinking => '思考';
+
+  @override
+  String get img2img_directorEmotionConfused => '困惑';
+
+  @override
+  String get img2img_directorEmotionShy => '害羞';
+
+  @override
+  String get img2img_directorEmotionDisgusted => '厌恶';
+
+  @override
+  String get img2img_directorEmotionSmug => '得意';
+
+  @override
+  String get img2img_directorEmotionBored => '无聊';
+
+  @override
+  String get img2img_directorEmotionLaughing => '大笑';
+
+  @override
+  String get img2img_directorEmotionIrritated => '烦躁';
+
+  @override
+  String get img2img_directorEmotionAroused => '情动';
+
+  @override
+  String get img2img_directorEmotionEmbarrassed => '尴尬';
+
+  @override
+  String get img2img_directorEmotionWorried => '担心';
+
+  @override
+  String get img2img_directorEmotionLove => '爱意';
+
+  @override
+  String get img2img_directorEmotionDetermined => '坚定';
+
+  @override
+  String get img2img_directorEmotionHurt => '受伤/难过';
+
+  @override
+  String get img2img_directorEmotionPlayful => '调皮';
 
   @override
   String get img2img_directorApplyAsSource => '设为源图';
@@ -17891,13 +17963,85 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get img2img_directorDefryHint => '降低結果中的噪聲或過飽和程度（0 = 關閉，5 = 最強）';
 
   @override
-  String get img2img_directorEmotionLevel => '表情強度';
+  String get img2img_directorEmotionLevel => '表情等級';
 
   @override
-  String get img2img_directorEmotionLevelHint => 'AI 改變表情的力度（0 = 輕微，5 = 強烈）';
+  String get img2img_directorEmotionLevelHint => '數值越大，表情越弱（0 = 正常，5 = 最弱）';
 
   @override
   String get img2img_directorEmotionPresets => '快速預設';
+
+  @override
+  String get img2img_directorEmotionNeutral => '平靜';
+
+  @override
+  String get img2img_directorEmotionHappy => '開心';
+
+  @override
+  String get img2img_directorEmotionSad => '悲傷';
+
+  @override
+  String get img2img_directorEmotionAngry => '生氣';
+
+  @override
+  String get img2img_directorEmotionScared => '害怕';
+
+  @override
+  String get img2img_directorEmotionSurprised => '驚訝';
+
+  @override
+  String get img2img_directorEmotionTired => '疲憊';
+
+  @override
+  String get img2img_directorEmotionExcited => '興奮';
+
+  @override
+  String get img2img_directorEmotionNervous => '緊張';
+
+  @override
+  String get img2img_directorEmotionThinking => '思考';
+
+  @override
+  String get img2img_directorEmotionConfused => '困惑';
+
+  @override
+  String get img2img_directorEmotionShy => '害羞';
+
+  @override
+  String get img2img_directorEmotionDisgusted => '厭惡';
+
+  @override
+  String get img2img_directorEmotionSmug => '得意';
+
+  @override
+  String get img2img_directorEmotionBored => '無聊';
+
+  @override
+  String get img2img_directorEmotionLaughing => '大笑';
+
+  @override
+  String get img2img_directorEmotionIrritated => '煩躁';
+
+  @override
+  String get img2img_directorEmotionAroused => '情動';
+
+  @override
+  String get img2img_directorEmotionEmbarrassed => '尷尬';
+
+  @override
+  String get img2img_directorEmotionWorried => '擔心';
+
+  @override
+  String get img2img_directorEmotionLove => '愛意';
+
+  @override
+  String get img2img_directorEmotionDetermined => '堅定';
+
+  @override
+  String get img2img_directorEmotionHurt => '受傷/難過';
+
+  @override
+  String get img2img_directorEmotionPlayful => '調皮';
 
   @override
   String get img2img_directorApplyAsSource => '設為源圖';
