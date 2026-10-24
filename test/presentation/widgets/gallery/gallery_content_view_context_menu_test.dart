@@ -11,23 +11,15 @@ import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dar
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_content_view.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 
 void main() {
-  late Duration previousVisibilityUpdateInterval;
-
   setUp(() {
-    previousVisibilityUpdateInterval =
-        VisibilityDetectorController.instance.updateInterval;
-    VisibilityDetectorController.instance.updateInterval = Duration.zero;
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.windows,
     );
   });
 
   tearDown(() {
-    VisibilityDetectorController.instance.updateInterval =
-        previousVisibilityUpdateInterval;
     PlatformCapabilities.debugOverride = null;
   });
 
@@ -54,7 +46,6 @@ void main() {
               itemWidth: 160,
               state: _GroupedGalleryState(record),
               selectionState: const _InactiveSelectionState(),
-              itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
               idExtractor: (item) => item.path,
               onContextMenu: (item, position) {
                 selectedRecord = item;
@@ -93,7 +84,6 @@ void main() {
                 itemWidth: 160,
                 state: _GroupedGalleryState(record),
                 selectionState: const _InactiveSelectionState(),
-                itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
                 idExtractor: (item) => item.path,
               ),
             ),
@@ -316,7 +306,6 @@ void main() {
                   itemWidth: 160,
                   state: _GroupedGalleryState(record),
                   selectionState: const _InactiveSelectionState(),
-                  itemBuilder: (_, __, ___, ____) => const SizedBox.shrink(),
                   idExtractor: (item) => item.path,
                   onSendAction: (item, action) async {
                     selectedRecord = item;
