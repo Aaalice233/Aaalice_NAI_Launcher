@@ -40,7 +40,6 @@ void main() {
     final admission = await notifierOf(container).addNewlySavedImages([]);
 
     expect(admission, GalleryIndexAdmission.alreadyIndexed);
-    expect(admission.requiresFullRescan, isFalse);
     expect(service.admitted, isEmpty);
   });
 
@@ -120,6 +119,22 @@ void main() {
     expect(service.loadedPages, [0, 0]);
   });
 
+  test('收录失败只交回结果，不触发全量重扫也不重取首页', () async {
+    final container = createContainer();
+    final notifier = notifierOf(container);
+    await notifier.initialize();
+    service.nextAdmission = GalleryIndexAdmission.failed;
+
+    final admission = await notifier.addNewlySavedImages([
+      r'G:\gallery\broken.png',
+    ]);
+
+    expect(admission, GalleryIndexAdmission.failed);
+    expect(service.admitted, [r'G:\gallery\broken.png']);
+    expect(service.refreshes, 0);
+    expect(service.loadedPages, [0]);
+  });
+
   test('分组视图下收录新图后分组列表包含新图', () async {
     final container = createContainer();
     final notifier = notifierOf(container);
@@ -189,6 +204,7 @@ class _RecordingGalleryService extends Mock implements LocalGalleryService {
   final List<int> loadedPages = <int>[];
   final List<LocalImageRecord> _records = <LocalImageRecord>[];
   GalleryIndexAdmission nextAdmission = GalleryIndexAdmission.added;
+  int refreshes = 0;
   int _totalCount = 0;
 
   @override
@@ -217,6 +233,9 @@ class _RecordingGalleryService extends Mock implements LocalGalleryService {
     }
     return nextAdmission;
   }
+
+  @override
+  Future<void> refresh({bool scan = true}) async => refreshes++;
 
   @override
   Future<List<LocalImageRecord>> getPage(int page, {int? pageSize}) async {

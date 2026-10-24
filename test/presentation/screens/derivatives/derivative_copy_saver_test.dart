@@ -18,7 +18,6 @@ void main() {
   late List<(Uint8List, Uint8List)> usageCopies;
   late List<(Uint8List, String)> systemGalleryWrites;
   late List<List<String>> admissions;
-  late int rescanCount;
   final sourceBytes = Uint8List.fromList([1, 2, 3]);
   final outputBytes = Uint8List.fromList([4, 5, 6, 7]);
 
@@ -30,7 +29,6 @@ void main() {
     usageCopies = [];
     systemGalleryWrites = [];
     admissions = [];
-    rescanCount = 0;
   });
 
   tearDown(() => galleryRoot.delete(recursive: true));
@@ -44,7 +42,6 @@ void main() {
     DerivativeFixedTagUsageCopier? copyFixedTagUsage,
     Future<GalleryIndexAdmission> Function(List<String> filePaths)?
     addGalleryImages,
-    Future<Object?> Function()? rescanGallery,
     DerivativeGalleryWriter? writeToGallery,
   }) => DerivativeCopySaver(
     kind: kind ?? DerivativeKind.watermark,
@@ -72,12 +69,6 @@ void main() {
         (paths) async {
           admissions.add(paths);
           return GalleryIndexAdmission.added;
-        },
-    rescanGallery:
-        rescanGallery ??
-        () async {
-          rescanCount++;
-          return null;
         },
     writeToGallery: writeToGallery,
   );
@@ -157,7 +148,7 @@ void main() {
   });
 
   group('follow-up', () {
-    test('admits only the new copy and skips the full rescan', () async {
+    test('admits only the new copy', () async {
       final steps = followUp(saver(), outputPath: 'a/out_watermarked.png');
       await settled(steps);
 
@@ -165,7 +156,6 @@ void main() {
       expect(admissions, [
         ['a/out_watermarked.png'],
       ]);
-      expect(rescanCount, 0);
       expect(registrations, [('a/out_watermarked.png', 'source.png')]);
       expect(usageCopies, [(sourceBytes, outputBytes)]);
       expect(systemGalleryWrites, [(outputBytes, 'out_watermarked.png')]);
@@ -176,32 +166,28 @@ void main() {
       GalleryIndexAdmission.alreadyIndexed,
       GalleryIndexAdmission.deferred,
     ]) {
-      test('${admission.name} admission needs no rescan', () async {
+      test('${admission.name} admission counts as indexed', () async {
         final steps = followUp(saver(addGalleryImages: (_) async => admission));
 
         expect(await steps.galleryIndexed, isTrue);
-        expect(rescanCount, 0);
       });
     }
 
-    test('failed admission falls back to one full rescan', () async {
-      final steps = followUp(
-        saver(addGalleryImages: (_) async => GalleryIndexAdmission.failed),
-      );
-
-      expect(await steps.galleryIndexed, isTrue);
-      expect(rescanCount, 1);
-    });
-
-    test('a rescan that reports a new error marks indexing failed', () async {
+    test('failed admission marks indexing failed for this copy only', () async {
       final steps = followUp(
         saver(
-          addGalleryImages: (_) async => GalleryIndexAdmission.failed,
-          rescanGallery: () async => 'refreshFailed',
+          addGalleryImages: (paths) async {
+            admissions.add(paths);
+            return GalleryIndexAdmission.failed;
+          },
         ),
+        outputPath: 'a/out_watermarked.png',
       );
 
       expect(await steps.galleryIndexed, isFalse);
+      expect(admissions, [
+        ['a/out_watermarked.png'],
+      ]);
     });
 
     test('a copy without a known original registers no source link', () async {

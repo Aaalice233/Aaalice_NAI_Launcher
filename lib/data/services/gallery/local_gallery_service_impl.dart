@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../core/cache/gallery_cache_manager.dart';
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/exceptions/gallery_exceptions.dart';
@@ -19,8 +21,19 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   factory LocalGalleryServiceImpl({
     required GalleryDataSource dataSource,
     required GalleryFilterService filterService,
+  }) => LocalGalleryServiceImpl.withRepository(
+    dataSource: dataSource,
+    filterService: filterService,
+    repository: LocalGalleryRepository(dataSource: dataSource),
+  );
+
+  @visibleForTesting
+  factory LocalGalleryServiceImpl.withRepository({
+    required GalleryDataSource dataSource,
+    required GalleryFilterService filterService,
+    required LocalGalleryRepository repository,
+    Duration admissionRetryDelay = const Duration(milliseconds: 300),
   }) {
-    final repository = LocalGalleryRepository(dataSource: dataSource);
     return LocalGalleryServiceImpl._composed(
       repository: repository,
       query: LocalGalleryQuery(
@@ -31,6 +44,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
         dataSource: dataSource,
         repository: repository,
       ),
+      admissionRetryDelay: admissionRetryDelay,
     );
   }
 
@@ -38,13 +52,19 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     required LocalGalleryRepository repository,
     required LocalGalleryQuery query,
     required GalleryScanCoordinator scanCoordinator,
+    required Duration admissionRetryDelay,
   }) : _repository = repository,
        _query = query,
-       _scanCoordinator = scanCoordinator;
+       _scanCoordinator = scanCoordinator,
+       _admissionRetryDelay = admissionRetryDelay;
+
+  // 数据库操作本身已在网关内重试，这里只多兜一次文件刚落盘被占用之类的瞬时失败
+  static const _admissionAttempts = 2;
 
   final LocalGalleryRepository _repository;
   final LocalGalleryQuery _query;
   final GalleryScanCoordinator _scanCoordinator;
+  final Duration _admissionRetryDelay;
   Future<List<File>>? _initializing;
   bool _isInitialized = false;
 
@@ -222,40 +242,57 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     }
   }
 
+  /// 写索引失败只重试这一张：写入按路径幂等，全量重扫修不了单张写不进去的图。
   @override
   Future<GalleryIndexAdmission> addNewImageImmediately(
     String filePath, {
     NaiImageMetadata? metadata,
   }) async {
     _ensureInitialized();
-    try {
-      final file = File(normalizeGalleryFilePath(filePath));
-      if (!await file.exists()) {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _admitImage(filePath, metadata: metadata);
+      } catch (error, stackTrace) {
+        if (attempt >= _admissionAttempts) {
+          AppLogger.e(
+            '[AddNewImage] Failed to add new image: $filePath',
+            error,
+            stackTrace,
+            'LocalGalleryService',
+          );
+          return GalleryIndexAdmission.failed;
+        }
         AppLogger.w(
-          '[AddNewImage] File does not exist: $filePath',
+          '[AddNewImage] Retrying ($attempt/$_admissionAttempts): $filePath',
           'LocalGalleryService',
         );
-        return GalleryIndexAdmission.failed;
+        await Future<void>.delayed(_admissionRetryDelay * attempt);
       }
-      if (_query.containsPath(file.path)) {
-        AppLogger.d(
-          '[AddNewImage] File already exists in gallery: $filePath',
-          'LocalGalleryService',
-        );
-        return GalleryIndexAdmission.alreadyIndexed;
-      }
-      await _repository.addImage(file, metadata: metadata);
-      await _query.syncAfterMutation(file);
-      return GalleryIndexAdmission.added;
-    } catch (error, stackTrace) {
-      AppLogger.e(
-        '[AddNewImage] Failed to add new image: $filePath',
-        error,
-        stackTrace,
+    }
+  }
+
+  Future<GalleryIndexAdmission> _admitImage(
+    String filePath, {
+    NaiImageMetadata? metadata,
+  }) async {
+    final file = File(normalizeGalleryFilePath(filePath));
+    if (!await file.exists()) {
+      AppLogger.w(
+        '[AddNewImage] File does not exist: $filePath',
         'LocalGalleryService',
       );
       return GalleryIndexAdmission.failed;
     }
+    if (_query.containsPath(file.path)) {
+      AppLogger.d(
+        '[AddNewImage] File already exists in gallery: $filePath',
+        'LocalGalleryService',
+      );
+      return GalleryIndexAdmission.alreadyIndexed;
+    }
+    await _repository.addImage(file, metadata: metadata);
+    await _query.syncAfterMutation(file);
+    return GalleryIndexAdmission.added;
   }
 
   @override

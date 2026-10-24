@@ -27,7 +27,6 @@ void main() {
   late List<(String, String)> recordedPaths;
   late List<(Uint8List, String)> systemGalleryWrites;
   late List<List<String>> admittedPaths;
-  late int refreshCount;
   final plainPng = Uint8List.fromList(
     image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
   );
@@ -57,7 +56,6 @@ void main() {
     recordedPaths = [];
     systemGalleryWrites = [];
     admittedPaths = [];
-    refreshCount = 0;
   });
 
   tearDown(() async {
@@ -90,7 +88,6 @@ void main() {
       admittedPaths.add(paths);
       return admission;
     },
-    refreshGallery: () async => refreshCount++,
   );
 
   GenerationResultSaveRequest request(
@@ -145,7 +142,6 @@ void main() {
     expect(admittedPaths, [
       [saved.path],
     ]);
-    expect(refreshCount, 0);
     expect(
       FixedTagUsageRecordStore()
           .lookup(saved.contentHash)
@@ -185,12 +181,17 @@ void main() {
     expect(FixedTagUsageRecordStore().lookup(saved.contentHash), isNull);
   });
 
-  test('图库索引与磁盘不一致时才全量重扫', () async {
-    await saver(
+  test('图库收录失败时照常落盘并回写路径', () async {
+    final file = await saver(
       admission: GalleryIndexAdmission.failed,
     ).save(request('image-4'));
 
-    expect(refreshCount, 1);
+    final saved = (file! as GenerationResultNewlySaved).saved;
+    expect(await File(saved.path).exists(), isTrue);
+    expect(recordedPaths, [('image-4', saved.path)]);
+    expect(admittedPaths, [
+      [saved.path],
+    ]);
   });
 
   for (final rootPath in [null, '']) {

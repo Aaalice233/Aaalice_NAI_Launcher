@@ -32,7 +32,6 @@ class PendingDerivativeCopySaver {
   final copyingUsage = Completer<void>();
   final publishing = Completer<void>();
   final indexing = Completer<GalleryIndexAdmission>();
-  final rescanning = Completer<Object?>();
   final writeRequests = <String>[];
   final writes = <String>[];
   final admissions = <List<String>>[];
@@ -57,7 +56,6 @@ class PendingDerivativeCopySaver {
       admissions.add(filePaths);
       return indexing.future;
     },
-    rescanGallery: () => rescanning.future,
     writeToGallery: _write,
   );
 
@@ -71,7 +69,6 @@ class PendingDerivativeCopySaver {
     if (!copyingUsage.isCompleted) copyingUsage.complete();
     if (!publishing.isCompleted) publishing.complete();
     if (!indexing.isCompleted) indexing.complete(GalleryIndexAdmission.added);
-    if (!rescanning.isCompleted) rescanning.complete(null);
   }
 
   Future<String> _write({
