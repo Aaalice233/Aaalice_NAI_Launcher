@@ -54,7 +54,7 @@ final class OAuthPkce {
       _base64Url(sha256.convert(ascii.encode(verifier)).bytes);
 
   static bool secureEquals(String expected, String actual) =>
-      constantTimeEquals(expected, actual);
+      secretsMatch(expected, actual);
 
   static String _base64Url(List<int> bytes) =>
       base64Url.encode(bytes).replaceAll('=', '');
