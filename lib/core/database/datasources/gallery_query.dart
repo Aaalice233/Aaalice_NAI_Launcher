@@ -1,11 +1,14 @@
 import 'dart:math';
 
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 import '../../../data/models/gallery/gallery_dashboard_snapshot.dart';
 import '../../../data/models/gallery/gallery_parameter.dart';
 import '../../../data/models/gallery/local_image_record.dart'
     show MetadataStatus;
 import '../../utils/app_logger.dart';
 import '../../utils/tag_normalizer.dart';
+import '../single_message_transaction.dart';
 import 'gallery_database_gateway.dart';
 import 'gallery_fts_index.dart';
 import 'gallery_records.dart';
@@ -654,243 +657,278 @@ class SqliteGalleryQuery implements GalleryQuery {
     return context.trackQuery('getDashboardStatistics', () async {
       return gateway.execute(
         'getDashboardStatistics',
-        (db) => db.transaction((txn) async {
-          final baseRows = await txn.rawQuery('''
-            SELECT
-              COUNT(*) AS total_images,
-              COALESCE(SUM(i.file_size), 0) AS total_size,
-              (
-                SELECT COUNT(*)
-                FROM ${GalleryTables.favorites} f
-                INNER JOIN ${GalleryTables.images} fi
-                  ON fi.id = f.image_id
-                WHERE fi.is_deleted = 0
-              ) AS favorite_count,
-              (
-                SELECT COUNT(DISTINCT it.image_id)
-                FROM ${GalleryTables.imageTags} it
-                INNER JOIN ${GalleryTables.images} ti
-                  ON ti.id = it.image_id
-                WHERE ti.is_deleted = 0
-              ) AS tagged_image_count,
-              (
-                SELECT COUNT(*)
-                FROM ${GalleryTables.metadata} mm
-                INNER JOIN ${GalleryTables.images} mi
-                  ON mi.id = mm.image_id
-                WHERE mi.is_deleted = 0 AND mm.has_metadata = 1
-              ) AS images_with_metadata
-            FROM ${GalleryTables.images} i
-            WHERE i.is_deleted = 0
-          ''');
-
-          final resolutionRows = await txn.rawQuery('''
-            SELECT
-              COALESCE(NULLIF(m.width, 0), NULLIF(i.width, 0)) AS width,
-              COALESCE(NULLIF(m.height, 0), NULLIF(i.height, 0)) AS height,
-              COUNT(*) AS item_count
-            FROM ${GalleryTables.images} i
-            LEFT JOIN ${GalleryTables.metadata} m
-              ON m.image_id = i.id
-            WHERE i.is_deleted = 0
-              AND COALESCE(NULLIF(m.width, 0), NULLIF(i.width, 0)) > 0
-              AND COALESCE(NULLIF(m.height, 0), NULLIF(i.height, 0)) > 0
-            GROUP BY 1, 2
-            ORDER BY item_count DESC
-          ''');
-
-          final modelRows = await txn.rawQuery('''
-            SELECT m.model AS label, COUNT(*) AS item_count
-            FROM ${GalleryTables.metadata} m
-            INNER JOIN ${GalleryTables.images} i
-              ON i.id = m.image_id
-            WHERE i.is_deleted = 0
-              AND m.model IS NOT NULL
-              AND m.model != ''
-            GROUP BY m.model
-            ORDER BY item_count DESC
-          ''');
-
-          // 采样器分布与参数分布的采样器一档共用这一次聚合，数字天然一致
-          final parameterCounts = <GalleryParameter, Map<String, int>>{};
-          for (final parameter in GalleryParameter.values) {
-            parameterCounts[parameter] = _statisticsValueCounts(
-              await txn.rawQuery(_parameterCountsSql(parameter)),
-            );
-          }
-
-          final sizeRows = await txn.rawQuery('''
-            SELECT
-              CASE
-                WHEN file_size < 1048576 THEN '< 1 MB'
-                WHEN file_size < 2097152 THEN '1-2 MB'
-                WHEN file_size < 5242880 THEN '2-5 MB'
-                WHEN file_size < 10485760 THEN '5-10 MB'
-                ELSE '> 10 MB'
-              END AS label,
-              CASE
-                WHEN file_size < 1048576 THEN 0
-                WHEN file_size < 2097152 THEN 1
-                WHEN file_size < 5242880 THEN 2
-                WHEN file_size < 10485760 THEN 3
-                ELSE 4
-              END AS sort_order,
-              COUNT(*) AS item_count
-            FROM ${GalleryTables.images}
-            WHERE is_deleted = 0
-            GROUP BY label, sort_order
-            ORDER BY sort_order
-          ''');
-
-          final tagRows = await txn.rawQuery('''
-            SELECT t.name AS label, COUNT(DISTINCT it.image_id) AS item_count
-            FROM ${GalleryTables.tags} t
-            INNER JOIN ${GalleryTables.imageTags} it
-              ON it.tag_id = t.id
-            INNER JOIN ${GalleryTables.images} i
-              ON i.id = it.image_id
-            WHERE i.is_deleted = 0
-            GROUP BY t.id, t.name
-            ORDER BY item_count DESC
-            LIMIT 20
-          ''');
-
-          final dailyRows = await txn.rawQuery('''
-            SELECT
-              CASE
-                WHEN date_ymd IS NOT NULL AND date_ymd > 0 THEN date_ymd
-                ELSE CAST(
-                  strftime(
-                    '%Y%m%d',
-                    modified_at / 1000.0,
-                    'unixepoch',
-                    'localtime'
-                  ) AS INTEGER
-                )
-              END AS bucket,
-              COUNT(*) AS item_count
-            FROM ${GalleryTables.images}
-            WHERE is_deleted = 0
-            GROUP BY bucket
-            ORDER BY bucket
-          ''');
-
-          final hourlyRows = await txn.rawQuery('''
-            SELECT
-              CAST(
-                strftime(
-                  '%H',
-                  modified_at / 1000.0,
-                  'unixepoch',
-                  'localtime'
-                ) AS INTEGER
-              ) AS bucket,
-              COUNT(*) AS item_count
-            FROM ${GalleryTables.images}
-            WHERE is_deleted = 0
-            GROUP BY bucket
-            ORDER BY bucket
-          ''');
-
-          final weekdayRows = await txn.rawQuery('''
-            SELECT
-              CAST(
-                strftime(
-                  '%w',
-                  modified_at / 1000.0,
-                  'unixepoch',
-                  'localtime'
-                ) AS INTEGER
-              ) AS bucket,
-              COUNT(*) AS item_count
-            FROM ${GalleryTables.images}
-            WHERE is_deleted = 0
-            GROUP BY bucket
-            ORDER BY bucket
-          ''');
-
+        (db) async {
           final recentSince = DateTime.now()
               .subtract(_recentActivityWindow)
               .millisecondsSinceEpoch;
-          final recentRows = await txn.rawQuery(
-            '''
-            SELECT
-              i.id AS id,
-              i.file_path AS file_path,
-              i.file_size AS file_size,
-              i.modified_at AS modified_at,
-              EXISTS (
-                SELECT 1 FROM ${GalleryTables.favorites} f
-                WHERE f.image_id = i.id
-              ) AS is_favorite,
-              COALESCE(m.has_metadata, 0) AS has_metadata,
-              m.width AS width,
-              m.height AS height,
-              m.model AS model,
-              m.sampler AS sampler,
-              m.steps AS steps,
-              m.cfg_scale AS cfg_scale
-            FROM ${GalleryTables.images} i
-            LEFT JOIN ${GalleryTables.metadata} m
-              ON m.image_id = i.id
-            WHERE i.is_deleted = 0
-              AND i.modified_at > ?
-            ORDER BY i.modified_at DESC, i.id DESC
-          ''',
-            [recentSince],
+          final results = await db.applyAtomically(
+            (batch) => _queueDashboardQueries(batch, recentSince),
+            readOnly: true,
           );
-          final recentTagRows = await txn.rawQuery(
-            '''
-            SELECT it.image_id AS image_id, t.name AS name
-            FROM ${GalleryTables.imageTags} it
-            INNER JOIN ${GalleryTables.tags} t
-              ON t.id = it.tag_id
-            INNER JOIN ${GalleryTables.images} i
-              ON i.id = it.image_id
-            WHERE i.is_deleted = 0
-              AND i.modified_at > ?
-            ORDER BY it.image_id, t.name
-          ''',
-            [recentSince],
-          );
-
-          final base = baseRows.first;
-          final weekdayCounts = <int, int>{};
-          for (final row in weekdayRows) {
-            final sqliteWeekday = _statisticsInt(row['bucket']);
-            final dartWeekday = sqliteWeekday == 0
-                ? DateTime.sunday
-                : sqliteWeekday;
-            weekdayCounts[dartWeekday] = _statisticsInt(row['item_count']);
-          }
-
-          return GalleryDashboardSnapshot(
-            totalImages: _statisticsInt(base['total_images']),
-            totalSizeBytes: _statisticsInt(base['total_size']),
-            favoriteCount: _statisticsInt(base['favorite_count']),
-            taggedImageCount: _statisticsInt(base['tagged_image_count']),
-            imagesWithMetadata: _statisticsInt(base['images_with_metadata']),
-            resolutionCounts: {
-              for (final row in resolutionRows)
-                '${_statisticsInt(row['width'])}x${_statisticsInt(row['height'])}':
-                    _statisticsInt(row['item_count']),
-            },
-            modelCounts: _statisticsValueCounts(modelRows),
-            samplerCounts: parameterCounts[GalleryParameter.sampler]!,
-            sizeCounts: _statisticsValueCounts(sizeRows),
-            tagCounts: _statisticsValueCounts(tagRows),
-            dailyCounts: _statisticsIntCounts(dailyRows),
-            hourlyCounts: _statisticsIntCounts(hourlyRows),
-            weekdayCounts: weekdayCounts,
-            parameterCounts: parameterCounts,
-            recentImages: _recentImages(recentRows, recentTagRows),
-          );
-        }),
+          return _dashboardSnapshot(results.map(batchQueryRows).toList());
+        },
         timeout: const Duration(seconds: 30),
         maxRetries: 2,
       );
     });
   }
+
+  // 各项聚合同一读快照、一条消息执行完；顺序须与 _dashboardSnapshot 的解构一致
+  void _queueDashboardQueries(Batch batch, int recentSince) {
+    batch
+      ..rawQuery(_dashboardOverviewSql)
+      ..rawQuery(_dashboardResolutionSql)
+      ..rawQuery(_dashboardModelSql)
+      ..rawQuery(_dashboardSizeSql)
+      ..rawQuery(_dashboardTopTagsSql)
+      ..rawQuery(_dashboardDailySql)
+      ..rawQuery(_dashboardHourlySql)
+      ..rawQuery(_dashboardWeekdaySql)
+      ..rawQuery(_dashboardRecentImagesSql, [recentSince])
+      ..rawQuery(_dashboardRecentTagsSql, [recentSince]);
+    for (final parameter in GalleryParameter.values) {
+      batch.rawQuery(_parameterCountsSql(parameter));
+    }
+  }
+
+  GalleryDashboardSnapshot _dashboardSnapshot(
+    List<List<Map<String, Object?>>> results,
+  ) {
+    final [
+      baseRows,
+      resolutionRows,
+      modelRows,
+      sizeRows,
+      tagRows,
+      dailyRows,
+      hourlyRows,
+      weekdayRows,
+      recentRows,
+      recentTagRows,
+      ...parameterRows,
+    ] = results;
+
+    // 采样器分布与参数分布的采样器一档共用这一次聚合，数字天然一致
+    final parameterCounts = {
+      for (final (index, parameter) in GalleryParameter.values.indexed)
+        parameter: _statisticsValueCounts(parameterRows[index]),
+    };
+
+    final base = baseRows.first;
+    final weekdayCounts = <int, int>{};
+    for (final row in weekdayRows) {
+      final sqliteWeekday = _statisticsInt(row['bucket']);
+      final dartWeekday = sqliteWeekday == 0
+          ? DateTime.sunday
+          : sqliteWeekday;
+      weekdayCounts[dartWeekday] = _statisticsInt(row['item_count']);
+    }
+
+    return GalleryDashboardSnapshot(
+      totalImages: _statisticsInt(base['total_images']),
+      totalSizeBytes: _statisticsInt(base['total_size']),
+      favoriteCount: _statisticsInt(base['favorite_count']),
+      taggedImageCount: _statisticsInt(base['tagged_image_count']),
+      imagesWithMetadata: _statisticsInt(base['images_with_metadata']),
+      resolutionCounts: {
+        for (final row in resolutionRows)
+          '${_statisticsInt(row['width'])}x${_statisticsInt(row['height'])}':
+              _statisticsInt(row['item_count']),
+      },
+      modelCounts: _statisticsValueCounts(modelRows),
+      samplerCounts: parameterCounts[GalleryParameter.sampler]!,
+      sizeCounts: _statisticsValueCounts(sizeRows),
+      tagCounts: _statisticsValueCounts(tagRows),
+      dailyCounts: _statisticsIntCounts(dailyRows),
+      hourlyCounts: _statisticsIntCounts(hourlyRows),
+      weekdayCounts: weekdayCounts,
+      parameterCounts: parameterCounts,
+      recentImages: _recentImages(recentRows, recentTagRows),
+    );
+  }
+
+  static const _dashboardOverviewSql = '''
+    SELECT
+      COUNT(*) AS total_images,
+      COALESCE(SUM(i.file_size), 0) AS total_size,
+      (
+        SELECT COUNT(*)
+        FROM ${GalleryTables.favorites} f
+        INNER JOIN ${GalleryTables.images} fi
+          ON fi.id = f.image_id
+        WHERE fi.is_deleted = 0
+      ) AS favorite_count,
+      (
+        SELECT COUNT(DISTINCT it.image_id)
+        FROM ${GalleryTables.imageTags} it
+        INNER JOIN ${GalleryTables.images} ti
+          ON ti.id = it.image_id
+        WHERE ti.is_deleted = 0
+      ) AS tagged_image_count,
+      (
+        SELECT COUNT(*)
+        FROM ${GalleryTables.metadata} mm
+        INNER JOIN ${GalleryTables.images} mi
+          ON mi.id = mm.image_id
+        WHERE mi.is_deleted = 0 AND mm.has_metadata = 1
+      ) AS images_with_metadata
+    FROM ${GalleryTables.images} i
+    WHERE i.is_deleted = 0
+  ''';
+
+  static const _dashboardResolutionSql = '''
+    SELECT
+      COALESCE(NULLIF(m.width, 0), NULLIF(i.width, 0)) AS width,
+      COALESCE(NULLIF(m.height, 0), NULLIF(i.height, 0)) AS height,
+      COUNT(*) AS item_count
+    FROM ${GalleryTables.images} i
+    LEFT JOIN ${GalleryTables.metadata} m
+      ON m.image_id = i.id
+    WHERE i.is_deleted = 0
+      AND COALESCE(NULLIF(m.width, 0), NULLIF(i.width, 0)) > 0
+      AND COALESCE(NULLIF(m.height, 0), NULLIF(i.height, 0)) > 0
+    GROUP BY 1, 2
+    ORDER BY item_count DESC
+  ''';
+
+  static const _dashboardModelSql = '''
+    SELECT m.model AS label, COUNT(*) AS item_count
+    FROM ${GalleryTables.metadata} m
+    INNER JOIN ${GalleryTables.images} i
+      ON i.id = m.image_id
+    WHERE i.is_deleted = 0
+      AND m.model IS NOT NULL
+      AND m.model != ''
+    GROUP BY m.model
+    ORDER BY item_count DESC
+  ''';
+
+  static const _dashboardSizeSql = '''
+    SELECT
+      CASE
+        WHEN file_size < 1048576 THEN '< 1 MB'
+        WHEN file_size < 2097152 THEN '1-2 MB'
+        WHEN file_size < 5242880 THEN '2-5 MB'
+        WHEN file_size < 10485760 THEN '5-10 MB'
+        ELSE '> 10 MB'
+      END AS label,
+      CASE
+        WHEN file_size < 1048576 THEN 0
+        WHEN file_size < 2097152 THEN 1
+        WHEN file_size < 5242880 THEN 2
+        WHEN file_size < 10485760 THEN 3
+        ELSE 4
+      END AS sort_order,
+      COUNT(*) AS item_count
+    FROM ${GalleryTables.images}
+    WHERE is_deleted = 0
+    GROUP BY label, sort_order
+    ORDER BY sort_order
+  ''';
+
+  static const _dashboardTopTagsSql = '''
+    SELECT t.name AS label, COUNT(DISTINCT it.image_id) AS item_count
+    FROM ${GalleryTables.tags} t
+    INNER JOIN ${GalleryTables.imageTags} it
+      ON it.tag_id = t.id
+    INNER JOIN ${GalleryTables.images} i
+      ON i.id = it.image_id
+    WHERE i.is_deleted = 0
+    GROUP BY t.id, t.name
+    ORDER BY item_count DESC
+    LIMIT 20
+  ''';
+
+  static const _dashboardDailySql = '''
+    SELECT
+      CASE
+        WHEN date_ymd IS NOT NULL AND date_ymd > 0 THEN date_ymd
+        ELSE CAST(
+          strftime(
+            '%Y%m%d',
+            modified_at / 1000.0,
+            'unixepoch',
+            'localtime'
+          ) AS INTEGER
+        )
+      END AS bucket,
+      COUNT(*) AS item_count
+    FROM ${GalleryTables.images}
+    WHERE is_deleted = 0
+    GROUP BY bucket
+    ORDER BY bucket
+  ''';
+
+  static const _dashboardHourlySql = '''
+    SELECT
+      CAST(
+        strftime(
+          '%H',
+          modified_at / 1000.0,
+          'unixepoch',
+          'localtime'
+        ) AS INTEGER
+      ) AS bucket,
+      COUNT(*) AS item_count
+    FROM ${GalleryTables.images}
+    WHERE is_deleted = 0
+    GROUP BY bucket
+    ORDER BY bucket
+  ''';
+
+  static const _dashboardWeekdaySql = '''
+    SELECT
+      CAST(
+        strftime(
+          '%w',
+          modified_at / 1000.0,
+          'unixepoch',
+          'localtime'
+        ) AS INTEGER
+      ) AS bucket,
+      COUNT(*) AS item_count
+    FROM ${GalleryTables.images}
+    WHERE is_deleted = 0
+    GROUP BY bucket
+    ORDER BY bucket
+  ''';
+
+  static const _dashboardRecentImagesSql = '''
+    SELECT
+      i.id AS id,
+      i.file_path AS file_path,
+      i.file_size AS file_size,
+      i.modified_at AS modified_at,
+      EXISTS (
+        SELECT 1 FROM ${GalleryTables.favorites} f
+        WHERE f.image_id = i.id
+      ) AS is_favorite,
+      COALESCE(m.has_metadata, 0) AS has_metadata,
+      m.width AS width,
+      m.height AS height,
+      m.model AS model,
+      m.sampler AS sampler,
+      m.steps AS steps,
+      m.cfg_scale AS cfg_scale
+    FROM ${GalleryTables.images} i
+    LEFT JOIN ${GalleryTables.metadata} m
+      ON m.image_id = i.id
+    WHERE i.is_deleted = 0
+      AND i.modified_at > ?
+    ORDER BY i.modified_at DESC, i.id DESC
+  ''';
+
+  static const _dashboardRecentTagsSql = '''
+    SELECT it.image_id AS image_id, t.name AS name
+    FROM ${GalleryTables.imageTags} it
+    INNER JOIN ${GalleryTables.tags} t
+      ON t.id = it.tag_id
+    INNER JOIN ${GalleryTables.images} i
+      ON i.id = it.image_id
+    WHERE i.is_deleted = 0
+      AND i.modified_at > ?
+    ORDER BY it.image_id, t.name
+  ''';
 
   static const Duration _recentActivityWindow = Duration(days: 30);
 

@@ -7,6 +7,7 @@ import 'package:synchronized/synchronized.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../utils/app_logger.dart';
+import '../single_message_transaction.dart';
 import 'gallery_database_gateway.dart';
 import '../../../data/models/gallery/gallery_tree_drop_slot.dart';
 import 'gallery_records.dart';
@@ -115,7 +116,8 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
 
   final GalleryDatabaseGateway gateway;
   final GalleryStoreContext context;
-  final _moveLock = Lock();
+  // 先读父子图或 pending 再写入的操作在此串行，写入前读到的状态不会被同类操作改掉
+  final _albumStateLock = Lock();
 
   @override
   Future<String> createAlbum({
@@ -326,15 +328,15 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
       final toAdd = uniqueIds.where((id) => !existing.contains(id)).toList();
       if (toAdd.isEmpty) return 0;
 
-      final batch = db.batch();
-      for (final imageId in toAdd) {
-        batch.insert(GalleryTables.albumImages, {
-          'album_id': albumId,
-          'image_id': imageId,
-          'added_at': now,
-        }, conflictAlgorithm: ConflictAlgorithm.ignore);
-      }
-      await batch.commit(noResult: true);
+      await db.applyAtomically((batch) {
+        for (final imageId in toAdd) {
+          batch.insert(GalleryTables.albumImages, {
+            'album_id': albumId,
+            'image_id': imageId,
+            'added_at': now,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+      }, noResult: true);
       return toAdd.length;
     });
     if (inserted > 0) {
@@ -457,6 +459,20 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
     List<GalleryAlbumRecord> albums,
     Map<String, List<int>> imageIdsByAlbumId, {
     Map<String, List<String>> pendingPathsByAlbumId = const {},
+  }) {
+    return _albumStateLock.synchronized(
+      () => _importAlbums(
+        albums,
+        imageIdsByAlbumId,
+        pendingPathsByAlbumId: pendingPathsByAlbumId,
+      ),
+    );
+  }
+
+  Future<void> _importAlbums(
+    List<GalleryAlbumRecord> albums,
+    Map<String, List<int>> imageIdsByAlbumId, {
+    required Map<String, List<String>> pendingPathsByAlbumId,
   }) async {
     if (albums.isEmpty) return;
     final now = _now();
@@ -480,48 +496,48 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
     final ordered = _topoSortAlbums(albums, parentOf);
 
     await gateway.execute('importAlbums', (db) async {
-      final batch = db.batch();
-      for (final album in ordered) {
-        final pending = _mergePending(
-          pendingPathsByAlbumId[album.id],
-          album.pendingPaths,
-        );
-        // INSERT ... ON CONFLICT DO UPDATE：显式 upsert，避免 REPLACE 在
-        // 自引用外键上触发 ON DELETE SET NULL 清空既有父子关系。
-        batch.execute(
-          'INSERT INTO ${GalleryTables.albums} '
-          '(id, name, description, parent_id, sort_order, cover_path, '
-          ' pending_paths, created_at, updated_at) '
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
-          'ON CONFLICT(id) DO UPDATE SET '
-          '  name = excluded.name, '
-          '  description = excluded.description, '
-          '  parent_id = excluded.parent_id, '
-          '  sort_order = excluded.sort_order, '
-          '  cover_path = excluded.cover_path, '
-          '  pending_paths = excluded.pending_paths, '
-          '  updated_at = excluded.updated_at',
-          [
-            album.id,
-            album.name,
-            album.description,
-            album.parentId,
-            album.sortOrder,
-            album.coverPath,
-            jsonEncode(pending),
-            album.createdAt.millisecondsSinceEpoch,
-            album.updatedAt.millisecondsSinceEpoch,
-          ],
-        );
-        for (final imageId in imageIdsByAlbumId[album.id] ?? const <int>[]) {
-          batch.insert(GalleryTables.albumImages, {
-            'album_id': album.id,
-            'image_id': imageId,
-            'added_at': now,
-          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.applyAtomically((batch) {
+        for (final album in ordered) {
+          final pending = _mergePending(
+            pendingPathsByAlbumId[album.id],
+            album.pendingPaths,
+          );
+          // INSERT ... ON CONFLICT DO UPDATE：显式 upsert，避免 REPLACE 在
+          // 自引用外键上触发 ON DELETE SET NULL 清空既有父子关系。
+          batch.execute(
+            'INSERT INTO ${GalleryTables.albums} '
+            '(id, name, description, parent_id, sort_order, cover_path, '
+            ' pending_paths, created_at, updated_at) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'ON CONFLICT(id) DO UPDATE SET '
+            '  name = excluded.name, '
+            '  description = excluded.description, '
+            '  parent_id = excluded.parent_id, '
+            '  sort_order = excluded.sort_order, '
+            '  cover_path = excluded.cover_path, '
+            '  pending_paths = excluded.pending_paths, '
+            '  updated_at = excluded.updated_at',
+            [
+              album.id,
+              album.name,
+              album.description,
+              album.parentId,
+              album.sortOrder,
+              album.coverPath,
+              jsonEncode(pending),
+              album.createdAt.millisecondsSinceEpoch,
+              album.updatedAt.millisecondsSinceEpoch,
+            ],
+          );
+          for (final imageId in imageIdsByAlbumId[album.id] ?? const <int>[]) {
+            batch.insert(GalleryTables.albumImages, {
+              'album_id': album.id,
+              'image_id': imageId,
+              'added_at': now,
+            }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          }
         }
-      }
-      await batch.commit(noResult: true);
+      }, noResult: true);
     });
     context.markDataChanged();
   }
@@ -532,12 +548,28 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
     Map<String, List<int>> imageIdsByAlbumId, {
     Map<String, List<String>> pendingPathsByAlbumId = const {},
     Set<String> deletedAlbumIds = const {},
+  }) {
+    return _albumStateLock.synchronized(
+      () => _applyCloudSyncAlbums(
+        albums,
+        imageIdsByAlbumId,
+        pendingPathsByAlbumId: pendingPathsByAlbumId,
+        deletedAlbumIds: deletedAlbumIds,
+      ),
+    );
+  }
+
+  Future<void> _applyCloudSyncAlbums(
+    List<GalleryAlbumRecord> albums,
+    Map<String, List<int>> imageIdsByAlbumId, {
+    required Map<String, List<String>> pendingPathsByAlbumId,
+    required Set<String> deletedAlbumIds,
   }) async {
     if (albums.isEmpty && deletedAlbumIds.isEmpty) return;
     final now = _now();
 
-    await gateway.executeTransaction('applyCloudSyncAlbums', (txn) async {
-      final existingRows = await txn.rawQuery(
+    await gateway.execute('applyCloudSyncAlbums', (db) async {
+      final existingRows = await db.rawQuery(
         'SELECT id, parent_id FROM ${GalleryTables.albums}',
       );
       final parentOf = <String, String?>{
@@ -559,64 +591,64 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
       _validateAlbumParentGraph(parentOf, parentOf.keys.toSet());
       final ordered = _topoSortAlbums(albums, parentOf);
 
-      final batch = txn.batch();
-      for (final deletedId in deletedAlbumIds) {
-        batch.update(
-          GalleryTables.albums,
-          {'parent_id': null, 'updated_at': now},
-          where: 'parent_id = ?',
-          whereArgs: [deletedId],
-        );
-        batch.delete(
-          GalleryTables.albums,
-          where: 'id = ?',
-          whereArgs: [deletedId],
-        );
-      }
-      for (final album in ordered) {
-        final pending = _mergePending(
-          pendingPathsByAlbumId[album.id],
-          album.pendingPaths,
-        );
-        batch.execute(
-          'INSERT INTO ${GalleryTables.albums} '
-          '(id, name, description, parent_id, sort_order, cover_path, '
-          ' pending_paths, created_at, updated_at) '
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
-          'ON CONFLICT(id) DO UPDATE SET '
-          '  name = excluded.name, '
-          '  description = excluded.description, '
-          '  parent_id = excluded.parent_id, '
-          '  sort_order = excluded.sort_order, '
-          '  cover_path = excluded.cover_path, '
-          '  pending_paths = excluded.pending_paths, '
-          '  updated_at = excluded.updated_at',
-          [
-            album.id,
-            album.name,
-            album.description,
-            album.parentId,
-            album.sortOrder,
-            album.coverPath,
-            jsonEncode(pending),
-            album.createdAt.millisecondsSinceEpoch,
-            album.updatedAt.millisecondsSinceEpoch,
-          ],
-        );
-        batch.delete(
-          GalleryTables.albumImages,
-          where: 'album_id = ?',
-          whereArgs: [album.id],
-        );
-        for (final imageId in imageIdsByAlbumId[album.id] ?? const <int>[]) {
-          batch.insert(GalleryTables.albumImages, {
-            'album_id': album.id,
-            'image_id': imageId,
-            'added_at': now,
-          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.applyAtomically((batch) {
+        for (final deletedId in deletedAlbumIds) {
+          batch.update(
+            GalleryTables.albums,
+            {'parent_id': null, 'updated_at': now},
+            where: 'parent_id = ?',
+            whereArgs: [deletedId],
+          );
+          batch.delete(
+            GalleryTables.albums,
+            where: 'id = ?',
+            whereArgs: [deletedId],
+          );
         }
-      }
-      await batch.commit(noResult: true);
+        for (final album in ordered) {
+          final pending = _mergePending(
+            pendingPathsByAlbumId[album.id],
+            album.pendingPaths,
+          );
+          batch.execute(
+            'INSERT INTO ${GalleryTables.albums} '
+            '(id, name, description, parent_id, sort_order, cover_path, '
+            ' pending_paths, created_at, updated_at) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) '
+            'ON CONFLICT(id) DO UPDATE SET '
+            '  name = excluded.name, '
+            '  description = excluded.description, '
+            '  parent_id = excluded.parent_id, '
+            '  sort_order = excluded.sort_order, '
+            '  cover_path = excluded.cover_path, '
+            '  pending_paths = excluded.pending_paths, '
+            '  updated_at = excluded.updated_at',
+            [
+              album.id,
+              album.name,
+              album.description,
+              album.parentId,
+              album.sortOrder,
+              album.coverPath,
+              jsonEncode(pending),
+              album.createdAt.millisecondsSinceEpoch,
+              album.updatedAt.millisecondsSinceEpoch,
+            ],
+          );
+          batch.delete(
+            GalleryTables.albumImages,
+            where: 'album_id = ?',
+            whereArgs: [album.id],
+          );
+          for (final imageId in imageIdsByAlbumId[album.id] ?? const <int>[]) {
+            batch.insert(GalleryTables.albumImages, {
+              'album_id': album.id,
+              'image_id': imageId,
+              'added_at': now,
+            }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          }
+        }
+      }, noResult: true);
     });
     context.markDataChanged();
   }
@@ -708,11 +740,10 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
       if (pending.isEmpty) continue;
 
       final resolved = await resolve(pending);
-      // 解析期间云恢复可能替换相簿快照；只绑定事务开始时仍处于 pending 的路径。
-      final outcome = await gateway.executeTransaction(
-        'rebindPendingPaths.apply',
-        (txn) async {
-          final currentRows = await txn.query(
+      // 解析期间云恢复可能替换相簿快照；只绑定加锁后重读时仍处于 pending 的路径。
+      final outcome = await _albumStateLock.synchronized(
+        () => gateway.execute('rebindPendingPaths.apply', (db) async {
+          final currentRows = await db.query(
             GalleryTables.albums,
             columns: const ['pending_paths'],
             where: 'id = ?',
@@ -744,23 +775,23 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
             }
           }
 
-          final batch = txn.batch();
-          for (final imageId in boundIds) {
-            batch.insert(
-              GalleryTables.albumImages,
-              {'album_id': albumId, 'image_id': imageId, 'added_at': _now()},
-              conflictAlgorithm: ConflictAlgorithm.ignore,
+          await db.applyAtomically((batch) {
+            for (final imageId in boundIds) {
+              batch.insert(GalleryTables.albumImages, {
+                'album_id': albumId,
+                'image_id': imageId,
+                'added_at': _now(),
+              }, conflictAlgorithm: ConflictAlgorithm.ignore);
+            }
+            batch.update(
+              GalleryTables.albums,
+              {'pending_paths': jsonEncode(stillPending)},
+              where: 'id = ?',
+              whereArgs: [albumId],
             );
-          }
-          batch.update(
-            GalleryTables.albums,
-            {'pending_paths': jsonEncode(stillPending)},
-            where: 'id = ?',
-            whereArgs: [albumId],
-          );
-          await batch.commit(noResult: true);
+          }, noResult: true);
           return (bound: boundIds.length, remaining: stillPending.length);
-        },
+        }),
       );
 
       if (outcome.bound > 0) {
@@ -778,7 +809,7 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
     required GalleryTreeDropSlot slot,
     Map<String, int>? displayOrder,
   }) {
-    return _moveLock.synchronized(
+    return _albumStateLock.synchronized(
       () => _moveAlbumToSlot(
         albumId: albumId,
         targetId: targetId,
@@ -899,32 +930,32 @@ class SqliteGalleryAlbumRepository implements GalleryAlbumRepository {
     }
 
     await gateway.execute('moveAlbumToSlot.apply', (db) async {
-      final batch = db.batch();
-      if (displayOrder != null) {
-        for (final entry in displayOrder.entries) {
-          batch.update(
-            GalleryTables.albums,
-            {'sort_order': entry.value},
-            where: 'id = ?',
-            whereArgs: [entry.key],
-          );
+      await db.applyAtomically((batch) {
+        if (displayOrder != null) {
+          for (final entry in displayOrder.entries) {
+            batch.update(
+              GalleryTables.albums,
+              {'sort_order': entry.value},
+              where: 'id = ?',
+              whereArgs: [entry.key],
+            );
+          }
         }
-      }
-      batch.update(
-        GalleryTables.albums,
-        {'parent_id': newParent, 'updated_at': _now()},
-        where: 'id = ?',
-        whereArgs: [albumId],
-      );
-      for (var i = 0; i < ordered.length; i++) {
         batch.update(
           GalleryTables.albums,
-          {'sort_order': i},
+          {'parent_id': newParent, 'updated_at': _now()},
           where: 'id = ?',
-          whereArgs: [ordered[i]],
+          whereArgs: [albumId],
         );
-      }
-      await batch.commit(noResult: true);
+        for (var i = 0; i < ordered.length; i++) {
+          batch.update(
+            GalleryTables.albums,
+            {'sort_order': i},
+            where: 'id = ?',
+            whereArgs: [ordered[i]],
+          );
+        }
+      }, noResult: true);
     });
     context.markDataChanged();
     return true;
