@@ -618,32 +618,28 @@ class GalleryStreamScanner {
       _updateStage(stats, FileProcessingStage.caching, fileName);
 
       final isNewFile = existing == null;
-      final metadataStatus = metadata != null && metadata.hasData
-          ? MetadataStatus.success
-          : parseResult.retryable
+      final hasMetadata = metadata != null && metadata.hasData;
+      final statusWithoutMetadata = parseResult.retryable
           ? MetadataStatus.transientFailure
           : MetadataStatus.failed;
+      final metadataStatus = hasMetadata
+          ? MetadataStatus.success
+          : statusWithoutMetadata;
 
-      final imageId = await _dataSource.upsertImage(
+      // 图片行可能先于元数据落库，写入中途失败也要让统计失效
+      _indexWrittenThisRound = true;
+      final imageId = await _dataSource.upsertImageWithMetadata(
         filePath: path,
         fileName: fileName,
         fileSize: stat.size,
-        width: metadata?.width,
-        height: metadata?.height,
-        aspectRatio: _calculateAspectRatio(metadata?.width, metadata?.height),
         createdAt: stat.modified,
         modifiedAt: stat.modified,
-        resolutionKey: metadata?.width != null && metadata?.height != null
-            ? '${metadata!.width}x${metadata.height}'
-            : null,
+        metadata: metadata,
+        statusWithoutMetadata: statusWithoutMetadata,
         lastScannedAt: DateTime.now(),
-        metadataStatus: metadataStatus,
       );
-      _indexWrittenThisRound = true;
 
-      if (metadata != null && metadata.hasData) {
-        await _dataSource.upsertMetadata(imageId, metadata);
-
+      if (hasMetadata) {
         // 更新 ScanStateManager 的元数据计数
         _stateManager.incrementMetadataCacheCount();
       } else {
@@ -674,7 +670,7 @@ class GalleryStreamScanner {
             : FileProcessingStage.completed,
         metadata: metadata,
         isNewFile: isNewFile,
-        metadataUpdated: metadata != null && metadata.hasData,
+        metadataUpdated: hasMetadata,
         error: parseResult.retryable ? parseResult.error : null,
       );
     } catch (e) {
@@ -726,14 +722,6 @@ class GalleryStreamScanner {
       currentFile: fileName,
       phase: _stageToPhase(stage),
     );
-  }
-
-  /// 计算宽高比
-  double? _calculateAspectRatio(int? width, int? height) {
-    if (width != null && height != null && height > 0) {
-      return width / height;
-    }
-    return null;
   }
 
   Future<List<File>> _createFileSnapshot(Directory rootDir) async {

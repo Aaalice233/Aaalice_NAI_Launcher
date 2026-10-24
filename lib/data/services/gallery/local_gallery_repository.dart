@@ -207,32 +207,17 @@ class LocalGalleryRepository {
         ? metadata
         : await getMetadata(file.path);
     final hasMetadata = resolvedMetadata?.hasData == true;
-    final imageId = await _dataSource.upsertImage(
+    // Leave unparsed rows unscanned so ordinary scans parse them again.
+    final imageId = await _dataSource.upsertImageWithMetadata(
       filePath: file.path,
       fileName: p.basename(file.path),
       fileSize: stat.size,
-      width: resolvedMetadata?.width,
-      height: resolvedMetadata?.height,
-      aspectRatio:
-          resolvedMetadata?.width != null &&
-              resolvedMetadata?.height != null &&
-              resolvedMetadata!.height! > 0
-          ? resolvedMetadata.width! / resolvedMetadata.height!
-          : null,
       createdAt: stat.modified,
       modifiedAt: stat.modified,
-      resolutionKey:
-          resolvedMetadata?.width != null && resolvedMetadata?.height != null
-          ? '${resolvedMetadata!.width}x${resolvedMetadata.height}'
-          : null,
+      metadata: resolvedMetadata,
+      statusWithoutMetadata: MetadataStatus.none,
       lastScannedAt: hasMetadata ? DateTime.now() : null,
-      metadataStatus: hasMetadata
-          ? MetadataStatus.success
-          : MetadataStatus.none,
     );
-    if (hasMetadata) {
-      await _dataSource.upsertMetadata(imageId, resolvedMetadata!);
-    }
     AppLogger.i(
       '[AddNewImage] Added new image immediately: ${p.basename(file.path)} '
           '(ID: $imageId)',

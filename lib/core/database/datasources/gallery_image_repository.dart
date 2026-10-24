@@ -31,6 +31,7 @@ abstract interface class GalleryImageRepository {
     String newPath, {
     String? newFileName,
   });
+  Future<void> updateMetadataStatus(int imageId, MetadataStatus status);
   Future<Map<String, int?>> getImageIdsByPaths(List<String> filePaths);
   Future<GalleryImageRecord?> getImageById(int id);
   Future<List<GalleryImageRecord>> getImagesByIds(List<int> ids);
@@ -213,6 +214,26 @@ class SqliteGalleryImageRepository implements GalleryImageRepository {
       );
       rethrow;
     }
+  }
+
+  @override
+  Future<void> updateMetadataStatus(int imageId, MetadataStatus status) async {
+    await gateway.execute(
+      'updateMetadataStatus',
+      (db) async {
+        await db.update(
+          GalleryTables.images,
+          {'metadata_status': status.index},
+          where: 'id = ?',
+          whereArgs: [imageId],
+        );
+        context.removeImage(imageId);
+      },
+      timeout: const Duration(seconds: 10),
+      maxRetries: 3,
+    );
+
+    context.markDataChanged();
   }
 
   @override
