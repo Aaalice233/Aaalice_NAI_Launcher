@@ -1841,6 +1841,24 @@ class AppLocalizationsJa extends AppLocalizations {
       'Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。';
 
   @override
+  String get generation_opusUsagePoolsTitle => 'Opus 無料生成の残り枠';
+
+  @override
+  String generation_opusUsageRegularPool(Object percent) {
+    return '通常枠 $percent%（時間経過で回復）';
+  }
+
+  @override
+  String generation_opusUsageExtraPool(Object percent) {
+    return '追加利用枠 +$percent%（回復しません）';
+  }
+
+  @override
+  String generation_opusUsageCombinedEstimate(Object count) {
+    return '合計であと約 $count 枚生成可能';
+  }
+
+  @override
   String get generation_imageSize => '画像サイズ';
 
   @override
