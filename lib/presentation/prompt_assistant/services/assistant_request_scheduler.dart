@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'assistant_cancellation.dart';
+import 'llm_request_retry_policy.dart';
 
 /// One queue per configured endpoint, shared by every prompt-assistant task.
 class AssistantRequestScheduler {
@@ -56,6 +57,7 @@ class _QueuedRequest {
 
 class _ProviderQueue {
   _ProviderQueue(this._now);
+  static const _maxRetries = 2;
   final DateTime Function() _now;
   final Queue<_QueuedRequest> _pending = Queue();
   final Set<_QueuedRequest> _running = {};
@@ -129,34 +131,60 @@ class _ProviderQueue {
         _successes = 0;
       }
     } catch (error, stack) {
-      final delay = error is DioException
-          ? _retryDelay(error, job.retries)
-          : null;
-      if (delay != null && !job.cancelToken.isCancelled) {
-        if (epoch == _congestionEpoch) {
-          _congestionEpoch++;
-          _successes = 0;
-          if (_settings.mode == AssistantConcurrencyMode.automatic) {
-            limit = math.max(1, limit ~/ 2);
-          }
-        }
-        final resumeAt = _now().add(delay);
-        if (_resumeAt == null || resumeAt.isAfter(_resumeAt!)) {
-          _resumeAt = resumeAt;
-          _cooldown?.cancel();
-          _cooldown = null;
-        }
-        if (job.retries++ < 2 && !job.result.isCompleted) {
-          _pending.add(job);
-        } else if (!job.result.isCompleted) {
-          job.result.completeError(error, stack);
-        }
-      } else if (!job.result.isCompleted) {
-        job.result.completeError(error, stack);
+      try {
+        _retryOrFail(job, epoch, error, stack);
+      } catch (inspectionError) {
+        // An escaped exception here would leave the caller waiting forever.
+        _fail(job, error, stack);
+        AppLogger.w(
+          'retry inspection failed: ${inspectionError.runtimeType}',
+          'PromptAssistant',
+        );
       }
     } finally {
       _running.remove(job);
       _pump();
+    }
+  }
+
+  void _retryOrFail(
+    _QueuedRequest job,
+    int epoch,
+    Object error,
+    StackTrace stack,
+  ) {
+    final delay = error is DioException && !job.cancelToken.isCancelled
+        ? _retryDelay(error, job.retries)
+        : null;
+    if (delay == null) {
+      _fail(job, error, stack);
+      return;
+    }
+    _throttle(epoch, delay);
+    if (job.retries++ >= _maxRetries || job.result.isCompleted) {
+      _fail(job, error, stack);
+    } else {
+      _pending.add(job);
+    }
+  }
+
+  void _fail(_QueuedRequest job, Object error, StackTrace stack) {
+    if (!job.result.isCompleted) job.result.completeError(error, stack);
+  }
+
+  void _throttle(int epoch, Duration delay) {
+    if (epoch == _congestionEpoch) {
+      _congestionEpoch++;
+      _successes = 0;
+      if (_settings.mode == AssistantConcurrencyMode.automatic) {
+        limit = math.max(1, limit ~/ 2);
+      }
+    }
+    final resumeAt = _now().add(delay);
+    if (_resumeAt == null || resumeAt.isAfter(_resumeAt!)) {
+      _resumeAt = resumeAt;
+      _cooldown?.cancel();
+      _cooldown = null;
     }
   }
 
@@ -169,20 +197,8 @@ class _ProviderQueue {
     ).hasMatch(detail)) {
       return null;
     }
-    final retryAfter = response?.headers.value('retry-after');
-    if (retryAfter != null) {
-      final seconds = double.tryParse(retryAfter);
-      if (seconds != null && seconds.isFinite && seconds >= 0) {
-        return Duration(milliseconds: (seconds * 1000).ceil());
-      }
-      try {
-        final delay = HttpDate.parse(retryAfter).difference(_now());
-        return delay.isNegative ? Duration.zero : delay;
-      } on FormatException {
-        // Malformed optional headers do not replace the original HTTP failure.
-      }
-    }
-    return Duration(seconds: 1 << math.min(retries, 2));
+    return llmRetryAfter(response, now: _now()) ??
+        Duration(seconds: 1 << math.min(retries, 2));
   }
 
   void dispose() {

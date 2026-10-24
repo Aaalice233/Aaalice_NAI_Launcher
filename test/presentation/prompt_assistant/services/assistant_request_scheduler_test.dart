@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
@@ -19,7 +20,7 @@ ProviderConfig provider(String id, {int? manual}) => ProviderConfig(
   ),
 );
 
-DioException limited({int status = 429, String? retryAfter, String? detail}) {
+DioException limited({int status = 429, String? retryAfter, Object? detail}) {
   final options = RequestOptions(path: '/chat/completions');
   return DioException(
     requestOptions: options,
@@ -33,6 +34,44 @@ DioException limited({int status = 429, String? retryAfter, String? detail}) {
     ),
     type: DioExceptionType.badResponse,
   );
+}
+
+class _UnprintableBody {
+  @override
+  String toString() => throw StateError('body cannot be rendered');
+}
+
+/// One scheduled request whose attempts throw [failures] in order, then succeed.
+class _Probe {
+  _Probe(
+    AssistantRequestScheduler scheduler,
+    ProviderConfig config,
+    List<Object> failures,
+  ) {
+    unawaited(
+      scheduler
+          .run(
+            provider: config,
+            cancelToken: CancelToken(),
+            request: () async {
+              final failure = attempts < failures.length
+                  ? failures[attempts]
+                  : null;
+              attempts++;
+              if (failure != null) throw failure;
+              return 'ok';
+            },
+          )
+          .then<void>(
+            (value) => result = value,
+            onError: (Object error) => caught = error,
+          ),
+    );
+  }
+
+  int attempts = 0;
+  String? result;
+  Object? caught;
 }
 
 void main() {
@@ -258,6 +297,72 @@ void main() {
       expect(attempts, 1);
       scheduler.dispose();
       time.flushMicrotasks();
+    });
+  });
+
+  test('Retry-After beyond sixty seconds waits sixty seconds', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime.utc(2026)).now,
+      );
+      final seconds = _Probe(scheduler, provider('seconds'), [
+        limited(retryAfter: '3600'),
+      ]);
+      final date = _Probe(scheduler, provider('date'), [
+        limited(
+          retryAfter: HttpDate.format(
+            DateTime.utc(2026).add(const Duration(hours: 2)),
+          ),
+        ),
+      ]);
+      time.elapse(const Duration(seconds: 59));
+      expect([seconds.attempts, date.attempts], [1, 1]);
+      time.elapse(const Duration(seconds: 1));
+      expect([seconds.attempts, date.attempts], [2, 2]);
+      expect([seconds.result, date.result], ['ok', 'ok']);
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test(
+    'a failure that cannot be inspected settles with the original error',
+    () {
+      fakeAsync((time) {
+        final scheduler = AssistantRequestScheduler(
+          now: time.getClock(DateTime(2026)).now,
+        );
+        final failure = limited(detail: _UnprintableBody());
+        final probe = _Probe(scheduler, provider('a'), [failure]);
+        final next = _Probe(scheduler, provider('a'), const []);
+        time.flushMicrotasks();
+        expect(probe.attempts, 1);
+        expect(probe.caught, same(failure));
+        expect(next.result, 'ok');
+        time.elapse(const Duration(minutes: 1));
+        expect(probe.attempts, 1);
+        expect(time.pendingTimers, isEmpty);
+        scheduler.dispose();
+        time.flushMicrotasks();
+      });
+    },
+  );
+
+  test('malformed Retry-After falls back to the default backoff', () {
+    fakeAsync((time) {
+      final scheduler = AssistantRequestScheduler(
+        now: time.getClock(DateTime(2026)).now,
+      );
+      final probe = _Probe(scheduler, provider('a'), [
+        limited(status: 503, retryAfter: 'soon'),
+      ]);
+      time.elapse(const Duration(seconds: 1));
+      expect(probe.attempts, 2);
+      expect(probe.result, 'ok');
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
     });
   });
 }
