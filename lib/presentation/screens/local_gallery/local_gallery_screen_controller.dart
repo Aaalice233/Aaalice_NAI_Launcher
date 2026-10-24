@@ -24,13 +24,13 @@ import '../../providers/local_gallery_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../services/library_sidebar_move_service.dart';
 import '../../utils/asset_protection_guard.dart';
+import '../../utils/image_date_grouping.dart' show ImageDateGroup;
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/image_card_action.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_input_dialog.dart';
 import '../../widgets/gallery_filter_panel.dart';
-import '../../widgets/grouped_grid_view.dart'
-    show GroupedGridViewState, ImageDateGroup;
+import '../../widgets/grouped_grid_view.dart' show GroupedGridViewState;
 import 'local_gallery_action_coordinator.dart';
 import 'local_gallery_category_panel.dart';
 
