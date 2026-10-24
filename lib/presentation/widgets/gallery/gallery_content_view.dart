@@ -31,7 +31,6 @@ abstract class GalleryState<T> {
   bool get isGroupedView;
   bool get isPageLoading;
   bool get isGroupedLoading;
-  int get currentPage;
   bool get hasFilters;
   List<T> get filteredFiles;
 }
@@ -44,7 +43,6 @@ abstract class SelectionState {
 
 /// 画廊内容视图（含分组/3D/瀑布流切换）- 泛型版本
 class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
-  final bool use3DCardView;
   final int columns;
   final double itemWidth;
   final GalleryState<T> state;
@@ -57,10 +55,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final void Function(T item)? onFavoriteToggle;
   final void Function(T item)? onSelectionToggle;
   final void Function(T item)? onEnterSelection;
-  final VoidCallback? onDeleted;
   final VoidCallback? onClearFilters;
-  final VoidCallback? onRefresh;
-  final void Function(int page)? onLoadPage;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
   final Gallery3DViewConfig<T>? view3DConfig;
   final Future<void> Function(
@@ -75,7 +70,6 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
 
   const GenericGalleryContentView({
     super.key,
-    this.use3DCardView = true,
     required this.columns,
     required this.itemWidth,
     required this.state,
@@ -88,10 +82,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.onFavoriteToggle,
     this.onSelectionToggle,
     this.onEnterSelection,
-    this.onDeleted,
     this.onClearFilters,
-    this.onRefresh,
-    this.onLoadPage,
     this.groupedGridViewKey,
     this.view3DConfig,
     this.onSendAction,
@@ -409,9 +400,6 @@ class _LocalGalleryStateAdapter implements GalleryState<LocalImageRecord> {
   bool get isGroupedLoading => _state.isGroupedLoading;
 
   @override
-  int get currentPage => _state.currentPage;
-
-  @override
   bool get hasFilters => _state.hasFilters;
 
   @override
@@ -434,7 +422,6 @@ class _LocalSelectionStateAdapter implements SelectionState {
 
 /// 本地画廊内容视图
 class LocalGalleryContentView extends ConsumerWidget {
-  final bool use3DCardView;
   final int columns;
   final double itemWidth;
   final void Function(LocalImageRecord record)? onReuseMetadata;
@@ -444,18 +431,15 @@ class LocalGalleryContentView extends ConsumerWidget {
     LocalImageContextAction action,
   )?
   onSendAction;
-  final VoidCallback? onDeleted;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
 
   const LocalGalleryContentView({
     super.key,
-    this.use3DCardView = true,
     required this.columns,
     required this.itemWidth,
     this.onReuseMetadata,
     this.onContextMenu,
     this.onSendAction,
-    this.onDeleted,
     this.groupedGridViewKey,
   });
 
@@ -542,7 +526,6 @@ class LocalGalleryContentView extends ConsumerWidget {
     }
 
     return GenericGalleryContentView<LocalImageRecord>(
-      use3DCardView: use3DCardView,
       columns: columns,
       itemWidth: itemWidth,
       state: _LocalGalleryStateAdapter(state),
@@ -558,13 +541,8 @@ class LocalGalleryContentView extends ConsumerWidget {
           .read(localGalleryNotifierProvider.notifier)
           .toggleFavorite(record.path),
       onContextMenu: onContextMenu,
-      onDeleted: onDeleted,
       onClearFilters: () =>
           ref.read(localGalleryNotifierProvider.notifier).clearAllFilters(),
-      onRefresh: () =>
-          ref.read(localGalleryNotifierProvider.notifier).refresh(),
-      onLoadPage: (page) =>
-          ref.read(localGalleryNotifierProvider.notifier).loadPage(page),
       groupedGridViewKey: groupedGridViewKey,
       view3DConfig: Gallery3DViewConfig<LocalImageRecord>(
         images: state.currentImages,

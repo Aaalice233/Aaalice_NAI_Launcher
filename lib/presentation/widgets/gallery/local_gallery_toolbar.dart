@@ -25,14 +25,6 @@ import '../autocomplete/autocomplete_wrapper.dart';
 /// Local gallery toolbar with search, filter and actions
 /// 本地画廊工具栏（搜索、过滤、操作按钮）
 class LocalGalleryToolbar extends ConsumerStatefulWidget {
-  /// Whether 3D card view mode is active
-  /// 是否启用3D卡片视图模式
-  final bool use3DCardView;
-
-  /// Callback when view mode is toggled
-  /// 视图模式切换回调
-  final VoidCallback? onToggleViewMode;
-
   /// Callback when open folder button is pressed
   /// 打开文件夹按钮回调
   final VoidCallback? onOpenFolder;
@@ -87,8 +79,6 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
 
   const LocalGalleryToolbar({
     super.key,
-    this.use3DCardView = true,
-    this.onToggleViewMode,
     this.onOpenFolder,
     this.onRefresh,
     this.onEnterSelectionMode,
