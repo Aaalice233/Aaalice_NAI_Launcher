@@ -718,6 +718,10 @@
   "generation_opusUsageEstimate": "あと約 {count} 枚生成可能",
   "generation_opusUsageRefill": "上限は時間経過で自動回復します",
   "generation_opusUsageExhausted": "Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。",
+  "generation_opusUsagePoolsTitle": "Opus 無料生成の残り枠",
+  "generation_opusUsageRegularPool": "通常枠 {percent}%（時間経過で回復）",
+  "generation_opusUsageExtraPool": "追加利用枠 +{percent}%（回復しません）",
+  "generation_opusUsageCombinedEstimate": "合計であと約 {count} 枚生成可能",
   "generation_imageSize": "画像サイズ",
   "generation_transparentBackground": "透過背景",
   "generation_e2eUpscaleHint": "サーバー出力 {size}",
@@ -742,6 +746,21 @@
     }
   },
   "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_opusUsageRegularPool": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageExtraPool": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageCombinedEstimate": {
     "placeholders": {
       "count": {}
     }
