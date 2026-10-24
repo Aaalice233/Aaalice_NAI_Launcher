@@ -312,7 +312,6 @@ class _LocalGalleryShell extends ConsumerWidget {
     }
 
     return LocalGalleryContentView(
-      use3DCardView: true,
       columns: viewModel.columns,
       itemWidth: viewModel.itemWidth,
       groupedGridViewKey: groupedGridViewKey,

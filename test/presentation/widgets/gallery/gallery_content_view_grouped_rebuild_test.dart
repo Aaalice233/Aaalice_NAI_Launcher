@@ -300,9 +300,6 @@ class _GroupedState implements GalleryState<LocalImageRecord> {
   bool get isGroupedLoading => false;
 
   @override
-  int get currentPage => 0;
-
-  @override
   bool get hasFilters => false;
 
   @override
