@@ -11,6 +11,7 @@ final class SaveNameContext implements SaveNameValues {
     this.index,
     this.width,
     this.height,
+    this.fileNameSuffix = '',
   });
 
   /// 生成时间；日期类字段都取自它。
@@ -25,6 +26,10 @@ final class SaveNameContext implements SaveNameValues {
   final int? width;
   final int? height;
 
+  /// 文件名末尾必须保留的后缀，用来区分同一次操作的多份产物或标记派生副本；
+  /// 文件名截短时只截它前面的部分。
+  final String fileNameSuffix;
+
   SaveNameContext copyWith({
     NaiImageMetadata? metadata,
     int? width,
@@ -36,6 +41,7 @@ final class SaveNameContext implements SaveNameValues {
     index: index,
     width: width ?? this.width,
     height: height ?? this.height,
+    fileNameSuffix: fileNameSuffix,
   );
 
   @override

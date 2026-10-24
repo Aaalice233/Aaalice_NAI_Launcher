@@ -138,9 +138,8 @@ void main() {
         required ImageSaveNaming naming,
         required SaveNameContext context,
         String? preferredFileName,
-        String protectedSuffix = '',
       }) async {
-        protectedSuffixes.add(protectedSuffix);
+        protectedSuffixes.add(context.fileNameSuffix);
         return p.join(rootPath, preferredFileName);
       }
 

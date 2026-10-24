@@ -30,6 +30,7 @@ import 'package:nai_launcher/presentation/providers/image_save_settings_provider
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
+import 'package:path/path.dart' as p;
 
 class MockNAIImageGenerationApiService extends Mock
     implements NAIImageGenerationApiService {}
@@ -856,6 +857,86 @@ void main() {
             .first;
         expect(savedImage.filePath, isNotNull);
         expect(File(savedImage.filePath!).existsSync(), isTrue);
+      },
+    );
+
+    test(
+      'registerExternalImage should keep the file name suffix on the entry and the saved file',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final tempDir = await Directory.systemTemp.createTemp(
+          'nai_launcher_director_suffix_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+
+        await notifier.registerExternalImage(
+          _validImageBytes(width: 512, height: 768),
+          params: params,
+          saveToLocal: true,
+          saveDirectoryPath: tempDir.path,
+          syncToGalleryIndex: false,
+          fileNameSuffix: '_masked',
+        );
+
+        final savedImage = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .first;
+        expect(savedImage.fileNameSuffix, '_masked');
+        expect(
+          p.basenameWithoutExtension(savedImage.filePath!),
+          endsWith('_masked'),
+        );
+      },
+    );
+
+    test(
+      'registerExternalImage with a shared createdAt names sibling outputs identically except the suffix',
+      () async {
+        final notifier = container.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final tempDir = await Directory.systemTemp.createTemp(
+          'nai_launcher_director_siblings_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+        final createdAt = DateTime(2026, 1, 2, 3, 4, 5);
+        const suffixes = <String>['_blend', '_generated', '_masked'];
+
+        final savedPaths = <String>[];
+        for (final suffix in suffixes) {
+          final savedPath = await notifier.registerExternalImage(
+            _validImageBytes(width: 512, height: 768),
+            params: params,
+            saveToLocal: true,
+            saveDirectoryPath: tempDir.path,
+            syncToGalleryIndex: false,
+            fileNameSuffix: suffix,
+            createdAt: createdAt,
+          );
+          savedPaths.add(savedPath!);
+        }
+
+        final history = container
+            .read(imageGenerationNotifierProvider)
+            .history
+            .take(suffixes.length);
+        expect(history.map((image) => image.createdAt).toSet(), {createdAt});
+        final stems = savedPaths.map(p.basenameWithoutExtension).toList();
+        final sharedStems = <String>{
+          for (final (index, stem) in stems.indexed)
+            stem.substring(0, stem.length - suffixes[index].length),
+        };
+        for (final (index, stem) in stems.indexed) {
+          expect(stem, endsWith(suffixes[index]));
+        }
+        expect(sharedStems, hasLength(1));
+        expect(sharedStems.single, startsWith('03-04-05'));
+        expect(savedPaths.map(p.dirname).toSet(), hasLength(1));
       },
     );
 

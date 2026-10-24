@@ -963,6 +963,8 @@ class _Registrar extends ImageGenerationNotifier {
     bool addToDisplay = false,
     bool replaceCurrentDisplay = false,
     bool embedNaiMetadata = true,
+    String fileNameSuffix = '',
+    DateTime? createdAt,
   }) async {
     results.add(imageBytes);
     comparisonSources.add(comparisonSourceImage);

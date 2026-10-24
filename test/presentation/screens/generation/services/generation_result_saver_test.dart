@@ -100,6 +100,7 @@ void main() {
     bool preserveOriginalBytes = false,
     String? savedPath,
     DateTime? createdAt,
+    String fileNameSuffix = '',
   }) => GenerationResultSaveRequest(
     imageId: id,
     bytes: plainPng,
@@ -108,6 +109,7 @@ void main() {
     metadata: metadata,
     fixedTagUsageSnapshot: fixedTagUsageSnapshot,
     savedPath: savedPath,
+    fileNameSuffix: fileNameSuffix,
   );
 
   List<String> pngFilesUnder(Directory root) => [
@@ -247,6 +249,31 @@ void main() {
     );
   });
 
+  test('手动重存时每张结果保留自带的文件名后缀', () async {
+    const naming = ImageSaveNaming(
+      folderTemplate: '',
+      fileNameTemplate: '{date}_{time}',
+    );
+
+    final report = await saver(naming: naming).saveAll([
+      request('masked', fileNameSuffix: '_masked'),
+      request('generated', fileNameSuffix: '_generated'),
+      request('blend', fileNameSuffix: '_blend'),
+    ]);
+
+    expect(
+      [
+        for (final file in report!.files)
+          p.relative(file.path, from: galleryRoot.path),
+      ],
+      [
+        '2026-10-12_09-08-07_masked.png',
+        '2026-10-12_09-08-07_generated.png',
+        '2026-10-12_09-08-07_blend.png',
+      ],
+    );
+  });
+
   test('记录的文件已被删掉时重新落盘并改记新路径', () async {
     final missing = p.join(galleryRoot.path, 'gone.png');
 
@@ -382,10 +409,12 @@ void main() {
         metadata: const NaiImageMetadata(prompt: 'own'),
         fixedTagUsageSnapshot: snapshot,
         preserveOriginalBytesOnSave: true,
+        fileNameSuffix: '_generated',
         filePath: 'root/saved.png',
       );
 
       final request = GenerationResultSaveRequest.fromImage(image);
+      expect(request.fileNameSuffix, '_generated');
 
       expect(request.imageId, 'image-10');
       expect(request.bytes, same(plainPng));
@@ -402,10 +431,12 @@ void main() {
           metadata: const NaiImageMetadata(prompt: 'own'),
           id: 'image-11',
           preserveOriginalBytesOnSave: true,
+          fileNameSuffix: '_blend',
           fixedTagUsageSnapshot: snapshot,
         ),
         savedPath: 'root/saved.png',
       );
+      expect(request.fileNameSuffix, '_blend');
 
       expect(request.imageId, 'image-11');
       expect(request.bytes, same(plainPng));

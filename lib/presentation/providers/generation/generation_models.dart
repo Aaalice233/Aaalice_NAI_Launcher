@@ -102,6 +102,9 @@ class GeneratedImage {
   /// 保存时跳过启动器的 PNG 元数据补写，保持接收到的文件字节不变。
   final bool preserveOriginalBytesOnSave;
 
+  /// 按命名规则保存时追加在文件名末尾，区分同一次操作返回的多张结果。
+  final String fileNameSuffix;
+
   /// 已保存的文件路径（如果有）
   /// 当图像被保存到磁盘后，此字段会被填充
   final String? filePath;
@@ -118,6 +121,7 @@ class GeneratedImage {
     this.postprocessError,
     this.comparisonSource,
     this.preserveOriginalBytesOnSave = false,
+    this.fileNameSuffix = '',
     this.filePath,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -134,6 +138,7 @@ class GeneratedImage {
     String? postprocessError,
     ImageComparisonSource? comparisonSource,
     bool preserveOriginalBytesOnSave = false,
+    String fileNameSuffix = '',
   }) {
     final encodedSize = NaiResolutionAdapter.readImageSize(bytes);
     return GeneratedImage(
@@ -148,6 +153,7 @@ class GeneratedImage {
       postprocessError: postprocessError,
       comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
+      fileNameSuffix: fileNameSuffix,
     );
   }
 
@@ -164,6 +170,7 @@ class GeneratedImage {
       fixedTagUsageSnapshot: fixedTagUsageSnapshot,
       comparisonSource: comparisonSource,
       preserveOriginalBytesOnSave: preserveOriginalBytesOnSave,
+      fileNameSuffix: fileNameSuffix,
       filePath: path,
       postprocessError: postprocessError,
     );
