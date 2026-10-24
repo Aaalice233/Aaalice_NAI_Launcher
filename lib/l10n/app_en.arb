@@ -1025,7 +1025,59 @@
       "tool": {}
     }
   },
+  "img2img_directorResultSaveFailed": "{tool} completed, but the result could not be saved",
+  "@img2img_directorResultSaveFailed": {
+    "placeholders": {
+      "tool": {}
+    }
+  },
+  "img2img_directorResultSelectedSaveFailed": "{tool} completed, but the selected result could not be saved ({failed} of {total} failed)",
+  "@img2img_directorResultSelectedSaveFailed": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultPartiallySaved": "{tool} completed, but {failed} of {total} results could not be saved",
+  "@img2img_directorResultPartiallySaved": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "img2img_directorApplied": "Applied the Director Tool result as the new source image",
+  "img2img_directorResultMasked": "Masked",
+  "img2img_directorResultGenerated": "Generated",
+  "img2img_directorResultBlend": "Blend",
+  "img2img_directorResultNumbered": "Result {index}",
+  "@img2img_directorResultNumbered": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultWithVariant": "{result} · {variant}",
+  "@img2img_directorResultWithVariant": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      },
+      "variant": {
+        "type": "String"
+      }
+    }
+  },
   "img2img_directorDefry": "Defry",
   "img2img_directorDefryHint": "Reduce noise or over-saturation in the result (0 = off, 5 = max)",
   "img2img_directorEmotionLevel": "Emotion Level",

@@ -16,6 +16,7 @@ import '../../providers/subscription_provider.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/common/themed_slider.dart';
+import 'widgets/director_result_variant_selector.dart';
 import 'widgets/pixel_snap_panel.dart';
 
 class DirectorToolsScreen extends ConsumerStatefulWidget {
@@ -177,7 +178,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: _SourcePreview(bytes: source),
+        child: _CappedPreview(bytes: source),
       ),
     );
   }
@@ -204,7 +205,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Flexible(child: _SourcePreview(bytes: state.sourceImage!)),
+                    Flexible(child: _CappedPreview(bytes: state.sourceImage!)),
                   ],
                 ),
               ),
@@ -216,7 +217,10 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      context.l10n.img2img_directorResult,
+                      _resultTitle(state),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
@@ -224,15 +228,19 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Flexible(
-                      child: Image.memory(
-                        state.result!,
-                        fit: BoxFit.contain,
-                        gaplessPlayback: true,
-                        // 像素画放大必须最近邻，插值会把刚对齐的硬边缘糊回去。
-                        filterQuality: state.selectedTool.producesPixelArt
-                            ? FilterQuality.none
-                            : FilterQuality.medium,
-                      ),
+                      child: state.selectedTool.producesPixelArt
+                          // 像素画按原尺寸解码并最近邻放大，任何重采样都会把刚对齐的硬边缘糊回去。
+                          ? Image.memory(
+                              state.result!,
+                              fit: BoxFit.contain,
+                              gaplessPlayback: true,
+                              filterQuality: FilterQuality.none,
+                            )
+                          : _CappedPreview(
+                              key: const ValueKey('director-result-preview'),
+                              bytes: state.result!,
+                              evictOnDispose: true,
+                            ),
                     ),
                   ],
                 ),
@@ -241,6 +249,18 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
           ],
         );
       },
+    );
+  }
+
+  String _resultTitle(DirectorToolsState state) {
+    final l10n = context.l10n;
+    final selected = state.selectedResult;
+    if (state.results.length <= 1 || selected == null) {
+      return l10n.img2img_directorResult;
+    }
+    return l10n.img2img_directorResultWithVariant(
+      l10n.img2img_directorResult,
+      selected.label(l10n, state.selectedResultIndex),
     );
   }
 
@@ -273,6 +293,16 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
         if (state.pixelSnapResult != null && state.result != null) ...[
           const SizedBox(height: 12),
           PixelSnapSummary(output: state.pixelSnapResult!),
+        ],
+        if (state.results.length > 1) ...[
+          const SizedBox(height: 16),
+          DirectorResultVariantSelector(
+            results: state.results,
+            selectedIndex: state.selectedResultIndex,
+            onSelected: ref
+                .read(directorToolsNotifierProvider.notifier)
+                .selectResult,
+          ),
         ],
         if (state.result != null) ...[
           const SizedBox(height: 16),
@@ -569,14 +599,33 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     if (!mounted) return;
     final state = ref.read(directorToolsNotifierProvider);
     if (state.result != null) {
-      await notifier.registerResult();
-      if (mounted) {
-        final label = state.selectedTool.labelKey(context.l10n);
-        AppToast.success(
-          context,
-          context.l10n.img2img_directorResultReady(label),
-        );
-      }
+      final registration = await notifier.registerResult();
+      if (mounted) _showRegistrationOutcome(state.selectedTool, registration);
+    }
+  }
+
+  void _showRegistrationOutcome(
+    DirectorToolType tool,
+    DirectorResultRegistration registration,
+  ) {
+    final l10n = context.l10n;
+    final label = tool.labelKey(l10n);
+    final failed = registration.failedCount;
+    final total = registration.total;
+    if (registration.succeeded) {
+      AppToast.success(context, l10n.img2img_directorResultReady(label));
+    } else if (registration.allFailed) {
+      AppToast.error(context, l10n.img2img_directorResultSaveFailed(label));
+    } else if (registration.selectedFailed) {
+      AppToast.error(
+        context,
+        l10n.img2img_directorResultSelectedSaveFailed(label, failed, total),
+      );
+    } else {
+      AppToast.warning(
+        context,
+        l10n.img2img_directorResultPartiallySaved(label, failed, total),
+      );
     }
   }
 
@@ -644,11 +693,18 @@ class _ToolListTile extends StatelessWidget {
   }
 }
 
-/// 用户原图可能远大于屏幕；按显示器尺寸封顶解码，拖动窗口时缓存键不变、不反复整图解码。
-class _SourcePreview extends StatelessWidget {
-  const _SourcePreview({required this.bytes});
+/// 原图与结果都可能远大于屏幕；按显示器尺寸封顶解码，拖动窗口时缓存键不变、不反复整图解码。
+class _CappedPreview extends StatelessWidget {
+  const _CappedPreview({
+    super.key,
+    required this.bytes,
+    this.evictOnDispose = false,
+  });
 
   final Uint8List bytes;
+
+  /// 结果每次运行都是新字节，离开页面后不该继续占着解码缓存。
+  final bool evictOnDispose;
 
   @override
   Widget build(BuildContext context) {
@@ -660,6 +716,7 @@ class _SourcePreview extends StatelessWidget {
       filterQuality: FilterQuality.medium,
       maxLogicalWidth: logicalDisplay.width,
       maxLogicalHeight: logicalDisplay.height,
+      evictOnDispose: evictOnDispose,
     );
   }
 }

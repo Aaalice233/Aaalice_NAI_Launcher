@@ -948,7 +948,59 @@
       "tool": {}
     }
   },
+  "img2img_directorResultSaveFailed": "{tool} 處理完成，但結果儲存失敗",
+  "@img2img_directorResultSaveFailed": {
+    "placeholders": {
+      "tool": {}
+    }
+  },
+  "img2img_directorResultSelectedSaveFailed": "{tool} 處理完成，但目前選取的結果儲存失敗（{failed}/{total} 張失敗）",
+  "@img2img_directorResultSelectedSaveFailed": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultPartiallySaved": "{tool} 處理完成，{failed}/{total} 張結果儲存失敗",
+  "@img2img_directorResultPartiallySaved": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "img2img_directorApplied": "已將導演工具結果設為新的源圖",
+  "img2img_directorResultMasked": "蒙版摳圖",
+  "img2img_directorResultGenerated": "生成",
+  "img2img_directorResultBlend": "混合",
+  "img2img_directorResultNumbered": "結果 {index}",
+  "@img2img_directorResultNumbered": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultWithVariant": "{result} · {variant}",
+  "@img2img_directorResultWithVariant": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      },
+      "variant": {
+        "type": "String"
+      }
+    }
+  },
   "img2img_directorDefry": "Defry",
   "img2img_directorDefryHint": "降低結果中的噪聲或過飽和程度（0 = 關閉，5 = 最強）",
   "img2img_directorEmotionLevel": "表情等級",

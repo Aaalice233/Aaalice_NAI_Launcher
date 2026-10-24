@@ -2358,7 +2358,49 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String img2img_directorResultSaveFailed(Object tool) {
+    return '$tool 处理完成，但结果保存失败';
+  }
+
+  @override
+  String img2img_directorResultSelectedSaveFailed(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool 处理完成，但当前选中的结果保存失败（$failed/$total 张失败）';
+  }
+
+  @override
+  String img2img_directorResultPartiallySaved(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool 处理完成，$failed/$total 张结果保存失败';
+  }
+
+  @override
   String get img2img_directorApplied => '已将导演工具结果设为新的源图';
+
+  @override
+  String get img2img_directorResultMasked => '蒙版抠图';
+
+  @override
+  String get img2img_directorResultGenerated => '生成';
+
+  @override
+  String get img2img_directorResultBlend => '混合';
+
+  @override
+  String img2img_directorResultNumbered(int index) {
+    return '结果 $index';
+  }
+
+  @override
+  String img2img_directorResultWithVariant(String result, String variant) {
+    return '$result · $variant';
+  }
 
   @override
   String get img2img_directorDefry => 'Defry';
@@ -17954,7 +17996,49 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
+  String img2img_directorResultSaveFailed(Object tool) {
+    return '$tool 處理完成，但結果儲存失敗';
+  }
+
+  @override
+  String img2img_directorResultSelectedSaveFailed(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool 處理完成，但目前選取的結果儲存失敗（$failed/$total 張失敗）';
+  }
+
+  @override
+  String img2img_directorResultPartiallySaved(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool 處理完成，$failed/$total 張結果儲存失敗';
+  }
+
+  @override
   String get img2img_directorApplied => '已將導演工具結果設為新的源圖';
+
+  @override
+  String get img2img_directorResultMasked => '蒙版摳圖';
+
+  @override
+  String get img2img_directorResultGenerated => '生成';
+
+  @override
+  String get img2img_directorResultBlend => '混合';
+
+  @override
+  String img2img_directorResultNumbered(int index) {
+    return '結果 $index';
+  }
+
+  @override
+  String img2img_directorResultWithVariant(String result, String variant) {
+    return '$result · $variant';
+  }
 
   @override
   String get img2img_directorDefry => 'Defry';

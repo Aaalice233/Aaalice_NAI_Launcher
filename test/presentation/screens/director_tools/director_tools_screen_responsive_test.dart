@@ -5,14 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_progress.dart';
 import 'package:nai_launcher/data/models/director/director_emotion.dart';
+import 'package:nai_launcher/data/models/director/director_tool_output.dart';
 import 'package:nai_launcher/data/models/director/director_tool_type.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
 import 'package:nai_launcher/presentation/screens/director_tools/director_tools_screen.dart';
+import 'package:nai_launcher/presentation/screens/director_tools/widgets/director_result_variant_selector.dart';
 import 'package:nai_launcher/presentation/services/image_workflow_launcher.dart';
+import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
 const _tinyPng =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
@@ -285,6 +290,71 @@ void main() {
     expect(find.text('Confirm Anlas usage'), findsNothing);
   });
 
+  for (final outcome
+      in <({String name, int selected, Set<int> failed, String message})>[
+        (
+          name: 'all saved',
+          selected: 0,
+          failed: const {},
+          message: 'Remove Background completed',
+        ),
+        (
+          name: 'every result failed',
+          selected: 0,
+          failed: const {0, 1, 2},
+          message:
+              'Remove Background completed, but the result could not be saved',
+        ),
+        (
+          name: 'the selected result failed',
+          selected: 1,
+          failed: const {1},
+          message:
+              'Remove Background completed, but the selected result could not be saved (1 of 3 failed)',
+        ),
+        (
+          name: 'another result failed',
+          selected: 0,
+          failed: const {2},
+          message:
+              'Remove Background completed, but 1 of 3 results could not be saved',
+        ),
+      ]) {
+    testWidgets('registration toast when ${outcome.name}', (tester) async {
+      final initialState = DirectorToolsState(
+        sourceImage: sourceImage,
+        imageWidth: 512,
+        imageHeight: 512,
+      );
+      final notifier = _RegisteringDirectorToolsNotifier(
+        initialState,
+        selectedIndex: outcome.selected,
+        failedIndices: outcome.failed,
+      );
+      await _pumpScreen(
+        tester,
+        size: const Size(840, 720),
+        initialState: initialState,
+        notifier: notifier,
+      );
+
+      await _scrollControlIntoView(tester, find.text('Run Remove Background'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Run Remove Background'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      expect(notifier.registerCalls, 1);
+      expect(find.text(outcome.message), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      // 提示停留 3 秒再加退场动画，先放完再结束用例。
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+  }
+
   testWidgets('processing state remains visible and disables the run action', (
     tester,
   ) async {
@@ -331,7 +401,7 @@ void main() {
       size: const Size(840, 720),
       initialState: DirectorToolsState(
         sourceImage: sourceImage,
-        result: sourceImage,
+        results: [DirectorToolImage(sourceImage)],
       ),
     );
 
@@ -341,6 +411,42 @@ void main() {
     expect(find.text('Use as Source'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  for (final scenario in <({Size size, double textScale, String name})>[
+    (size: const Size(320, 720), textScale: 1, name: '320 compact'),
+    (size: const Size(600, 720), textScale: 1, name: '600 medium'),
+    (size: const Size(840, 720), textScale: 1, name: '840 expanded'),
+    (size: const Size(1180, 720), textScale: 1, name: '1180 wide'),
+    (size: const Size(1600, 900), textScale: 1, name: '1600 extra wide'),
+    (size: const Size(320, 720), textScale: 3, name: '320 with 3x text'),
+    (size: const Size(840, 720), textScale: 3, name: '840 with 3x text'),
+  ]) {
+    testWidgets(
+      'background removal variants stay switchable at ${scenario.name}',
+      (tester) async {
+        await _pumpScreen(
+          tester,
+          size: scenario.size,
+          textScale: scenario.textScale,
+          initialState: _backgroundRemovalResultState(sourceImage),
+        );
+
+        expect(find.text('Result · Masked'), findsOneWidget);
+        await _expectSegmentsOnOneRow(tester, ['Masked', 'Generated', 'Blend']);
+
+        await tester.ensureVisible(find.text('Blend'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Blend'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Result · Blend'), findsOneWidget);
+        expect(_resultPreviewBytes(tester), same(_blendBytes));
+        await _scrollControlIntoView(tester, find.text('Use as Source').last);
+        expect(find.text('Use as Source'), findsWidgets);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   for (final scenario
       in <({Size size, double textScale, Locale locale, String name})>[
@@ -436,6 +542,66 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('single result hides the variant switch', (tester) async {
+    await _pumpScreen(
+      tester,
+      size: const Size(840, 720),
+      initialState: DirectorToolsState(
+        sourceImage: sourceImage,
+        results: [DirectorToolImage(sourceImage)],
+      ),
+    );
+
+    expect(find.byType(DirectorResultVariantSelector), findsNothing);
+    expect(find.text('Result'), findsOneWidget);
+  });
+
+  testWidgets('apply hands the selected variant back to the workflow', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(840, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final workflow = _RecordingWorkflow();
+
+    await tester.pumpWidget(
+      _testApp(
+        size: const Size(840, 720),
+        initialState: _backgroundRemovalResultState(sourceImage),
+        workflow: workflow,
+        home: Consumer(
+          builder: (context, ref, child) => Scaffold(
+            body: FilledButton(
+              onPressed: () => ImageWorkflowLauncher.openDirectorTools(
+                context,
+                ref,
+                sourceImage,
+              ),
+              child: const Text('Open launcher'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open launcher'));
+    await tester.pumpAndSettle();
+
+    await _scrollControlIntoView(tester, find.text('Generated'));
+    await tester.ensureVisible(find.text('Generated'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Generated'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text('Use as Source'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(workflow.replaced, [same(_generatedBytes)]);
+    expect(find.byType(DirectorToolsScreen), findsNothing);
+  });
+
   testWidgets(
     'ImageWorkflowLauncher opens DirectorToolsScreen.show and returns',
     (tester) async {
@@ -509,7 +675,7 @@ void main() {
     const size = Size(840, 720);
     final initialState = DirectorToolsState(
       sourceImage: sourceImage,
-      result: sourceImage,
+      results: [DirectorToolImage(sourceImage)],
     );
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -554,7 +720,7 @@ void main() {
         size: const Size(320, 720),
         initialState: DirectorToolsState(
           sourceImage: sourceImage,
-          result: sourceImage,
+          results: [DirectorToolImage(sourceImage)],
         ),
         home: Builder(
           builder: (context) => Scaffold(
@@ -613,6 +779,7 @@ Widget _testApp({
   required Widget home,
   double textScale = 1,
   DirectorToolsNotifier? notifier,
+  ImageWorkflowController? workflow,
   Locale locale = const Locale('en'),
 }) {
   return ProviderScope(
@@ -620,6 +787,8 @@ Widget _testApp({
       directorToolsNotifierProvider.overrideWith(
         () => notifier ?? _ScenarioDirectorToolsNotifier(initialState),
       ),
+      if (workflow != null)
+        imageWorkflowControllerProvider.overrideWith(() => workflow),
     ],
     child: MaterialApp(
       locale: locale,
@@ -715,6 +884,15 @@ void _expectTextNotClipped(WidgetTester tester, String label) {
   );
 }
 
+Uint8List _resultPreviewBytes(WidgetTester tester) => tester
+    .widget<DecodedMemoryImage>(
+      find.descendant(
+        of: find.byKey(const ValueKey('director-result-preview')),
+        matching: find.byType(DecodedMemoryImage),
+      ),
+    )
+    .bytes;
+
 class _RecordingDirectorToolsNotifier extends _ScenarioDirectorToolsNotifier {
   _RecordingDirectorToolsNotifier(super.initialState);
 
@@ -723,6 +901,36 @@ class _RecordingDirectorToolsNotifier extends _ScenarioDirectorToolsNotifier {
   @override
   Future<void> runTool() async {
     runCalls++;
+  }
+}
+
+/// 运行时直接给出背景移除的三张结果，登记按预设的失败序号返回，不碰真实历史与图库。
+class _RegisteringDirectorToolsNotifier extends _ScenarioDirectorToolsNotifier {
+  _RegisteringDirectorToolsNotifier(
+    super.initialState, {
+    required this.selectedIndex,
+    required this.failedIndices,
+  });
+
+  final int selectedIndex;
+  final Set<int> failedIndices;
+  int registerCalls = 0;
+
+  @override
+  Future<void> runTool() async {
+    state = _backgroundRemovalResultState(
+      state.sourceImage!,
+    ).copyWith(selectedResultIndex: selectedIndex);
+  }
+
+  @override
+  Future<DirectorResultRegistration> registerResult() async {
+    registerCalls++;
+    return DirectorResultRegistration(
+      total: state.results.length,
+      selectedIndex: state.selectedResultIndex,
+      failedIndices: failedIndices,
+    );
   }
 }
 
@@ -743,4 +951,45 @@ class _ScenarioDirectorToolsNotifier extends DirectorToolsNotifier {
   Future<void> runTool() async {
     throw StateError('Widget tests must not execute Director Tools requests.');
   }
+}
+
+final Uint8List _maskedBytes = _solidPng(255, 0, 0);
+final Uint8List _generatedBytes = _solidPng(0, 255, 0);
+final Uint8List _blendBytes = _solidPng(0, 0, 255);
+
+Uint8List _solidPng(int r, int g, int b) {
+  final image = img.Image(width: 2, height: 2)..clear(img.ColorRgb8(r, g, b));
+  return Uint8List.fromList(img.encodePng(image));
+}
+
+DirectorToolsState _backgroundRemovalResultState(Uint8List sourceImage) =>
+    DirectorToolsState(
+      sourceImage: sourceImage,
+      imageWidth: 512,
+      imageHeight: 512,
+      results: DirectorToolOutput.labelled([
+        _maskedBytes,
+        _generatedBytes,
+        _blendBytes,
+      ], variants: DirectorResultVariant.values).images,
+    );
+
+class _RecordingWorkflow extends ImageWorkflowController {
+  final List<Uint8List> replaced = [];
+
+  @override
+  ImageWorkflowState build() => const ImageWorkflowState();
+
+  @override
+  void replaceSourceImage(
+    Uint8List imageBytes, {
+    int? sourceWidth,
+    int? sourceHeight,
+    bool autoAdapt = true,
+  }) {
+    replaced.add(imageBytes);
+  }
+
+  @override
+  void setPanelExpanded(bool value) {}
 }

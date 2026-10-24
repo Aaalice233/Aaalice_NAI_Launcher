@@ -1015,7 +1015,59 @@
       "tool": {}
     }
   },
+  "img2img_directorResultSaveFailed": "{tool} が完了しましたが、結果を保存できませんでした",
+  "@img2img_directorResultSaveFailed": {
+    "placeholders": {
+      "tool": {}
+    }
+  },
+  "img2img_directorResultSelectedSaveFailed": "{tool} が完了しましたが、選択中の結果を保存できませんでした ({total} 件中 {failed} 件失敗)",
+  "@img2img_directorResultSelectedSaveFailed": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultPartiallySaved": "{tool} が完了しましたが、{total} 件中 {failed} 件の結果を保存できませんでした",
+  "@img2img_directorResultPartiallySaved": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "img2img_directorApplied": "ディレクターツールの結果を新しいソース イメージとして適用しました",
+  "img2img_directorResultMasked": "マスク切り抜き",
+  "img2img_directorResultGenerated": "生成",
+  "img2img_directorResultBlend": "ブレンド",
+  "img2img_directorResultNumbered": "結果 {index}",
+  "@img2img_directorResultNumbered": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultWithVariant": "{result} · {variant}",
+  "@img2img_directorResultWithVariant": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      },
+      "variant": {
+        "type": "String"
+      }
+    }
+  },
   "img2img_directorDefry": "デフライ",
   "img2img_directorDefryHint": "結果のノイズまたは過飽和を低減します (0 = オフ、5 = 最大)",
   "img2img_directorEmotionLevel": "感情レベル",

@@ -955,7 +955,59 @@
       "tool": {}
     }
   },
+  "img2img_directorResultSaveFailed": "{tool} 处理完成，但结果保存失败",
+  "@img2img_directorResultSaveFailed": {
+    "placeholders": {
+      "tool": {}
+    }
+  },
+  "img2img_directorResultSelectedSaveFailed": "{tool} 处理完成，但当前选中的结果保存失败（{failed}/{total} 张失败）",
+  "@img2img_directorResultSelectedSaveFailed": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultPartiallySaved": "{tool} 处理完成，{failed}/{total} 张结果保存失败",
+  "@img2img_directorResultPartiallySaved": {
+    "placeholders": {
+      "tool": {},
+      "failed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "img2img_directorApplied": "已将导演工具结果设为新的源图",
+  "img2img_directorResultMasked": "蒙版抠图",
+  "img2img_directorResultGenerated": "生成",
+  "img2img_directorResultBlend": "混合",
+  "img2img_directorResultNumbered": "结果 {index}",
+  "@img2img_directorResultNumbered": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "img2img_directorResultWithVariant": "{result} · {variant}",
+  "@img2img_directorResultWithVariant": {
+    "placeholders": {
+      "result": {
+        "type": "String"
+      },
+      "variant": {
+        "type": "String"
+      }
+    }
+  },
   "img2img_directorDefry": "Defry",
   "img2img_directorDefryHint": "降低结果中的噪声或过饱和程度（0 = 关闭，5 = 最强）",
   "img2img_directorEmotionLevel": "表情等级",

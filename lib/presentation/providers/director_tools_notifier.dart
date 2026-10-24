@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -12,6 +11,7 @@ import '../../core/services/pixel_snap/pixel_snap_progress.dart';
 import '../../core/services/pixel_snap/pixel_snap_service.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../data/models/director/director_emotion.dart';
+import '../../data/models/director/director_tool_output.dart';
 import '../../data/models/director/director_tool_type.dart';
 import '../../data/services/auth_provider.dart';
 import 'image_generation_provider.dart';
@@ -62,7 +62,8 @@ class DirectorToolsState {
     this.defry = 0,
     this.prompt = '',
     this.isRunning = false,
-    this.result,
+    this.results = const [],
+    this.selectedResultIndex = 0,
     this.error,
     this.sourceImage,
     this.imageWidth = 0,
@@ -77,7 +78,10 @@ class DirectorToolsState {
   final int defry;
   final String prompt;
   final bool isRunning;
-  final Uint8List? result;
+
+  /// 本次运行的全部结果，按服务端返回顺序排列；只有背景移除会多于一张。
+  final List<DirectorToolImage> results;
+  final int selectedResultIndex;
   final String? error;
   final Uint8List? sourceImage;
   final int imageWidth;
@@ -93,6 +97,14 @@ class DirectorToolsState {
 
   /// 原始异常对象。UI 靠它把已知失败翻成本地化文案，[error] 只是兜底文本。
   final Object? errorCause;
+
+  DirectorToolImage? get selectedResult {
+    if (results.isEmpty) return null;
+    return results[selectedResultIndex.clamp(0, results.length - 1)];
+  }
+
+  /// 预览、对比、回填源图与回传调用方统一使用当前选中的那张。
+  Uint8List? get result => selectedResult?.bytes;
 
   int estimatedAnlasCost({bool isOpus = false}) {
     if (selectedTool.runsLocally) return 0;
@@ -110,7 +122,8 @@ class DirectorToolsState {
     int? defry,
     String? prompt,
     bool? isRunning,
-    Uint8List? result,
+    List<DirectorToolImage>? results,
+    int? selectedResultIndex,
     String? error,
     Uint8List? sourceImage,
     int? imageWidth,
@@ -128,7 +141,10 @@ class DirectorToolsState {
       defry: defry ?? this.defry,
       prompt: prompt ?? this.prompt,
       isRunning: isRunning ?? this.isRunning,
-      result: clearResult ? null : (result ?? this.result),
+      results: clearResult ? const [] : (results ?? this.results),
+      selectedResultIndex: clearResult
+          ? 0
+          : (selectedResultIndex ?? this.selectedResultIndex),
       error: clearError ? null : (error ?? this.error),
       sourceImage: sourceImage ?? this.sourceImage,
       imageWidth: imageWidth ?? this.imageWidth,
@@ -141,6 +157,28 @@ class DirectorToolsState {
       errorCause: clearError ? null : (errorCause ?? this.errorCause),
     );
   }
+}
+
+/// 一次结果登记中没能存进图库的结果序号，序号与 [DirectorToolsState.results] 对应。
+@immutable
+class DirectorResultRegistration {
+  const DirectorResultRegistration({
+    required this.total,
+    required this.selectedIndex,
+    this.failedIndices = const {},
+  });
+
+  final int total;
+  final int selectedIndex;
+  final Set<int> failedIndices;
+
+  int get failedCount => failedIndices.length;
+
+  bool get succeeded => failedIndices.isEmpty;
+
+  bool get allFailed => total > 0 && failedCount == total;
+
+  bool get selectedFailed => failedIndices.contains(selectedIndex);
 }
 
 final directorToolsNotifierProvider =
@@ -236,35 +274,39 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       final prompt = state.prompt.trim();
       final defry = state.defry;
 
-      final Uint8List result;
+      final DirectorToolOutput output;
       switch (state.selectedTool) {
         case DirectorToolType.removeBackground:
-          result = await service.removeBackground(source);
+          output = await service.removeBackground(source);
         case DirectorToolType.extractLineArt:
-          result = await service.extractLineArt(source);
+          output = await service.extractLineArt(source);
         case DirectorToolType.toSketch:
-          result = await service.toSketch(source);
+          output = await service.toSketch(source);
         case DirectorToolType.colorize:
-          result = await service.colorize(
+          output = await service.colorize(
             source,
             prompt: prompt.isEmpty ? null : prompt,
             defry: defry,
           );
         case DirectorToolType.fixEmotion:
           final emotionPrompt = _buildEmotionPrompt(prompt);
-          result = await service.fixEmotion(
+          output = await service.fixEmotion(
             source,
             prompt: emotionPrompt,
             defry: defry,
           );
         case DirectorToolType.declutter:
-          result = await service.declutter(source);
+          output = await service.declutter(source);
         case DirectorToolType.pixelSnap:
           // 上面已经分流，这里只是让 switch 保持穷举。
           return;
       }
 
-      state = state.copyWith(result: result, isRunning: false);
+      state = state.copyWith(
+        results: output.images,
+        selectedResultIndex: 0,
+        isRunning: false,
+      );
     } catch (e) {
       state = state.copyWith(error: e.toString(), isRunning: false);
     } finally {
@@ -289,7 +331,8 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
         },
       );
       state = state.copyWith(
-        result: output.pngBytes,
+        results: DirectorToolOutput.single(output.pngBytes).images,
+        selectedResultIndex: 0,
         pixelSnapResult: output,
         isRunning: false,
         clearProgress: true,
@@ -314,22 +357,59 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
     return '$mood;;$userPrompt';
   }
 
-  Future<void> registerResult() async {
-    if (state.result == null) return;
+  void selectResult(int index) {
+    if (index < 0 || index >= state.results.length) return;
+    if (index == state.selectedResultIndex) return;
+    state = state.copyWith(selectedResultIndex: index);
+  }
+
+  /// 每张结果都进历史和图库，与官网开自动下载时逐张保存一致；
+  /// 某张失败不连累其余几张，失败的序号交给调用方提示用户。
+  Future<DirectorResultRegistration> registerResult() async {
+    final results = state.results;
+    final selectedIndex = state.selectedResultIndex;
+    if (results.isEmpty) {
+      return DirectorResultRegistration(total: 0, selectedIndex: selectedIndex);
+    }
     var saveParams = ref.read(generationParamsNotifierProvider);
     if (state.selectedTool.needsPrompt && state.prompt.isNotEmpty) {
       saveParams = saveParams.copyWith(prompt: state.prompt);
     }
-    await ref
-        .read(imageGenerationNotifierProvider.notifier)
-        .registerExternalImage(
-          state.result!,
+    final generation = ref.read(imageGenerationNotifierProvider.notifier);
+    // 同一次处理的几张共用一个时刻，按时间命名时文件名只差后缀。
+    final createdAt = DateTime.now();
+    final failedIndices = <int>{};
+    // 历史按登记先后倒排，逆序登记才能让第 0 张排在最前。
+    for (var index = results.length - 1; index >= 0; index--) {
+      final image = results[index];
+      try {
+        final savedPath = await generation.registerExternalImage(
+          image.bytes,
           params: saveParams,
           saveToLocal: true,
+          fileNameSuffix: image.fileNameSuffix,
+          createdAt: createdAt,
           // 与 DLSS 增强、NovelAI 超分一致：加工结果顶替当前展示图，
           // 否则它只进历史，会排在仍占着当前区的原图下面。
-          replaceCurrentDisplay: true,
+          replaceCurrentDisplay: index == selectedIndex,
         );
+        // 落盘失败只在保存层记日志，返回的路径为空是唯一信号。
+        if (savedPath == null) failedIndices.add(index);
+      } catch (error, stackTrace) {
+        failedIndices.add(index);
+        AppLogger.e(
+          'Failed to register director tool result ${index + 1}',
+          error,
+          stackTrace,
+          'DirectorTools',
+        );
+      }
+    }
+    return DirectorResultRegistration(
+      total: results.length,
+      selectedIndex: selectedIndex,
+      failedIndices: Set.unmodifiable(failedIndices),
+    );
   }
 
   void applyResultAsSource() {
