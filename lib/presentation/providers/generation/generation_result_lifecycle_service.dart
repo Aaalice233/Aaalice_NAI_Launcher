@@ -21,7 +21,6 @@ class GenerationResultLifecycleDependencies {
     required this.resolveGalleryRootPath,
     required this.saveNaming,
     required this.addGalleryImages,
-    required this.refreshGallery,
     required this.removeGalleryImages,
     required this.deleteGalleryFile,
     required this.incrementStatistics,
@@ -33,7 +32,6 @@ class GenerationResultLifecycleDependencies {
   final ImageSaveNaming saveNaming;
   final Future<GalleryIndexAdmission> Function(List<String> paths)
   addGalleryImages;
-  final Future<void> Function() refreshGallery;
   final Future<void> Function(List<String> paths) removeGalleryImages;
 
   /// 文件已不存在时返回 `false`。
@@ -219,11 +217,8 @@ class GenerationResultLifecycleService {
     if (paths.isNotEmpty) {
       if (syncToGalleryIndex) {
         try {
-          // 全量重扫要枚举整个图库根目录，只有索引与磁盘真的对不上才值得付这个代价。
-          final admission = await dependencies.addGalleryImages(paths);
-          if (admission.requiresFullRescan) {
-            await dependencies.refreshGallery();
-          }
+          // 收录失败已由图库服务按单张重试并记录，全量重扫修不了单张写不进去的图
+          await dependencies.addGalleryImages(paths);
         } catch (error, stackTrace) {
           AppLogger.e('自动保存图库索引更新失败', error, stackTrace);
         }
