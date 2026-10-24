@@ -6,6 +6,7 @@ import '../../../providers/character_position_canvas_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/layout_state_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
+import '../../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'generation_controls/generation_controls.dart';
 import 'image_preview.dart';
 import 'prompt_input.dart';
@@ -137,15 +138,17 @@ class MainWorkspace extends ConsumerWidget {
                 const Expanded(child: ImagePreviewWidget()),
 
             // 底部生成控制区
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface.withValues(alpha: 0.5),
-                border: Border(
-                  top: BorderSide(color: theme.dividerColor, width: 1),
+            RasterCacheBoundary(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface.withValues(alpha: 0.5),
+                  border: Border(
+                    top: BorderSide(color: theme.dividerColor, width: 1),
+                  ),
                 ),
+                child: const GenerationControls(),
               ),
-              child: const GenerationControls(),
             ),
           ],
         );
@@ -156,16 +159,18 @@ class MainWorkspace extends ConsumerWidget {
   }
 
   Widget _buildPromptInput(ThemeData theme, bool isPromptMaximized) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.5),
-      ),
-      child: PromptInputWidget(
-        key: promptInputKey,
-        controller: promptInputController,
-        onToggleMaximize: onToggleMaximize,
-        isMaximized: isPromptMaximized,
+    return RasterCacheBoundary(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface.withValues(alpha: 0.5),
+        ),
+        child: PromptInputWidget(
+          key: promptInputKey,
+          controller: promptInputController,
+          onToggleMaximize: onToggleMaximize,
+          isMaximized: isPromptMaximized,
+        ),
       ),
     );
   }

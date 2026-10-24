@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/localization_extension.dart';
 import '../../../providers/layout_state_provider.dart';
+import '../../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'collapsed_panel.dart';
 import 'generation_workspace_header.dart';
 import 'parameter_panel.dart';
@@ -48,18 +49,18 @@ class LeftPanel extends ConsumerWidget {
                 .setLeftPanelExpanded(true),
           );
 
-    // 拖拽时不使用动画，避免粘滞感
-    if (isResizing) {
-      return Container(width: width, decoration: decoration, child: child);
-    }
-
-    return AnimatedContainer(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : const Duration(milliseconds: 200),
-      width: width,
-      decoration: decoration,
-      child: child,
+    return RasterCacheBoundary(
+      // 拖拽时不使用动画，避免粘滞感
+      child: isResizing
+          ? Container(width: width, decoration: decoration, child: child)
+          : AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
+              width: width,
+              decoration: decoration,
+              child: child,
+            ),
     );
   }
 }
