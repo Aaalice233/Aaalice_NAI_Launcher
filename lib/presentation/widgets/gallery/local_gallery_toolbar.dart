@@ -14,7 +14,7 @@ import '../../providers/selection_mode_provider.dart';
 import '../bulk_action_bar.dart';
 import '../common/translated_tag_text.dart';
 import '../gallery_filter_panel.dart';
-import '../grouped_grid_view.dart' show ImageDateGroup;
+import '../../utils/image_date_grouping.dart' show ImageDateGroup;
 import 'gallery_sidebar.dart';
 import 'gallery_library_toolbar.dart';
 
