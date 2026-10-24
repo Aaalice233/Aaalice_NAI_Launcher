@@ -182,10 +182,11 @@ void main() {
     });
   });
 
-  // 池内连接共用一个 isolate，跨消息事务与并发写入相撞就会卡满 busy_timeout
-  test('数据库层只经 applyAtomically 开启事务', () {
+  // 池内连接共用一个 isolate，跨消息事务与并发写入相撞就会卡满 busy_timeout；
+  // 裸 batch.apply 不包事务，批内每条语句各自提交
+  test('数据库层的事务与批处理只经 applyAtomically', () {
     final forbidden = RegExp(
-      r'''\.transaction\(|executeTransaction|\.commit\(|['"]BEGIN''',
+      r'''\.transaction\(|executeTransaction|\.commit\(|\.apply\(|['"]BEGIN''',
     );
     final offenders = [
       for (final file
