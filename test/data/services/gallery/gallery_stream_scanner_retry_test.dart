@@ -104,6 +104,78 @@ void main() {
       expect(results, contains(imageId));
     });
 
+    test('ordinary scans reparse files whose metadata write failed', () async {
+      final file = await _createWrappedNovelAiPng(
+        tempDir,
+        'rejected_scan.png',
+        prompt: '1girl, rejected_scan_tag',
+      );
+      final scanner = GalleryStreamScanner.instance(dataSource: dataSource);
+      await sandbox.rejectMetadataWrites();
+
+      await scanner.startScanning(tempDir);
+
+      final imageId = await dataSource.getImageIdByPath(file.path);
+      expect(imageId, isNotNull);
+      await _expectRetryable(dataSource, imageId!);
+
+      await sandbox.allowMetadataWrites();
+      await scanner.startScanning(tempDir);
+
+      await _expectIndexed(dataSource, imageId, 'rejected_scan_tag');
+    });
+
+    test(
+      'ordinary scans reparse an immediate add whose metadata write failed',
+      () async {
+        final file = await _createWrappedNovelAiPng(
+          tempDir,
+          'rejected_add.png',
+          prompt: '1girl, rejected_add_tag',
+        );
+        final repository = LocalGalleryRepository(dataSource: dataSource);
+        await sandbox.rejectMetadataWrites();
+
+        await expectLater(repository.addImage(file), throwsA(anything));
+
+        final imageId = await dataSource.getImageIdByPath(file.path);
+        expect(imageId, isNotNull);
+        await _expectRetryable(dataSource, imageId!);
+
+        await sandbox.allowMetadataWrites();
+        await GalleryStreamScanner.instance(
+          dataSource: dataSource,
+        ).startScanning(tempDir);
+
+        await _expectIndexed(dataSource, imageId, 'rejected_add_tag');
+      },
+    );
+
+    test(
+      'immediate add without metadata leaves the file to the next scan',
+      () async {
+        final file = File(p.join(tempDir.path, 'plain_add.png'));
+        await file.writeAsBytes(_buildBasePngBytes());
+        final repository = LocalGalleryRepository(dataSource: dataSource);
+
+        await repository.addImage(file);
+
+        final imageId = await dataSource.getImageIdByPath(file.path);
+        expect(imageId, isNotNull);
+        var imageRecord = await dataSource.getImageById(imageId!);
+        expect(imageRecord?.metadataStatus, MetadataStatus.none);
+        expect(imageRecord?.lastScannedAt, isNull);
+
+        await GalleryStreamScanner.instance(
+          dataSource: dataSource,
+        ).startScanning(tempDir);
+
+        imageRecord = await dataSource.getImageById(imageId);
+        expect(imageRecord?.metadataStatus, MetadataStatus.failed);
+        expect(imageRecord?.lastScannedAt, isNotNull);
+      },
+    );
+
     test('can explicitly skip stale unparsed records', () async {
       final file = await _createWrappedNovelAiPng(
         tempDir,
@@ -421,6 +493,28 @@ void main() {
       );
     });
   });
+}
+
+Future<void> _expectRetryable(GalleryDataSource dataSource, int imageId) async {
+  final imageRecord = await dataSource.getImageById(imageId);
+  final metadata = (await dataSource.getMetadataByImageIds([imageId]))[imageId];
+
+  expect(imageRecord?.metadataStatus, MetadataStatus.transientFailure);
+  expect(metadata, isNull);
+}
+
+Future<void> _expectIndexed(
+  GalleryDataSource dataSource,
+  int imageId,
+  String tag,
+) async {
+  final imageRecord = await dataSource.getImageById(imageId);
+  final metadata = (await dataSource.getMetadataByImageIds([imageId]))[imageId];
+  final results = await dataSource.advancedSearch(textQuery: tag, limit: 10);
+
+  expect(imageRecord?.metadataStatus, MetadataStatus.success);
+  expect(metadata?.prompt, contains(tag));
+  expect(results, contains(imageId));
 }
 
 Future<int> _seedStaleNoneRecord(
