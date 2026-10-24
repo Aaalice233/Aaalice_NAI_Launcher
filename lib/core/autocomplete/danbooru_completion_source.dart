@@ -1,33 +1,49 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../database/database_error_summary.dart';
+import '../database/utils/lru_cache.dart';
 import '../utils/app_logger.dart';
 import 'autocomplete_cache_database.dart';
 import 'completion_models.dart';
 
 class DanbooruCompletionSource implements CompletionSource {
-  DanbooruCompletionSource({Dio? dio, required AutocompleteCacheDatabase cache})
-    : _cache = cache,
-      _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              baseUrl: 'https://danbooru.donmai.us',
-              connectTimeout: const Duration(seconds: 3),
-              receiveTimeout: const Duration(seconds: 3),
-              sendTimeout: const Duration(seconds: 3),
-              headers: const {
-                'Accept': 'application/json',
-                'User-Agent': 'Aaalice-NAI-Launcher/Autocomplete',
-              },
-            ),
-          );
+  DanbooruCompletionSource({
+    Dio? dio,
+    required AutocompleteCacheDatabase cache,
+    DateTime Function()? now,
+  }) : _cache = cache,
+       _now = now ?? DateTime.now,
+       _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: 'https://danbooru.donmai.us',
+               connectTimeout: const Duration(seconds: 3),
+               receiveTimeout: const Duration(seconds: 3),
+               sendTimeout: const Duration(seconds: 3),
+               headers: const {
+                 'Accept': 'application/json',
+                 'User-Agent': 'Aaalice-NAI-Launcher/Autocomplete',
+               },
+             ),
+           );
+
+  static const memoryTtl = Duration(minutes: 5);
+  static const memoryMaxEntries = 64;
+  // 全部结果模式下单个键可达数万候选，只限条目数挡不住
+  static const memoryMaxCandidates = 50000;
 
   final Dio _dio;
   final AutocompleteCacheDatabase _cache;
-  final Map<String, _MemoryEntry> _memory = {};
+  final DateTime Function() _now;
+  final LRUCache<String, _MemoryEntry> _memory = LRUCache(
+    maxSize: memoryMaxEntries,
+    maxWeight: memoryMaxCandidates,
+    weigher: (entry) => entry.candidates.length,
+  );
   CancelToken? _cancelToken;
   DateTime? _lastRequestAt;
   DateTime? _breakerOpenUntil;
@@ -38,9 +54,35 @@ class DanbooruCompletionSource implements CompletionSource {
       _breakerOpenUntil != null && DateTime.now().isBefore(_breakerOpenUntil!);
   String? get lastError => _lastError;
 
+  @visibleForTesting
+  int get memoryEntryCount => _memory.size;
+
+  @visibleForTesting
+  int get memoryCandidateCount => _memory.totalWeight;
+
   void cancelPending() {
     _cancelToken?.cancel('Autocomplete query replaced');
     _cancelToken = null;
+  }
+
+  List<CompletionCandidate>? _readMemory(String key, DateTime now) {
+    _evictExpired(now);
+    return _memory.get(key)?.candidates;
+  }
+
+  void _writeMemory(
+    String key,
+    List<CompletionCandidate> candidates,
+    DateTime now,
+  ) {
+    _evictExpired(now);
+    _memory.put(key, _MemoryEntry(candidates, now));
+  }
+
+  void _evictExpired(DateTime now) {
+    _memory.removeWhere(
+      (_, entry) => now.difference(entry.storedAt) >= memoryTtl,
+    );
   }
 
   @override
@@ -49,19 +91,18 @@ class DanbooruCompletionSource implements CompletionSource {
     if (query.isChinese || token.length < 2) return const [];
     final key =
         'tags:$token:${query.categoryFilter?.value ?? 'all'}:${query.limit}';
-    final now = DateTime.now();
-    final memory = _memory[key];
-    if (memory != null &&
-        now.difference(memory.storedAt) < const Duration(minutes: 5)) {
+    final now = _now();
+    final memory = _readMemory(key, now);
+    if (memory != null) {
       _lastError = null;
-      return memory.candidates;
+      return memory;
     }
 
     final disk = await _cache.getRemote(key);
     if (disk != null &&
         now.toUtc().difference(disk.fetchedAt) < const Duration(days: 7)) {
       final candidates = _decodeCandidates(disk.payload);
-      _memory[key] = _MemoryEntry(candidates, now);
+      _writeMemory(key, candidates, _now());
       _lastError = null;
       return candidates;
     }
@@ -108,9 +149,7 @@ class DanbooruCompletionSource implements CompletionSource {
       }
       _consecutiveFailures = 0;
       _lastError = null;
-      final payload = candidates.map(_encodeCandidate).toList();
-      await _cache.putRemote(key, payload);
-      _memory[key] = _MemoryEntry(candidates, now);
+      await _storeFetched(key, candidates);
       return candidates;
     } on DioException catch (error, stack) {
       if (CancelToken.isCancel(error)) return const [];
@@ -146,18 +185,17 @@ class DanbooruCompletionSource implements CompletionSource {
         ? 500
         : limit.clamp(1, 500);
     final key = 'related:v3:$normalized:$requestedLimit';
-    final now = DateTime.now();
-    final memory = _memory[key];
-    if (memory != null &&
-        now.difference(memory.storedAt) < const Duration(minutes: 5)) {
+    final now = _now();
+    final memory = _readMemory(key, now);
+    if (memory != null) {
       _lastError = null;
-      return memory.candidates;
+      return memory;
     }
     final disk = await _cache.getRemote(key);
     if (disk != null &&
         now.toUtc().difference(disk.fetchedAt) < const Duration(days: 7)) {
       final candidates = _decodeCandidates(disk.payload);
-      _memory[key] = _MemoryEntry(candidates, now);
+      _writeMemory(key, candidates, _now());
       _lastError = null;
       return candidates;
     }
@@ -183,8 +221,7 @@ class DanbooruCompletionSource implements CompletionSource {
         response.data,
         requestedLimit,
       );
-      await _cache.putRemote(key, candidates.map(_encodeCandidate).toList());
-      _memory[key] = _MemoryEntry(candidates, now);
+      await _storeFetched(key, candidates);
       _consecutiveFailures = 0;
       _lastError = null;
       return candidates;
@@ -204,6 +241,14 @@ class DanbooruCompletionSource implements CompletionSource {
     } finally {
       if (identical(_cancelToken, cancelToken)) _cancelToken = null;
     }
+  }
+
+  Future<void> _storeFetched(
+    String key,
+    List<CompletionCandidate> candidates,
+  ) async {
+    await _cache.putRemote(key, candidates.map(_encodeCandidate).toList());
+    _writeMemory(key, candidates, _now());
   }
 
   Future<Response<dynamic>> _requestWithRetry(
