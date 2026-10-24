@@ -28,6 +28,7 @@ Future<void> _pumpChip(
   String model, {
   void Function(ProviderContainer container)? configure,
   ThemeData? theme,
+  Locale? locale,
 }) async {
   final container = ProviderContainer(
     overrides: [
@@ -43,6 +44,7 @@ Future<void> _pumpChip(
       container: container,
       child: MaterialApp(
         theme: theme,
+        locale: locale,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: const Scaffold(body: Center(child: OpusUsageChip())),
@@ -87,7 +89,11 @@ const _drained = SubscriptionState.loaded(
   UserSubscription(
     tier: 3,
     active: true,
-    usage: OpusUsageInfo(percent: 0, purchasedPercent: 200),
+    usage: OpusUsageInfo(
+      percent: 0,
+      purchasedPercent: 200,
+      timeUntilNextPercent: 6048,
+    ),
   ),
 );
 
@@ -119,7 +125,7 @@ void main() {
       UserSubscription(
         tier: 3,
         active: true,
-        usage: OpusUsageInfo(percent: 192),
+        usage: OpusUsageInfo(percent: 192, timeUntilNextPercent: 4800),
       ),
     );
 
@@ -129,6 +135,66 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
     final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
     expect(tooltip.message, contains('About 3322 images left'));
+    expect(tooltip.message, endsWith('\nRecovery is paused above 100%'));
+    expect(tooltip.message, isNot(contains('refills at')));
+  });
+
+  testWidgets('pauses the refill note once the allowance reaches 100%', (
+    tester,
+  ) async {
+    const full = SubscriptionState.loaded(
+      UserSubscription(
+        tier: 3,
+        active: true,
+        usage: OpusUsageInfo(percent: 100, timeUntilNextPercent: 4800),
+      ),
+    );
+
+    await _pumpChip(tester, full, ImageModels.animeDiffusionV5Curated);
+
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(
+      tooltip.message,
+      '100% of Opus Generations remaining\n'
+      'About 1730 images left\n'
+      'Recovery is paused above 100%',
+    );
+  });
+
+  testWidgets('pauses the refill note when no refill interval is reported', (
+    tester,
+  ) async {
+    const stalled = SubscriptionState.loaded(
+      UserSubscription(
+        tier: 3,
+        active: true,
+        usage: OpusUsageInfo(percent: 40),
+      ),
+    );
+
+    await _pumpChip(tester, stalled, ImageModels.animeDiffusionV5Curated);
+
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(tooltip.message, endsWith('\nRecovery is paused above 100%'));
+  });
+
+  testWidgets('localizes the refill note', (tester) async {
+    await _pumpChip(
+      tester,
+      _drained,
+      ImageModels.animeDiffusionV5Curated,
+      locale: const Locale('zh'),
+    );
+
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(
+      tooltip.message,
+      'Opus 免费生成剩余额度\n'
+      '常规额度 0%\n'
+      '当前每天恢复 14.3%（约 247 张）\n'
+      '额外用量 +200%（不会自动恢复）\n'
+      '两项合计约可再生成 3460 张',
+    );
   });
 
   testWidgets('uses the max enhance billing area for the image estimate', (
@@ -149,6 +215,11 @@ void main() {
 
     final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
     expect(tooltip.message, contains('About 424 images left'));
+    // 18% × 17.3 ÷ 4 份。
+    expect(
+      tooltip.message,
+      contains('Currently refills at 18% per day (~78 images)'),
+    );
   });
 
   testWidgets('stays hidden on models without the quota pool', (tester) async {
@@ -206,7 +277,7 @@ void main() {
       tooltip.message,
       '98% of Opus Generations remaining\n'
       'About 1695 images left\n'
-      'The allowance refills automatically over time',
+      'Currently refills at 18% per day (~311 images)',
     );
   });
 
@@ -229,7 +300,8 @@ void main() {
     expect(
       tooltip.message,
       'Opus Generations remaining\n'
-      'Regular: 0% (refills over time)\n'
+      'Regular: 0%\n'
+      'Currently refills at 14.3% per day (~247 images)\n'
       'Extra Usage: +200% (does not refill)\n'
       'About 3460 images left across both',
     );
@@ -315,7 +387,11 @@ void main() {
       UserSubscription(
         tier: 3,
         active: true,
-        usage: OpusUsageInfo(percent: 192, purchasedPercent: 100),
+        usage: OpusUsageInfo(
+          percent: 192,
+          purchasedPercent: 100,
+          timeUntilNextPercent: 4800,
+        ),
       ),
     );
 
@@ -337,6 +413,14 @@ void main() {
     final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
     // (192 + 100) × 17.3 ÷ 4 份。
     expect(tooltip.message, contains('About 1263 images left'));
+    expect(
+      tooltip.message,
+      contains(
+        'Regular: 192%\n'
+        'Recovery is paused above 100%\n'
+        'Extra Usage: +100% (does not refill)',
+      ),
+    );
   });
 
   testWidgets('keeps the exhausted style even when extra usage is reported', (
@@ -350,6 +434,7 @@ void main() {
           percent: -1,
           isNegative: true,
           purchasedPercent: 100,
+          timeUntilNextPercent: 4800,
         ),
       ),
     );
@@ -366,7 +451,8 @@ void main() {
     expect(
       tooltip.message,
       'Your Opus allowance is used up. '
-      'V5 generations will cost Anlas until it refills.',
+      'V5 generations will cost Anlas until it refills.\n'
+      'Currently refills at 18% per day (~311 images)',
     );
   });
 
