@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../raster_cache/raster_cache_boundary.dart';
 import 'nav_rail_metrics.dart';
 
 class NavRailWidthTransition extends StatefulWidget {
@@ -114,7 +115,7 @@ class _NavRailWidthTransitionState extends State<NavRailWidthTransition>
             alignment: Alignment.centerLeft,
             minWidth: widget.expandedWidth,
             maxWidth: widget.expandedWidth,
-            child: RepaintBoundary(
+            child: RasterCacheBoundary(
               child: SizedBox(
                 key: const Key('main-nav-rail-content'),
                 width: widget.expandedWidth,

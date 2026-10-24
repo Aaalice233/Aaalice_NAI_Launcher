@@ -12,6 +12,7 @@ import '../../widgets/common/anlas_cost_badge.dart';
 import '../../widgets/common/owned_scroll_controller.dart';
 import '../../widgets/common/themed_button.dart';
 import '../../widgets/common/themed_scaffold.dart';
+import '../../widgets/raster_cache/raster_cache_boundary.dart';
 import 'mobile_generation_controller.dart';
 import 'mobile_generation_gestures.dart';
 import 'mobile_generation_view_data.dart';
@@ -158,75 +159,77 @@ class MobileGenerationChrome extends ConsumerWidget {
     final theme = Theme.of(context);
     return SafeArea(
       top: false,
-      child: Container(
-        key: const ValueKey('generation-mobile-bottom-bar'),
-        padding: const EdgeInsets.fromLTRB(12, 2, 12, 7),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(top: BorderSide(color: theme.dividerColor)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              key: const ValueKey('generation-mobile-status-row'),
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                const Wrap(
-                  key: ValueKey('generation-mobile-balance-group'),
-                  spacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    OpusUsageChip(compact: true),
-                    AnlasBalanceChip(compact: true),
-                  ],
-                ),
-                Row(
-                  key: const ValueKey('generation-mobile-queue-actions'),
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (data.showRandomTools)
-                      SizedBox.square(
-                        dimension: 44,
-                        child: RandomModeToggle(
-                          enabled: data.randomModeEnabled,
-                          compact: true,
+      child: RasterCacheBoundary(
+        child: Container(
+          key: const ValueKey('generation-mobile-bottom-bar'),
+          padding: const EdgeInsets.fromLTRB(12, 2, 12, 7),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            border: Border(top: BorderSide(color: theme.dividerColor)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                key: const ValueKey('generation-mobile-status-row'),
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  const Wrap(
+                    key: ValueKey('generation-mobile-balance-group'),
+                    spacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      OpusUsageChip(compact: true),
+                      AnlasBalanceChip(compact: true),
+                    ],
+                  ),
+                  Row(
+                    key: const ValueKey('generation-mobile-queue-actions'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (data.showRandomTools)
+                        SizedBox.square(
+                          dimension: 44,
+                          child: RandomModeToggle(
+                            enabled: data.randomModeEnabled,
+                            compact: true,
+                          ),
                         ),
+                      IconButton(
+                        key: const ValueKey('generation-add-current-to-queue'),
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size.square(44),
+                          padding: EdgeInsets.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.standard,
+                        ),
+                        onPressed: () =>
+                            controller.addCurrentPromptToQueue(context),
+                        icon: const Icon(Icons.playlist_add_rounded),
+                        tooltip: context.l10n.queue_addCurrentTask,
                       ),
-                    IconButton(
-                      key: const ValueKey('generation-add-current-to-queue'),
-                      style: IconButton.styleFrom(
-                        minimumSize: const Size.square(44),
-                        padding: EdgeInsets.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.standard,
-                      ),
-                      onPressed: () =>
-                          controller.addCurrentPromptToQueue(context),
-                      icon: const Icon(Icons.playlist_add_rounded),
-                      tooltip: context.l10n.queue_addCurrentTask,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            _MobileGenerateButton(
-              isGenerating: data.isGenerating,
-              showCancel: data.isLauncherGenerating,
-              batchStatus: data.batchStatus,
-              cooldownRemainingSeconds: data.cooldownRemainingSeconds,
-              onGenerate: () => controller.generate(context),
-              onCancel: controller.cancelGeneration,
-              onSkipCurrent: controller.skipCurrentRequest,
-              showCost: !data.isUpscaleMode,
-              requiresLogin: data.requiresLogin,
-            ),
-          ],
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              _MobileGenerateButton(
+                isGenerating: data.isGenerating,
+                showCancel: data.isLauncherGenerating,
+                batchStatus: data.batchStatus,
+                cooldownRemainingSeconds: data.cooldownRemainingSeconds,
+                onGenerate: () => controller.generate(context),
+                onCancel: controller.cancelGeneration,
+                onSkipCurrent: controller.skipCurrentRequest,
+                showCost: !data.isUpscaleMode,
+                requiresLogin: data.requiresLogin,
+              ),
+            ],
+          ),
         ),
       ),
     );
