@@ -13161,6 +13161,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get autocomplete_cacheClearFailed => '清除缓存失败；请稍后重试。';
+
+  @override
   String get autocomplete_baseCatalog => '基础 Danbooru 词库';
 
   @override
@@ -28683,6 +28686,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String autocomplete_cacheCleared(int count) {
     return '已清除 $count 條快取';
   }
+
+  @override
+  String get autocomplete_cacheClearFailed => '清除快取失敗；請稍後重試。';
 
   @override
   String get autocomplete_baseCatalog => '基礎 Danbooru 詞庫';

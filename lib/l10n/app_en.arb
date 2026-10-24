@@ -6637,6 +6637,7 @@
   "autocomplete_clearAiCache": "Clear AI translation cache",
   "autocomplete_cacheCleared": "Cleared {count} cached entries",
   "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_cacheClearFailed": "The cache could not be cleared. Try again later.",
   "autocomplete_baseCatalog": "Base Danbooru catalog",
   "autocomplete_catalogStatus": "{count} tags · data version {version}",
   "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},

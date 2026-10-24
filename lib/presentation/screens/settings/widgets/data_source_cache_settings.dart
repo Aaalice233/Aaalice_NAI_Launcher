@@ -16,6 +16,7 @@ import '../../../providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import 'autocomplete_cache_card.dart';
 import 'settings_card.dart';
 import 'settings_data_status_tile.dart';
 
@@ -29,7 +30,6 @@ class DataSourceCacheSettings extends ConsumerWidget {
       generation_settings.autocompleteSettingsProvider,
     );
     final zh = ref.watch(zhDictionaryServiceProvider).state;
-    final cacheStatistics = ref.watch(autocompleteCacheStatisticsProvider);
     final notifier = ref.read(autocompleteSettingsProvider.notifier);
     final route = ref
         .watch(promptAssistantServiceProvider)
@@ -119,11 +119,12 @@ class DataSourceCacheSettings extends ConsumerWidget {
                 subtitle: Text(context.l10n.autocomplete_relatedTagsSubtitle),
                 value: settings.relatedTagsEnabled,
                 onChanged: (value) async {
+                  final dataPack = ref.read(
+                    cooccurrenceDataPackServiceProvider.notifier,
+                  );
                   await notifier.setRelatedTagsEnabled(value);
                   if (value && settings.autoDownloadRelatedData) {
-                    await ref
-                        .read(cooccurrenceDataPackServiceProvider.notifier)
-                        .install();
+                    await dataPack.install();
                   }
                 },
               ),
@@ -134,11 +135,12 @@ class DataSourceCacheSettings extends ConsumerWidget {
                 ),
                 value: settings.autoDownloadRelatedData,
                 onChanged: (value) async {
+                  final dataPack = ref.read(
+                    cooccurrenceDataPackServiceProvider.notifier,
+                  );
                   await notifier.setAutoDownloadRelatedData(value);
                   if (value && settings.relatedTagsEnabled) {
-                    await ref
-                        .read(cooccurrenceDataPackServiceProvider.notifier)
-                        .install();
+                    await dataPack.install();
                   }
                 },
               ),
@@ -172,65 +174,7 @@ class DataSourceCacheSettings extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        SettingsCard(
-          title: context.l10n.autocomplete_cacheTitle,
-          icon: Icons.cleaning_services_outlined,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              cacheStatistics.when(
-                data: (statistics) => Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                  child: Text(
-                    context.l10n.autocomplete_aiCacheEntries(
-                      statistics['aiTranslations'] ?? 0,
-                    ),
-                  ),
-                ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const SizedBox.shrink(),
-              ),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final count = await ref
-                          .read(autocompleteCacheDatabaseProvider)
-                          .clearDanbooruCache();
-                      ref.invalidate(autocompleteCacheStatisticsProvider);
-                      if (context.mounted) {
-                        AppToast.success(
-                          context,
-                          context.l10n.autocomplete_cacheCleared(count),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.cloud_off_outlined),
-                    label: Text(context.l10n.autocomplete_clearDanbooruCache),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final count = await ref
-                          .read(autocompleteCacheDatabaseProvider)
-                          .clearAiTranslationCache();
-                      ref.invalidate(autocompleteCacheStatisticsProvider);
-                      if (context.mounted) {
-                        AppToast.success(
-                          context,
-                          context.l10n.autocomplete_cacheCleared(count),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.translate_outlined),
-                    label: Text(context.l10n.autocomplete_clearAiCache),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+        const AutocompleteCacheCard(),
       ],
     );
   }
@@ -373,6 +317,7 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
     WidgetRef ref,
     CooccurrenceDataPackService service,
   ) async {
+    final settingsNotifier = ref.read(autocompleteSettingsProvider.notifier);
     var stopAutomaticDownloads = false;
     final confirmed = await AdaptivePresenter.showForm<bool>(
       context: context,
@@ -417,9 +362,7 @@ class _CooccurrenceDataPackStatus extends ConsumerWidget {
     );
     if (confirmed != true) return;
     if (stopAutomaticDownloads) {
-      await ref
-          .read(autocompleteSettingsProvider.notifier)
-          .setAutoDownloadRelatedData(false);
+      await settingsNotifier.setAutoDownloadRelatedData(false);
     }
     await service.deleteData();
   }

@@ -6662,6 +6662,7 @@
   "autocomplete_clearAiCache": "AI 翻訳キャッシュを消去",
   "autocomplete_cacheCleared": "キャッシュを {count} 件消去しました",
   "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_cacheClearFailed": "キャッシュを消去できませんでした。しばらくしてから再試行してください。",
   "autocomplete_baseCatalog": "基本 Danbooru カタログ",
   "autocomplete_catalogStatus": "{count} タグ · データ版 {version}",
   "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},

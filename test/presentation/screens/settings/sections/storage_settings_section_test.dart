@@ -3,12 +3,16 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_cache_database.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
 import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_service.dart';
+import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
 import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
@@ -377,6 +381,199 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('清除 Danbooru 缓存经由补全源清空内存与磁盘两层', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final source = _RecordingDanbooruSource();
+    final clearDanbooru = find.text('清除 Danbooru 缓存');
+
+    for (final width in const [320.0, 1180.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 1400));
+      await tester.pumpWidget(_buildSubject(storage, danbooruSource: source));
+      await tester.pump();
+
+      await tester.ensureVisible(clearDanbooru);
+      await tester.pump();
+      await tester.tap(clearDanbooru);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('已清除 7 条缓存'), findsOneWidget, reason: 'width=$width');
+      expect(tester.takeException(), isNull, reason: 'width=$width');
+      await tester.pump(const Duration(seconds: 5));
+    }
+
+    expect(source.clears, 2);
+  });
+
+  testWidgets('清除缓存完成前离开设置页不再使用已卸载的 ref', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final danbooruCleared = Completer<int>();
+    final aiCleared = Completer<int>();
+    final showSection = ValueNotifier(true);
+    addTearDown(showSection.dispose);
+
+    await tester.pumpWidget(
+      _buildSubject(
+        storage,
+        danbooruSource: _RecordingDanbooruSource(danbooruCleared.future),
+        autocompleteCache: _GatedAutocompleteCache(aiCleared.future),
+        showSection: showSection,
+      ),
+    );
+    await tester.pump();
+    for (final label in const ['清除 Danbooru 缓存', '清除 AI 汉化缓存']) {
+      await tester.ensureVisible(find.text(label));
+      await tester.pump();
+      await tester.tap(find.text(label));
+      await tester.pump();
+    }
+
+    showSection.value = false;
+    await tester.pump();
+    danbooruCleared.complete(3);
+    aiCleared.complete(4);
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('已清除'), findsNothing);
+  });
+
+  testWidgets('清除缓存期间按钮显示忙碌且不能重复清除', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final danbooruCleared = Completer<int>();
+    final source = _RecordingDanbooruSource(danbooruCleared.future);
+    final clearDanbooru = find.text('清除 Danbooru 缓存');
+    final clearAi = find.text('清除 AI 汉化缓存');
+    OutlinedButton button(Finder label) => tester.widget<OutlinedButton>(
+      find.ancestor(of: label, matching: find.bySubtype<OutlinedButton>()),
+    );
+    Finder progressIn(Finder label) => find.descendant(
+      of: find.ancestor(of: label, matching: find.bySubtype<OutlinedButton>()),
+      matching: find.byType(CircularProgressIndicator),
+    );
+
+    await tester.pumpWidget(_buildSubject(storage, danbooruSource: source));
+    await tester.pump();
+    await tester.ensureVisible(clearDanbooru);
+    await tester.pump();
+    await tester.tap(clearDanbooru);
+    await tester.pump();
+
+    expect(source.clears, 1);
+    expect(button(clearDanbooru).onPressed, isNull);
+    expect(progressIn(clearDanbooru), findsOneWidget);
+    expect(button(clearAi).onPressed, isNotNull);
+    expect(progressIn(clearAi), findsNothing);
+    await tester.tap(clearDanbooru, warnIfMissed: false);
+    await tester.pump();
+    expect(source.clears, 1);
+
+    danbooruCleared.complete(3);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('已清除 3 条缓存'), findsOneWidget);
+    expect(button(clearDanbooru).onPressed, isNotNull);
+    expect(progressIn(clearDanbooru), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('清除缓存失败时提示错误、刷新统计并恢复按钮', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final danbooruCleared = Completer<int>();
+    final aiCleared = Completer<int>();
+    final statistics = _CacheStatisticsProbe();
+
+    await tester.pumpWidget(
+      _buildSubject(
+        storage,
+        danbooruSource: _RecordingDanbooruSource(danbooruCleared.future),
+        autocompleteCache: _GatedAutocompleteCache(aiCleared.future),
+        cacheStatistics: statistics,
+      ),
+    );
+    await tester.pump();
+    expect(statistics.loads, 1);
+
+    final failures = {
+      '清除 Danbooru 缓存': danbooruCleared,
+      '清除 AI 汉化缓存': aiCleared,
+    };
+    for (final MapEntry(key: label, value: cleared) in failures.entries) {
+      final loadsBefore = statistics.loads;
+      final clearButton = find.text(label);
+      await tester.ensureVisible(clearButton);
+      await tester.pump();
+      await tester.tap(clearButton);
+      await tester.pump();
+
+      cleared.completeError(
+        const FileSystemException('database is locked', 'autocomplete.db'),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: label);
+      expect(find.text('清除缓存失败；请稍后重试。'), findsOneWidget, reason: label);
+      expect(find.textContaining('已清除'), findsNothing, reason: label);
+      expect(statistics.loads, loadsBefore + 1, reason: label);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.ancestor(
+                of: clearButton,
+                matching: find.bySubtype<OutlinedButton>(),
+              ),
+            )
+            .onPressed,
+        isNotNull,
+        reason: label,
+      );
+      await tester.pump(const Duration(seconds: 5));
+    }
+  });
+
+  testWidgets('开启共现推荐后离开设置页仍按原意图下载数据包', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final gatedStorage = _GatedLocalStorageService({
+      StorageKeys.onnxTaggerModelDirectory: r'C:\models\onnx_tagger',
+      StorageKeys.enableCooccurrenceRecommendation: false,
+    });
+    final dataPack = _RecordingInstallCooccurrenceService(tempDir);
+    final showSection = ValueNotifier(true);
+    addTearDown(showSection.dispose);
+    final relatedTags = find.text('共现与相关标签推荐');
+
+    await tester.pumpWidget(
+      _buildSubject(
+        gatedStorage,
+        cooccurrenceService: dataPack,
+        showSection: showSection,
+      ),
+    );
+    await tester.pump();
+    await tester.ensureVisible(relatedTags);
+    await tester.pump();
+    final saved = gatedStorage.holdWrites();
+    await tester.tap(relatedTags);
+    await tester.pump();
+
+    showSection.value = false;
+    await tester.pump();
+    saved.complete();
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(dataPack.installs, 1);
+  });
+
   testWidgets('数据源缓存卡片与主设置卡片宽度一致', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -405,9 +602,24 @@ Widget _buildSubject(
   CooccurrenceDataPackService? cooccurrenceService,
   EdgeInsets padding = EdgeInsets.zero,
   EdgeInsets viewInsets = EdgeInsets.zero,
+  DanbooruCompletionSource? danbooruSource,
+  AutocompleteCacheDatabase? autocompleteCache,
+  _CacheStatisticsProbe? cacheStatistics,
+  ValueListenable<bool>? showSection,
 }) {
+  const section = SingleChildScrollView(child: StorageSettingsSection());
   return ProviderScope(
     overrides: [
+      if (danbooruSource != null)
+        danbooruCompletionSourceProvider.overrideWithValue(danbooruSource),
+      if (danbooruSource != null || cacheStatistics != null)
+        autocompleteCacheStatisticsProvider.overrideWith(
+          (ref) async =>
+              cacheStatistics?.load() ??
+              const {'danbooruCache': 0, 'aiTranslations': 0},
+        ),
+      if (autocompleteCache != null)
+        autocompleteCacheDatabaseProvider.overrideWithValue(autocompleteCache),
       localStorageServiceProvider.overrideWith((ref) => storage),
       localOnnxModelServiceProvider.overrideWith(
         (ref) => onnxService ?? LocalOnnxModelService(storage),
@@ -447,11 +659,61 @@ Widget _buildSubject(
         ),
         child: child!,
       ),
-      home: const Scaffold(
-        body: SingleChildScrollView(child: StorageSettingsSection()),
+      home: Scaffold(
+        body: showSection == null
+            ? section
+            : ValueListenableBuilder<bool>(
+                valueListenable: showSection,
+                builder: (context, show, _) =>
+                    show ? section : const SizedBox.shrink(),
+              ),
       ),
     ),
   );
+}
+
+class _RecordingDanbooruSource extends DanbooruCompletionSource {
+  _RecordingDanbooruSource([this._cleared])
+    : super(cache: AutocompleteCacheDatabase());
+
+  final Future<int>? _cleared;
+  var clears = 0;
+
+  @override
+  Future<int> clearCache() async {
+    clears++;
+    return _cleared ?? 7;
+  }
+}
+
+class _GatedAutocompleteCache extends AutocompleteCacheDatabase {
+  _GatedAutocompleteCache(this._cleared);
+
+  final Future<int> _cleared;
+
+  @override
+  Future<int> clearAiTranslationCache() => _cleared;
+}
+
+class _CacheStatisticsProbe {
+  var loads = 0;
+
+  Map<String, int> load() {
+    loads++;
+    return const {'danbooruCache': 0, 'aiTranslations': 0};
+  }
+}
+
+class _RecordingInstallCooccurrenceService extends CooccurrenceDataPackService {
+  _RecordingInstallCooccurrenceService(Directory directory)
+    : super(supportDirectoryLoader: () async => directory);
+
+  var installs = 0;
+
+  @override
+  Future<void> install({bool force = false}) async {
+    installs++;
+  }
 }
 
 class _ReadyCooccurrenceService extends CooccurrenceDataPackService {
@@ -597,6 +859,20 @@ class _MemoryLocalStorageService extends LocalStorageService {
   bool getAutoSaveImages() {
     return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: false) ??
         false;
+  }
+}
+
+class _GatedLocalStorageService extends _MemoryLocalStorageService {
+  _GatedLocalStorageService(super.values);
+
+  Completer<void>? _writeGate;
+
+  Completer<void> holdWrites() => _writeGate = Completer<void>();
+
+  @override
+  Future<void> setSetting<T>(String key, T value) async {
+    await super.setSetting(key, value);
+    await _writeGate?.future;
   }
 }
 
