@@ -21,6 +21,10 @@ import '../common/app_toast.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../utils/image_detail_opener.dart';
 import 'local_image_card_3d.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
+import '../../providers/generation/generation_params_notifier.dart';
+import '../../utils/local_gallery_metadata_resolver.dart';
+import '../../utils/metadata_import_coordinator.dart';
 import '../common/image_detail/image_detail_viewer.dart';
 import '../common/image_detail/image_detail_data.dart';
 import '../common/shimmer_skeleton.dart';
@@ -635,6 +639,39 @@ class LocalGalleryContentView extends ConsumerWidget {
             } catch (e) {
               if (context.mounted) {
                 AppToast.error(context, context.l10n.gallery_sendFailed('$e'));
+              }
+            }
+          },
+          onInpaint: (data) async {
+            final l10n = context.l10n;
+            try {
+              if (data is LocalImageDetailData) {
+                final metadata = await resolveLocalGalleryMetadata(data.record);
+                if (metadata != null && metadata.hasData) {
+                  await MetadataImportCoordinator.apply(
+                    read: ref.read,
+                    metadata: metadata,
+                    options: MetadataImportOptions.all().copyWith(
+                      importSeed: false,
+                    ),
+                    l10n: l10n,
+                  );
+                }
+                ref
+                    .read(generationParamsNotifierProvider.notifier)
+                    .randomizeSeed();
+              }
+              final bytes = await data.getImageBytes();
+              if (!context.mounted) return;
+              Navigator.of(context).pop();
+              context.go(AppRoutes.home);
+              await ImageWorkflowLauncher.openInpaint(context, ref, bytes);
+              if (context.mounted) {
+                AppToast.success(context, '已载入局部重绘');
+              }
+            } catch (e) {
+              if (context.mounted) {
+                AppToast.error(context, '载入局部重绘失败: $e');
               }
             }
           },
