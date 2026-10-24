@@ -1,12 +1,8 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/cache/local_gallery_thumbnail_provider.dart';
-import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/encoded_image_dimensions.dart';
+import '../../../core/cache/gallery_aspect_ratio_cache.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
@@ -25,6 +21,7 @@ import '../common/image_detail/image_detail_data.dart';
 import '../common/shimmer_skeleton.dart';
 import 'gallery_grid.dart';
 import 'gallery_state_views.dart';
+import 'grouped_gallery_card.dart';
 import 'local_image_context_menu.dart';
 
 /// 通用画廊状态接口
@@ -123,7 +120,7 @@ class Gallery3DViewConfig<T> {
 class _GenericGalleryContentViewState<T>
     extends ConsumerState<GenericGalleryContentView<T>>
     with TickerProviderStateMixin {
-  final Map<LocalGallerySourceIdentity, double> _aspectRatioCache = {};
+  final GalleryAspectRatioCache _aspectRatios = GalleryAspectRatioCache();
   bool _showSkeleton = false;
   late final AnimationController _emptyStateController;
   late final Animation<double> _emptyStateAnimation;
@@ -258,77 +255,40 @@ class _GenericGalleryContentViewState<T>
       images: state.groupedImages,
       columns: widget.columns,
       itemWidth: widget.itemWidth,
-      buildCard: (record) => LocalImageCard3D(
+      buildCard: (record) => GroupedGalleryCard(
         key: ValueKey(record.path),
         record: record,
-        width: widget.itemWidth,
-        height: widget.itemWidth / _getCachedAspectRatio(record),
-        isSelected: selectionState.selectedIds.contains(record.path),
-        onTap: () {
-          if (selectionState.isActive) {
-            widget.onSelectionToggle?.call(record as T);
-          }
-        },
-        onLongPress: () {
-          if (!selectionState.isActive) {
-            widget.onEnterSelection?.call(record as T);
-          }
-        },
-        onSecondaryTapUp: widget.onContextMenu != null
-            ? (details) =>
-                  widget.onContextMenu!(record as T, details.globalPosition)
-            : null,
-        onFavoriteToggle: () {
-          widget.onFavoriteToggle?.call(record as T);
-        },
-        onSendAction: widget.onSendAction != null
-            ? (action) => widget.onSendAction!(record, action)
-            : null,
-        enableAddToAgent: !selectionState.isActive,
-        isKritaConnected: widget.isKritaConnected,
+        aspectRatios: _aspectRatios,
+        builder: (context, aspectRatio) => LocalImageCard3D(
+          record: record,
+          width: widget.itemWidth,
+          height: widget.itemWidth / aspectRatio,
+          isSelected: selectionState.selectedIds.contains(record.path),
+          onTap: () {
+            if (selectionState.isActive) {
+              widget.onSelectionToggle?.call(record as T);
+            }
+          },
+          onLongPress: () {
+            if (!selectionState.isActive) {
+              widget.onEnterSelection?.call(record as T);
+            }
+          },
+          onSecondaryTapUp: widget.onContextMenu != null
+              ? (details) =>
+                    widget.onContextMenu!(record as T, details.globalPosition)
+              : null,
+          onFavoriteToggle: () {
+            widget.onFavoriteToggle?.call(record as T);
+          },
+          onSendAction: widget.onSendAction != null
+              ? (action) => widget.onSendAction!(record, action)
+              : null,
+          enableAddToAgent: !selectionState.isActive,
+          isKritaConnected: widget.isKritaConnected,
+        ),
       ),
     );
-  }
-
-  double _getCachedAspectRatio(LocalImageRecord record) {
-    final source = LocalGallerySourceIdentity.fromRecord(
-      path: record.path,
-      size: record.size,
-      modifiedAt: record.modifiedAt,
-    );
-    final cached = _aspectRatioCache[source];
-    if (cached != null) return cached;
-
-    _calculateAspectRatioForRecord(record).then((value) {
-      if (mounted && value != _aspectRatioCache[source]) {
-        setState(() => _aspectRatioCache[source] = value);
-      }
-    });
-
-    return 1.0;
-  }
-
-  Future<double> _calculateAspectRatioForRecord(LocalImageRecord record) async {
-    final metadata = record.metadata;
-    if (metadata?.width != null && metadata?.height != null) {
-      final width = metadata!.width!;
-      final height = metadata.height!;
-      if (width > 0 && height > 0) return width / height;
-    }
-
-    try {
-      final (width, height) = await readEncodedImageDimensions(
-        await ui.ImmutableBuffer.fromFilePath(record.path),
-      );
-      if (width > 0 && height > 0) return width / height;
-    } catch (e) {
-      AppLogger.d(
-        'Failed to read gallery image aspect ratio: $e',
-        'GalleryContent',
-      );
-    }
-
-    return 1.0;
   }
 
   Widget _buildLoadingSkeleton() {
