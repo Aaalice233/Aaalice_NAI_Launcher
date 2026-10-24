@@ -2391,7 +2391,49 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String img2img_directorResultSaveFailed(Object tool) {
+    return '$tool が完了しましたが、結果を保存できませんでした';
+  }
+
+  @override
+  String img2img_directorResultSelectedSaveFailed(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool が完了しましたが、選択中の結果を保存できませんでした ($total 件中 $failed 件失敗)';
+  }
+
+  @override
+  String img2img_directorResultPartiallySaved(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool が完了しましたが、$total 件中 $failed 件の結果を保存できませんでした';
+  }
+
+  @override
   String get img2img_directorApplied => 'ディレクターツールの結果を新しいソース イメージとして適用しました';
+
+  @override
+  String get img2img_directorResultMasked => 'マスク切り抜き';
+
+  @override
+  String get img2img_directorResultGenerated => '生成';
+
+  @override
+  String get img2img_directorResultBlend => 'ブレンド';
+
+  @override
+  String img2img_directorResultNumbered(int index) {
+    return '結果 $index';
+  }
+
+  @override
+  String img2img_directorResultWithVariant(String result, String variant) {
+    return '$result · $variant';
+  }
 
   @override
   String get img2img_directorDefry => 'デフライ';

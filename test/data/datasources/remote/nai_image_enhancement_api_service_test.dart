@@ -12,6 +12,7 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_s
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
 import 'package:nai_launcher/core/network/dio_client.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
+import 'package:nai_launcher/data/models/director/director_tool_output.dart';
 
 import '../../../helpers/browser_multipart_reader.dart';
 import '../../../helpers/exif_orientation_fixture.dart';
@@ -26,9 +27,7 @@ void main() {
   test('provider uses the shared HTTP/1.1 client', () async {
     final dio = _MockDio();
     final container = ProviderContainer(
-      overrides: [
-        dioClientProvider.overrideWithValue(dio),
-      ],
+      overrides: [dioClientProvider.overrideWithValue(dio)],
     );
     addTearDown(container.dispose);
 
@@ -242,7 +241,7 @@ void main() {
         final result = await service.removeBackground(sourceImage);
         final request = capture.requestJson;
 
-        expect(result, isNotEmpty);
+        expect(result.images, isNotEmpty);
         expect(
           capture.parts.map((part) => part.name),
           orderedEquals(['image', 'request']),
@@ -590,6 +589,110 @@ void main() {
       );
     });
 
+    group('director tool results', () {
+      test(
+        'background removal keeps all three results in entry order',
+        () async {
+          final masked = _buildPng(width: 4, height: 4);
+          final generated = _buildPng(width: 5, height: 4);
+          final blend = _buildPng(width: 6, height: 4);
+          final service = _serviceAnswering(
+            _buildZip([
+              ('image_0.png', masked),
+              ('notes.txt', Uint8List.fromList(utf8.encode('ignored'))),
+              ('image_1.png', generated),
+              ('image_2.png', blend),
+            ]),
+          );
+
+          final output = await service.removeBackground(
+            _buildPng(width: 8, height: 8),
+          );
+
+          expect(output.images.map((image) => image.bytes).toList(), [
+            masked,
+            generated,
+            blend,
+          ]);
+          expect(output.images.map((image) => image.variant).toList(), [
+            DirectorResultVariant.masked,
+            DirectorResultVariant.generated,
+            DirectorResultVariant.blend,
+          ]);
+          expect(output.images.map((image) => image.fileNameSuffix).toList(), [
+            '_masked',
+            '_generated',
+            '_blend',
+          ]);
+        },
+      );
+
+      test('background removal tolerates an unexpected image count', () async {
+        final single = await _serviceAnswering(
+          _buildZip([('image_0.png', _buildPng(width: 4, height: 4))]),
+        ).removeBackground(_buildPng(width: 8, height: 8));
+        expect(single.images.map((image) => image.variant), [
+          DirectorResultVariant.masked,
+        ]);
+
+        final extra = await _serviceAnswering(
+          _buildZip([
+            for (var index = 0; index < 4; index++)
+              ('image_$index.png', _buildPng(width: 4 + index, height: 4)),
+          ]),
+        ).removeBackground(_buildPng(width: 8, height: 8));
+        expect(extra.images.map((image) => image.variant), [
+          DirectorResultVariant.masked,
+          DirectorResultVariant.generated,
+          DirectorResultVariant.blend,
+          null,
+        ]);
+        expect(extra.images.last.fileNameSuffix, isEmpty);
+      });
+
+      test('single-result tools stay unnamed', () async {
+        final source = _buildPng(width: 8, height: 8);
+        final service = _serviceAnswering(
+          _buildZipWithSingleImage(_buildPng(width: 4, height: 4)),
+        );
+
+        for (final output in [
+          await service.extractLineArt(source),
+          await service.toSketch(source),
+          await service.colorize(source),
+          await service.fixEmotion(source, prompt: 'happy;;'),
+          await service.declutter(source),
+        ]) {
+          expect(output.images, hasLength(1));
+          expect(output.images.single.variant, isNull);
+          expect(output.images.single.fileNameSuffix, isEmpty);
+        }
+      });
+
+      test('single-result tools keep only the first of extra images', () async {
+        final first = _buildPng(width: 4, height: 4);
+        final source = _buildPng(width: 8, height: 8);
+        final service = _serviceAnswering(
+          _buildZip([
+            ('image_0.png', first),
+            ('image_1.png', _buildPng(width: 5, height: 4)),
+          ]),
+        );
+
+        for (final output in [
+          await service.extractLineArt(source),
+          await service.toSketch(source),
+          await service.colorize(source),
+          await service.fixEmotion(source, prompt: 'happy;;'),
+          await service.declutter(source),
+        ]) {
+          expect(output.images, hasLength(1));
+          expect(output.images.single.bytes, first);
+          expect(output.images.single.variant, isNull);
+        }
+      });
+    });
+
     test('director lease releases when local validation fails', () async {
       final activity = CriticalNetworkActivityCoordinator();
       final service = NAIImageEnhancementApiService(
@@ -720,6 +823,31 @@ typedef _OrientedSource = ({
   (int, int) storedSize,
   img.Image Function(Uint8List source, int orientation) displayed,
 });
+
+Uint8List _buildZip(List<(String, Uint8List)> entries) {
+  final archive = Archive();
+  for (final (name, bytes) in entries) {
+    archive.addFile(ArchiveFile(name, bytes.length, bytes));
+  }
+  return Uint8List.fromList(ZipEncoder().encode(archive)!);
+}
+
+NAIImageEnhancementApiService _serviceAnswering(Uint8List zipBytes) {
+  final dio = _MockDio();
+  when(
+    () => dio.post<dynamic>(
+      any(),
+      data: any(named: 'data'),
+      options: any(named: 'options'),
+    ),
+  ).thenAnswer(
+    (_) async => Response<dynamic>(
+      data: zipBytes,
+      requestOptions: RequestOptions(path: '/augment-image'),
+    ),
+  );
+  return NAIImageEnhancementApiService(dio);
+}
 
 Uint8List _buildZipWithSingleImage(Uint8List imageBytes) {
   final archive = Archive()

@@ -4448,11 +4448,67 @@ abstract class AppLocalizations {
   /// **'{tool} completed'**
   String img2img_directorResultReady(Object tool);
 
+  /// No description provided for @img2img_directorResultSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{tool} completed, but the result could not be saved'**
+  String img2img_directorResultSaveFailed(Object tool);
+
+  /// No description provided for @img2img_directorResultSelectedSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{tool} completed, but the selected result could not be saved ({failed} of {total} failed)'**
+  String img2img_directorResultSelectedSaveFailed(
+    Object tool,
+    int failed,
+    int total,
+  );
+
+  /// No description provided for @img2img_directorResultPartiallySaved.
+  ///
+  /// In en, this message translates to:
+  /// **'{tool} completed, but {failed} of {total} results could not be saved'**
+  String img2img_directorResultPartiallySaved(
+    Object tool,
+    int failed,
+    int total,
+  );
+
   /// No description provided for @img2img_directorApplied.
   ///
   /// In en, this message translates to:
   /// **'Applied the Director Tool result as the new source image'**
   String get img2img_directorApplied;
+
+  /// No description provided for @img2img_directorResultMasked.
+  ///
+  /// In en, this message translates to:
+  /// **'Masked'**
+  String get img2img_directorResultMasked;
+
+  /// No description provided for @img2img_directorResultGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated'**
+  String get img2img_directorResultGenerated;
+
+  /// No description provided for @img2img_directorResultBlend.
+  ///
+  /// In en, this message translates to:
+  /// **'Blend'**
+  String get img2img_directorResultBlend;
+
+  /// No description provided for @img2img_directorResultNumbered.
+  ///
+  /// In en, this message translates to:
+  /// **'Result {index}'**
+  String img2img_directorResultNumbered(int index);
+
+  /// No description provided for @img2img_directorResultWithVariant.
+  ///
+  /// In en, this message translates to:
+  /// **'{result} · {variant}'**
+  String img2img_directorResultWithVariant(String result, String variant);
 
   /// No description provided for @img2img_directorDefry.
   ///

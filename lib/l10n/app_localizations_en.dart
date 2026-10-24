@@ -2457,8 +2457,50 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String img2img_directorResultSaveFailed(Object tool) {
+    return '$tool completed, but the result could not be saved';
+  }
+
+  @override
+  String img2img_directorResultSelectedSaveFailed(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool completed, but the selected result could not be saved ($failed of $total failed)';
+  }
+
+  @override
+  String img2img_directorResultPartiallySaved(
+    Object tool,
+    int failed,
+    int total,
+  ) {
+    return '$tool completed, but $failed of $total results could not be saved';
+  }
+
+  @override
   String get img2img_directorApplied =>
       'Applied the Director Tool result as the new source image';
+
+  @override
+  String get img2img_directorResultMasked => 'Masked';
+
+  @override
+  String get img2img_directorResultGenerated => 'Generated';
+
+  @override
+  String get img2img_directorResultBlend => 'Blend';
+
+  @override
+  String img2img_directorResultNumbered(int index) {
+    return 'Result $index';
+  }
+
+  @override
+  String img2img_directorResultWithVariant(String result, String variant) {
+    return '$result · $variant';
+  }
 
   @override
   String get img2img_directorDefry => 'Defry';
