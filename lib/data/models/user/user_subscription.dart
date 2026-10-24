@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'user_subscription.freezed.dart';
@@ -15,6 +17,10 @@ TrainingStepsInfo? _trainingStepsInfoFromJson(Object? value) {
     'Unsupported trainingStepsLeft type: ${value.runtimeType}',
   );
 }
+
+// 与网页端 Math.max(0, purchasedPercent ?? 0) 一致；可选字段类型不对时不能拖垮整份订阅解析。
+double _extraUsagePercentFromJson(Object? value) =>
+    value is num && value.isFinite && value > 0 ? value.toDouble() : 0;
 
 /// 用户订阅信息模型
 ///
@@ -100,11 +106,14 @@ class UserSubscription with _$UserSubscription {
 
 /// Opus 免费生成配额信息（V5 起）
 ///
-/// 网页端在配额透支（[isNegative]）时按正常价扣 Anlas；配额随时间自动回充。
+/// 网页端在配额透支（[isNegative]）时按正常价扣 Anlas；常规配额随时间自动回充，
+/// 额外用量（[purchasedPercent]）不回充，常规配额用完后才扣。
 @freezed
 class OpusUsageInfo with _$OpusUsageInfo {
+  const OpusUsageInfo._();
+
   const factory OpusUsageInfo({
-    /// 剩余配额百分比（可因持续回充超过 100，负值语义见 [isNegative]）
+    /// 常规配额剩余百分比（可因持续回充超过 100，负值语义见 [isNegative]）
     @Default(0) double percent,
 
     /// 配额是否已透支
@@ -112,10 +121,30 @@ class OpusUsageInfo with _$OpusUsageInfo {
 
     /// 距下一个 1% 回充的秒数
     @Default(0) double timeUntilNextPercent,
+
+    /// 额外用量池剩余百分比（Opus Usage Boost 激活后获得，上限 400）
+    @JsonKey(fromJson: _extraUsagePercentFromJson)
+    @Default(0)
+    double purchasedPercent,
   }) = _OpusUsageInfo;
 
   factory OpusUsageInfo.fromJson(Map<String, dynamic> json) =>
       _$OpusUsageInfoFromJson(json);
+
+  /// 常规配额展示值：透支时为 0，否则截掉负数，不设上限。
+  double get regularDisplayPercent => !isNegative && percent > 0 ? percent : 0;
+
+  /// 额外用量展示值：缺失或非正数按 0 处理。
+  double get extraPercent => purchasedPercent > 0 ? purchasedPercent : 0;
+
+  bool get hasExtraUsage => extraPercent > 0;
+
+  /// 额外用量的整数展示值：有余量但不足 1% 时显示 1，避免“有额外用量”却显示 0。
+  int get extraDisplayPercent =>
+      hasExtraUsage ? math.max(1, extraPercent.round()) : 0;
+
+  /// 两池合计可用百分比，用于估算剩余可生成张数。
+  double get availablePercent => regularDisplayPercent + extraPercent;
 }
 
 /// Anlas 训练步数信息
