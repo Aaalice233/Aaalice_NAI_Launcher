@@ -168,6 +168,59 @@ class GalleryDataSource extends EnhancedBaseDataSource {
     List<int> imageIds,
   ) => _metadata.getMetadataByImageIds(imageIds);
 
+  /// Writes the image row together with its parse result. The row is only
+  /// marked [MetadataStatus.success] after the metadata is stored, so an
+  /// interrupted write stays [MetadataStatus.transientFailure] and the next
+  /// ordinary scan parses the file again.
+  Future<int> upsertImageWithMetadata({
+    required String filePath,
+    required String fileName,
+    required int fileSize,
+    required DateTime createdAt,
+    required DateTime modifiedAt,
+    required NaiImageMetadata? metadata,
+    required MetadataStatus statusWithoutMetadata,
+    DateTime? lastScannedAt,
+  }) async {
+    if (statusWithoutMetadata == MetadataStatus.success) {
+      throw ArgumentError.value(
+        statusWithoutMetadata,
+        'statusWithoutMetadata',
+        'success requires stored metadata',
+      );
+    }
+
+    final storedMetadata = metadata?.hasData == true ? metadata : null;
+    final width = metadata?.width;
+    final height = metadata?.height;
+    final imageId = await _images.upsertImage(
+      filePath: filePath,
+      fileName: fileName,
+      fileSize: fileSize,
+      width: width,
+      height: height,
+      aspectRatio: width != null && height != null && height > 0
+          ? width / height
+          : null,
+      createdAt: createdAt,
+      modifiedAt: modifiedAt,
+      resolutionKey: width != null && height != null
+          ? '${width}x$height'
+          : null,
+      metadataStatus: storedMetadata == null
+          ? statusWithoutMetadata
+          : MetadataStatus.transientFailure,
+      lastScannedAt: lastScannedAt,
+    );
+    if (storedMetadata == null) return imageId;
+
+    // Separate statements instead of a transaction: every pooled connection
+    // shares one sqflite isolate, so a cross-message write lock stalls them.
+    await _metadata.upsertMetadata(imageId, storedMetadata);
+    await _images.updateMetadataStatus(imageId, MetadataStatus.success);
+    return imageId;
+  }
+
   Future<bool> toggleFavorite(int imageId) =>
       _favoriteTags.toggleFavorite(imageId);
   Future<bool> isFavorite(int imageId) => _favoriteTags.isFavorite(imageId);

@@ -4,14 +4,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
+import 'package:nai_launcher/core/database/datasources/gallery_tables.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// 当前用例的临时目录与已初始化的图库数据源。
 final class GalleryDatabaseSandbox {
+  static const _rejectMetadataTrigger = 'test_reject_gallery_metadata';
+
   late Directory root;
   late GalleryDataSource dataSource;
+
+  /// 元数据表在 SQLite 层拒绝写入，直到 [allowMetadataWrites]。
+  Future<void> rejectMetadataWrites() => _execute('''
+    CREATE TRIGGER $_rejectMetadataTrigger
+    BEFORE INSERT ON ${GalleryTables.metadata}
+    BEGIN
+      SELECT RAISE(ABORT, 'metadata write rejected');
+    END
+  ''');
+
+  Future<void> allowMetadataWrites() =>
+      _execute('DROP TRIGGER IF EXISTS $_rejectMetadataTrigger');
+
+  Future<void> _execute(String sql) async {
+    final pool = ConnectionPoolHolder.instance;
+    final db = await pool.acquire();
+    try {
+      await db.execute(sql);
+    } finally {
+      await pool.release(db);
+    }
+  }
 }
 
 /// 每个用例在独立临时目录里准备 SQLite 图库、Hive 与连接池，结束后释放并删除目录。

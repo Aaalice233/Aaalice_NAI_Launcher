@@ -43,28 +43,23 @@ void main() {
     );
     registerFallbackValue(DateTime.utc(2026));
     registerFallbackValue(const NaiImageMetadata());
+    registerFallbackValue(MetadataStatus.none);
   });
 
   setUp(() async {
     dataSource = _MockGalleryDataSource();
     when(
-      () => dataSource.upsertImage(
+      () => dataSource.upsertImageWithMetadata(
         filePath: any(named: 'filePath'),
         fileName: any(named: 'fileName'),
         fileSize: any(named: 'fileSize'),
-        width: any(named: 'width'),
-        height: any(named: 'height'),
-        aspectRatio: any(named: 'aspectRatio'),
         createdAt: any(named: 'createdAt'),
         modifiedAt: any(named: 'modifiedAt'),
-        resolutionKey: any(named: 'resolutionKey'),
+        metadata: any(named: 'metadata'),
+        statusWithoutMetadata: any(named: 'statusWithoutMetadata'),
         lastScannedAt: any(named: 'lastScannedAt'),
-        metadataStatus: any(named: 'metadataStatus'),
       ),
     ).thenAnswer((_) async => _imageId);
-    when(
-      () => dataSource.upsertMetadata(any(), any()),
-    ).thenAnswer((_) async {});
     repository = LocalGalleryRepository(dataSource: dataSource);
   });
 
@@ -209,28 +204,22 @@ void main() {
 
     await repository.addImage(file);
 
-    final imageFields = verify(
-      () => dataSource.upsertImage(
-        filePath: any(named: 'filePath'),
-        fileName: any(named: 'fileName'),
-        fileSize: any(named: 'fileSize'),
-        width: captureAny(named: 'width'),
-        height: captureAny(named: 'height'),
-        aspectRatio: any(named: 'aspectRatio'),
-        createdAt: any(named: 'createdAt'),
-        modifiedAt: any(named: 'modifiedAt'),
-        resolutionKey: captureAny(named: 'resolutionKey'),
-        lastScannedAt: any(named: 'lastScannedAt'),
-        metadataStatus: captureAny(named: 'metadataStatus'),
-      ),
-    ).captured;
     final indexed =
         verify(
-              () => dataSource.upsertMetadata(_imageId, captureAny()),
+              () => dataSource.upsertImageWithMetadata(
+                filePath: file.path,
+                fileName: 'indexed.png',
+                fileSize: any(named: 'fileSize'),
+                createdAt: any(named: 'createdAt'),
+                modifiedAt: any(named: 'modifiedAt'),
+                metadata: captureAny(named: 'metadata'),
+                statusWithoutMetadata: MetadataStatus.none,
+                lastScannedAt: any(named: 'lastScannedAt', that: isNotNull),
+              ),
             ).captured.single
             as NaiImageMetadata;
 
-    expect(imageFields, [2, 2, '2x2', MetadataStatus.success]);
+    expect([indexed.width, indexed.height], [2, 2]);
     expect(
       indexed.fixedTagUsageSnapshot?.entries.single.fixedTagId,
       'from-store',
