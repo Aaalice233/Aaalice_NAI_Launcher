@@ -12,9 +12,11 @@ import 'llm_request_retry_policy.dart';
 
 /// One queue per configured endpoint, shared by every prompt-assistant task.
 class AssistantRequestScheduler {
-  AssistantRequestScheduler({DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  AssistantRequestScheduler({DateTime Function()? now, math.Random? random})
+    : _now = now ?? DateTime.now,
+      _random = random ?? math.Random();
   final DateTime Function() _now;
+  final math.Random _random;
   final Map<String, _ProviderQueue> _queues = {};
   bool _disposed = false;
 
@@ -26,7 +28,7 @@ class AssistantRequestScheduler {
     if (_disposed) throw StateError('Assistant request scheduler is disposed');
     cancelToken.throwIfCancelled();
     final key = '${provider.id}/${provider.protocol.name}/${provider.baseUrl}';
-    final queue = _queues.putIfAbsent(key, () => _ProviderQueue(_now));
+    final queue = _queues.putIfAbsent(key, () => _ProviderQueue(_now, _random));
     queue.configure(provider.concurrency);
     return queue.add(request, cancelToken);
   }
@@ -57,9 +59,10 @@ class _QueuedRequest {
 }
 
 class _ProviderQueue {
-  _ProviderQueue(this._now);
+  _ProviderQueue(this._now, this._random);
   static const _maxRetries = 2;
   final DateTime Function() _now;
+  final math.Random _random;
   final Queue<_QueuedRequest> _pending = Queue();
   final Set<_QueuedRequest> _running = {};
   final Set<_QueuedRequest> _backingOff = {};
@@ -216,7 +219,7 @@ class _ProviderQueue {
 
   Duration _retryDelay(DioException error, int retries) =>
       llmRetryAfter(error.response, now: _now()) ??
-      Duration(seconds: 1 << math.min(retries, 2));
+      llmRetryBackoff(retries, jitter: _random.nextDouble());
 
   void dispose() {
     _cooldown?.cancel();
