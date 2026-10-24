@@ -23836,6 +23836,12 @@ abstract class AppLocalizations {
   /// **'Cleared {count} cached entries'**
   String autocomplete_cacheCleared(int count);
 
+  /// No description provided for @autocomplete_cacheClearFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The cache could not be cleared. Try again later.'**
+  String get autocomplete_cacheClearFailed;
+
   /// No description provided for @autocomplete_baseCatalog.
   ///
   /// In en, this message translates to:

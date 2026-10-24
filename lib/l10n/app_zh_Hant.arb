@@ -6922,6 +6922,7 @@
       }
     }
   },
+  "autocomplete_cacheClearFailed": "清除快取失敗；請稍後重試。",
   "autocomplete_baseCatalog": "基礎 Danbooru 詞庫",
   "autocomplete_catalogStatus": "{count} 個標籤 · 資料版本 {version}",
   "@autocomplete_catalogStatus": {

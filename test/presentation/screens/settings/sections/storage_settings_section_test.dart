@@ -440,6 +440,104 @@ void main() {
     expect(find.textContaining('已清除'), findsNothing);
   });
 
+  testWidgets('清除缓存期间按钮显示忙碌且不能重复清除', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final danbooruCleared = Completer<int>();
+    final source = _RecordingDanbooruSource(danbooruCleared.future);
+    final clearDanbooru = find.text('清除 Danbooru 缓存');
+    final clearAi = find.text('清除 AI 汉化缓存');
+    OutlinedButton button(Finder label) => tester.widget<OutlinedButton>(
+      find.ancestor(of: label, matching: find.bySubtype<OutlinedButton>()),
+    );
+    Finder progressIn(Finder label) => find.descendant(
+      of: find.ancestor(of: label, matching: find.bySubtype<OutlinedButton>()),
+      matching: find.byType(CircularProgressIndicator),
+    );
+
+    await tester.pumpWidget(_buildSubject(storage, danbooruSource: source));
+    await tester.pump();
+    await tester.ensureVisible(clearDanbooru);
+    await tester.pump();
+    await tester.tap(clearDanbooru);
+    await tester.pump();
+
+    expect(source.clears, 1);
+    expect(button(clearDanbooru).onPressed, isNull);
+    expect(progressIn(clearDanbooru), findsOneWidget);
+    expect(button(clearAi).onPressed, isNotNull);
+    expect(progressIn(clearAi), findsNothing);
+    await tester.tap(clearDanbooru, warnIfMissed: false);
+    await tester.pump();
+    expect(source.clears, 1);
+
+    danbooruCleared.complete(3);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('已清除 3 条缓存'), findsOneWidget);
+    expect(button(clearDanbooru).onPressed, isNotNull);
+    expect(progressIn(clearDanbooru), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('清除缓存失败时提示错误、刷新统计并恢复按钮', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1180, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final danbooruCleared = Completer<int>();
+    final aiCleared = Completer<int>();
+    final statistics = _CacheStatisticsProbe();
+
+    await tester.pumpWidget(
+      _buildSubject(
+        storage,
+        danbooruSource: _RecordingDanbooruSource(danbooruCleared.future),
+        autocompleteCache: _GatedAutocompleteCache(aiCleared.future),
+        cacheStatistics: statistics,
+      ),
+    );
+    await tester.pump();
+    expect(statistics.loads, 1);
+
+    final failures = {
+      '清除 Danbooru 缓存': danbooruCleared,
+      '清除 AI 汉化缓存': aiCleared,
+    };
+    for (final MapEntry(key: label, value: cleared) in failures.entries) {
+      final loadsBefore = statistics.loads;
+      final clearButton = find.text(label);
+      await tester.ensureVisible(clearButton);
+      await tester.pump();
+      await tester.tap(clearButton);
+      await tester.pump();
+
+      cleared.completeError(
+        const FileSystemException('database is locked', 'autocomplete.db'),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: label);
+      expect(find.text('清除缓存失败；请稍后重试。'), findsOneWidget, reason: label);
+      expect(find.textContaining('已清除'), findsNothing, reason: label);
+      expect(statistics.loads, loadsBefore + 1, reason: label);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.ancestor(
+                of: clearButton,
+                matching: find.bySubtype<OutlinedButton>(),
+              ),
+            )
+            .onPressed,
+        isNotNull,
+        reason: label,
+      );
+      await tester.pump(const Duration(seconds: 5));
+    }
+  });
+
   testWidgets('开启共现推荐后离开设置页仍按原意图下载数据包', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1180, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -506,17 +604,20 @@ Widget _buildSubject(
   EdgeInsets viewInsets = EdgeInsets.zero,
   DanbooruCompletionSource? danbooruSource,
   AutocompleteCacheDatabase? autocompleteCache,
+  _CacheStatisticsProbe? cacheStatistics,
   ValueListenable<bool>? showSection,
 }) {
   const section = SingleChildScrollView(child: StorageSettingsSection());
   return ProviderScope(
     overrides: [
-      if (danbooruSource != null) ...[
+      if (danbooruSource != null)
         danbooruCompletionSourceProvider.overrideWithValue(danbooruSource),
+      if (danbooruSource != null || cacheStatistics != null)
         autocompleteCacheStatisticsProvider.overrideWith(
-          (ref) async => const {'danbooruCache': 0, 'aiTranslations': 0},
+          (ref) async =>
+              cacheStatistics?.load() ??
+              const {'danbooruCache': 0, 'aiTranslations': 0},
         ),
-      ],
       if (autocompleteCache != null)
         autocompleteCacheDatabaseProvider.overrideWithValue(autocompleteCache),
       localStorageServiceProvider.overrideWith((ref) => storage),
@@ -592,6 +693,15 @@ class _GatedAutocompleteCache extends AutocompleteCacheDatabase {
 
   @override
   Future<int> clearAiTranslationCache() => _cleared;
+}
+
+class _CacheStatisticsProbe {
+  var loads = 0;
+
+  Map<String, int> load() {
+    loads++;
+    return const {'danbooruCache': 0, 'aiTranslations': 0};
+  }
 }
 
 class _RecordingInstallCooccurrenceService extends CooccurrenceDataPackService {

@@ -16,6 +16,7 @@ import '../../../providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
+import 'autocomplete_cache_card.dart';
 import 'settings_card.dart';
 import 'settings_data_status_tile.dart';
 
@@ -29,7 +30,6 @@ class DataSourceCacheSettings extends ConsumerWidget {
       generation_settings.autocompleteSettingsProvider,
     );
     final zh = ref.watch(zhDictionaryServiceProvider).state;
-    final cacheStatistics = ref.watch(autocompleteCacheStatisticsProvider);
     final notifier = ref.read(autocompleteSettingsProvider.notifier);
     final route = ref
         .watch(promptAssistantServiceProvider)
@@ -174,64 +174,9 @@ class DataSourceCacheSettings extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        SettingsCard(
-          title: context.l10n.autocomplete_cacheTitle,
-          icon: Icons.cleaning_services_outlined,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              cacheStatistics.when(
-                data: (statistics) => Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                  child: Text(
-                    context.l10n.autocomplete_aiCacheEntries(
-                      statistics['aiTranslations'] ?? 0,
-                    ),
-                  ),
-                ),
-                loading: () => const LinearProgressIndicator(),
-                error: (_, _) => const SizedBox.shrink(),
-              ),
-              Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _clearCache(
-                      context,
-                      ref.read(danbooruCompletionSourceProvider).clearCache,
-                    ),
-                    icon: const Icon(Icons.cloud_off_outlined),
-                    label: Text(context.l10n.autocomplete_clearDanbooruCache),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _clearCache(
-                      context,
-                      ref
-                          .read(autocompleteCacheDatabaseProvider)
-                          .clearAiTranslationCache,
-                    ),
-                    icon: const Icon(Icons.translate_outlined),
-                    label: Text(context.l10n.autocomplete_clearAiCache),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+        const AutocompleteCacheCard(),
       ],
     );
-  }
-
-  Future<void> _clearCache(
-    BuildContext context,
-    Future<int> Function() clear,
-  ) async {
-    final container = ProviderScope.containerOf(context, listen: false);
-    final count = await clear();
-    container.invalidate(autocompleteCacheStatisticsProvider);
-    if (!context.mounted) return;
-    AppToast.success(context, context.l10n.autocomplete_cacheCleared(count));
   }
 }
 

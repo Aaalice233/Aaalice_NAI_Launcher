@@ -6706,6 +6706,7 @@
   "autocomplete_clearAiCache": "清除 AI 汉化缓存",
   "autocomplete_cacheCleared": "已清除 {count} 条缓存",
   "@autocomplete_cacheCleared": {"placeholders": {"count": {"type": "int"}}},
+  "autocomplete_cacheClearFailed": "清除缓存失败；请稍后重试。",
   "autocomplete_baseCatalog": "基础 Danbooru 词库",
   "autocomplete_catalogStatus": "{count} 个标签 · 数据版本 {version}",
   "@autocomplete_catalogStatus": {"placeholders": {"count": {"type": "String"}, "version": {"type": "String"}}},

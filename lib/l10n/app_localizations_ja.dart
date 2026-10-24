@@ -13394,6 +13394,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get autocomplete_cacheClearFailed =>
+      'キャッシュを消去できませんでした。しばらくしてから再試行してください。';
+
+  @override
   String get autocomplete_baseCatalog => '基本 Danbooru カタログ';
 
   @override
