@@ -724,8 +724,13 @@
   },
   "generation_opusUsageRemaining": "{percent}% of Opus Generations remaining",
   "generation_opusUsageEstimate": "About {count} images left",
-  "generation_opusUsageRefill": "The allowance refills automatically over time",
+  "generation_opusUsageRefillRate": "Currently refills at {percent}% per day (~{count} images)",
+  "generation_opusUsageRefillPaused": "Recovery is paused above 100%",
   "generation_opusUsageExhausted": "Your Opus allowance is used up. V5 generations will cost Anlas until it refills.",
+  "generation_opusUsagePoolsTitle": "Opus Generations remaining",
+  "generation_opusUsageRegularPool": "Regular: {percent}%",
+  "generation_opusUsageExtraPool": "Extra Usage: +{percent}% (does not refill)",
+  "generation_opusUsageCombinedEstimate": "About {count} images left across both",
   "generation_imageSize": "Image Size",
   "generation_transparentBackground": "Transparent BG",
   "generation_e2eUpscaleHint": "Server outputs {size}",
@@ -750,6 +755,27 @@
     }
   },
   "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_opusUsageRefillRate": {
+    "placeholders": {
+      "percent": {},
+      "count": {}
+    }
+  },
+  "@generation_opusUsageRegularPool": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageExtraPool": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageCombinedEstimate": {
     "placeholders": {
       "count": {}
     }

@@ -704,8 +704,13 @@
   },
   "generation_opusUsageRemaining": "Opus 免費生成剩餘 {percent}%",
   "generation_opusUsageEstimate": "約可再生成 {count} 張",
-  "generation_opusUsageRefill": "額度會隨時間自動恢復",
+  "generation_opusUsageRefillRate": "目前每天恢復 {percent}%（約 {count} 張）",
+  "generation_opusUsageRefillPaused": "超過 100% 時暫停恢復",
   "generation_opusUsageExhausted": "Opus 免費額度已用完，V5 生成將消耗 Anlas，額度會隨時間自動恢復",
+  "generation_opusUsagePoolsTitle": "Opus 免費生成剩餘額度",
+  "generation_opusUsageRegularPool": "一般額度 {percent}%",
+  "generation_opusUsageExtraPool": "額外用量 +{percent}%（不會自動恢復）",
+  "generation_opusUsageCombinedEstimate": "兩項合計約可再生成 {count} 張",
   "generation_imageSize": "影象尺寸",
   "generation_transparentBackground": "透明背景",
   "generation_e2eUpscaleHint": "服務端輸出 {size}",
@@ -6169,6 +6174,27 @@
     }
   },
   "@generation_opusUsageEstimate": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@generation_opusUsageRefillRate": {
+    "placeholders": {
+      "percent": {},
+      "count": {}
+    }
+  },
+  "@generation_opusUsageRegularPool": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageExtraPool": {
+    "placeholders": {
+      "percent": {}
+    }
+  },
+  "@generation_opusUsageCombinedEstimate": {
     "placeholders": {
       "count": {}
     }

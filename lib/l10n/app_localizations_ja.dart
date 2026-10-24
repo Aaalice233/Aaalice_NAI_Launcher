@@ -1834,11 +1834,34 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get generation_opusUsageRefill => '上限は時間経過で自動回復します';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return '現在は 1 日あたり $percent% 回復（約 $count 枚）';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused => '最大 100% まで自動回復します';
 
   @override
   String get generation_opusUsageExhausted =>
       'Opus の無料枠を使い切りました。回復するまで V5 の生成には Anlas を消費します。';
+
+  @override
+  String get generation_opusUsagePoolsTitle => 'Opus 無料生成の残り枠';
+
+  @override
+  String generation_opusUsageRegularPool(Object percent) {
+    return '通常枠 $percent%';
+  }
+
+  @override
+  String generation_opusUsageExtraPool(Object percent) {
+    return '追加利用枠 +$percent%（回復しません）';
+  }
+
+  @override
+  String generation_opusUsageCombinedEstimate(Object count) {
+    return '合計であと約 $count 枚生成可能';
+  }
 
   @override
   String get generation_imageSize => '画像サイズ';

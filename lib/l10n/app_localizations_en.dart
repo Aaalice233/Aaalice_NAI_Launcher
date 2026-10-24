@@ -1882,12 +1882,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get generation_opusUsageRefill =>
-      'The allowance refills automatically over time';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return 'Currently refills at $percent% per day (~$count images)';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused =>
+      'Recovery is paused above 100%';
 
   @override
   String get generation_opusUsageExhausted =>
       'Your Opus allowance is used up. V5 generations will cost Anlas until it refills.';
+
+  @override
+  String get generation_opusUsagePoolsTitle => 'Opus Generations remaining';
+
+  @override
+  String generation_opusUsageRegularPool(Object percent) {
+    return 'Regular: $percent%';
+  }
+
+  @override
+  String generation_opusUsageExtraPool(Object percent) {
+    return 'Extra Usage: +$percent% (does not refill)';
+  }
+
+  @override
+  String generation_opusUsageCombinedEstimate(Object count) {
+    return 'About $count images left across both';
+  }
 
   @override
   String get generation_imageSize => 'Image Size';

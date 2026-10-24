@@ -1809,11 +1809,34 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get generation_opusUsageRefill => '额度会随时间自动恢复';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return '当前每天恢复 $percent%（约 $count 张）';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused => '超过 100% 时暂停恢复';
 
   @override
   String get generation_opusUsageExhausted =>
       'Opus 免费额度已用完，V5 生成将消耗 Anlas，额度会随时间自动恢复';
+
+  @override
+  String get generation_opusUsagePoolsTitle => 'Opus 免费生成剩余额度';
+
+  @override
+  String generation_opusUsageRegularPool(Object percent) {
+    return '常规额度 $percent%';
+  }
+
+  @override
+  String generation_opusUsageExtraPool(Object percent) {
+    return '额外用量 +$percent%（不会自动恢复）';
+  }
+
+  @override
+  String generation_opusUsageCombinedEstimate(Object count) {
+    return '两项合计约可再生成 $count 张';
+  }
 
   @override
   String get generation_imageSize => '图像尺寸';
@@ -17333,11 +17356,34 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get generation_opusUsageRefill => '額度會隨時間自動恢復';
+  String generation_opusUsageRefillRate(Object percent, Object count) {
+    return '目前每天恢復 $percent%（約 $count 張）';
+  }
+
+  @override
+  String get generation_opusUsageRefillPaused => '超過 100% 時暫停恢復';
 
   @override
   String get generation_opusUsageExhausted =>
       'Opus 免費額度已用完，V5 生成將消耗 Anlas，額度會隨時間自動恢復';
+
+  @override
+  String get generation_opusUsagePoolsTitle => 'Opus 免費生成剩餘額度';
+
+  @override
+  String generation_opusUsageRegularPool(Object percent) {
+    return '一般額度 $percent%';
+  }
+
+  @override
+  String generation_opusUsageExtraPool(Object percent) {
+    return '額外用量 +$percent%（不會自動恢復）';
+  }
+
+  @override
+  String generation_opusUsageCombinedEstimate(Object count) {
+    return '兩項合計約可再生成 $count 張';
+  }
 
   @override
   String get generation_imageSize => '影象尺寸';
