@@ -41,7 +41,7 @@ class ComputeGate {
       1,
       processorCount ?? Platform.numberOfProcessors,
     );
-    return math.min(3, math.max(1, processors - 1));
+    return math.min(2, math.max(1, processors - 1));
   }
 
   /// 在全局计算闸门内运行异步/同步任务。

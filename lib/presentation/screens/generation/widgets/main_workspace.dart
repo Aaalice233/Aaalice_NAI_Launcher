@@ -145,7 +145,7 @@ class MainWorkspace extends ConsumerWidget {
                   top: BorderSide(color: theme.dividerColor, width: 1),
                 ),
               ),
-              child: const GenerationControls(),
+              child: const RepaintBoundary(child: GenerationControls()),
             ),
           ],
         );
@@ -156,7 +156,8 @@ class MainWorkspace extends ConsumerWidget {
   }
 
   Widget _buildPromptInput(ThemeData theme, bool isPromptMaximized) {
-    return Container(
+    return RepaintBoundary(
+      child: Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: 0.5),
@@ -167,6 +168,7 @@ class MainWorkspace extends ConsumerWidget {
         onToggleMaximize: onToggleMaximize,
         isMaximized: isPromptMaximized,
       ),
+    ),
     );
   }
 

@@ -140,8 +140,8 @@ class ImageCardController extends ChangeNotifier {
     if (reducedMotion) {
       controller.stop();
       controller.value = 1 / 3;
-    } else if (!controller.isAnimating) {
-      controller.repeat(reverse: true);
+    } else {
+      controller.stop();
     }
   }
 
@@ -152,9 +152,6 @@ class ImageCardController extends ChangeNotifier {
       value: 1 / 3,
       vsync: vsync,
     );
-    if (_motionPreferenceInitialized && !_reducedMotion) {
-      glowController!.repeat(reverse: true);
-    }
     glowAnimation = Tween<double>(begin: 0.04, end: 0.1).animate(
       CurvedAnimation(parent: glowController!, curve: Curves.easeInOut),
     );

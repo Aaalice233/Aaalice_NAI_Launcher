@@ -184,12 +184,14 @@ class VibeLibraryEntryReader {
       _readList('read display entries', _displayCache.getEntries);
 
   Future<List<VibeLibraryEntry>> byCategory(String? categoryId) async =>
-      (await all()).where((entry) => entry.categoryId == categoryId).toList();
+      (await display())
+          .where((entry) => entry.categoryId == categoryId)
+          .toList();
 
   Future<List<VibeLibraryEntry>> search(String query) => _readList(
     'search entries',
     () async {
-      final entries = await _repository.readAllEntries();
+      final entries = await display();
       final normalized = query.toLowerCase();
       if (normalized.isEmpty) return entries;
       return entries
@@ -205,14 +207,14 @@ class VibeLibraryEntryReader {
 
   Future<List<VibeLibraryEntry>> favorites() => _readList(
     'read favorite entries',
-    () async => (await _repository.readAllEntries())
+    () async => (await display())
         .where((entry) => entry.isFavorite)
         .toList(),
   );
 
   Future<List<VibeLibraryEntry>> recent({int limit = 20}) =>
       _readList('read recent entries', () async {
-        final entries = (await _repository.readAllEntries())
+        final entries = (await display())
             .where((entry) => entry.lastUsedAt != null)
             .toList();
         entries.sort((a, b) => b.lastUsedAt!.compareTo(a.lastUsedAt!));
@@ -227,9 +229,9 @@ class VibeLibraryEntryReader {
     return entries.take(limit).toList();
   }
 
-  Future<int> count() async => (await _repository.readAllEntries()).length;
+  Future<int> count() async => (await display()).length;
   Future<int> countByCategory(String? id) async =>
-      (await _repository.readAllEntries())
+      (await display())
           .where((entry) => entry.categoryId == id)
           .length;
   Future<bool> exists(String id) => _repository.containsEntry(id);

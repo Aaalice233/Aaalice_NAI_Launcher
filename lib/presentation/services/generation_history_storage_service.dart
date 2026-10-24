@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,15 +59,25 @@ class GenerationHistoryStorageService {
         : <String>[];
     final images = <GeneratedImage>[];
     final validIds = <String>[];
+    final migratedRecords = <String, Map<String, dynamic>>{};
 
     for (final id in order) {
       try {
-        final raw = box.get('$_recordPrefix$id');
+        final recordKey = '$_recordPrefix$id';
+        final raw = box.get(recordKey);
         if (raw is! Map) continue;
-        final image = _decodeRecord(id, Map<dynamic, dynamic>.from(raw));
+        final rawMap = Map<dynamic, dynamic>.from(raw);
+        final image = _decodeRecord(id, rawMap);
         if (image == null) continue;
         images.add(image);
         validIds.add(id);
+        final filePath = image.filePath;
+        if (rawMap['bytes'] != null &&
+            filePath != null &&
+            filePath.isNotEmpty &&
+            File(filePath).existsSync()) {
+          migratedRecords[recordKey] = _encodeRecord(image);
+        }
       } catch (error, stackTrace) {
         AppLogger.w(
           'Skipping invalid persisted generation image $id: '
@@ -75,6 +86,10 @@ class GenerationHistoryStorageService {
         );
         AppLogger.d(stackTrace.toString(), 'GenerationHistory');
       }
+    }
+
+    if (migratedRecords.isNotEmpty) {
+      await box.putAll(migratedRecords);
     }
 
     final indexedKeys = validIds.map((id) => '$_recordPrefix$id').toSet();
@@ -87,6 +102,11 @@ class GenerationHistoryStorageService {
     if (staleKeys.isNotEmpty || validIds.length != order.length) {
       await box.put(_orderKey, validIds);
       await box.deleteAll(staleKeys);
+    }
+    if (migratedRecords.isNotEmpty || staleKeys.isNotEmpty) {
+      try {
+        await box.compact();
+      } catch (_) {}
     }
 
     return images;
@@ -153,8 +173,11 @@ class GenerationHistoryStorageService {
   }
 
   static Map<String, dynamic> _encodeRecord(GeneratedImage image) {
+    final filePath = image.filePath;
+    final hasSavedFile =
+        filePath != null && filePath.isNotEmpty && File(filePath).existsSync();
     return <String, dynamic>{
-      'bytes': image.bytes,
+      'bytes': hasSavedFile ? null : image.bytes,
       'width': image.width,
       'height': image.height,
       'createdAt': image.createdAt.toIso8601String(),
@@ -166,17 +189,30 @@ class GenerationHistoryStorageService {
           ? null
           : jsonEncode(image.fixedTagUsageSnapshot!.toJson()),
       'preserveOriginalBytesOnSave': image.preserveOriginalBytesOnSave,
-      'filePath': image.filePath,
+      'filePath': filePath,
     };
   }
 
   static GeneratedImage? _decodeRecord(String id, Map<dynamic, dynamic> raw) {
+    final filePath = raw['filePath'] as String?;
     final rawBytes = raw['bytes'];
-    final bytes = rawBytes is Uint8List
+    Uint8List? bytes = rawBytes is Uint8List
         ? rawBytes
         : rawBytes is List<int>
         ? Uint8List.fromList(rawBytes)
         : null;
+    if ((bytes == null || bytes.isEmpty) &&
+        filePath != null &&
+        filePath.isNotEmpty) {
+      final file = File(filePath);
+      if (file.existsSync()) {
+        try {
+          bytes = file.readAsBytesSync();
+        } catch (_) {
+          bytes = null;
+        }
+      }
+    }
     if (bytes == null || bytes.isEmpty) return null;
 
     final width = raw['width'];

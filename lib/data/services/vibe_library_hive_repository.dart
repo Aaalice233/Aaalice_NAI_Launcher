@@ -151,7 +151,7 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
   @override
   Future<void> ensureInit() async {
     await VibePerformanceDiagnostics.measure('storage.ensureInit', () async {
-      await Future.wait([ensureEntriesBox(), ensureCategoriesBox()]);
+      await Future.wait([ensureLazyEntriesBox(), ensureCategoriesBox()]);
     });
   }
 
@@ -194,8 +194,14 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
 
   @override
   Future<List<VibeLibraryEntry>> readAllEntries() async {
-    await ensureEntriesBox();
-    return entriesBox!.values.toList(growable: false);
+    if (entriesBox?.isOpen == true) {
+      return entriesBox!.values.toList(growable: false);
+    }
+    final entries = <VibeLibraryEntry>[];
+    await forEachEntry((entry) async {
+      entries.add(entry);
+    });
+    return List.unmodifiable(entries);
   }
 
   @override
