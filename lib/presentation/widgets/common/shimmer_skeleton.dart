@@ -92,9 +92,11 @@ class _ShimmerSkeletonState extends State<ShimmerSkeleton>
     return ExcludeSemantics(
       child: _animationsDisabled == true
           ? skeleton(0.5)
-          : AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) => skeleton(_controller.value),
+          : RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) => skeleton(_controller.value),
+              ),
             ),
     );
   }

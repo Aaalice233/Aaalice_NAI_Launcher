@@ -367,13 +367,15 @@ class _ExecutionStatsPanelState extends ConsumerState<ExecutionStatsPanel>
     if (!isRunning || _disableAnimations) {
       return Icon(icon, size: 16, color: color);
     }
-    return AnimatedBuilder(
-      animation: _animController,
-      builder: (context, child) => Transform.rotate(
-        angle: _animController.value * 2 * 3.14159,
-        child: child,
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _animController,
+        builder: (context, child) => Transform.rotate(
+          angle: _animController.value * 2 * 3.14159,
+          child: child,
+        ),
+        child: Icon(icon, size: 16, color: color),
       ),
-      child: Icon(icon, size: 16, color: color),
     );
   }
 
