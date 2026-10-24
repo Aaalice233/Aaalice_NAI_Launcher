@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../../data/models/gallery/gallery_dashboard_snapshot.dart';
 import '../../../data/models/gallery/local_image_record.dart'
     show MetadataStatus;
@@ -8,6 +10,7 @@ import '../data_source.dart' show DataSourceHealth, DataSourceType;
 import 'gallery_album_repository.dart';
 import 'gallery_database_gateway.dart';
 import 'gallery_favorite_tag_repository.dart';
+import 'gallery_fts_index.dart';
 import 'gallery_image_repository.dart';
 import 'gallery_metadata_repository.dart';
 import 'gallery_query.dart';
@@ -35,7 +38,12 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
   GalleryDataSource._internal() {
     _gateway = EnhancedGalleryDatabaseGateway(this);
-    _schema = GallerySchema(gateway: _gateway, context: _context);
+    _ftsIndex = GalleryFtsIndex(gateway: _gateway);
+    _schema = GallerySchema(
+      gateway: _gateway,
+      context: _context,
+      ftsIndex: _ftsIndex,
+    );
     _images = SqliteGalleryImageRepository(
       gateway: _gateway,
       context: _context,
@@ -44,6 +52,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
       gateway: _gateway,
       context: _context,
       images: _images,
+      ftsIndex: _ftsIndex,
     );
     _favoriteTags = SqliteGalleryFavoriteTagRepository(
       gateway: _gateway,
@@ -53,11 +62,16 @@ class GalleryDataSource extends EnhancedBaseDataSource {
       gateway: _gateway,
       context: _context,
     );
-    _query = SqliteGalleryQuery(gateway: _gateway, context: _context);
+    _query = SqliteGalleryQuery(
+      gateway: _gateway,
+      context: _context,
+      ftsIndex: _ftsIndex,
+    );
   }
 
   final GalleryStoreContext _context = GalleryStoreContext();
   late final GalleryDatabaseGateway _gateway;
+  late final GalleryFtsIndex _ftsIndex;
   late final GallerySchema _schema;
   late final GalleryImageRepository _images;
   late final GalleryMetadataRepository _metadata;
@@ -255,8 +269,14 @@ class GalleryDataSource extends EnhancedBaseDataSource {
   Future<GalleryDashboardSnapshot> getDashboardStatistics() =>
       _query.getDashboardStatistics();
 
+  /// 全文索引的后台回填结束后完成；没有待回填时立即完成。
+  Future<void> whenFtsIndexSettled() => _ftsIndex.whenRebuildSettled();
+
   @override
-  Future<void> doInitialize() => _schema.initialize();
+  Future<void> doInitialize() async {
+    await _schema.initialize();
+    unawaited(_ftsIndex.resumePendingRebuild());
+  }
 
   @override
   Future<DataSourceHealth> doCheckHealth() => _schema.checkHealth();
@@ -269,6 +289,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
   @override
   Future<void> doDispose() async {
+    await _ftsIndex.stopRebuild();
     clearCache();
     AppLogger.i('Gallery data source disposed', 'GalleryDS');
   }

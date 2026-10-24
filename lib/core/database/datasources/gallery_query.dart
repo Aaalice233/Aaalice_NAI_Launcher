@@ -7,6 +7,7 @@ import '../../../data/models/gallery/local_image_record.dart'
 import '../../utils/app_logger.dart';
 import '../../utils/tag_normalizer.dart';
 import 'gallery_database_gateway.dart';
+import 'gallery_fts_index.dart';
 import 'gallery_records.dart';
 import 'gallery_store_context.dart';
 import 'gallery_tables.dart';
@@ -48,10 +49,15 @@ abstract interface class GalleryQuery {
 }
 
 class SqliteGalleryQuery implements GalleryQuery {
-  SqliteGalleryQuery({required this.gateway, required this.context});
+  SqliteGalleryQuery({
+    required this.gateway,
+    required this.context,
+    required this.ftsIndex,
+  });
 
   final GalleryDatabaseGateway gateway;
   final GalleryStoreContext context;
+  final GalleryFtsIndex ftsIndex;
   List<String> _extractSearchTerms(String query) {
     return query
         .toLowerCase()
@@ -96,21 +102,7 @@ class SqliteGalleryQuery implements GalleryQuery {
 
         final results = await gateway.execute(
           'searchFullText',
-          (db) async {
-            final dbResults = await db.rawQuery(
-              '''
-                SELECT image_id FROM ${GalleryTables.ftsIndex}
-                WHERE ${GalleryTables.ftsIndex} MATCH ?
-                ORDER BY rank
-                LIMIT ?
-                ''',
-              [searchQuery, limit],
-            );
-
-            return dbResults
-                .map((row) => (row['image_id'] as num).toInt())
-                .toList();
-          },
+          (db) => ftsIndex.matchImageIds(db, searchQuery, limit: limit),
           timeout: const Duration(seconds: 10),
           maxRetries: 3,
         );
