@@ -53,6 +53,7 @@ class _QueuedRequest {
   final CancelToken cancelToken;
   final Completer<String> result = Completer<String>();
   int retries = 0;
+  Timer? backoff;
 }
 
 class _ProviderQueue {
@@ -61,6 +62,7 @@ class _ProviderQueue {
   final DateTime Function() _now;
   final Queue<_QueuedRequest> _pending = Queue();
   final Set<_QueuedRequest> _running = {};
+  final Set<_QueuedRequest> _backingOff = {};
   AssistantConcurrencySettings _settings = const AssistantConcurrencySettings();
   int limit = AssistantConcurrencySettings.initialAutomaticConcurrency;
   int _successes = 0;
@@ -86,6 +88,7 @@ class _ProviderQueue {
     unawaited(
       token.whenCancel.then((error) {
         _pending.remove(job);
+        _stopBackoff(job);
         if (!job.result.isCompleted) job.result.completeError(error);
         _pump();
       }),
@@ -153,18 +156,23 @@ class _ProviderQueue {
     Object error,
     StackTrace stack,
   ) {
-    final delay = error is DioException && !job.cancelToken.isCancelled
-        ? _retryDelay(error, job.retries)
-        : null;
-    if (delay == null) {
+    final failure = job.cancelToken.isCancelled
+        ? LlmRequestFailureKind.terminal
+        : classifyLlmRequestFailure(error);
+    if (error is! DioException || failure == LlmRequestFailureKind.terminal) {
       _fail(job, error, stack);
       return;
     }
-    _throttle(epoch, delay);
+    final delay = _retryDelay(error, job.retries);
+    if (failure == LlmRequestFailureKind.congestion) {
+      _throttle(epoch, delay);
+    }
     if (job.retries++ >= _maxRetries || job.result.isCompleted) {
       _fail(job, error, stack);
-    } else {
+    } else if (failure == LlmRequestFailureKind.congestion) {
       _pending.add(job);
+    } else {
+      _scheduleBackoff(job, delay);
     }
   }
 
@@ -188,22 +196,33 @@ class _ProviderQueue {
     }
   }
 
-  Duration? _retryDelay(DioException error, int retries) {
-    final response = error.response;
-    if (response?.statusCode != 429 && response?.statusCode != 503) return null;
-    final detail = response?.data.toString().toLowerCase() ?? '';
-    if (RegExp(
-      r'insufficient_quota|insufficient.balance|billing|daily.quota',
-    ).hasMatch(detail)) {
-      return null;
-    }
-    return llmRetryAfter(response, now: _now()) ??
-        Duration(seconds: 1 << math.min(retries, 2));
+  // Transient failures neither shrink concurrency nor pause the queue.
+  void _scheduleBackoff(_QueuedRequest job, Duration delay) {
+    _backingOff.add(job);
+    job.backoff = Timer(delay, () {
+      job.backoff = null;
+      _backingOff.remove(job);
+      if (job.result.isCompleted) return;
+      _pending.add(job);
+      _pump();
+    });
   }
+
+  void _stopBackoff(_QueuedRequest job) {
+    job.backoff?.cancel();
+    job.backoff = null;
+    _backingOff.remove(job);
+  }
+
+  Duration _retryDelay(DioException error, int retries) =>
+      llmRetryAfter(error.response, now: _now()) ??
+      Duration(seconds: 1 << math.min(retries, 2));
 
   void dispose() {
     _cooldown?.cancel();
-    for (final job in [..._pending, ..._running]) {
+    final jobs = [..._pending, ..._running, ..._backingOff];
+    for (final job in jobs) {
+      _stopBackoff(job);
       job.cancelToken.cancel('assistant scheduler disposed');
     }
     _pending.clear();

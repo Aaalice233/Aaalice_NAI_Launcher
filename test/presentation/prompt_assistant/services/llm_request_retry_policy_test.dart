@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -5,6 +6,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/llm_request_retry_policy.dart';
 
 final _options = RequestOptions(path: '/v1/chat/completions');
+
+DioException _status(int status, {Object? data}) => DioException(
+  requestOptions: _options,
+  response: Response<dynamic>(
+    requestOptions: _options,
+    statusCode: status,
+    data: data,
+  ),
+  type: DioExceptionType.badResponse,
+);
+
+DioException _transport(DioExceptionType type, {Object? cause}) =>
+    DioException(requestOptions: _options, type: type, error: cause);
 
 Response<dynamic> _headers(Map<String, String> values) => _repeatedHeaders({
   for (final entry in values.entries) entry.key: [entry.value],
@@ -18,6 +32,202 @@ Response<dynamic> _repeatedHeaders(Map<String, List<String>> values) =>
     );
 
 void main() {
+  group('classifyLlmRequestFailure', () {
+    final cases = <String, (Object, LlmRequestFailureKind)>{
+      '429': (_status(429), LlmRequestFailureKind.congestion),
+      '503': (_status(503), LlmRequestFailureKind.congestion),
+      '529': (_status(529), LlmRequestFailureKind.congestion),
+      '429 quota': (
+        _status(429, data: {'error': 'insufficient_quota'}),
+        LlmRequestFailureKind.terminal,
+      ),
+      '503 billing': (
+        _status(503, data: 'Billing hard limit reached'),
+        LlmRequestFailureKind.terminal,
+      ),
+      '502': (_status(502), LlmRequestFailureKind.transient),
+      '504': (_status(504), LlmRequestFailureKind.transient),
+      '500': (_status(500), LlmRequestFailureKind.terminal),
+      '400': (_status(400), LlmRequestFailureKind.terminal),
+      '401': (_status(401), LlmRequestFailureKind.terminal),
+      'connectionError': (
+        _transport(DioExceptionType.connectionError),
+        LlmRequestFailureKind.transient,
+      ),
+      'closed before headers': (
+        _transport(
+          DioExceptionType.connectionError,
+          cause: const HttpException(
+            'Connection closed before full header was received',
+          ),
+        ),
+        LlmRequestFailureKind.transient,
+      ),
+      'connectionTimeout': (
+        _transport(DioExceptionType.connectionTimeout),
+        LlmRequestFailureKind.transient,
+      ),
+      'sendTimeout': (
+        _transport(DioExceptionType.sendTimeout),
+        LlmRequestFailureKind.transient,
+      ),
+      'receiveTimeout': (
+        _transport(DioExceptionType.receiveTimeout),
+        LlmRequestFailureKind.terminal,
+      ),
+      'cancel': (
+        _transport(DioExceptionType.cancel),
+        LlmRequestFailureKind.terminal,
+      ),
+      'badCertificate': (
+        _transport(DioExceptionType.badCertificate),
+        LlmRequestFailureKind.terminal,
+      ),
+      'unknown socket': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const SocketException('Connection reset by peer'),
+        ),
+        LlmRequestFailureKind.transient,
+      ),
+      'unknown http': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException('Connection closed while receiving data'),
+        ),
+        LlmRequestFailureKind.transient,
+      ),
+      'reset while awaiting headers': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException('Read failed'),
+        ),
+        LlmRequestFailureKind.transient,
+      ),
+      'closed before response': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException(
+            'Connection closed before response was received',
+          ),
+        ),
+        LlmRequestFailureKind.transient,
+      ),
+      'redirect limit': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const RedirectException('Redirect limit exceeded', []),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'proxy refused tunnel': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException(
+            'Proxy failed to establish tunnel '
+            '(407 Proxy Authentication Required)',
+          ),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'malformed status line': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException('Invalid response line'),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'malformed header': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException('Invalid header field name, with 32'),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'unparsable framing': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException(
+            'Failed to parse HTTP, 10 does not match 13',
+          ),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      for (final part in [
+        'Method',
+        'Reason phrase',
+        'Header field',
+        'Header value',
+      ])
+        '$part over size limit': (
+          _transport(
+            DioExceptionType.unknown,
+            cause: HttpException('$part exceeds the 1048576 size limit'),
+          ),
+          LlmRequestFailureKind.terminal,
+        ),
+      'proxy without port': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException(
+            'Invalid proxy configuration PROXY 127.0.0.1',
+          ),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'proxy with unreadable port': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HttpException(
+            "Invalid proxy configuration PROXY 127.0.0.1:abc, "
+            "invalid port 'abc'",
+          ),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'handshake interrupted': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HandshakeException(
+            'Connection terminated during handshake',
+          ),
+        ),
+        LlmRequestFailureKind.transient,
+      ),
+      'certificate rejected': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'unknown without cause': (
+        _transport(DioExceptionType.unknown),
+        LlmRequestFailureKind.terminal,
+      ),
+      'unknown format error': (
+        _transport(
+          DioExceptionType.unknown,
+          cause: const FormatException('bad json'),
+        ),
+        LlmRequestFailureKind.terminal,
+      ),
+      'raw socket error': (
+        const SocketException('not wrapped by dio'),
+        LlmRequestFailureKind.terminal,
+      ),
+      'raw timeout': (
+        TimeoutException('not wrapped by dio'),
+        LlmRequestFailureKind.terminal,
+      ),
+    };
+    for (final MapEntry(key: name, value: (error, expected)) in cases.entries) {
+      test(name, () {
+        expect(classifyLlmRequestFailure(error), expected);
+      });
+    }
+  });
+
   group('llmRetryAfter', () {
     final now = DateTime.utc(2026, 10, 24, 12);
 

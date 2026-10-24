@@ -157,6 +157,14 @@ void main() {
         ),
       ),
     );
+    verify(
+      () => dio.post<dynamic>(
+        any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).called(1);
   });
 }
 
