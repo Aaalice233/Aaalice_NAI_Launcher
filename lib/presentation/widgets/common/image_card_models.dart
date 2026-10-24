@@ -77,6 +77,7 @@ class ImageCardCapabilities {
     this.showSelectionOnHover = true,
     this.showHoverActionBar = true,
     this.pinnedHoverActions = const [],
+    this.hoverActionIds,
     required this.onTap,
     required this.onDoubleTap,
     required this.onLongPress,
@@ -117,6 +118,9 @@ class ImageCardCapabilities {
 
   /// 悬停时按顺序排在收藏左侧的动作，同时从底部悬停动作条中移除。
   final List<ImageCardActionId> pinnedHoverActions;
+
+  /// 悬停动作条自定义动作列表与顺序（为 null 时使用默认规则）。
+  final List<ImageCardActionId>? hoverActionIds;
   final VoidCallback? onTap;
   final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;

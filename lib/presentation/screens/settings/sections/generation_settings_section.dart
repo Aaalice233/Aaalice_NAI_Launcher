@@ -17,6 +17,7 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/labeled_control_rows.dart';
 import '../../../widgets/common/themed_input.dart';
 import '../../../widgets/common/themed_slider.dart';
+import '../widgets/image_action_settings_panel.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_page_layout.dart';
 
@@ -275,6 +276,14 @@ class _GenerationSettingsSectionState
                 },
               ),
             ],
+          ),
+        ),
+        const SettingsCard(
+          title: '图片操作按钮管理',
+          description: '独立配置历史记录卡片、画布中心预览图、图片详情与本地图库中浮动操作按钮的开启与排序。',
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: ImageActionSettingsPanel(),
           ),
         ),
         SettingsCard(

@@ -3,7 +3,6 @@ import '../common/image_card_frame.dart';
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
@@ -23,10 +22,20 @@ import '../../providers/share_image_settings_provider.dart';
 import '../../providers/copy_drag_watermark_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../utils/clipboard_image.dart';
+import 'package:collection/collection.dart';
+import '../../providers/image_action_settings_provider.dart';
 import '../common/app_toast.dart';
 import '../common/card_action_buttons.dart';
 import '../common/image_card_action.dart';
 import '../common/image_card_action_region.dart';
+import 'package:go_router/go_router.dart';
+import '../common/image_card_context_menu.dart';
+import '../../router/app_routes.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
+import '../../utils/metadata_import_coordinator.dart';
+import '../../utils/local_gallery_metadata_resolver.dart';
+import '../../providers/generation/generation_params_notifier.dart';
+import '../../services/image_workflow_launcher.dart';
 import 'local_image_context_menu.dart';
 import 'local_image_hover_preview.dart';
 
@@ -461,6 +470,18 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     final storage = ref.read(localStorageServiceProvider);
     final metadata = widget.record.metadata;
     return [
+      ImageCardAction(
+        id: ImageCardActionId.sendToGeneration,
+        icon: Icons.repeat_rounded,
+        label: '复刻',
+        invoke: _replicateToGeneration,
+      ),
+      ImageCardAction(
+        id: ImageCardActionId.inpaint,
+        icon: Icons.brush_rounded,
+        label: '局部重绘',
+        invoke: _replicateToInpaint,
+      ),
       if (widget.onDoubleTap != null || widget.onTap != null)
         ImageCardAction(
           id: ImageCardActionId.viewDetail,
@@ -523,26 +544,66 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
     List<ImageCardAction> actions,
     Axis direction,
     double cardHeight,
-  ) => Listener(
-    behavior: HitTestBehavior.opaque,
-    onPointerDown: (_) => _suppressCardTap = true,
-    onPointerUp: (_) {
-      scheduleMicrotask(() => _suppressCardTap = false);
-    },
-    onPointerCancel: (_) => _suppressCardTap = false,
-    child: CardActionButtons(
-      availableSize: Size(widget.width - 8, cardHeight - 8),
-      visible: _isHovered || _isFocused,
-      direction: direction,
-      buttons: actions,
-      groupMenus: {
-        ImageCardActionGroup.use: (
-          icon: Icons.send,
-          label: context.l10n.localGallery_moreImageActions,
-        ),
+  ) {
+    final interactionPolicy = context.interactionPolicy;
+    if (interactionPolicy.usesTouchActionMenu) {
+      return CardActionButtons(
+        availableSize: Size(widget.width - 8, cardHeight - 8),
+        visible: _isHovered || _isFocused,
+        direction: direction,
+        buttons: actions,
+        groupMenus: {
+          ImageCardActionGroup.use: (
+            icon: Icons.send,
+            label: context.l10n.localGallery_moreImageActions,
+          ),
+        },
+      );
+    }
+
+    if (!(_isHovered || _isFocused)) return const SizedBox.shrink();
+
+    final extent = interactionPolicy.touchAvailable
+        ? interactionPolicy.minimumControlExtent
+        : 32.0;
+
+    final configuredActions = ref
+        .watch(imageActionSettingsProvider)
+        .forScene(ImageActionScene.localGallery);
+
+    final orderedActiveActions = <ImageCardAction>[];
+    for (final id in configuredActions) {
+      final a = actions.firstWhereOrNull((x) => x.id == id && x.visible);
+      if (a != null) {
+        orderedActiveActions.add(a);
+      }
+    }
+
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => _suppressCardTap = true,
+      onPointerUp: (_) {
+        scheduleMicrotask(() => _suppressCardTap = false);
       },
-    ),
-  );
+      onPointerCancel: (_) => _suppressCardTap = false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: widget.width - 16),
+        child: Wrap(
+          textDirection: TextDirection.rtl,
+          alignment: WrapAlignment.start,
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            for (final action in orderedActiveActions)
+              ImageCardOverlayActionButton(
+                config: action,
+                extent: extent,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _buildSelectionIndicator(ColorScheme colorScheme) {
     return Container(
@@ -554,5 +615,47 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
       ),
       child: Icon(Icons.check, color: colorScheme.onPrimary, size: 18),
     );
+  }
+
+  Future<void> _replicateToGeneration() async {
+    final metadata = await resolveLocalGalleryMetadata(widget.record);
+    if (!mounted) return;
+    if (metadata == null || !metadata.hasData) {
+      AppToast.warning(context, context.l10n.metadataImport_noDataFound);
+      return;
+    }
+    await MetadataImportCoordinator.apply(
+      read: ref.read,
+      metadata: metadata,
+      options: MetadataImportOptions.all(),
+      l10n: context.l10n,
+    );
+    if (mounted) {
+      context.go(AppRoutes.home);
+      AppToast.success(context, '已复刻所有参数至文生图');
+    }
+  }
+
+  Future<void> _replicateToInpaint() async {
+    final metadata = await resolveLocalGalleryMetadata(widget.record);
+    if (!mounted) return;
+    if (metadata != null && metadata.hasData) {
+      await MetadataImportCoordinator.apply(
+        read: ref.read,
+        metadata: metadata,
+        options: MetadataImportOptions.all().copyWith(importSeed: false),
+        l10n: context.l10n,
+      );
+    }
+    ref.read(generationParamsNotifierProvider.notifier).randomizeSeed();
+    ref.read(generationParamsNotifierProvider.notifier).updateNSamples(1);
+
+    final bytes = await File(widget.record.path).readAsBytes();
+    if (!mounted) return;
+    context.go(AppRoutes.home);
+    await ImageWorkflowLauncher.openInpaint(context, ref, bytes);
+    if (mounted) {
+      AppToast.success(context, '已载入局部重绘（参数已应用，种子已重置）');
+    }
   }
 }

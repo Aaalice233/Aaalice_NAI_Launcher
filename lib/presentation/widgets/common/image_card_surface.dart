@@ -50,14 +50,20 @@ class ImageCardSurface extends StatelessWidget {
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
     final interaction = context.interactionPolicy;
     final pinnedIds = capabilities.pinnedHoverActions;
-    final hoverActions = capabilities.showHoverActionBar
-        ? actions
-              .where(
-                (action) =>
-                    action.showOnHover && !pinnedIds.contains(action.id),
-              )
-              .toList()
-        : const <ImageCardAction>[];
+    final configuredHoverIds = capabilities.hoverActionIds;
+    final hoverActions = !capabilities.showHoverActionBar
+        ? const <ImageCardAction>[]
+        : configuredHoverIds != null
+            ? [
+                for (final id in configuredHoverIds)
+                  ...actions.where((action) => action.id == id && action.visible),
+              ]
+            : actions
+                .where(
+                  (action) =>
+                      action.showOnHover && !pinnedIds.contains(action.id),
+                )
+                .toList();
     final showHoverBar =
         controller.isHovering &&
         hoverActions.isNotEmpty &&
@@ -174,23 +180,27 @@ class ImageCardSurface extends StatelessWidget {
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: ImageCardCornerActionRail(
-                    pinnedActions: pinnedActions,
-                    favorite: capabilities.onFavoriteToggle == null
-                        ? null
-                        : CardFavoriteButton(
-                            isFavorite: data.isFavorite,
-                            onToggle: () => unawaited(
-                              dispatchImageCardAction(
-                                context,
-                                actions.firstWhere(
-                                  (a) => a.id == ImageCardActionId.favorite,
+                  left: 8,
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: ImageCardCornerActionRail(
+                      pinnedActions: pinnedActions,
+                      favorite: capabilities.onFavoriteToggle == null
+                          ? null
+                          : CardFavoriteButton(
+                              isFavorite: data.isFavorite,
+                              onToggle: () => unawaited(
+                                dispatchImageCardAction(
+                                  context,
+                                  actions.firstWhere(
+                                    (a) => a.id == ImageCardActionId.favorite,
+                                  ),
                                 ),
                               ),
+                              size: 16,
+                              borderRadius: 999,
                             ),
-                            size: 16,
-                            borderRadius: 999,
-                          ),
+                    ),
                   ),
                 ),
               if (showHoverBar)
@@ -349,12 +359,13 @@ class ImageCardHoverActionBar extends StatelessWidget {
   );
 }
 
-/// 右上角操作轨：悬停动作按顺序排在常驻收藏左侧，收藏位置不随悬停移动。
+/// 右上角操作轨：悬停动作按顺序排在常驻收藏左侧，或按配置流式自适应换行。
 class ImageCardCornerActionRail extends StatelessWidget {
   const ImageCardCornerActionRail({
     super.key,
     required this.pinnedActions,
     this.favorite,
+    this.textDirection,
   });
 
   static const _extent = 40.0;
@@ -362,18 +373,46 @@ class ImageCardCornerActionRail extends StatelessWidget {
 
   final List<ImageCardAction> pinnedActions;
   final Widget? favorite;
+  final TextDirection? textDirection;
 
   @override
-  Widget build(BuildContext context) => Row(
-    key: const ValueKey('image-card-corner-action-rail'),
-    mainAxisSize: MainAxisSize.min,
-    spacing: _spacing,
-    children: [
-      for (final action in pinnedActions)
-        ImageCardOverlayActionButton(config: action, extent: _extent),
-      if (favorite case final favorite?) favorite,
-    ],
-  );
+  Widget build(BuildContext context) {
+    final hasFavoriteInPinned =
+        pinnedActions.any((a) => a.id == ImageCardActionId.favorite);
+
+    if (hasFavoriteInPinned) {
+      // 场景采用全量配置排序：各动作（含收藏）按配置顺序依次摆放，超出宽度自动换行
+      final effectiveDirection = textDirection ?? TextDirection.rtl;
+      return Wrap(
+        key: const ValueKey('image-card-corner-action-rail'),
+        textDirection: effectiveDirection,
+        alignment: WrapAlignment.start,
+        spacing: _spacing,
+        runSpacing: _spacing,
+        children: [
+          for (final action in pinnedActions)
+            if (action.id == ImageCardActionId.favorite && favorite != null)
+              favorite!
+            else
+              ImageCardOverlayActionButton(config: action, extent: _extent),
+        ],
+      );
+    }
+
+    // 传统/未包含收藏的调用：收藏常驻最左，动作在后
+    return Wrap(
+      key: const ValueKey('image-card-corner-action-rail'),
+      textDirection: textDirection ?? TextDirection.ltr,
+      alignment: WrapAlignment.start,
+      spacing: _spacing,
+      runSpacing: _spacing,
+      children: [
+        if (favorite case final favorite?) favorite,
+        for (final action in pinnedActions)
+          ImageCardOverlayActionButton(config: action, extent: _extent),
+      ],
+    );
+  }
 }
 
 class _DragPreparationOverlay extends StatelessWidget {
