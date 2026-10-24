@@ -4475,7 +4475,7 @@ abstract class AppLocalizations {
   /// No description provided for @img2img_directorEmotionLevelHint.
   ///
   /// In en, this message translates to:
-  /// **'How strongly the emotion is applied (0 = subtle, 5 = strong)'**
+  /// **'Higher values make the emotion weaker (0 = normal, 5 = weakest)'**
   String get img2img_directorEmotionLevelHint;
 
   /// No description provided for @img2img_directorEmotionPresets.
@@ -4483,6 +4483,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Presets'**
   String get img2img_directorEmotionPresets;
+
+  /// No description provided for @img2img_directorEmotionNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral'**
+  String get img2img_directorEmotionNeutral;
+
+  /// No description provided for @img2img_directorEmotionHappy.
+  ///
+  /// In en, this message translates to:
+  /// **'Happy'**
+  String get img2img_directorEmotionHappy;
+
+  /// No description provided for @img2img_directorEmotionSad.
+  ///
+  /// In en, this message translates to:
+  /// **'Sad'**
+  String get img2img_directorEmotionSad;
+
+  /// No description provided for @img2img_directorEmotionAngry.
+  ///
+  /// In en, this message translates to:
+  /// **'Angry'**
+  String get img2img_directorEmotionAngry;
+
+  /// No description provided for @img2img_directorEmotionScared.
+  ///
+  /// In en, this message translates to:
+  /// **'Scared'**
+  String get img2img_directorEmotionScared;
+
+  /// No description provided for @img2img_directorEmotionSurprised.
+  ///
+  /// In en, this message translates to:
+  /// **'Surprised'**
+  String get img2img_directorEmotionSurprised;
+
+  /// No description provided for @img2img_directorEmotionTired.
+  ///
+  /// In en, this message translates to:
+  /// **'Tired'**
+  String get img2img_directorEmotionTired;
+
+  /// No description provided for @img2img_directorEmotionExcited.
+  ///
+  /// In en, this message translates to:
+  /// **'Excited'**
+  String get img2img_directorEmotionExcited;
+
+  /// No description provided for @img2img_directorEmotionNervous.
+  ///
+  /// In en, this message translates to:
+  /// **'Nervous'**
+  String get img2img_directorEmotionNervous;
+
+  /// No description provided for @img2img_directorEmotionThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get img2img_directorEmotionThinking;
+
+  /// No description provided for @img2img_directorEmotionConfused.
+  ///
+  /// In en, this message translates to:
+  /// **'Confused'**
+  String get img2img_directorEmotionConfused;
+
+  /// No description provided for @img2img_directorEmotionShy.
+  ///
+  /// In en, this message translates to:
+  /// **'Shy'**
+  String get img2img_directorEmotionShy;
+
+  /// No description provided for @img2img_directorEmotionDisgusted.
+  ///
+  /// In en, this message translates to:
+  /// **'Disgusted'**
+  String get img2img_directorEmotionDisgusted;
+
+  /// No description provided for @img2img_directorEmotionSmug.
+  ///
+  /// In en, this message translates to:
+  /// **'Smug'**
+  String get img2img_directorEmotionSmug;
+
+  /// No description provided for @img2img_directorEmotionBored.
+  ///
+  /// In en, this message translates to:
+  /// **'Bored'**
+  String get img2img_directorEmotionBored;
+
+  /// No description provided for @img2img_directorEmotionLaughing.
+  ///
+  /// In en, this message translates to:
+  /// **'Laughing'**
+  String get img2img_directorEmotionLaughing;
+
+  /// No description provided for @img2img_directorEmotionIrritated.
+  ///
+  /// In en, this message translates to:
+  /// **'Irritated'**
+  String get img2img_directorEmotionIrritated;
+
+  /// No description provided for @img2img_directorEmotionAroused.
+  ///
+  /// In en, this message translates to:
+  /// **'Aroused'**
+  String get img2img_directorEmotionAroused;
+
+  /// No description provided for @img2img_directorEmotionEmbarrassed.
+  ///
+  /// In en, this message translates to:
+  /// **'Embarrassed'**
+  String get img2img_directorEmotionEmbarrassed;
+
+  /// No description provided for @img2img_directorEmotionWorried.
+  ///
+  /// In en, this message translates to:
+  /// **'Worried'**
+  String get img2img_directorEmotionWorried;
+
+  /// No description provided for @img2img_directorEmotionLove.
+  ///
+  /// In en, this message translates to:
+  /// **'Love'**
+  String get img2img_directorEmotionLove;
+
+  /// No description provided for @img2img_directorEmotionDetermined.
+  ///
+  /// In en, this message translates to:
+  /// **'Determined'**
+  String get img2img_directorEmotionDetermined;
+
+  /// No description provided for @img2img_directorEmotionHurt.
+  ///
+  /// In en, this message translates to:
+  /// **'Hurt'**
+  String get img2img_directorEmotionHurt;
+
+  /// No description provided for @img2img_directorEmotionPlayful.
+  ///
+  /// In en, this message translates to:
+  /// **'Playful'**
+  String get img2img_directorEmotionPlayful;
 
   /// No description provided for @img2img_directorApplyAsSource.
   ///

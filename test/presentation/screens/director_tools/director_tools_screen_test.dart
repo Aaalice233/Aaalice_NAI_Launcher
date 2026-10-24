@@ -96,6 +96,23 @@ void main() {
     expect(find.text('始终保留检测到的像素尺寸。'), findsOneWidget);
   });
 
+  testWidgets('表情工具按官网列出 24 种情绪且名称走本地化', (WidgetTester tester) async {
+    await _pumpScreen(tester);
+    await tester.tap(find.text('表情修复'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChoiceChip), findsNWidgets(24));
+    for (final String label in <String>['平静', '害怕', '大笑', '调皮']) {
+      expect(
+        find.widgetWithText(ChoiceChip, label),
+        findsOneWidget,
+        reason: label,
+      );
+    }
+    expect(find.text('Laugh'), findsNothing);
+    expect(find.text('数值越大，表情越弱（0 = 正常，5 = 最弱）'), findsOneWidget);
+  });
+
   testWidgets('原图预览按显示器尺寸封顶解码，与窗口尺寸无关', (WidgetTester tester) async {
     await _pumpScreen(tester);
     final display = tester.view.display;

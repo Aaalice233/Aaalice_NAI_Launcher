@@ -2403,10 +2403,83 @@ class AppLocalizationsJa extends AppLocalizations {
   String get img2img_directorEmotionLevel => '感情レベル';
 
   @override
-  String get img2img_directorEmotionLevelHint => '感情が適用される強さ (0 = 微妙、5 = 強い)';
+  String get img2img_directorEmotionLevelHint =>
+      '値が大きいほど感情が弱くなります (0 = 通常、5 = 最も弱い)';
 
   @override
   String get img2img_directorEmotionPresets => 'プリセット';
+
+  @override
+  String get img2img_directorEmotionNeutral => '普通';
+
+  @override
+  String get img2img_directorEmotionHappy => '嬉しい';
+
+  @override
+  String get img2img_directorEmotionSad => '悲しい';
+
+  @override
+  String get img2img_directorEmotionAngry => '怒り';
+
+  @override
+  String get img2img_directorEmotionScared => '怖い';
+
+  @override
+  String get img2img_directorEmotionSurprised => '驚き';
+
+  @override
+  String get img2img_directorEmotionTired => '疲れ';
+
+  @override
+  String get img2img_directorEmotionExcited => 'ワクワク';
+
+  @override
+  String get img2img_directorEmotionNervous => '緊張';
+
+  @override
+  String get img2img_directorEmotionThinking => '考え中';
+
+  @override
+  String get img2img_directorEmotionConfused => '困惑';
+
+  @override
+  String get img2img_directorEmotionShy => '照れ';
+
+  @override
+  String get img2img_directorEmotionDisgusted => '嫌悪';
+
+  @override
+  String get img2img_directorEmotionSmug => 'ドヤ顔';
+
+  @override
+  String get img2img_directorEmotionBored => '退屈';
+
+  @override
+  String get img2img_directorEmotionLaughing => '大笑い';
+
+  @override
+  String get img2img_directorEmotionIrritated => 'イライラ';
+
+  @override
+  String get img2img_directorEmotionAroused => '興奮';
+
+  @override
+  String get img2img_directorEmotionEmbarrassed => '恥ずかしい';
+
+  @override
+  String get img2img_directorEmotionWorried => '心配';
+
+  @override
+  String get img2img_directorEmotionLove => '愛情';
+
+  @override
+  String get img2img_directorEmotionDetermined => '決意';
+
+  @override
+  String get img2img_directorEmotionHurt => '傷つく';
+
+  @override
+  String get img2img_directorEmotionPlayful => 'いたずら';
 
   @override
   String get img2img_directorApplyAsSource => 'ソースとして使用';

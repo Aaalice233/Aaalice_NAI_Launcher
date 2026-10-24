@@ -11,6 +11,7 @@ import '../../core/services/pixel_snap/pixel_snap_options.dart';
 import '../../core/services/pixel_snap/pixel_snap_progress.dart';
 import '../../core/services/pixel_snap/pixel_snap_service.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
+import '../../data/models/director/director_emotion.dart';
 import '../../data/models/director/director_tool_type.dart';
 import '../../data/services/auth_provider.dart';
 import 'image_generation_provider.dart';
@@ -19,29 +20,40 @@ import 'subscription_provider.dart';
 /// Emotion 预设
 ///
 /// NAI augment API 要求 emotion prompt 格式为 `{mood};;{tags}`。
-/// [mood] 是 API 识别的情绪关键词，[extraTags] 是附加提示词。
+/// [emotion] 决定 API 识别的情绪关键词，[extraTags] 是附加提示词。
 class EmotionPreset {
-  const EmotionPreset(this.label, this.mood, [this.extraTags = '']);
-  final String label;
-  final String mood;
+  const EmotionPreset(this.emotion, [this.extraTags = '']);
+  final DirectorEmotion emotion;
   final String extraTags;
+
+  String get mood => emotion.mood;
 }
 
 const emotionPresets = [
-  EmotionPreset('Neutral', 'neutral'),
-  EmotionPreset('Happy', 'happy', 'smile'),
-  EmotionPreset('Laugh', 'laughing', 'open mouth'),
-  EmotionPreset('Sad', 'sad', 'crying'),
-  EmotionPreset('Angry', 'angry', 'furrowed brow'),
-  EmotionPreset('Surprised', 'surprised', 'open mouth, wide eyes'),
-  EmotionPreset('Shy', 'shy', 'blush, embarrassed, looking away'),
-  EmotionPreset('Excited', 'excited'),
-  EmotionPreset('Disgusted', 'disgusted'),
-  EmotionPreset('Smug', 'smug', 'half-closed eyes'),
-  EmotionPreset('Worried', 'worried'),
-  EmotionPreset('Love', 'love', 'heart'),
-  EmotionPreset('Playful', 'playful', 'wink'),
-  EmotionPreset('Tired', 'tired'),
+  EmotionPreset(DirectorEmotion.neutral),
+  EmotionPreset(DirectorEmotion.happy, 'smile'),
+  EmotionPreset(DirectorEmotion.sad, 'crying'),
+  EmotionPreset(DirectorEmotion.angry, 'furrowed brow'),
+  EmotionPreset(DirectorEmotion.scared),
+  EmotionPreset(DirectorEmotion.surprised, 'open mouth, wide eyes'),
+  EmotionPreset(DirectorEmotion.tired),
+  EmotionPreset(DirectorEmotion.excited),
+  EmotionPreset(DirectorEmotion.nervous),
+  EmotionPreset(DirectorEmotion.thinking),
+  EmotionPreset(DirectorEmotion.confused),
+  EmotionPreset(DirectorEmotion.shy, 'blush, embarrassed, looking away'),
+  EmotionPreset(DirectorEmotion.disgusted),
+  EmotionPreset(DirectorEmotion.smug, 'half-closed eyes'),
+  EmotionPreset(DirectorEmotion.bored),
+  EmotionPreset(DirectorEmotion.laughing, 'open mouth'),
+  EmotionPreset(DirectorEmotion.irritated),
+  EmotionPreset(DirectorEmotion.aroused),
+  EmotionPreset(DirectorEmotion.embarrassed),
+  EmotionPreset(DirectorEmotion.worried),
+  EmotionPreset(DirectorEmotion.love, 'heart'),
+  EmotionPreset(DirectorEmotion.determined),
+  EmotionPreset(DirectorEmotion.hurt),
+  EmotionPreset(DirectorEmotion.playful, 'wink'),
 ];
 
 class DirectorToolsState {
@@ -298,7 +310,7 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
 
   /// 构建 emotion 工具的 prompt，格式: `{mood};;{tags}`
   String _buildEmotionPrompt(String userPrompt) {
-    final mood = _activePreset?.mood ?? 'neutral';
+    final mood = _activePreset?.mood ?? DirectorEmotion.neutral.mood;
     return '$mood;;$userPrompt';
   }
 
