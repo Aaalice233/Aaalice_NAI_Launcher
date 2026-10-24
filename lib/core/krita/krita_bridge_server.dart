@@ -175,84 +175,85 @@ class KritaBridgeServer {
 
     try {
       await for (final data in socket) {
-        if (data is! String) {
-          _sendError(
-            socket,
-            const KritaBridgeError(
-              code: KritaBridgeErrorCode.invalidRequest,
-              message: 'Only JSON text frames are supported in V1',
-            ),
-          );
-          continue;
-        }
-
-        final result = KritaBridgeProtocol.decodeIncoming(
+        final message = _decodeFrame(
+          socket,
           data,
-          sessionSecret: _secret,
           authenticated: socketAuthenticated,
-          maxTextFrameBytes: maxTextFrameBytes,
         );
-
-        final error = result.error;
-        if (error != null) {
-          AppLogger.w(
-            'Rejected message: ${error.code.value}'
-            '${error.id == null ? '' : ' id=${error.id}'}',
-            _logTag,
-          );
-          _sendError(socket, error);
-          continue;
+        switch (message) {
+          case null:
+            break;
+          case KritaUnsupportedPingVersionMessage():
+            _rejectPingVersion(socket, message);
+          case KritaPingMessage():
+            await _authenticateSocket(socket, clientLabel: clientLabel);
+            socketAuthenticated = true;
+            socket.add(jsonEncode(KritaBridgeProtocol.encodePong()));
+            AppLogger.i('Bridge client authenticated', _logTag);
+          default:
+            if (identical(_client, socket)) {
+              _messageController.add(message);
+            } else {
+              AppLogger.w(
+                'Dropped message from replaced client'
+                '${message.id == null ? '' : ' id=${message.id}'}',
+                _logTag,
+              );
+            }
         }
-
-        final message = result.message;
-        if (message == null) {
-          continue;
-        }
-
-        if (message is KritaUnsupportedPingVersionMessage) {
-          socket.add(
-            jsonEncode(
-              KritaBridgeProtocol.encodePong(
-                supportedVersions: message.supportedVersions,
-              ),
-            ),
-          );
-          AppLogger.w(
-            'Rejected ping version: ${message.requestedVersion}',
-            _logTag,
-          );
-          continue;
-        }
-
-        if (message is KritaPingMessage) {
-          await _authenticateSocket(socket, clientLabel: clientLabel);
-          socketAuthenticated = true;
-          socket.add(jsonEncode(KritaBridgeProtocol.encodePong()));
-          AppLogger.i('Bridge client authenticated', _logTag);
-          continue;
-        }
-
-        if (!identical(_client, socket)) {
-          AppLogger.w(
-            'Dropped message from replaced client'
-            '${message.id == null ? '' : ' id=${message.id}'}',
-            _logTag,
-          );
-          continue;
-        }
-
-        _messageController.add(message);
       }
     } finally {
-      if (identical(_client, socket)) {
-        _client = null;
-        _clientAuthenticated = false;
-        _connectedClientLabel = null;
-        if (!_authenticationController.isClosed) {
-          _authenticationController.add(false);
-        }
-      }
+      _forgetSocket(socket);
     }
+  }
+
+  KritaBridgeMessage? _decodeFrame(
+    WebSocket socket,
+    Object? data, {
+    required bool authenticated,
+  }) {
+    if (data is! String) {
+      _sendError(
+        socket,
+        const KritaBridgeError(
+          code: KritaBridgeErrorCode.invalidRequest,
+          message: 'Only JSON text frames are supported in V1',
+        ),
+      );
+      return null;
+    }
+
+    final result = KritaBridgeProtocol.decodeIncoming(
+      data,
+      sessionSecret: _secret,
+      authenticated: authenticated,
+      maxTextFrameBytes: maxTextFrameBytes,
+    );
+    final error = result.error;
+    if (error != null) {
+      AppLogger.w(
+        'Rejected message: ${error.code.value}'
+        '${error.id == null ? '' : ' id=${error.id}'}',
+        _logTag,
+      );
+      _sendError(socket, error);
+      return null;
+    }
+    return result.message;
+  }
+
+  void _rejectPingVersion(
+    WebSocket socket,
+    KritaUnsupportedPingVersionMessage message,
+  ) {
+    socket.add(
+      jsonEncode(
+        KritaBridgeProtocol.encodePong(
+          supportedVersions: message.supportedVersions,
+        ),
+      ),
+    );
+    AppLogger.w('Rejected ping version: ${message.requestedVersion}', _logTag);
   }
 
   Future<void> _authenticateSocket(
@@ -269,6 +270,18 @@ class KritaBridgeServer {
     _connectedClientLabel = clientLabel;
     _authenticationController.add(true);
     AppLogger.i('Authenticated client is active', _logTag);
+  }
+
+  void _forgetSocket(WebSocket socket) {
+    if (!identical(_client, socket)) {
+      return;
+    }
+    _client = null;
+    _clientAuthenticated = false;
+    _connectedClientLabel = null;
+    if (!_authenticationController.isClosed) {
+      _authenticationController.add(false);
+    }
   }
 
   void _sendError(WebSocket socket, KritaBridgeError error) {
