@@ -8,6 +8,7 @@ import '../../widgets/common/decoded_memory_image.dart';
 import '../../widgets/common/image_viewport_surface.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/director/director_emotion.dart';
+import '../../../data/models/director/director_prompt_params.dart';
 import '../../../data/models/director/director_tool_type.dart';
 import '../../adaptive/adaptive_layout.dart';
 import '../../adaptive/interaction_policy.dart';
@@ -47,7 +48,9 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
   @override
   void initState() {
     super.initState();
-    _promptController = TextEditingController();
+    _promptController = TextEditingController(
+      text: _activePromptText(ref.read(directorToolsNotifierProvider)),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(directorToolsNotifierProvider.notifier).init(widget.sourceImage);
     });
@@ -64,12 +67,10 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     final theme = Theme.of(context);
     final state = ref.watch(directorToolsNotifierProvider);
 
-    ref.listen(directorToolsNotifierProvider, (prev, next) {
-      if (prev?.prompt != next.prompt &&
-          _promptController.text != next.prompt) {
-        _promptController.text = next.prompt;
-      }
-    });
+    ref.listen(
+      directorToolsNotifierProvider.select(_activePromptText),
+      (_, next) => _syncPromptController(next),
+    );
 
     return LayoutBuilder(
       builder: (context, screenConstraints) {
@@ -129,6 +130,18 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
           ),
         );
       },
+    );
+  }
+
+  static String _activePromptText(DirectorToolsState state) =>
+      state.activePromptParams?.prompt ?? '';
+
+  /// 输入时状态与输入框本就一致，只有切换工具或重新打开才会改写，光标不会被打断。
+  void _syncPromptController(String text) {
+    if (_promptController.text == text) return;
+    _promptController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 
@@ -345,10 +358,12 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
       );
     }
 
-    if (tool.needsPrompt) {
+    if (state.activePromptParams != null) {
       widgets.add(const SizedBox(height: 12));
       widgets.add(
         TextField(
+          // 各工具各用一个输入框，撤销栈不会把另一个工具的文字撤回来。
+          key: ValueKey(tool),
           controller: _promptController,
           minLines: 1,
           maxLines: 4,
@@ -370,7 +385,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
 
   List<Widget> _buildDefrySlider(
     ThemeData theme,
-    DirectorToolsState state, {
+    DirectorPromptParams params, {
     required String label,
   }) {
     return [
@@ -379,7 +394,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
           Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
           const SizedBox(width: 8),
           Text(
-            _defryText(state.defry.toDouble()),
+            _defryText(params.defry.toDouble()),
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -390,10 +405,11 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
       NamedSlider(
         label: label,
         valueText: _defryText,
-        value: state.defry.toDouble(),
-        min: 0,
-        max: 5,
-        divisions: 5,
+        value: params.defry.toDouble(),
+        min: DirectorPromptParams.minDefry.toDouble(),
+        max: DirectorPromptParams.maxDefry.toDouble(),
+        divisions:
+            DirectorPromptParams.maxDefry - DirectorPromptParams.minDefry,
         onChanged: (v) => ref
             .read(directorToolsNotifierProvider.notifier)
             .updateDefry(v.round()),
@@ -408,7 +424,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     return [
       ..._buildDefrySlider(
         theme,
-        state,
+        state.colorizeParams,
         label: context.l10n.img2img_directorDefry,
       ),
       Text(
@@ -422,9 +438,27 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
 
   List<Widget> _buildEmotionOptions(ThemeData theme, DirectorToolsState state) {
     return [
+      Text(
+        context.l10n.img2img_directorEmotionMood,
+        style: theme.textTheme.bodyMedium,
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final emotion in DirectorEmotion.values)
+            _buildEmotionChip(
+              theme,
+              emotion,
+              selected: state.selectedEmotion == emotion,
+            ),
+        ],
+      ),
+      const SizedBox(height: 12),
       ..._buildDefrySlider(
         theme,
-        state,
+        state.emotionParams,
         label: context.l10n.img2img_directorEmotionLevel,
       ),
       Text(
@@ -433,34 +467,27 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
           color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
-      const SizedBox(height: 12),
-      Text(
-        context.l10n.img2img_directorEmotionPresets,
-        style: theme.textTheme.bodyMedium,
-      ),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: emotionPresets.map((preset) {
-          final notifier = ref.read(directorToolsNotifierProvider.notifier);
-          final isActive = notifier.activePreset?.emotion == preset.emotion;
-          return ChoiceChip(
-            // Chip 默认单行淡出，窄屏放大字号时长标签宁可折行也不能被截掉。
-            label: Text(
-              preset.emotion.label(context.l10n),
-              softWrap: true,
-              maxLines: 3,
-            ),
-            selected: isActive,
-            onSelected: (_) {
-              notifier.applyEmotionPreset(preset);
-              _promptController.text = preset.extraTags;
-            },
-          );
-        }).toList(),
-      ),
     ];
+  }
+
+  Widget _buildEmotionChip(
+    ThemeData theme,
+    DirectorEmotion emotion, {
+    required bool selected,
+  }) {
+    return ChoiceChip(
+      // Chip 默认单行淡出，窄屏放大字号时长标签宁可折行也不能被截掉。
+      label: Text(emotion.label(context.l10n), softWrap: true, maxLines: 3),
+      selected: selected,
+      // 对勾挤占宽度会让大字号标签被截断；描边不参与布局，选中态不只靠色面。
+      showCheckmark: false,
+      side: selected
+          ? BorderSide(color: theme.colorScheme.primary)
+          : BorderSide.none,
+      onSelected: (_) => ref
+          .read(directorToolsNotifierProvider.notifier)
+          .selectEmotion(emotion),
+    );
   }
 
   Widget _buildRunButton(ThemeData theme, DirectorToolsState state) {

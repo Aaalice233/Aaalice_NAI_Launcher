@@ -90,7 +90,11 @@ void main() {
       addTearDown(container.dispose);
       final notifier = container.read(directorToolsNotifierProvider.notifier);
       final source = Uint8List.fromList([1, 2, 3]);
-      await notifier.init(source, initialPrompt: 'keep prompt');
+      await notifier.init(source);
+      notifier
+        ..selectTool(DirectorToolType.colorize)
+        ..updatePrompt('keep prompt')
+        ..selectTool(DirectorToolType.removeBackground);
       final before = container.read(directorToolsNotifierProvider);
 
       await notifier.runTool();
@@ -99,7 +103,10 @@ void main() {
       expect(apiService.uploadCalls, 0);
       expect(after.isRunning, isFalse);
       expect(after.sourceImage, same(before.sourceImage));
-      expect(after.prompt, before.prompt);
+      expect(after.colorizeParams, before.colorizeParams);
+      expect(after.colorizeParams.prompt, 'keep prompt');
+      expect(after.emotionParams, before.emotionParams);
+      expect(after.selectedEmotion, before.selectedEmotion);
       expect(after.selectedTool, before.selectedTool);
       expect(after.result, before.result);
       expect(after.error, before.error);

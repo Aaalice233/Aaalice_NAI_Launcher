@@ -2430,7 +2430,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get img2img_directorPromptHint =>
-      'Add guidance when needed, such as target emotion or color direction';
+      'Optional. Describe the effect you want';
 
   @override
   String img2img_directorRun(Object tool) {
@@ -2517,7 +2517,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Higher values make the emotion weaker (0 = normal, 5 = weakest)';
 
   @override
-  String get img2img_directorEmotionPresets => 'Presets';
+  String get img2img_directorEmotionMood => 'Emotion';
 
   @override
   String get img2img_directorEmotionNeutral => 'Neutral';

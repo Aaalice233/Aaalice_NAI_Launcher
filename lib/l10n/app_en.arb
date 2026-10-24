@@ -1002,7 +1002,7 @@
   "img2img_directorTools": "Director Tools",
   "img2img_directorToolsHint": "Send the current source image through a Director Tool. When the result is ready, you can apply it back as the new source image.",
   "img2img_directorPrompt": "Extra Prompt",
-  "img2img_directorPromptHint": "Add guidance when needed, such as target emotion or color direction",
+  "img2img_directorPromptHint": "Optional. Describe the effect you want",
   "img2img_directorRun": "Run {tool}",
   "@img2img_directorRun": {
     "placeholders": {
@@ -1082,7 +1082,7 @@
   "img2img_directorDefryHint": "Reduce noise or over-saturation in the result (0 = off, 5 = max)",
   "img2img_directorEmotionLevel": "Emotion Level",
   "img2img_directorEmotionLevelHint": "Higher values make the emotion weaker (0 = normal, 5 = weakest)",
-  "img2img_directorEmotionPresets": "Presets",
+  "img2img_directorEmotionMood": "Emotion",
   "img2img_directorEmotionNeutral": "Neutral",
   "img2img_directorEmotionHappy": "Happy",
   "img2img_directorEmotionSad": "Sad",

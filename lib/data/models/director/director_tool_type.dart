@@ -13,12 +13,6 @@ enum DirectorToolType {
 }
 
 extension DirectorToolTypeExtension on DirectorToolType {
-  bool get needsPrompt =>
-      this == DirectorToolType.colorize || this == DirectorToolType.fixEmotion;
-
-  bool get supportsDefry =>
-      this == DirectorToolType.colorize || this == DirectorToolType.fixEmotion;
-
   /// 在本机算完，不发请求也不计费。
   bool get runsLocally => this == DirectorToolType.pixelSnap;
 

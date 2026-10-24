@@ -11,56 +11,19 @@ import '../../core/services/pixel_snap/pixel_snap_progress.dart';
 import '../../core/services/pixel_snap/pixel_snap_service.dart';
 import '../../data/datasources/remote/nai_image_enhancement_api_service.dart';
 import '../../data/models/director/director_emotion.dart';
+import '../../data/models/director/director_prompt_params.dart';
 import '../../data/models/director/director_tool_output.dart';
 import '../../data/models/director/director_tool_type.dart';
 import '../../data/services/auth_provider.dart';
 import 'image_generation_provider.dart';
 import 'subscription_provider.dart';
 
-/// Emotion 预设
-///
-/// NAI augment API 要求 emotion prompt 格式为 `{mood};;{tags}`。
-/// [emotion] 决定 API 识别的情绪关键词，[extraTags] 是附加提示词。
-class EmotionPreset {
-  const EmotionPreset(this.emotion, [this.extraTags = '']);
-  final DirectorEmotion emotion;
-  final String extraTags;
-
-  String get mood => emotion.mood;
-}
-
-const emotionPresets = [
-  EmotionPreset(DirectorEmotion.neutral),
-  EmotionPreset(DirectorEmotion.happy, 'smile'),
-  EmotionPreset(DirectorEmotion.sad, 'crying'),
-  EmotionPreset(DirectorEmotion.angry, 'furrowed brow'),
-  EmotionPreset(DirectorEmotion.scared),
-  EmotionPreset(DirectorEmotion.surprised, 'open mouth, wide eyes'),
-  EmotionPreset(DirectorEmotion.tired),
-  EmotionPreset(DirectorEmotion.excited),
-  EmotionPreset(DirectorEmotion.nervous),
-  EmotionPreset(DirectorEmotion.thinking),
-  EmotionPreset(DirectorEmotion.confused),
-  EmotionPreset(DirectorEmotion.shy, 'blush, embarrassed, looking away'),
-  EmotionPreset(DirectorEmotion.disgusted),
-  EmotionPreset(DirectorEmotion.smug, 'half-closed eyes'),
-  EmotionPreset(DirectorEmotion.bored),
-  EmotionPreset(DirectorEmotion.laughing, 'open mouth'),
-  EmotionPreset(DirectorEmotion.irritated),
-  EmotionPreset(DirectorEmotion.aroused),
-  EmotionPreset(DirectorEmotion.embarrassed),
-  EmotionPreset(DirectorEmotion.worried),
-  EmotionPreset(DirectorEmotion.love, 'heart'),
-  EmotionPreset(DirectorEmotion.determined),
-  EmotionPreset(DirectorEmotion.hurt),
-  EmotionPreset(DirectorEmotion.playful, 'wink'),
-];
-
 class DirectorToolsState {
   const DirectorToolsState({
     this.selectedTool = DirectorToolType.removeBackground,
-    this.defry = 0,
-    this.prompt = '',
+    this.selectedEmotion = DirectorEmotion.neutral,
+    this.colorizeParams = const DirectorPromptParams(),
+    this.emotionParams = const DirectorPromptParams(),
     this.isRunning = false,
     this.results = const [],
     this.selectedResultIndex = 0,
@@ -75,8 +38,11 @@ class DirectorToolsState {
   });
 
   final DirectorToolType selectedTool;
-  final int defry;
-  final String prompt;
+
+  /// 只决定请求里的情绪关键词，与 [emotionParams] 的附加提示词互不覆盖。
+  final DirectorEmotion selectedEmotion;
+  final DirectorPromptParams colorizeParams;
+  final DirectorPromptParams emotionParams;
   final bool isRunning;
 
   /// 本次运行的全部结果，按服务端返回顺序排列；只有背景移除会多于一张。
@@ -97,6 +63,42 @@ class DirectorToolsState {
 
   /// 原始异常对象。UI 靠它把已知失败翻成本地化文案，[error] 只是兜底文本。
   final Object? errorCause;
+
+  /// 当前工具自己的提示词与 defry；不接受这两项的工具为 null。
+  DirectorPromptParams? get activePromptParams {
+    switch (selectedTool) {
+      case DirectorToolType.colorize:
+        return colorizeParams;
+      case DirectorToolType.fixEmotion:
+        return emotionParams;
+      case DirectorToolType.removeBackground:
+      case DirectorToolType.extractLineArt:
+      case DirectorToolType.toSketch:
+      case DirectorToolType.declutter:
+      case DirectorToolType.pixelSnap:
+        return null;
+    }
+  }
+
+  /// 只改写当前工具那份参数；不接受提示词的工具原样返回。
+  DirectorToolsState withActivePromptParams(DirectorPromptParams params) {
+    switch (selectedTool) {
+      case DirectorToolType.colorize:
+        return copyWith(colorizeParams: params);
+      case DirectorToolType.fixEmotion:
+        return copyWith(emotionParams: params);
+      case DirectorToolType.removeBackground:
+      case DirectorToolType.extractLineArt:
+      case DirectorToolType.toSketch:
+      case DirectorToolType.declutter:
+      case DirectorToolType.pixelSnap:
+        return this;
+    }
+  }
+
+  /// 请求格式固定为 `情绪;;附加提示词`，附加提示词为空也保留分隔符。
+  String get emotionRequestPrompt =>
+      '${selectedEmotion.mood};;${emotionParams.prompt.trim()}';
 
   DirectorToolImage? get selectedResult {
     if (results.isEmpty) return null;
@@ -119,8 +121,9 @@ class DirectorToolsState {
 
   DirectorToolsState copyWith({
     DirectorToolType? selectedTool,
-    int? defry,
-    String? prompt,
+    DirectorEmotion? selectedEmotion,
+    DirectorPromptParams? colorizeParams,
+    DirectorPromptParams? emotionParams,
     bool? isRunning,
     List<DirectorToolImage>? results,
     int? selectedResultIndex,
@@ -138,8 +141,9 @@ class DirectorToolsState {
   }) {
     return DirectorToolsState(
       selectedTool: selectedTool ?? this.selectedTool,
-      defry: defry ?? this.defry,
-      prompt: prompt ?? this.prompt,
+      selectedEmotion: selectedEmotion ?? this.selectedEmotion,
+      colorizeParams: colorizeParams ?? this.colorizeParams,
+      emotionParams: emotionParams ?? this.emotionParams,
       isRunning: isRunning ?? this.isRunning,
       results: clearResult ? const [] : (results ?? this.results),
       selectedResultIndex: clearResult
@@ -190,11 +194,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   @override
   DirectorToolsState build() => const DirectorToolsState();
 
-  Future<void> init(Uint8List sourceImage, {String? initialPrompt}) async {
-    state = DirectorToolsState(
-      sourceImage: sourceImage,
-      prompt: initialPrompt ?? '',
-    );
+  /// 每次打开都从默认参数开始，与官网关掉再打开工具弹窗一致。
+  Future<void> init(Uint8List sourceImage) async {
+    state = DirectorToolsState(sourceImage: sourceImage);
     await _resolveImageDimensions(sourceImage);
   }
 
@@ -221,15 +223,28 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   }
 
   void updateDefry(int value) {
-    state = state.copyWith(defry: value.clamp(0, 5));
+    _updateActivePromptParams((params) => params.copyWith(defry: value));
   }
 
   void updatePrompt(String value) {
-    state = state.copyWith(prompt: value);
+    _updateActivePromptParams((params) => params.copyWith(prompt: value));
+  }
+
+  void selectEmotion(DirectorEmotion emotion) {
+    if (emotion == state.selectedEmotion) return;
+    state = state.copyWith(selectedEmotion: emotion);
+  }
+
+  void _updateActivePromptParams(
+    DirectorPromptParams Function(DirectorPromptParams params) update,
+  ) {
+    final params = state.activePromptParams;
+    if (params == null) return;
+    state = state.withActivePromptParams(update(params));
   }
 
   /// 改参数不清结果：旧结果只是不再对应当前参数，本身仍然是一张有效输出。
-  /// 与 [updateDefry]、[updatePrompt] 保持一致，真正该清的是切换工具和重新运行。
+  /// 与 [updateDefry]、[updatePrompt]、[selectEmotion] 保持一致，真正该清的是切换工具和重新运行。
   void updatePixelSnapOptions(PixelSnapOptions options) {
     state = state.copyWith(pixelSnap: options);
   }
@@ -238,15 +253,6 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
 
   /// 取消正在跑的 Pixel Snap。其它工具没有取消入口。
   void cancelRun() => _pixelSnapCancellation?.cancel();
-
-  /// 当前选中的 emotion preset（null 表示自定义）
-  EmotionPreset? _activePreset;
-  EmotionPreset? get activePreset => _activePreset;
-
-  void applyEmotionPreset(EmotionPreset preset) {
-    _activePreset = preset;
-    state = state.copyWith(prompt: preset.extraTags);
-  }
 
   Future<void> runTool() async {
     final source = state.sourceImage;
@@ -271,8 +277,6 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
 
     try {
       final service = ref.read(naiImageEnhancementApiServiceProvider);
-      final prompt = state.prompt.trim();
-      final defry = state.defry;
 
       final DirectorToolOutput output;
       switch (state.selectedTool) {
@@ -283,17 +287,18 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
         case DirectorToolType.toSketch:
           output = await service.toSketch(source);
         case DirectorToolType.colorize:
+          final params = state.colorizeParams;
+          final prompt = params.prompt.trim();
           output = await service.colorize(
             source,
             prompt: prompt.isEmpty ? null : prompt,
-            defry: defry,
+            defry: params.defry,
           );
         case DirectorToolType.fixEmotion:
-          final emotionPrompt = _buildEmotionPrompt(prompt);
           output = await service.fixEmotion(
             source,
-            prompt: emotionPrompt,
-            defry: defry,
+            prompt: state.emotionRequestPrompt,
+            defry: state.emotionParams.defry,
           );
         case DirectorToolType.declutter:
           output = await service.declutter(source);
@@ -351,12 +356,6 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
     }
   }
 
-  /// 构建 emotion 工具的 prompt，格式: `{mood};;{tags}`
-  String _buildEmotionPrompt(String userPrompt) {
-    final mood = _activePreset?.mood ?? DirectorEmotion.neutral.mood;
-    return '$mood;;$userPrompt';
-  }
-
   void selectResult(int index) {
     if (index < 0 || index >= state.results.length) return;
     if (index == state.selectedResultIndex) return;
@@ -372,8 +371,9 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       return DirectorResultRegistration(total: 0, selectedIndex: selectedIndex);
     }
     var saveParams = ref.read(generationParamsNotifierProvider);
-    if (state.selectedTool.needsPrompt && state.prompt.isNotEmpty) {
-      saveParams = saveParams.copyWith(prompt: state.prompt);
+    final userPrompt = state.activePromptParams?.prompt ?? '';
+    if (userPrompt.isNotEmpty) {
+      saveParams = saveParams.copyWith(prompt: userPrompt);
     }
     final generation = ref.read(imageGenerationNotifierProvider.notifier);
     // 同一次处理的几张共用一个时刻，按时间命名时文件名只差后缀。

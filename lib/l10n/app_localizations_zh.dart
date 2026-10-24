@@ -2331,7 +2331,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_directorPrompt => '附加提示词';
 
   @override
-  String get img2img_directorPromptHint => '需要时补充描述，例如目标情绪或上色方向';
+  String get img2img_directorPromptHint => '可选，补充想要的效果描述';
 
   @override
   String img2img_directorRun(Object tool) {
@@ -2415,7 +2415,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get img2img_directorEmotionLevelHint => '数值越大，表情越弱（0 = 正常，5 = 最弱）';
 
   @override
-  String get img2img_directorEmotionPresets => '快速预设';
+  String get img2img_directorEmotionMood => '情绪';
 
   @override
   String get img2img_directorEmotionNeutral => '平静';
@@ -17969,7 +17969,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get img2img_directorPrompt => '附加提示詞';
 
   @override
-  String get img2img_directorPromptHint => '需要時補充描述，例如目標情緒或上色方向';
+  String get img2img_directorPromptHint => '選填，補充想要的效果描述';
 
   @override
   String img2img_directorRun(Object tool) {
@@ -18053,7 +18053,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get img2img_directorEmotionLevelHint => '數值越大，表情越弱（0 = 正常，5 = 最弱）';
 
   @override
-  String get img2img_directorEmotionPresets => '快速預設';
+  String get img2img_directorEmotionMood => '情緒';
 
   @override
   String get img2img_directorEmotionNeutral => '平靜';

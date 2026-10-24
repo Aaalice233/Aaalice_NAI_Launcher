@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_options.dart';
 import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/models/director/director_emotion.dart';
+import 'package:nai_launcher/data/models/director/director_prompt_params.dart';
 import 'package:nai_launcher/data/models/director/director_tool_output.dart';
 import 'package:nai_launcher/data/models/director/director_tool_type.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
@@ -82,8 +83,12 @@ void main() {
     });
 
     test('Pixel Snap 不需要提示词也没有 defry', () {
-      expect(DirectorToolType.pixelSnap.needsPrompt, isFalse);
-      expect(DirectorToolType.pixelSnap.supportsDefry, isFalse);
+      expect(
+        const DirectorToolsState(
+          selectedTool: DirectorToolType.pixelSnap,
+        ).activePromptParams,
+        isNull,
+      );
     });
   });
 
@@ -145,7 +150,7 @@ void main() {
     });
   });
 
-  group('表情预设', () {
+  group('表情情绪', () {
     const List<String> officialEmotionOrder = <String>[
       'neutral',
       'happy',
@@ -175,30 +180,11 @@ void main() {
 
     test('与官网 24 种情绪同序', () {
       expect(
-        emotionPresets.map((EmotionPreset preset) => preset.mood).toList(),
+        DirectorEmotion.values
+            .map((DirectorEmotion emotion) => emotion.mood)
+            .toList(),
         officialEmotionOrder,
       );
-    });
-
-    test('原有附加标签不变，新增情绪不带附加标签', () {
-      const Map<String, String> legacyTags = <String, String>{
-        'happy': 'smile',
-        'laughing': 'open mouth',
-        'sad': 'crying',
-        'angry': 'furrowed brow',
-        'surprised': 'open mouth, wide eyes',
-        'shy': 'blush, embarrassed, looking away',
-        'smug': 'half-closed eyes',
-        'love': 'heart',
-        'playful': 'wink',
-      };
-      for (final EmotionPreset preset in emotionPresets) {
-        expect(
-          preset.extraTags,
-          legacyTags[preset.mood] ?? '',
-          reason: preset.mood,
-        );
-      }
     });
 
     test('强度标题与英日文同为中性的“等级”，不暗示数值越大越强', () {
@@ -214,6 +200,22 @@ void main() {
       );
     });
 
+    test('情绪选择区标题与官网同为“情绪”', () {
+      const Map<String, String> expected = <String, String>{
+        'zh': '情绪',
+        'zh_Hant': '情緒',
+        'en': 'Emotion',
+        'ja': '感情',
+      };
+      for (final Locale locale in _directorLocales) {
+        expect(
+          lookupAppLocalizations(locale).img2img_directorEmotionMood,
+          expected[locale.toLanguageTag().replaceAll('-', '_')],
+          reason: '$locale',
+        );
+      }
+    });
+
     test('日文情绪名与官网措辞一致', () {
       final AppLocalizations ja = lookupAppLocalizations(const Locale('ja'));
       expect(DirectorEmotion.neutral.label(ja), '普通');
@@ -225,8 +227,8 @@ void main() {
       for (final Locale locale in _directorLocales) {
         final AppLocalizations l10n = lookupAppLocalizations(locale);
         final List<String> labels = <String>[
-          for (final EmotionPreset preset in emotionPresets)
-            preset.emotion.label(l10n),
+          for (final DirectorEmotion emotion in DirectorEmotion.values)
+            emotion.label(l10n),
         ];
         expect(labels.every((String label) => label.isNotEmpty), isTrue);
         expect(labels.toSet(), hasLength(labels.length), reason: '$locale');
@@ -250,34 +252,284 @@ void main() {
     });
 
     test('新增情绪按官网格式拼进请求，强度原样发送', () async {
-      final _EmotionRecordingService service = _EmotionRecordingService();
-      final ProviderContainer container = ProviderContainer(
-        overrides: <Override>[
-          authNotifierProvider.overrideWith(_AuthenticatedNotifier.new),
-          naiImageEnhancementApiServiceProvider.overrideWithValue(service),
-          subscriptionNotifierProvider.overrideWith(
-            _SilentSubscriptionNotifier.new,
-          ),
-        ],
+      final _PromptRecordingService service = _PromptRecordingService();
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        _promptContainer(service),
       );
-      addTearDown(container.dispose);
-      final DirectorToolsNotifier notifier = container.read(
-        directorToolsNotifierProvider.notifier,
-      );
-      await notifier.init(_resultBytes);
       notifier
         ..selectTool(DirectorToolType.fixEmotion)
-        ..applyEmotionPreset(
-          emotionPresets.firstWhere(
-            (EmotionPreset preset) => preset.mood == 'scared',
-          ),
-        )
+        ..selectEmotion(DirectorEmotion.scared)
         ..updateDefry(4);
 
       await notifier.runTool();
 
-      expect(service.prompts, <String>['scared;;']);
-      expect(service.defries, <int>[4]);
+      expect(service.emotionPrompts, <String>['scared;;']);
+      expect(service.emotionDefries, <int>[4]);
+    });
+
+    test('先写附加提示词再换几种情绪，提示词原样保留并拼在情绪之后', () async {
+      final _PromptRecordingService service = _PromptRecordingService();
+      final ProviderContainer container = _promptContainer(service);
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        container,
+      );
+      notifier
+        ..selectTool(DirectorToolType.fixEmotion)
+        ..updatePrompt('tears, looking at viewer');
+
+      for (final DirectorEmotion emotion in <DirectorEmotion>[
+        DirectorEmotion.happy,
+        DirectorEmotion.sad,
+        DirectorEmotion.shy,
+        DirectorEmotion.neutral,
+        DirectorEmotion.playful,
+      ]) {
+        notifier.selectEmotion(emotion);
+        final DirectorToolsState state = container.read(
+          directorToolsNotifierProvider,
+        );
+        expect(state.selectedEmotion, emotion);
+        expect(
+          state.emotionParams.prompt,
+          'tears, looking at viewer',
+          reason: emotion.mood,
+        );
+        expect(
+          state.emotionRequestPrompt,
+          '${emotion.mood};;tears, looking at viewer',
+        );
+      }
+
+      await notifier.runTool();
+
+      expect(service.emotionPrompts, <String>[
+        'playful;;tears, looking at viewer',
+      ]);
+    });
+
+    test('刚打开时选中 neutral，空附加提示词发送 neutral;;', () async {
+      final _PromptRecordingService service = _PromptRecordingService();
+      final ProviderContainer container = _promptContainer(service);
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        container,
+      );
+      notifier.selectTool(DirectorToolType.fixEmotion);
+
+      final DirectorToolsState state = container.read(
+        directorToolsNotifierProvider,
+      );
+      expect(state.selectedEmotion, DirectorEmotion.neutral);
+      expect(state.emotionRequestPrompt, 'neutral;;');
+
+      await notifier.runTool();
+
+      expect(service.emotionPrompts, <String>['neutral;;']);
+      expect(service.emotionDefries, <int>[0]);
+    });
+  });
+
+  group('上色与表情参数互相独立', () {
+    test('切换工具后各自保留提示词与 defry，请求只用自己的那份', () async {
+      final _PromptRecordingService service = _PromptRecordingService();
+      final ProviderContainer container = _promptContainer(service);
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        container,
+      );
+      DirectorToolsState read() =>
+          container.read(directorToolsNotifierProvider);
+
+      notifier
+        ..selectTool(DirectorToolType.colorize)
+        ..updatePrompt('red hair')
+        ..updateDefry(2)
+        ..selectTool(DirectorToolType.fixEmotion);
+      expect(read().activePromptParams, const DirectorPromptParams());
+
+      notifier
+        ..updatePrompt('tears')
+        ..updateDefry(5)
+        ..selectEmotion(DirectorEmotion.angry);
+      expect(
+        read().activePromptParams,
+        const DirectorPromptParams(prompt: 'tears', defry: 5),
+      );
+      await notifier.runTool();
+
+      notifier.selectTool(DirectorToolType.colorize);
+      expect(
+        read().activePromptParams,
+        const DirectorPromptParams(prompt: 'red hair', defry: 2),
+      );
+      await notifier.runTool();
+
+      notifier.selectTool(DirectorToolType.fixEmotion);
+      expect(
+        read().activePromptParams,
+        const DirectorPromptParams(prompt: 'tears', defry: 5),
+      );
+      expect(read().selectedEmotion, DirectorEmotion.angry);
+
+      expect(service.emotionPrompts, <String>['angry;;tears']);
+      expect(service.emotionDefries, <int>[5]);
+      expect(service.colorizePrompts, <String?>['red hair']);
+      expect(service.colorizeDefries, <int>[2]);
+    });
+
+    test('不收提示词的工具上改参数不会写进上色或表情', () async {
+      final ProviderContainer container = _promptContainer(
+        _PromptRecordingService(),
+      );
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        container,
+      );
+
+      notifier
+        ..updatePrompt('ignored')
+        ..updateDefry(3);
+
+      final DirectorToolsState state = container.read(
+        directorToolsNotifierProvider,
+      );
+      expect(state.activePromptParams, isNull);
+      expect(state.colorizeParams, const DirectorPromptParams());
+      expect(state.emotionParams, const DirectorPromptParams());
+    });
+
+    test('只有上色与改表情有自己的参数，读写落在同一份上', () {
+      const DirectorPromptParams edited = DirectorPromptParams(
+        prompt: 'edited',
+        defry: 3,
+      );
+      const Set<DirectorToolType> promptTools = <DirectorToolType>{
+        DirectorToolType.colorize,
+        DirectorToolType.fixEmotion,
+      };
+      for (final DirectorToolType tool in DirectorToolType.values) {
+        final DirectorToolsState state = DirectorToolsState(selectedTool: tool);
+        final DirectorToolsState written = state.withActivePromptParams(edited);
+        if (promptTools.contains(tool)) {
+          expect(state.activePromptParams, const DirectorPromptParams());
+          expect(written.activePromptParams, edited, reason: '$tool');
+        } else {
+          expect(state.activePromptParams, isNull, reason: '$tool');
+          expect(written, same(state), reason: '$tool');
+        }
+      }
+      expect(
+        const DirectorToolsState(
+          selectedTool: DirectorToolType.colorize,
+        ).withActivePromptParams(edited).emotionParams,
+        const DirectorPromptParams(),
+      );
+      expect(
+        const DirectorToolsState(
+          selectedTool: DirectorToolType.fixEmotion,
+        ).withActivePromptParams(edited).colorizeParams,
+        const DirectorPromptParams(),
+      );
+    });
+
+    test('defry 夹在 0 到 5 之间', () async {
+      final ProviderContainer container = _promptContainer(
+        _PromptRecordingService(),
+      );
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        container,
+      );
+      int colorizeDefry() =>
+          container.read(directorToolsNotifierProvider).colorizeParams.defry;
+
+      notifier
+        ..selectTool(DirectorToolType.colorize)
+        ..updateDefry(9);
+      expect(colorizeDefry(), 5);
+      notifier.updateDefry(-2);
+      expect(colorizeDefry(), 0);
+    });
+
+    test('直接构造越界的 defry 会被断言拦下', () {
+      for (final int defry in <int>[
+        DirectorPromptParams.minDefry - 1,
+        DirectorPromptParams.maxDefry + 1,
+      ]) {
+        expect(
+          () => DirectorPromptParams(defry: defry),
+          throwsAssertionError,
+          reason: '$defry',
+        );
+      }
+    });
+
+    test('重新打开会把情绪、两份提示词与 defry 全部恢复默认', () async {
+      final ProviderContainer container = _promptContainer(
+        _PromptRecordingService(),
+      );
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        container,
+      );
+      notifier
+        ..selectTool(DirectorToolType.colorize)
+        ..updatePrompt('red hair')
+        ..updateDefry(2)
+        ..selectTool(DirectorToolType.fixEmotion)
+        ..updatePrompt('tears')
+        ..updateDefry(4)
+        ..selectEmotion(DirectorEmotion.love);
+
+      await notifier.init(_resultBytes);
+
+      final DirectorToolsState state = container.read(
+        directorToolsNotifierProvider,
+      );
+      expect(state.selectedEmotion, DirectorEmotion.neutral);
+      expect(state.colorizeParams, const DirectorPromptParams());
+      expect(state.emotionParams, const DirectorPromptParams());
+      expect(state.selectedTool, DirectorToolType.removeBackground);
+      notifier.selectTool(DirectorToolType.fixEmotion);
+      expect(
+        container.read(directorToolsNotifierProvider).emotionRequestPrompt,
+        'neutral;;',
+      );
+    });
+  });
+
+  group('登记结果时的提示词', () {
+    test('保存的提示词取当前工具自己的附加提示词', () async {
+      final _Registrar registrar = _Registrar();
+      final ProviderContainer container = _promptContainer(
+        _PromptRecordingService(),
+        registrar: registrar,
+      );
+      final DirectorToolsNotifier notifier = await _initPromptNotifier(
+        container,
+      );
+      final String basePrompt = container
+          .read(generationParamsNotifierProvider)
+          .prompt;
+
+      notifier
+        ..selectTool(DirectorToolType.colorize)
+        ..updatePrompt('red hair')
+        ..selectTool(DirectorToolType.fixEmotion)
+        ..updatePrompt('tears')
+        ..selectEmotion(DirectorEmotion.sad);
+      await notifier.runTool();
+      await notifier.registerResult();
+
+      notifier.selectTool(DirectorToolType.colorize);
+      await notifier.runTool();
+      await notifier.registerResult();
+
+      notifier
+        ..selectTool(DirectorToolType.fixEmotion)
+        ..updatePrompt('');
+      await notifier.runTool();
+      await notifier.registerResult();
+
+      expect(
+        registrar.registrations.map((_Registration r) => r.prompt).toList(),
+        <String>['tears', 'red hair', basePrompt],
+      );
     });
   });
 
@@ -620,11 +872,13 @@ class _SilentSubscriptionNotifier extends SubscriptionNotifier {
   }) {}
 }
 
-class _EmotionRecordingService extends NAIImageEnhancementApiService {
-  _EmotionRecordingService() : super(Dio());
+class _PromptRecordingService extends NAIImageEnhancementApiService {
+  _PromptRecordingService() : super(Dio());
 
-  final List<String> prompts = <String>[];
-  final List<int> defries = <int>[];
+  final List<String> emotionPrompts = <String>[];
+  final List<int> emotionDefries = <int>[];
+  final List<String?> colorizePrompts = <String?>[];
+  final List<int> colorizeDefries = <int>[];
 
   @override
   Future<DirectorToolOutput> fixEmotion(
@@ -632,10 +886,50 @@ class _EmotionRecordingService extends NAIImageEnhancementApiService {
     required String prompt,
     int defry = 0,
   }) async {
-    prompts.add(prompt);
-    defries.add(defry);
+    emotionPrompts.add(prompt);
+    emotionDefries.add(defry);
     return DirectorToolOutput.single(_resultBytes);
   }
+
+  @override
+  Future<DirectorToolOutput> colorize(
+    Uint8List image, {
+    String? prompt,
+    int defry = 0,
+  }) async {
+    colorizePrompts.add(prompt);
+    colorizeDefries.add(defry);
+    return DirectorToolOutput.single(_resultBytes);
+  }
+}
+
+ProviderContainer _promptContainer(
+  _PromptRecordingService service, {
+  _Registrar? registrar,
+}) {
+  final ProviderContainer container = ProviderContainer(
+    overrides: <Override>[
+      authNotifierProvider.overrideWith(_AuthenticatedNotifier.new),
+      naiImageEnhancementApiServiceProvider.overrideWithValue(service),
+      subscriptionNotifierProvider.overrideWith(
+        _SilentSubscriptionNotifier.new,
+      ),
+      if (registrar != null)
+        imageGenerationNotifierProvider.overrideWith(() => registrar),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+Future<DirectorToolsNotifier> _initPromptNotifier(
+  ProviderContainer container,
+) async {
+  final DirectorToolsNotifier notifier = container.read(
+    directorToolsNotifierProvider.notifier,
+  );
+  await notifier.init(_resultBytes);
+  return notifier;
 }
 
 final Uint8List _maskedBytes = Uint8List.fromList(<int>[10]);
@@ -679,6 +973,7 @@ ProviderContainer _backgroundRemovalContainer(_Registrar registrar) {
 class _Registration {
   const _Registration({
     required this.bytes,
+    required this.prompt,
     required this.saveToLocal,
     required this.addToDisplay,
     required this.replaceCurrentDisplay,
@@ -687,6 +982,7 @@ class _Registration {
   });
 
   final Uint8List bytes;
+  final String prompt;
   final bool saveToLocal;
   final bool addToDisplay;
   final bool replaceCurrentDisplay;
@@ -732,6 +1028,7 @@ class _Registrar extends ImageGenerationNotifier {
     registrations.add(
       _Registration(
         bytes: imageBytes,
+        prompt: params.prompt,
         saveToLocal: saveToLocal,
         addToDisplay: addToDisplay,
         replaceCurrentDisplay: replaceCurrentDisplay,
