@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
@@ -7,6 +8,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/assistant_execution_settings.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/assistant_request_scheduler.dart';
+
+/// Hands out [values] in order, repeating the last one.
+class _ScriptedRandom implements math.Random {
+  _ScriptedRandom(this.values);
+  final List<double> values;
+  int _next = 0;
+
+  @override
+  double nextDouble() => values[math.min(_next++, values.length - 1)];
+
+  @override
+  bool nextBool() => throw UnimplementedError();
+
+  @override
+  int nextInt(int max) => throw UnimplementedError();
+}
+
+AssistantRequestScheduler _scheduler(
+  FakeAsync time, {
+  DateTime? start,
+  List<double> jitter = const [0],
+}) => AssistantRequestScheduler(
+  now: time.getClock(start ?? DateTime(2026)).now,
+  random: _ScriptedRandom(jitter),
+);
 
 ProviderConfig provider(String id, {int? manual}) => ProviderConfig(
   id: id,
@@ -90,9 +116,7 @@ class _Probe {
 void main() {
   test('automatic starts at five and grows only with queued work', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final config = provider('auto');
       final active = <Completer<String>>[];
       final results = <String>[];
@@ -127,9 +151,7 @@ void main() {
 
   test('manual limits are provider-wide and independent between providers', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final started = <String>[];
       final tokens = <CancelToken>[];
       for (final config in [
@@ -164,9 +186,7 @@ void main() {
 
   test('a burst of rate limits halves once and honors Retry-After', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final config = provider('auto');
       var attempts = 0;
       final results = <String>[];
@@ -203,9 +223,7 @@ void main() {
     'persistent overload terminates with original error, manual count retained',
     () {
       fakeAsync((time) {
-        final scheduler = AssistantRequestScheduler(
-          now: time.getClock(DateTime(2026)).now,
-        );
+        final scheduler = _scheduler(time);
         final config = provider('manual', manual: 7);
         final failure = limited(status: 503);
         Object? caught;
@@ -240,9 +258,7 @@ void main() {
 
   test('authentication and exhausted quota are not retried', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       var attempts = 0;
       final failures = [
         limited(status: 401),
@@ -278,9 +294,7 @@ void main() {
 
   test('cancel during cooldown removes queued retries immediately', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final token = CancelToken();
       var attempts = 0;
       Object? caught;
@@ -315,9 +329,7 @@ void main() {
 
   test('a dropped connection is retried without throttling', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final config = provider('auto');
       final probe = _Probe(scheduler, config, [
         transport(DioExceptionType.connectionError),
@@ -341,9 +353,7 @@ void main() {
   for (final status in [502, 504]) {
     test('persistent HTTP $status ends with the original error', () {
       fakeAsync((time) {
-        final scheduler = AssistantRequestScheduler(
-          now: time.getClock(DateTime(2026)).now,
-        );
+        final scheduler = _scheduler(time);
         final failure = limited(status: status);
         final probe = _Probe(scheduler, provider('a'), [
           failure,
@@ -368,9 +378,7 @@ void main() {
 
   test('every approved transport failure and overload status is retried', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final failures = <Object>[
         transport(DioExceptionType.connectionError),
         transport(
@@ -418,9 +426,7 @@ void main() {
 
   test('receive timeout, HTTP 500, cancellation and bad TLS fail at once', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final failures = <Object>[
         transport(DioExceptionType.receiveTimeout),
         transport(DioExceptionType.cancel),
@@ -464,9 +470,7 @@ void main() {
 
   test('transient backoff frees its slot and keeps the provider open', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final config = provider('manual', manual: 1);
       final failing = _Probe(scheduler, config, [limited(status: 502)]);
       final queued = _Probe(scheduler, config, const []);
@@ -485,9 +489,7 @@ void main() {
 
   test('cancel during transient backoff ends without another attempt', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final token = CancelToken();
       final probe = _Probe(scheduler, provider('a'), [
         transport(DioExceptionType.connectionTimeout),
@@ -507,9 +509,7 @@ void main() {
 
   test('dispose during transient backoff fails the request', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final probe = _Probe(scheduler, provider('a'), [limited(status: 504)]);
       time.flushMicrotasks();
       scheduler.dispose();
@@ -523,9 +523,7 @@ void main() {
 
   test('Retry-After beyond sixty seconds waits sixty seconds', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime.utc(2026)).now,
-      );
+      final scheduler = _scheduler(time, start: DateTime.utc(2026));
       final seconds = _Probe(scheduler, provider('seconds'), [
         limited(retryAfter: '3600'),
       ]);
@@ -549,9 +547,7 @@ void main() {
 
   test('retry-after-ms takes precedence and 529 throttles like 429', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final config = provider('auto');
       final options = RequestOptions(path: '/v1/messages');
       final overloaded = DioException(
@@ -582,9 +578,7 @@ void main() {
 
   test('HTTP 502 waits its Retry-After without throttling the provider', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final config = provider('auto');
       final probe = _Probe(scheduler, config, [
         limited(status: 502, retryAfter: '5'),
@@ -606,9 +600,7 @@ void main() {
 
   test('repeated retry headers still retry and settle the request', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final rateLimited = _Probe(scheduler, provider('a'), [
         limited(
           headers: {
@@ -665,9 +657,7 @@ void main() {
     'a failure that cannot be inspected settles with the original error',
     () {
       fakeAsync((time) {
-        final scheduler = AssistantRequestScheduler(
-          now: time.getClock(DateTime(2026)).now,
-        );
+        final scheduler = _scheduler(time);
         final failure = limited(detail: _UnprintableBody());
         final probe = _Probe(scheduler, provider('a'), [failure]);
         final next = _Probe(scheduler, provider('a'), const []);
@@ -686,15 +676,97 @@ void main() {
 
   test('malformed Retry-After falls back to the default backoff', () {
     fakeAsync((time) {
-      final scheduler = AssistantRequestScheduler(
-        now: time.getClock(DateTime(2026)).now,
-      );
+      final scheduler = _scheduler(time);
       final probe = _Probe(scheduler, provider('a'), [
         limited(status: 503, retryAfter: 'soon'),
       ]);
       time.elapse(const Duration(seconds: 1));
       expect(probe.attempts, 2);
       expect(probe.result, 'ok');
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('default transient backoff is stretched by the injected jitter', () {
+    fakeAsync((time) {
+      final scheduler = _scheduler(time, jitter: [0.5, 0.9]);
+      final failure = limited(status: 502);
+      final probe = _Probe(scheduler, provider('a'), [failure, failure]);
+      time.flushMicrotasks();
+      time.elapse(const Duration(milliseconds: 1249));
+      expect(probe.attempts, 1);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(probe.attempts, 2);
+      time.elapse(const Duration(milliseconds: 2899));
+      expect(probe.attempts, 2);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(probe.attempts, 3);
+      expect(probe.result, 'ok');
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('batches failing together retry at different moments', () {
+    fakeAsync((time) {
+      final scheduler = _scheduler(time, jitter: [0, 0.4, 0.8]);
+      final config = provider('tags');
+      final batches = [
+        for (var i = 0; i < 3; i++)
+          _Probe(scheduler, config, [limited(status: 502)]),
+      ];
+      List<int> attempts() => [for (final batch in batches) batch.attempts];
+      time.flushMicrotasks();
+      expect(attempts(), [1, 1, 1]);
+      time.elapse(const Duration(milliseconds: 1000));
+      expect(attempts(), [2, 1, 1]);
+      time.elapse(const Duration(milliseconds: 200));
+      expect(attempts(), [2, 2, 1]);
+      time.elapse(const Duration(milliseconds: 200));
+      expect(attempts(), [2, 2, 2]);
+      expect(batches.map((batch) => batch.result), everyElement('ok'));
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('a rate limit without Retry-After pauses for the jittered backoff', () {
+    fakeAsync((time) {
+      final scheduler = _scheduler(time, jitter: [0.5]);
+      final probe = _Probe(scheduler, provider('a'), [limited()]);
+      time.elapse(const Duration(milliseconds: 1249));
+      expect(probe.attempts, 1);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(probe.attempts, 2);
+      expect(probe.result, 'ok');
+      scheduler.dispose();
+      time.flushMicrotasks();
+      expect(time.pendingTimers, isEmpty);
+    });
+  });
+
+  test('server-requested waits are honored without jitter', () {
+    fakeAsync((time) {
+      final scheduler = _scheduler(time, jitter: [0.9]);
+      final gateway = _Probe(scheduler, provider('a'), [
+        limited(status: 502, retryAfter: '5'),
+      ]);
+      final rateLimited = _Probe(scheduler, provider('b'), [
+        limited(retryAfter: '3'),
+      ]);
+      time.elapse(const Duration(milliseconds: 2999));
+      expect([gateway.attempts, rateLimited.attempts], [1, 1]);
+      time.elapse(const Duration(milliseconds: 1));
+      expect([gateway.attempts, rateLimited.attempts], [1, 2]);
+      time.elapse(const Duration(milliseconds: 1999));
+      expect(gateway.attempts, 1);
+      time.elapse(const Duration(milliseconds: 1));
+      expect(gateway.attempts, 2);
+      expect([gateway.result, rateLimited.result], ['ok', 'ok']);
       scheduler.dispose();
       time.flushMicrotasks();
       expect(time.pendingTimers, isEmpty);

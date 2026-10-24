@@ -228,6 +228,41 @@ void main() {
     }
   });
 
+  group('llmRetryBackoff', () {
+    test('doubles per retry and caps the base at four seconds', () {
+      expect(
+        [
+          for (var retry = 0; retry < 5; retry++)
+            llmRetryBackoff(retry, jitter: 0),
+        ],
+        const [
+          Duration(seconds: 1),
+          Duration(seconds: 2),
+          Duration(seconds: 4),
+          Duration(seconds: 4),
+          Duration(seconds: 4),
+        ],
+      );
+    });
+
+    test('jitter only lengthens the wait, by at most half', () {
+      expect(
+        llmRetryBackoff(0, jitter: 0.5),
+        const Duration(milliseconds: 1250),
+      );
+      expect(
+        llmRetryBackoff(1, jitter: 0.999),
+        const Duration(milliseconds: 2999),
+      );
+      expect(llmRetryBackoff(1, jitter: 1), const Duration(milliseconds: 3000));
+    });
+
+    test('out-of-range jitter is clamped', () {
+      expect(llmRetryBackoff(0, jitter: -3), const Duration(seconds: 1));
+      expect(llmRetryBackoff(0, jitter: 7), const Duration(milliseconds: 1500));
+    });
+  });
+
   group('llmRetryAfter', () {
     final now = DateTime.utc(2026, 10, 24, 12);
 

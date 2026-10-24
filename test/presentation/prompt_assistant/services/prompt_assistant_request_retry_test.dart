@@ -16,6 +16,9 @@ import 'package:nai_launcher/presentation/prompt_assistant/services/provider_ada
 
 import '../../../helpers/memory_local_storage.dart';
 
+// The client draws real jitter, which stretches the first wait by up to half.
+const _firstRetryWindow = Duration(milliseconds: 1500);
+
 class _Secure extends Fake implements SecureStorageService {
   @override
   Future<String?> getPromptAssistantApiKey(String providerId) async => null;
@@ -122,7 +125,7 @@ void main() {
           );
           time.elapse(Duration.zero);
           expect(requests, hasLength(1));
-          time.elapse(const Duration(seconds: 1));
+          time.elapse(_firstRetryWindow);
           expect(requests, hasLength(2));
           expect(caught, isNull);
           expect(chunks?.first.delta, 'ok');
@@ -198,7 +201,7 @@ void main() {
       time.elapse(Duration.zero);
       expect(requests, hasLength(3));
       expect(requests.every((item) => !item.cancelToken!.isCancelled), isTrue);
-      time.elapse(const Duration(seconds: 1));
+      time.elapse(_firstRetryWindow);
       expect(requests, hasLength(4));
       expect(caught, isNull);
       expect(result?.translations, {for (final tag in tags) tag: '译$tag'});
