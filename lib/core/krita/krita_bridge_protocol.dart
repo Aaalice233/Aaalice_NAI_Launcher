@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../utils/constant_time_equals.dart';
 import 'krita_bridge_models.dart';
 
 class KritaBridgeProtocol {
@@ -14,7 +15,7 @@ class KritaBridgeProtocol {
 
   static KritaBridgeDecodeResult decodeIncoming(
     String text, {
-    required String sessionSecret,
+    required String? sessionSecret,
     required bool authenticated,
     int maxTextFrameBytes = defaultMaxTextFrameBytes,
     int maxDecodedImageBytes = defaultMaxDecodedImageBytes,
@@ -112,11 +113,11 @@ class KritaBridgeProtocol {
 
   static KritaBridgeDecodeResult _decodePing(
     Map<String, dynamic> data, {
-    required String sessionSecret,
+    required String? sessionSecret,
   }) {
     final requestVersion = _optionalInt(data, 'version') ?? 0;
     final secret = _optionalString(data, 'secret');
-    if (secret != sessionSecret) {
+    if (secret == null || !secretsMatch(sessionSecret, secret)) {
       return KritaBridgeDecodeResult.error(
         const KritaBridgeError(
           code: KritaBridgeErrorCode.authFailed,
@@ -135,7 +136,7 @@ class KritaBridgeProtocol {
     }
 
     return KritaBridgeDecodeResult.message(
-      KritaPingMessage(version: requestVersion, secret: secret!),
+      KritaPingMessage(version: requestVersion, secret: secret),
     );
   }
 

@@ -36,6 +36,74 @@ void main() {
       expect(wrong.error?.code, KritaBridgeErrorCode.authFailed);
     });
 
+    test('rejects every ping when the session has no secret', () {
+      for (final sessionSecret in const <String?>[null, '']) {
+        for (final presented in const <Object?>[null, '', 'session-secret']) {
+          final result = KritaBridgeProtocol.decodeIncoming(
+            jsonEncode({
+              'type': 'ping',
+              'version': 1,
+              if (presented != null) 'secret': presented,
+            }),
+            sessionSecret: sessionSecret,
+            authenticated: false,
+          );
+
+          expect(
+            result.error?.code,
+            KritaBridgeErrorCode.authFailed,
+            reason: 'session=$sessionSecret presented=$presented',
+          );
+          expect(result.message, isNull);
+        }
+      }
+    });
+
+    test('rejects near-miss secrets with the same auth error', () {
+      const sessionSecret = 'session-secret';
+      const presentedSecrets = <Object>[
+        '',
+        'session-secreT',
+        'Session-secret',
+        'session-secre',
+        'session-secret-',
+        42,
+        {'secret': sessionSecret},
+      ];
+
+      for (final presented in presentedSecrets) {
+        final result = KritaBridgeProtocol.decodeIncoming(
+          jsonEncode({'type': 'ping', 'version': 1, 'secret': presented}),
+          sessionSecret: sessionSecret,
+          authenticated: false,
+        );
+
+        expect(result.message, isNull, reason: 'presented=$presented');
+        expect(result.error?.code, KritaBridgeErrorCode.authFailed);
+        expect(result.error?.message, 'Bridge authentication failed');
+      }
+    });
+
+    test('checks the secret before answering a version mismatch', () {
+      final wrongSecret = KritaBridgeProtocol.decodeIncoming(
+        jsonEncode({'type': 'ping', 'version': 999, 'secret': 'wrong'}),
+        sessionSecret: 'session-secret',
+        authenticated: false,
+      );
+      final rightSecret = KritaBridgeProtocol.decodeIncoming(
+        jsonEncode({
+          'type': 'ping',
+          'version': 999,
+          'secret': 'session-secret',
+        }),
+        sessionSecret: 'session-secret',
+        authenticated: false,
+      );
+
+      expect(wrongSecret.error?.code, KritaBridgeErrorCode.authFailed);
+      expect(rightSecret.message, isA<KritaUnsupportedPingVersionMessage>());
+    });
+
     test('rejects non-ping messages before authentication', () {
       final result = KritaBridgeProtocol.decodeIncoming(
         jsonEncode({'type': 'get_params', 'id': 'req-1'}),

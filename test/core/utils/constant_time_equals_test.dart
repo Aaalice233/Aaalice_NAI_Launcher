@@ -21,4 +21,28 @@ void main() {
       expect(constantTimeEquals('密钥', '密鑰'), isFalse);
     });
   });
+
+  group('secretsMatch', () {
+    test('accepts identical non-empty secrets', () {
+      expect(secretsMatch('token-value', 'token-value'), isTrue);
+      expect(secretsMatch('密钥', '密钥'), isTrue);
+    });
+
+    test('rejects a missing or empty secret on either side', () {
+      const absent = <String?>[null, ''];
+      for (final expected in absent) {
+        for (final presented in absent) {
+          expect(secretsMatch(expected, presented), isFalse);
+        }
+        expect(secretsMatch(expected, 'token'), isFalse);
+        expect(secretsMatch('token', expected), isFalse);
+      }
+    });
+
+    test('rejects different secrets', () {
+      expect(secretsMatch('token', 'Token'), isFalse);
+      expect(secretsMatch('token', 'token '), isFalse);
+      expect(secretsMatch('token', 'token-extra'), isFalse);
+    });
+  });
 }
