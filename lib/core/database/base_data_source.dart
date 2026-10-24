@@ -33,7 +33,6 @@ class DatabaseOperation<T> {
 abstract class EnhancedBaseDataSource extends ds.BaseDataSource {
   // 默认超时配置
   static const Duration _defaultOperationTimeout = Duration(seconds: 30);
-  static const Duration _defaultTransactionTimeout = Duration(seconds: 60);
   static const Duration _defaultAcquireTimeout = Duration(seconds: 5);
   static const int _defaultMaxRetries = 3;
   static const int _defaultBatchSize = 50;
@@ -135,18 +134,6 @@ abstract class EnhancedBaseDataSource extends ds.BaseDataSource {
       await Future.delayed(const Duration(milliseconds: 10));
       batchIndex++;
     }
-  }
-
-  Future<T> executeTransaction<T>(
-    String operationName,
-    Future<T> Function(Transaction txn) operation, {
-    Duration? timeout,
-  }) async {
-    return execute(
-      '$operationName.txn',
-      (db) async => db.transaction((txn) async => operation(txn)),
-      timeout: timeout ?? _defaultTransactionTimeout,
-    );
   }
 
   Stream<Map<String, dynamic>> executeQueryStream(
