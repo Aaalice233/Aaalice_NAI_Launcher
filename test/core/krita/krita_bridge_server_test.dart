@@ -1,10 +1,56 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/krita/krita_bridge_models.dart';
 import 'package:nai_launcher/core/krita/krita_bridge_server.dart';
+
+// Far beyond loopback buffering, so close() cannot flush without a reader.
+const _stalledPayloadBytes = 16 * 1024 * 1024;
+
+// A paused WebSocket client still drains on Windows; a raw socket does not.
+Future<Socket> _connectNonReadingPeer(
+  int port, {
+  required String secret,
+}) async {
+  final socket = await Socket.connect(InternetAddress.loopbackIPv4, port);
+  final ping = utf8.encode(
+    jsonEncode({'type': 'ping', 'version': 1, 'secret': secret}),
+  );
+  expect(ping.length, lessThan(126));
+  socket.add(
+    ascii.encode(
+      'GET /krita HTTP/1.1\r\n'
+      'Host: 127.0.0.1:$port\r\n'
+      'Upgrade: websocket\r\n'
+      'Connection: Upgrade\r\n'
+      'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n'
+      'Sec-WebSocket-Version: 13\r\n'
+      '\r\n',
+    ),
+  );
+  // Masked text frame; an all-zero masking key leaves the payload unchanged.
+  socket.add([0x81, 0x80 | ping.length, 0, 0, 0, 0, ...ping]);
+  await socket.flush();
+  return socket;
+}
+
+class _LateFrameDrops {
+  final _firstDrop = Completer<void>();
+  var connectionCount = 0;
+
+  void record() {
+    connectionCount++;
+    if (!_firstDrop.isCompleted) {
+      _firstDrop.complete();
+    }
+  }
+
+  Future<void> get first =>
+      _firstDrop.future.timeout(const Duration(seconds: 2));
+}
 
 class RecordingPermissionGuard {
   RecordingPermissionGuard({this.refusedMode});
@@ -30,15 +76,18 @@ class RecordingPermissionGuard {
 void main() {
   late Directory tempDir;
   late KritaBridgeServer server;
+  late _LateFrameDrops lateFrameDrops;
 
   setUp(() async {
     tempDir =
         await Directory.systemTemp.createTemp('krita_bridge_server_test_');
+    lateFrameDrops = _LateFrameDrops();
     server = KritaBridgeServer(
       discoveryDirectory: tempDir,
       pidProvider: () => 12345,
       secretGenerator: () => 'server-secret',
       clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+      onLateFramesDropped: lateFrameDrops.record,
     );
   });
 
@@ -416,10 +465,13 @@ void main() {
     await server.start(preferredPort: 0);
     final messages = <KritaBridgeMessage>[];
     final subscription = server.messages.listen(messages.add);
+    addTearDown(subscription.cancel);
 
     final first =
         await WebSocket.connect('ws://127.0.0.1:${server.port}/krita');
+    addTearDown(first.close);
     final firstIterator = StreamIterator(first);
+    addTearDown(firstIterator.cancel);
     first.add(
       jsonEncode({
         'type': 'ping',
@@ -431,7 +483,9 @@ void main() {
 
     final second =
         await WebSocket.connect('ws://127.0.0.1:${server.port}/krita');
+    addTearDown(second.close);
     final secondIterator = StreamIterator(second);
+    addTearDown(secondIterator.cancel);
     second.add(
       jsonEncode({
         'type': 'ping',
@@ -441,24 +495,145 @@ void main() {
     );
     expect(await secondIterator.moveNext(), isTrue);
 
+    // The paused iterator has not read the close frame, so this still sends.
     first.add(jsonEncode({'type': 'get_params', 'id': 'from-old'}));
+    await lateFrameDrops.first;
+
+    final currentMessage = server.messages.first;
     second.add(jsonEncode({'type': 'get_params', 'id': 'from-current'}));
+    final forwarded = await currentMessage.timeout(const Duration(seconds: 2));
 
-    final currentMessage =
-        await server.messages.first.timeout(const Duration(seconds: 2));
-    await Future<void>.delayed(Duration.zero);
-
-    expect(currentMessage, isA<KritaGetParamsMessage>());
-    expect(currentMessage.id, 'from-current');
+    expect(forwarded, isA<KritaGetParamsMessage>());
+    expect(forwarded.id, 'from-current');
     expect(
       messages.whereType<KritaGetParamsMessage>().map((message) => message.id),
       isNot(contains('from-old')),
     );
+    expect(lateFrameDrops.connectionCount, 1);
+  });
 
-    await subscription.cancel();
-    await firstIterator.cancel();
-    await secondIterator.cancel();
-    await first.close();
-    await second.close();
+  test('stop closes connections that never authenticated', () async {
+    await server.start(preferredPort: 0);
+    final authentications = <bool>[];
+    final authSubscription =
+        server.authenticationChanges.listen(authentications.add);
+    addTearDown(authSubscription.cancel);
+    final socket =
+        await WebSocket.connect('ws://127.0.0.1:${server.port}/krita');
+    addTearDown(socket.close);
+    final frames = StreamIterator(socket);
+    addTearDown(frames.cancel);
+
+    socket.add(jsonEncode({'type': 'ping', 'version': 1, 'secret': 'wrong'}));
+    expect(await frames.moveNext(), isTrue);
+
+    await server.stop();
+    socket.add(jsonEncode({'type': 'ping', 'version': 1, 'secret': ''}));
+
+    await expectLater(
+      frames.moveNext().timeout(const Duration(seconds: 2)),
+      completion(isFalse),
+    );
+    expect(authentications, isNot(contains(true)));
+    expect(server.isClientAuthenticated, isFalse);
+  });
+
+  test('frames arriving after stop closes a socket are dropped', () async {
+    await server.start(preferredPort: 0);
+    final socket =
+        await WebSocket.connect('ws://127.0.0.1:${server.port}/krita');
+    addTearDown(socket.close);
+    final frames = StreamIterator(socket);
+    addTearDown(frames.cancel);
+    socket.add(
+      jsonEncode({
+        'type': 'ping',
+        'version': 1,
+        'secret': 'server-secret',
+      }),
+    );
+    expect(await frames.moveNext(), isTrue);
+
+    await server.stop();
+    // The paused iterator has not read the close frame, so this still sends.
+    socket.add('not json');
+
+    await lateFrameDrops.first;
+    await expectLater(
+      frames.moveNext().timeout(const Duration(seconds: 2)),
+      completion(isFalse),
+    );
+    expect(lateFrameDrops.connectionCount, 1);
+  });
+
+  test('stop does not wait for a peer that stops reading', () async {
+    final stalled = KritaBridgeServer(
+      discoveryDirectory: tempDir,
+      pidProvider: () => 12345,
+      secretGenerator: () => 'server-secret',
+      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+      closeGracePeriod: const Duration(milliseconds: 100),
+    );
+    addTearDown(stalled.stop);
+    await stalled.start(preferredPort: 0);
+    final authenticated = stalled.authenticationChanges.firstWhere(
+      (isAuthenticated) => isAuthenticated,
+    );
+    final peer = await _connectNonReadingPeer(
+      stalled.port!,
+      secret: 'server-secret',
+    );
+    addTearDown(peer.destroy);
+    await authenticated.timeout(const Duration(seconds: 2));
+
+    stalled.sendBinary(Uint8List(_stalledPayloadBytes));
+    await stalled.stop().timeout(const Duration(seconds: 2));
+
+    expect(stalled.isListening, isFalse);
+    expect(await stalled.discoveryFile.exists(), isFalse);
+  });
+
+  test('restart closes old connections and only accepts the new secret',
+      () async {
+    final secrets = ['first-secret', 'second-secret'].iterator;
+    final restarting = KritaBridgeServer(
+      discoveryDirectory: tempDir,
+      pidProvider: () => 12345,
+      secretGenerator: () => (secrets..moveNext()).current,
+      clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+    );
+    addTearDown(restarting.stop);
+
+    await restarting.start(preferredPort: 0);
+    final stale =
+        await WebSocket.connect('ws://127.0.0.1:${restarting.port}/krita');
+    addTearDown(stale.close);
+    final staleFrames = StreamIterator(stale);
+    addTearDown(staleFrames.cancel);
+    stale.add(jsonEncode({'type': 'ping', 'version': 1, 'secret': 'wrong'}));
+    expect(await staleFrames.moveNext(), isTrue);
+
+    await restarting.start(preferredPort: 0);
+    await expectLater(
+      staleFrames.moveNext().timeout(const Duration(seconds: 2)),
+      completion(isFalse),
+    );
+
+    Future<Map<String, dynamic>> pingWith(String secret) async {
+      final socket =
+          await WebSocket.connect('ws://127.0.0.1:${restarting.port}/krita');
+      final reply = socket.first;
+      socket.add(jsonEncode({'type': 'ping', 'version': 1, 'secret': secret}));
+      final decoded =
+          jsonDecode(await reply.timeout(const Duration(seconds: 2)) as String)
+              as Map<String, dynamic>;
+      await socket.close();
+      return decoded;
+    }
+
+    final oldSecretReply = await pingWith('first-secret');
+    expect(oldSecretReply['code'], KritaBridgeErrorCode.authFailed.value);
+    final newSecretReply = await pingWith('second-secret');
+    expect(newSecretReply['type'], 'pong');
   });
 }

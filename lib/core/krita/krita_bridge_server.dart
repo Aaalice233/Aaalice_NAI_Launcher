@@ -13,6 +13,7 @@ import 'krita_bridge_protocol.dart';
 typedef KritaBridgeSecretGenerator = String Function();
 typedef KritaBridgePidProvider = int Function();
 typedef KritaBridgeClock = DateTime Function();
+typedef KritaBridgeLateFramesObserver = void Function();
 
 class KritaBridgeServer {
   KritaBridgeServer({
@@ -21,15 +22,19 @@ class KritaBridgeServer {
     KritaBridgePidProvider? pidProvider,
     KritaBridgeClock? clock,
     OwnerOnlyPermissionGuard? restrictToOwner,
+    KritaBridgeLateFramesObserver? onLateFramesDropped,
     this.maxTextFrameBytes = KritaBridgeProtocol.defaultMaxTextFrameBytes,
+    this.closeGracePeriod = defaultCloseGracePeriod,
   })  : _discoveryDirectory =
             discoveryDirectory ?? _defaultDiscoveryDirectory(),
         _secretGenerator = secretGenerator ?? _generateSecret,
         _pidProvider = pidProvider ?? (() => pid),
         _clock = clock ?? DateTime.now,
-        _restrictToOwner = restrictToOwner ?? restrictPathToOwner;
+        _restrictToOwner = restrictToOwner ?? restrictPathToOwner,
+        _onLateFramesDropped = onLateFramesDropped;
 
   static const String discoveryFileName = 'krita-bridge.json';
+  static const Duration defaultCloseGracePeriod = Duration(seconds: 2);
   static const String _logTag = 'KritaBridge';
 
   final Directory _discoveryDirectory;
@@ -37,12 +42,16 @@ class KritaBridgeServer {
   final KritaBridgePidProvider _pidProvider;
   final KritaBridgeClock _clock;
   final OwnerOnlyPermissionGuard _restrictToOwner;
+  final KritaBridgeLateFramesObserver? _onLateFramesDropped;
   final int maxTextFrameBytes;
+  final Duration closeGracePeriod;
 
   final StreamController<KritaBridgeMessage> _messageController =
       StreamController<KritaBridgeMessage>.broadcast();
   final StreamController<bool> _authenticationController =
       StreamController<bool>.broadcast();
+
+  final Set<WebSocket> _connections = <WebSocket>{};
 
   HttpServer? _server;
   WebSocket? _client;
@@ -98,7 +107,6 @@ class KritaBridgeServer {
   }
 
   Future<void> _releaseListener() async {
-    final client = _client;
     _client = null;
     _clientAuthenticated = false;
     _connectedClientLabel = null;
@@ -106,16 +114,42 @@ class KritaBridgeServer {
       _authenticationController.add(false);
     }
 
-    if (client != null) {
-      await client.close();
-    }
-
     final server = _server;
     _server = null;
     _secret = null;
     _startedAt = null;
+
+    // Upgraded sockets are detached, so server.close(force) cannot reach them.
+    final closing = _closeConnections();
     if (server != null) {
       await server.close(force: true);
+    }
+    await closing;
+  }
+
+  Future<void> _closeConnections() async {
+    final connections = List<WebSocket>.of(_connections);
+    if (connections.isEmpty) {
+      return;
+    }
+    try {
+      await Future.wait(connections.map(_closeConnection))
+          .timeout(closeGracePeriod);
+    } on TimeoutException {
+      // close() only completes once a peer reads all queued output.
+      AppLogger.w('Gave up waiting for bridge connections to close', _logTag);
+    }
+  }
+
+  Future<void> _closeConnection(WebSocket socket) async {
+    _connections.remove(socket);
+    try {
+      await socket.close();
+    } on IOException catch (error) {
+      AppLogger.w(
+        'Closing bridge connection failed: ${error.runtimeType}',
+        _logTag,
+      );
     }
   }
 
@@ -162,6 +196,11 @@ class KritaBridgeServer {
 
       final clientLabel = _clientLabelFor(request);
       final socket = await WebSocketTransformer.upgrade(request);
+      if (!identical(_server, server)) {
+        unawaited(_closeConnection(socket));
+        continue;
+      }
+      _connections.add(socket);
       AppLogger.i('Incoming WebSocket connection', _logTag);
       unawaited(_handleSocket(socket, clientLabel: clientLabel));
     }
@@ -172,9 +211,23 @@ class KritaBridgeServer {
     required String clientLabel,
   }) async {
     var socketAuthenticated = false;
+    var droppedLateFrames = false;
 
     try {
       await for (final data in socket) {
+        if (!_connections.contains(socket)) {
+          // Closed by this server; replying to late frames would throw.
+          if (!droppedLateFrames) {
+            droppedLateFrames = true;
+            AppLogger.w(
+              'Dropped late frames from a closed connection',
+              _logTag,
+            );
+            _onLateFramesDropped?.call();
+          }
+          continue;
+        }
+
         final message = _decodeFrame(
           socket,
           data,
@@ -186,20 +239,10 @@ class KritaBridgeServer {
           case KritaUnsupportedPingVersionMessage():
             _rejectPingVersion(socket, message);
           case KritaPingMessage():
-            await _authenticateSocket(socket, clientLabel: clientLabel);
+            _authenticateSocket(socket, clientLabel: clientLabel);
             socketAuthenticated = true;
-            socket.add(jsonEncode(KritaBridgeProtocol.encodePong()));
-            AppLogger.i('Bridge client authenticated', _logTag);
           default:
-            if (identical(_client, socket)) {
-              _messageController.add(message);
-            } else {
-              AppLogger.w(
-                'Dropped message from replaced client'
-                '${message.id == null ? '' : ' id=${message.id}'}',
-                _logTag,
-              );
-            }
+            _messageController.add(message);
         }
       }
     } finally {
@@ -256,23 +299,25 @@ class KritaBridgeServer {
     AppLogger.w('Rejected ping version: ${message.requestedVersion}', _logTag);
   }
 
-  Future<void> _authenticateSocket(
+  void _authenticateSocket(
     WebSocket socket, {
     required String clientLabel,
-  }) async {
+  }) {
     final previousClient = _client;
     if (previousClient != null && !identical(previousClient, socket)) {
-      unawaited(previousClient.close());
+      unawaited(_closeConnection(previousClient));
     }
 
     _client = socket;
     _clientAuthenticated = true;
     _connectedClientLabel = clientLabel;
     _authenticationController.add(true);
-    AppLogger.i('Authenticated client is active', _logTag);
+    socket.add(jsonEncode(KritaBridgeProtocol.encodePong()));
+    AppLogger.i('Bridge client authenticated', _logTag);
   }
 
   void _forgetSocket(WebSocket socket) {
+    _connections.remove(socket);
     if (!identical(_client, socket)) {
       return;
     }
