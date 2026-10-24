@@ -170,102 +170,92 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
                       ? null
                       : _enterSelectionModeForTask,
                   borderRadius: BorderRadius.circular(12),
-                  child: AnimatedBuilder(
-                    animation: _shimmerController,
-                    builder: (context, child) {
-                      return Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: widget.isSelected
-                              ? Border.all(color: theme.colorScheme.primary)
-                              : null,
-                          // 如果是当前正在执行的任务，显示实心进度条；否则显示普通背景
-                          color: widget.isSelected
-                              ? theme.colorScheme.primaryContainer.withValues(
-                                  alpha: 0.4,
-                                )
-                              : Color.alphaBlend(
-                                  theme.colorScheme.onSurface.withValues(
-                                    alpha: _isHovered ? 0.1 : 0.055,
-                                  ),
-                                  theme.colorScheme.surface,
-                                ),
-                        ),
-                        child: Stack(
-                          children: [
-                            // 进度条背景（动态条纹 + 垂直切割末端）
-                            if (isCurrentRunningTask)
-                              Positioned.fill(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(11),
-                                  child: FractionallySizedBox(
-                                    alignment: Alignment.centerLeft,
-                                    widthFactor: generationProgress.clamp(
-                                      0.0,
-                                      1.0,
-                                    ),
-                                    child: _AnimatedStripeProgress(
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: widget.isSelected
+                          ? Border.all(color: theme.colorScheme.primary)
+                          : null,
+                      // 如果是当前正在执行的任务，显示实心进度条；否则显示普通背景
+                      color: widget.isSelected
+                          ? theme.colorScheme.primaryContainer.withValues(
+                              alpha: 0.4,
+                            )
+                          : Color.alphaBlend(
+                              theme.colorScheme.onSurface.withValues(
+                                alpha: _isHovered ? 0.1 : 0.055,
+                              ),
+                              theme.colorScheme.surface,
+                            ),
+                    ),
+                    child: Stack(
+                      children: [
+                        // 进度条背景（动态条纹 + 垂直切割末端）
+                        if (isCurrentRunningTask)
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(11),
+                              child: FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: generationProgress.clamp(0.0, 1.0),
+                                child: _AnimatedStripeProgress(
+                                  color: theme.colorScheme.primary,
                                 ),
                               ),
-                            // 内容
-                            child!,
+                            ),
+                          ),
+                        // 内容
+                        Row(
+                          children: [
+                            // 选择框/缩略图
+                            if (widget.isSelectionMode && canSelect)
+                              _buildCheckbox(theme, ref)
+                            else
+                              _buildThumbnail(context),
+
+                            const SizedBox(width: 10),
+
+                            // 任务信息
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // 状态行
+                                  _buildStatusRow(theme, l10n),
+                                  const SizedBox(height: 4),
+                                  // 提示词
+                                  TranslatedPromptText(
+                                    widget.task.prompt,
+                                    selectable: false,
+                                    maxLines: 2,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      height: 1.35,
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.85),
+                                    ),
+                                  ),
+                                  // 错误信息
+                                  if (widget.task.errorMessage != null) ...[
+                                    const SizedBox(height: 4),
+                                    _buildErrorMessage(theme),
+                                  ],
+                                ],
+                              ),
+                            ),
+
+                            // 操作按钮
+                            if (!widget.isSelectionMode)
+                              _buildActionButtons(
+                                theme,
+                                l10n,
+                                canSelect: canSelect,
+                                canEdit: canEdit,
+                                canDelete: canDelete,
+                              ),
                           ],
                         ),
-                      );
-                    },
-                    child: Row(
-                      children: [
-                        // 选择框/缩略图
-                        if (widget.isSelectionMode && canSelect)
-                          _buildCheckbox(theme, ref)
-                        else
-                          _buildThumbnail(context),
-
-                        const SizedBox(width: 10),
-
-                        // 任务信息
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // 状态行
-                              _buildStatusRow(theme, l10n),
-                              const SizedBox(height: 4),
-                              // 提示词
-                              TranslatedPromptText(
-                                widget.task.prompt,
-                                selectable: false,
-                                maxLines: 2,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  height: 1.35,
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.85,
-                                  ),
-                                ),
-                              ),
-                              // 错误信息
-                              if (widget.task.errorMessage != null) ...[
-                                const SizedBox(height: 4),
-                                _buildErrorMessage(theme),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        // 操作按钮
-                        if (!widget.isSelectionMode)
-                          _buildActionButtons(
-                            theme,
-                            l10n,
-                            canSelect: canSelect,
-                            canEdit: canEdit,
-                            canDelete: canDelete,
-                          ),
                       ],
                     ),
                   ),
@@ -383,15 +373,17 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
 
   /// 构建旋转图标
   Widget _buildRotatingIcon(IconData icon, Color color) {
-    return AnimatedBuilder(
-      animation: _shimmerController,
-      builder: (context, child) {
-        return Transform.rotate(
-          angle: _shimmerController.value * 2 * 3.14159,
-          child: child,
-        );
-      },
-      child: Icon(icon, size: 12, color: color),
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _shimmerController,
+        builder: (context, child) {
+          return Transform.rotate(
+            angle: _shimmerController.value * 2 * 3.14159,
+            child: child,
+          );
+        },
+        child: Icon(icon, size: 12, color: color),
+      ),
     );
   }
 
@@ -1253,17 +1245,19 @@ class _AnimatedStripeProgressState extends State<_AnimatedStripeProgress>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _StripeProgressPainter(
-            color: widget.color,
-            animationValue: _controller.value,
-          ),
-          child: const SizedBox.expand(),
-        );
-      },
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return CustomPaint(
+            painter: _StripeProgressPainter(
+              color: widget.color,
+              animationValue: _controller.value,
+            ),
+            child: const SizedBox.expand(),
+          );
+        },
+      ),
     );
   }
 }

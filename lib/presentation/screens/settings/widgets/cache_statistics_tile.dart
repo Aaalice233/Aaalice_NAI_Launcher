@@ -236,19 +236,23 @@ class _AutoRefreshIndicatorState extends State<_AutoRefreshIndicator>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(
-            value: _controller.value,
-            strokeWidth: 2,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
-          ),
-        );
-      },
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              value: _controller.value,
+              strokeWidth: 2,
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.5),
+            ),
+          );
+        },
+      ),
     );
   }
 }

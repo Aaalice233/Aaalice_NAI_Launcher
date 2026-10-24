@@ -96,11 +96,13 @@ class _ThemedButtonContent extends StatelessWidget {
       builder: (context, constraints) {
         final hasLeading = isLoading || icon != null;
         final leading = isLoading
-            ? SizedBox.square(
-                dimension: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: loadingColor,
+            ? RepaintBoundary(
+                child: SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: loadingColor,
+                  ),
                 ),
               )
             : icon;

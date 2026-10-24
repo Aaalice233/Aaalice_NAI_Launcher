@@ -90,20 +90,22 @@ class _AnimatedRefreshButtonState extends ConsumerState<AnimatedRefreshButton>
             mainAxisSize: MainAxisSize.min,
             children: [
               // Animated rotating icon
-              AnimatedBuilder(
-                animation: _rotationController,
-                builder: (context, child) {
-                  return Transform.rotate(
-                    angle: _rotationController.value * 2 * 3.14159,
-                    child: Icon(
-                      Icons.refresh_rounded,
-                      size: 16,
-                      color: _isHovered && !isLoading
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant,
-                    ),
-                  );
-                },
+              RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _rotationController,
+                  builder: (context, child) {
+                    return Transform.rotate(
+                      angle: _rotationController.value * 2 * 3.14159,
+                      child: Icon(
+                        Icons.refresh_rounded,
+                        size: 16,
+                        color: _isHovered && !isLoading
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    );
+                  },
+                ),
               ),
               if (!widget.iconOnly) ...[
                 const SizedBox(width: 6),
