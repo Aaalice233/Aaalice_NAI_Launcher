@@ -45,8 +45,6 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
   final bool enableAddToAgent;
   final bool isKritaConnected;
-  final bool isVisible;
-  final int priority;
 
   /// 可选的拖拽包装器，用于将卡片内容包装在 DragItemWidget 中
   /// 解决 GestureDetector 与拖拽手势冲突的问题
@@ -67,8 +65,6 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
     this.onSendAction,
     this.enableAddToAgent = true,
     this.isKritaConnected = false,
-    this.isVisible = false,
-    this.priority = 5,
     this.dragWrapper,
   });
 
