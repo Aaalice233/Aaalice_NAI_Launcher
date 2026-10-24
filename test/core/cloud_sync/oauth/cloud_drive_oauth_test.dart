@@ -188,6 +188,12 @@ void main() {
       expect(OAuthPkce.secureEquals('state', 'State'), isFalse);
       expect(OAuthPkce.secureEquals('state', 'state-extra'), isFalse);
     });
+
+    test('constant-time comparison never matches an empty value', () {
+      expect(OAuthPkce.secureEquals('', ''), isFalse);
+      expect(OAuthPkce.secureEquals('state', ''), isFalse);
+      expect(OAuthPkce.secureEquals('', 'state'), isFalse);
+    });
   });
 
   group('OAuthCallbackValidator', () {

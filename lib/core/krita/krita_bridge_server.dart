@@ -188,7 +188,7 @@ class KritaBridgeServer {
 
         final result = KritaBridgeProtocol.decodeIncoming(
           data,
-          sessionSecret: _secret ?? '',
+          sessionSecret: _secret,
           authenticated: socketAuthenticated,
           maxTextFrameBytes: maxTextFrameBytes,
         );

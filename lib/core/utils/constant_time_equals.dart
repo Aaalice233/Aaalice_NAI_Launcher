@@ -15,3 +15,14 @@ bool constantTimeEquals(String expected, String actual) {
   }
   return difference == 0;
 }
+
+/// Like [constantTimeEquals], but an unset or empty secret never matches.
+bool secretsMatch(String? expected, String? presented) {
+  if (expected == null ||
+      expected.isEmpty ||
+      presented == null ||
+      presented.isEmpty) {
+    return false;
+  }
+  return constantTimeEquals(expected, presented);
+}

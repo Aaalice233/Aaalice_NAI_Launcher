@@ -10,10 +10,6 @@ class McpBearerAuthenticator {
   final String Function() _expectedToken;
 
   bool authorize(String? authorizationHeader) {
-    final expected = _expectedToken();
-    if (expected.isEmpty) {
-      return false;
-    }
     final header = authorizationHeader?.trim() ?? '';
     if (header.length <= _scheme.length) {
       return false;
@@ -22,9 +18,6 @@ class McpBearerAuthenticator {
       return false;
     }
     final presented = header.substring(_scheme.length).trim();
-    if (presented.isEmpty) {
-      return false;
-    }
-    return constantTimeEquals(expected, presented);
+    return secretsMatch(_expectedToken(), presented);
   }
 }
