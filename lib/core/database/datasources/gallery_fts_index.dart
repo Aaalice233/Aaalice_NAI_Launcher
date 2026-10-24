@@ -2,12 +2,13 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../utils/app_logger.dart';
 import '../database_error_summary.dart';
+import '../single_message_transaction.dart';
 import 'gallery_database_gateway.dart';
 import 'gallery_tables.dart';
 
 /// 提示词全文索引：rowid 即图片 id，内容派生自 gallery_metadata.full_prompt_text。
 ///
-/// 本类从不开事务：所有连接共用一个 sqflite isolate，
+/// 本类只用单消息事务：所有连接共用一个 sqflite isolate，
 /// 事务跨消息持有写锁时，其他连接的写入会在 isolate 里干等满 busy_timeout。
 class GalleryFtsIndex {
   GalleryFtsIndex({required this.gateway});
@@ -66,23 +67,20 @@ class GalleryFtsIndex {
   }
 
   /// 按 rowid 覆盖这些图片的索引行，不扫描其他行。
-  Future<void> replaceRows(
-    DatabaseExecutor executor,
-    Map<int, String> promptTexts,
-  ) async {
+  Future<void> replaceRows(Database db, Map<int, String> promptTexts) async {
     if (promptTexts.isEmpty) return;
 
-    final batch = executor.batch();
-    for (final MapEntry(key: imageId, value: promptText)
-        in promptTexts.entries) {
-      batch.rawInsert(
-        'INSERT OR REPLACE INTO ${GalleryTables.ftsIndex} '
-        '(rowid, prompt_text) VALUES (?, ?)',
-        [imageId, promptText],
-      );
-    }
-    // apply 不另开事务，整批在一条消息里执行完
-    await batch.apply(noResult: true);
+    // 不包事务时每行各自提交、各落一次盘，万行批量慢一个数量级
+    await db.applyAtomically((batch) {
+      for (final MapEntry(key: imageId, value: promptText)
+          in promptTexts.entries) {
+        batch.rawInsert(
+          'INSERT OR REPLACE INTO ${GalleryTables.ftsIndex} '
+          '(rowid, prompt_text) VALUES (?, ?)',
+          [imageId, promptText],
+        );
+      }
+    }, noResult: true);
   }
 
   /// 按相关度返回匹配 [matchExpression] 的图片 id。

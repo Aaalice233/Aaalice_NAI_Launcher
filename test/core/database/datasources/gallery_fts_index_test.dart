@@ -123,6 +123,32 @@ void main() {
     expect(await match('violet'), [third]);
   });
 
+  test('批量写入的索引行在同一个事务里提交，不逐行自动提交', () async {
+    final imageIds = [
+      for (final name in ['north', 'south', 'east']) await addImage(name),
+    ];
+    gateway.statements.clear();
+
+    await metadata.batchUpsertMetadata([
+      for (final (index, imageId) in imageIds.indexed)
+        MapEntry(imageId, NaiImageMetadata(prompt: 'compass $index')),
+    ]);
+
+    var inTransaction = false;
+    final autocommittedFtsWrites = <String>[];
+    for (final statement in gateway.statements) {
+      if (statement.sql.startsWith('BEGIN')) inTransaction = true;
+      if (statement.sql == 'COMMIT') inTransaction = false;
+      if (statement.sql.contains('INTO ${GalleryTables.ftsIndex}') &&
+          !inTransaction) {
+        autocommittedFtsWrites.add(statement.sql);
+      }
+    }
+
+    expect(autocommittedFtsWrites, isEmpty);
+    expect(await ftsRowCount(), imageIds.length);
+  });
+
   test('同一张图重复写入只保留最新一行，索引与元数据一致', () async {
     final imageId = await addImage('repeat');
 
