@@ -13,6 +13,7 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/update_provider.dart';
+import '../../themes/core/legible_color.dart';
 import 'adaptive_dialog_frame.dart';
 import 'app_toast.dart';
 import 'update_error_text.dart';
@@ -594,13 +595,9 @@ class UpdateCheckDialog extends ConsumerWidget {
   }
 
   Color _ensureContrast(Color candidate, Color background, Color fallback) {
-    final lighter = candidate.computeLuminance() > background.computeLuminance()
-        ? candidate.computeLuminance()
-        : background.computeLuminance();
-    final darker = candidate.computeLuminance() > background.computeLuminance()
-        ? background.computeLuminance()
-        : candidate.computeLuminance();
-    return (lighter + 0.05) / (darker + 0.05) >= 4.5 ? candidate : fallback;
+    return contrastRatio(candidate, background) >= minimumTextContrast
+        ? candidate
+        : fallback;
   }
 
   Uri? _resolveReleaseUri(String href, String versionTag) {
