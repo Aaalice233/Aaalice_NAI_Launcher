@@ -9,6 +9,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../providers/director_tools_notifier.dart';
+import '../../../widgets/common/horizontal_segmented_control.dart';
 import '../../../widgets/common/themed_slider.dart';
 
 /// Pixel Snap 专属的参数、进度与结果控件。
@@ -53,36 +54,35 @@ class PixelSnapOptionsSection extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) =>
-              SegmentedButton<PixelSnapPaletteMode>(
-                // 三个分段在窄面板或放大文本下排不开，此时改成竖排。
-                direction:
-                    constraints.maxWidth < 300 ||
-                        MediaQuery.textScalerOf(context).scale(1) > 1.3
-                    ? Axis.vertical
-                    : Axis.horizontal,
-                segments: [
-                  ButtonSegment(
-                    value: PixelSnapPaletteMode.off,
-                    label: Text(l10n.img2img_directorPixelSnapPaletteOff),
-                  ),
-                  ButtonSegment(
-                    value: PixelSnapPaletteMode.auto,
-                    label: Text(l10n.img2img_directorPixelSnapPaletteAuto),
-                  ),
-                  ButtonSegment(
-                    value: PixelSnapPaletteMode.custom,
-                    label: Text(l10n.img2img_directorPixelSnapPaletteCustom),
-                  ),
-                ],
-                selected: {options.paletteMode},
-                showSelectedIcon: false,
-                onSelectionChanged: enabled
-                    ? (selection) =>
-                          update(options.copyWith(paletteMode: selection.first))
-                    : null,
+        HorizontalSegmentedControl(
+          child: SegmentedButton<PixelSnapPaletteMode>(
+            segments: [
+              ButtonSegment(
+                value: PixelSnapPaletteMode.off,
+                label: Text(l10n.img2img_directorPixelSnapPaletteOff),
               ),
+              ButtonSegment(
+                value: PixelSnapPaletteMode.auto,
+                label: Text(l10n.img2img_directorPixelSnapPaletteAuto),
+              ),
+              ButtonSegment(
+                value: PixelSnapPaletteMode.custom,
+                label: Text(l10n.img2img_directorPixelSnapPaletteCustom),
+              ),
+            ],
+            selected: {options.paletteMode},
+            showSelectedIcon: false,
+            style: SegmentedButton.styleFrom(
+              minimumSize: Size(
+                context.interactionPolicy.minimumControlExtent,
+                context.interactionPolicy.minimumControlExtent,
+              ),
+            ),
+            onSelectionChanged: enabled
+                ? (selection) =>
+                      update(options.copyWith(paletteMode: selection.first))
+                : null,
+          ),
         ),
         if (options.paletteMode == PixelSnapPaletteMode.custom) ...[
           const SizedBox(height: 12),

@@ -346,8 +346,8 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     return [
       Row(
         children: [
-          Text(label, style: theme.textTheme.bodyMedium),
-          const Spacer(),
+          Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+          const SizedBox(width: 8),
           Text(
             _defryText(state.defry.toDouble()),
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -416,7 +416,12 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
           final notifier = ref.read(directorToolsNotifierProvider.notifier);
           final isActive = notifier.activePreset?.emotion == preset.emotion;
           return ChoiceChip(
-            label: Text(preset.emotion.label(context.l10n)),
+            // Chip 默认单行淡出，窄屏放大字号时长标签宁可折行也不能被截掉。
+            label: Text(
+              preset.emotion.label(context.l10n),
+              softWrap: true,
+              maxLines: 3,
+            ),
             selected: isActive,
             onSelected: (_) {
               notifier.applyEmotionPreset(preset);

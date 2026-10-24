@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_progress.dart';
+import 'package:nai_launcher/data/models/director/director_emotion.dart';
 import 'package:nai_launcher/data/models/director/director_tool_type.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
@@ -125,6 +127,7 @@ void main() {
         ),
       );
 
+      await _expectSegmentsOnOneRow(tester, ['Off', 'Auto', 'Custom']);
       for (final label in [
         'Palettize',
         'Off',
@@ -339,6 +342,100 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final scenario
+      in <({Size size, double textScale, Locale locale, String name})>[
+        (
+          size: const Size(320, 720),
+          textScale: 1,
+          locale: const Locale('en'),
+          name: '320 en',
+        ),
+        (
+          size: const Size(600, 720),
+          textScale: 1,
+          locale: const Locale('en'),
+          name: '600 en',
+        ),
+        (
+          size: const Size(1180, 720),
+          textScale: 1,
+          locale: const Locale('en'),
+          name: '1180 en',
+        ),
+        (
+          size: const Size(320, 720),
+          textScale: 3,
+          locale: const Locale('en'),
+          name: '320 en with 3x text',
+        ),
+        (
+          size: const Size(320, 720),
+          textScale: 3,
+          locale: const Locale('ja'),
+          name: '320 ja with 3x text',
+        ),
+        (
+          size: const Size(840, 720),
+          textScale: 3,
+          locale: const Locale('ja'),
+          name: '840 ja with 3x text',
+        ),
+      ]) {
+    testWidgets('all emotion presets stay readable at ${scenario.name}', (
+      tester,
+    ) async {
+      await _pumpScreen(
+        tester,
+        size: scenario.size,
+        textScale: scenario.textScale,
+        locale: scenario.locale,
+        initialState: DirectorToolsState(
+          selectedTool: DirectorToolType.fixEmotion,
+          sourceImage: sourceImage,
+          imageWidth: 512,
+          imageHeight: 512,
+        ),
+      );
+
+      final l10n = lookupAppLocalizations(scenario.locale);
+      expect(emotionPresets, hasLength(24));
+      for (final preset in emotionPresets) {
+        final label = preset.emotion.label(l10n);
+        await _scrollControlIntoView(tester, find.text(label));
+        expect(find.text(label), findsOneWidget, reason: label);
+        _expectTextNotClipped(tester, label);
+        final chip = find.ancestor(
+          of: find.text(label),
+          matching: find.byType(ChoiceChip),
+        );
+        expect(tester.getSize(chip).height, greaterThanOrEqualTo(44));
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('colorize defry row stays readable at 320 with 3x text', (
+    tester,
+  ) async {
+    await _pumpScreen(
+      tester,
+      size: const Size(320, 720),
+      textScale: 3,
+      initialState: DirectorToolsState(
+        selectedTool: DirectorToolType.colorize,
+        sourceImage: sourceImage,
+        imageWidth: 512,
+        imageHeight: 512,
+      ),
+    );
+
+    await _scrollControlIntoView(tester, find.text('Defry'));
+    _expectTextNotClipped(tester, 'Defry');
+    await _scrollControlIntoView(tester, find.text('Run Colorize'));
+    expect(find.text('Run Colorize'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'ImageWorkflowLauncher opens DirectorToolsScreen.show and returns',
     (tester) async {
@@ -492,6 +589,7 @@ Future<void> _pumpScreen(
   required DirectorToolsState initialState,
   double textScale = 1,
   DirectorToolsNotifier? notifier,
+  Locale locale = const Locale('en'),
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -501,6 +599,7 @@ Future<void> _pumpScreen(
       textScale: textScale,
       initialState: initialState,
       notifier: notifier,
+      locale: locale,
       home: DirectorToolsScreen(sourceImage: initialState.sourceImage!),
     ),
   );
@@ -514,6 +613,7 @@ Widget _testApp({
   required Widget home,
   double textScale = 1,
   DirectorToolsNotifier? notifier,
+  Locale locale = const Locale('en'),
 }) {
   return ProviderScope(
     overrides: [
@@ -522,7 +622,7 @@ Widget _testApp({
       ),
     ],
     child: MaterialApp(
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => MediaQuery(
@@ -549,7 +649,69 @@ Future<void> _scrollControlIntoView(WidgetTester tester, Finder finder) async {
   await tester.scrollUntilVisible(
     finder,
     120,
-    scrollable: find.byType(Scrollable).last,
+    scrollable: find
+        .byWidgetPredicate(
+          (widget) =>
+              widget is Scrollable &&
+              widget.axisDirection == AxisDirection.down,
+        )
+        .last,
+  );
+}
+
+/// 分段选项同处一行、可横向滚到、标签不被截断且命中区不小于 44。
+Future<void> _expectSegmentsOnOneRow(
+  WidgetTester tester,
+  List<String> labels,
+) async {
+  Finder segmentOf(String label) => find
+      .ancestor(
+        of: find.text(label),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is ButtonStyleButton,
+        ),
+      )
+      .first;
+
+  await _scrollControlIntoView(tester, find.text(labels.first));
+  final rowCenter = tester.getCenter(segmentOf(labels.first)).dy;
+  for (final label in labels) {
+    expect(
+      tester.getCenter(segmentOf(label)).dy,
+      moreOrLessEquals(rowCenter, epsilon: 0.5),
+      reason: label,
+    );
+  }
+  for (final label in labels) {
+    await tester.ensureVisible(find.text(label));
+    await tester.pumpAndSettle();
+    final size = tester.getSize(segmentOf(label));
+    expect(size.height, greaterThanOrEqualTo(44), reason: label);
+    expect(size.width, greaterThanOrEqualTo(44), reason: label);
+    _expectTextNotClipped(tester, label);
+  }
+}
+
+void _expectTextNotClipped(WidgetTester tester, String label) {
+  final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
+  expect(paragraph.didExceedMaxLines, isFalse, reason: label);
+  // 不折行的文本比单行宽度窄，就是被裁切或淡出了。
+  if (!paragraph.softWrap) {
+    expect(
+      paragraph.size.width,
+      greaterThanOrEqualTo(
+        paragraph.getMaxIntrinsicWidth(double.infinity) - 0.5,
+      ),
+      reason: label,
+    );
+  }
+  // 折行后的文字仍须完整落在自身绘制区域内。
+  expect(
+    paragraph.size.height,
+    greaterThanOrEqualTo(
+      paragraph.getMaxIntrinsicHeight(paragraph.size.width) - 0.5,
+    ),
+    reason: label,
   );
 }
 
