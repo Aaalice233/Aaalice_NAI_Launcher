@@ -53,14 +53,6 @@ final derivativeCopySaverProvider =
         ).register,
         copyFixedTagUsage: FixedTagUsageRecordStore().copyForDerivative,
         addGalleryImages: gallery.addNewlySavedImages,
-        rescanGallery: () async {
-          // 成功刷新不会清掉旧错误，只有这次新出现的错误才算失败
-          final previous = ref.read(localGalleryNotifierProvider).error;
-          await gallery.refresh();
-          final current = ref.read(localGalleryNotifierProvider).error;
-          if (current == null || identical(current, previous)) return null;
-          return current.details ?? current.code.name;
-        },
       );
     });
 
@@ -75,7 +67,6 @@ class DerivativeCopySaver {
     required DerivativeFixedTagUsageCopier copyFixedTagUsage,
     required Future<GalleryIndexAdmission> Function(List<String> filePaths)
     addGalleryImages,
-    required Future<Object?> Function() rescanGallery,
     DerivativeGalleryWriter? writeToGallery,
   }) : _resolveGalleryRootPath = resolveGalleryRootPath,
        _resolveNaming = resolveNaming,
@@ -83,7 +74,6 @@ class DerivativeCopySaver {
        _registerDerivative = registerDerivative,
        _copyFixedTagUsage = copyFixedTagUsage,
        _addGalleryImages = addGalleryImages,
-       _rescanGallery = rescanGallery,
        _writeToGallery = writeToGallery ?? ImageSaveUtils.saveBytesToGallery;
 
   static const _logTag = 'DerivativeCopySaver';
@@ -96,9 +86,6 @@ class DerivativeCopySaver {
   final DerivativeFixedTagUsageCopier _copyFixedTagUsage;
   final Future<GalleryIndexAdmission> Function(List<String> filePaths)
   _addGalleryImages;
-
-  /// 返回这次重扫新产生的错误，成功时为 null。
-  final Future<Object?> Function() _rescanGallery;
   final DerivativeGalleryWriter _writeToGallery;
 
   /// 图库根目录未设置时返回 null。
@@ -179,20 +166,11 @@ class DerivativeCopySaver {
     return outcome;
   }
 
-  // 只收录这一张；全量重扫要枚举整个图库根目录，只有收录失败才值得付这个代价
+  // 只收录这一张；失败已由图库服务按单张重试，全量重扫修不了单张写不进去的图
   Future<bool> _indexInGallery(String outputPath) async {
     try {
       final admission = await _addGalleryImages([outputPath]);
-      if (!admission.requiresFullRescan) return true;
-      final rescanError = await _rescanGallery();
-      if (rescanError == null) return true;
-      AppLogger.e(
-        'Derivative copy saved but gallery rescan failed',
-        rescanError,
-        null,
-        _logTag,
-      );
-      return false;
+      return admission != GalleryIndexAdmission.failed;
     } on Object catch (error, stackTrace) {
       AppLogger.e(
         'Derivative copy saved but gallery indexing failed',

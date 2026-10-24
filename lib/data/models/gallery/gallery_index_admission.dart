@@ -9,7 +9,7 @@ enum GalleryIndexAdmission {
   /// 底层图库服务尚未就绪，路径已登记，等服务就绪后补收录。
   deferred,
 
-  /// 文件不存在或写索引失败，索引与磁盘已经不一致。
+  /// 文件不存在，或单张重试后仍写不进索引；图库要等下次扫描才会出现这张图。
   failed,
 }
 
@@ -18,9 +18,6 @@ extension GalleryIndexAdmissionOutcome on GalleryIndexAdmission {
   bool get isIndexed =>
       this == GalleryIndexAdmission.added ||
       this == GalleryIndexAdmission.alreadyIndexed;
-
-  /// 只有索引与磁盘对不上才值得付全量扫盘的代价。
-  bool get requiresFullRescan => this == GalleryIndexAdmission.failed;
 
   /// 批量结果取最坏的一项：失败 > 延后 > 新增 > 已存在。
   GalleryIndexAdmission merge(GalleryIndexAdmission other) {

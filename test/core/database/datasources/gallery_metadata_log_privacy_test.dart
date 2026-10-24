@@ -43,7 +43,6 @@ void main() {
       await db.execute('''
         DROP TABLE ${GalleryTables.ftsIndex};
         CREATE TABLE ${GalleryTables.ftsIndex} (
-          image_id INTEGER,
           prompt_text TEXT CHECK (prompt_text IS NULL)
         );
       ''');

@@ -29,7 +29,6 @@ class GenerationSaveService {
       systemGallery: ref.read(systemGalleryPublisherProvider),
       recordSavedPath: generation.updateImageFilePath,
       addGalleryImages: gallery.addNewlySavedImages,
-      refreshGallery: gallery.refresh,
     );
   }
 

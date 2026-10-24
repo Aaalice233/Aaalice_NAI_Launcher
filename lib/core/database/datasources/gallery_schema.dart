@@ -3,24 +3,29 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../utils/app_logger.dart';
 import '../data_source.dart' show DataSourceHealth, HealthStatus;
 import 'gallery_database_gateway.dart';
+import 'gallery_fts_index.dart';
 import 'gallery_store_context.dart';
 import 'gallery_tables.dart';
 
 class GallerySchema {
-  GallerySchema({required this.gateway, required this.context});
+  GallerySchema({
+    required this.gateway,
+    required this.context,
+    required this.ftsIndex,
+  });
 
   final GalleryDatabaseGateway gateway;
   final GalleryStoreContext context;
+  final GalleryFtsIndex ftsIndex;
 
   Future<void> initialize() async {
-    return await gateway.execute('doInitialize', (db) async {
+    await gateway.execute('doInitialize', (db) async {
       await _createImagesTable(db);
       await _createMetadataTable(db);
       await _createFavoritesTable(db);
       await _createTagsTable(db);
       await _createImageTagsTable(db);
       await _createScanLogsTable(db);
-      await _createFtsIndexTable(db);
       await _createAlbumsTable(db);
       await _createAlbumImagesTable(db);
 
@@ -32,6 +37,7 @@ class GallerySchema {
 
       AppLogger.i('Gallery tables initialized', 'GalleryDS');
     });
+    await ftsIndex.prepare();
   }
 
   Future<void> _createImagesTable(Database db) async {
@@ -317,16 +323,6 @@ class GallerySchema {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_gallery_scan_logs_started_at
       ON ${GalleryTables.scanLogs}(started_at DESC)
-    ''');
-  }
-
-  Future<void> _createFtsIndexTable(Database db) async {
-    await db.execute('''
-      CREATE VIRTUAL TABLE IF NOT EXISTS ${GalleryTables.ftsIndex} USING fts5(
-        image_id UNINDEXED,
-        prompt_text,
-        tokenize = 'porter'
-      )
     ''');
   }
 
