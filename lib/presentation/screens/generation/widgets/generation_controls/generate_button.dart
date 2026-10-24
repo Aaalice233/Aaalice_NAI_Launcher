@@ -206,11 +206,13 @@ class GenerateButtonSpinner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 16,
-      child: CircularProgressIndicator(
-        strokeWidth: 2,
-        color: IconTheme.of(context).color,
+    return RepaintBoundary(
+      child: SizedBox.square(
+        dimension: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: IconTheme.of(context).color,
+        ),
       ),
     );
   }
