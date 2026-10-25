@@ -59,7 +59,7 @@ LlmRequestFailureKind classifyLlmRequestFailure(Object error) {
     DioExceptionType.connectionError ||
     DioExceptionType.connectionTimeout ||
     DioExceptionType.sendTimeout => LlmRequestFailureKind.transient,
-    DioExceptionType.unknown when _isTransientNetworkFailure(error.error) =>
+    DioExceptionType.unknown when isTransientNetworkFailure(error.error) =>
       LlmRequestFailureKind.transient,
     _ => LlmRequestFailureKind.terminal,
   };
@@ -116,7 +116,8 @@ Duration? _parseRetryAfter(String value, DateTime now) {
   }
 }
 
-bool _isTransientNetworkFailure(Object? cause) {
+/// Whether a transport-level cause is a dropped connection worth retrying.
+bool isTransientNetworkFailure(Object? cause) {
   if (cause is HandshakeException) {
     // Certificate rejections need a configuration change, not another attempt.
     return cause.message.toLowerCase().contains(
