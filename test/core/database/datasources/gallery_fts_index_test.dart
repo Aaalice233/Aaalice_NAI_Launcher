@@ -10,6 +10,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   late Database db;
   late _RecordingGateway gateway;
+  late GalleryStoreContext context;
+  late GalleryFtsIndex ftsIndex;
   late GalleryImageRepository images;
   late GalleryMetadataRepository metadata;
 
@@ -24,8 +26,8 @@ void main() {
       options: OpenDatabaseOptions(singleInstance: false),
     );
     gateway = _RecordingGateway(db);
-    final context = GalleryStoreContext();
-    final ftsIndex = GalleryFtsIndex(gateway: gateway, context: context);
+    context = GalleryStoreContext();
+    ftsIndex = GalleryFtsIndex(gateway: gateway, context: context);
     await GallerySchema(
       gateway: gateway,
       context: context,
@@ -139,6 +141,34 @@ void main() {
       [imageId],
     );
     expect(record.single['full_prompt_text'], 'dusk');
+  });
+
+  test('后台回填写入一批后，回填前缓存的查询结果失效', () async {
+    final imageId = await addImage('backfill');
+    await metadata.upsertMetadata(
+      imageId,
+      const NaiImageMetadata(prompt: 'amber lantern'),
+    );
+    await db.execute('''
+      CREATE TABLE ${GalleryTables.ftsRebuild} (
+        id INTEGER PRIMARY KEY CHECK (id = 0),
+        next_image_id INTEGER NOT NULL
+      )
+    ''');
+    await db.rawInsert(
+      'INSERT INTO ${GalleryTables.ftsRebuild} (id, next_image_id) '
+      'VALUES (0, 0)',
+    );
+    await ftsIndex.prepare();
+    const cacheKey = GalleryQueryCacheKey('searchFullText', {
+      'query': 'lantern',
+      'limit': 100,
+    });
+    context.putQuery<int>(cacheKey, const []);
+
+    await ftsIndex.resumePendingRebuild();
+
+    expect(context.getQuery<int>(cacheKey), isNull);
   });
 }
 
