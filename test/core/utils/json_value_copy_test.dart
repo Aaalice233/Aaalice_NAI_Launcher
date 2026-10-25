@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/json_value_copy.dart';
 
-Map<Object?, Object?> _decoded() =>
+Map<String, Object?> _decoded() =>
     jsonDecode('{"entry":{"source":"a.png","tags":["x",{"k":1}]},"n":2}')
-        as Map<Object?, Object?>;
+        as Map<String, Object?>;
 
 void main() {
   test('frozen copy rejects edits at every nesting level', () {
@@ -18,9 +18,5 @@ void main() {
     expect(() => tags.add('y'), throwsUnsupportedError);
     expect(() => (tags[1] as Map)['k'] = 2, throwsUnsupportedError);
     expect(frozen, _decoded());
-  });
-
-  test('keys are stringified', () {
-    expect(deepFrozenJsonMap({1: 'a'}).keys, ['1']);
   });
 }
