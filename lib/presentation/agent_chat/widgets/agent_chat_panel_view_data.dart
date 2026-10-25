@@ -52,7 +52,9 @@ class AgentChatPanelViewData {
   final AgentChatResourceReference? currentCanvasReference;
 
   bool get floating => onDock != null;
-  bool get running => state.status == AgentChatRunStatus.running;
+  // 手动压缩不进入运行状态，但同样需要停止入口。
+  bool get running =>
+      state.status == AgentChatRunStatus.running || state.compacting;
   AgentChatWidthClass get widthClass =>
       AgentChatLayoutContract.widthClassFor(width);
   bool get compactWidth => widthClass == AgentChatWidthClass.compact;

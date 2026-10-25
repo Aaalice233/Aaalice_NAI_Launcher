@@ -1430,6 +1430,48 @@ User instructions.
       },
     );
 
+    test('stopping a manual compaction during backoff ends it', () async {
+      final notifier = container.read(provider.notifier);
+      await _selectChatModel(container);
+      final longReply = List.filled(20000, 'word').join(' ');
+      wireCompletion = (request) {
+        requests.add(request);
+        return Stream<AgentWireEvent>.fromIterable([
+          AgentWireTextDelta(longReply),
+          const AgentWireFinish(stopReason: StopReason.stop),
+        ]);
+      };
+      await notifier.send('first');
+      await notifier.send('second');
+      requests.clear();
+      wireCompletion = (request) {
+        requests.add(request);
+        return Stream<AgentWireEvent>.value(
+          const AgentWireError(
+            'LLM request failed: HTTP 503: provider=DeepSeek: overloaded',
+          ),
+        );
+      };
+      Future<void>? stopping;
+      final subscription = container.listen(provider, (_, next) {
+        if (next.retryStatus != null && stopping == null) {
+          stopping = Future<void>.microtask(notifier.abort);
+        }
+      });
+      addTearDown(subscription.close);
+
+      final outcome = await notifier.compactNow();
+      await stopping;
+
+      expect(stopping, isNotNull);
+      expect(requests, hasLength(1));
+      expect(outcome, isA<AgentChatCompactionFailed>());
+      final state = container.read(provider);
+      expect(state.compacting, isFalse);
+      expect(state.retryStatus, isNull);
+      expect(state.workPhase, AgentChatWorkPhase.idle);
+    });
+
     test('a manual context window unlocks an unplaceable model', () async {
       final notifier = container.read(provider.notifier);
       final configNotifier = container.read(
