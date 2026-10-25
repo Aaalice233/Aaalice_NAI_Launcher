@@ -127,6 +127,7 @@ void main() {
     await tester.pump();
 
     expect(layer.isCached, isFalse);
+    expect(layer.engineLayer, isNull);
   });
 
   testWidgets(
