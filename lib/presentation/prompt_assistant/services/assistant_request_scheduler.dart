@@ -188,7 +188,7 @@ class _ProviderQueue {
       job.retries,
       failure,
       error,
-      congested ? _pauseRemaining(delay) : delay,
+      congested ? _pauseRemaining() : delay,
     );
     if (congested) {
       _pending.add(job);
@@ -212,8 +212,8 @@ class _ProviderQueue {
   }
 
   // Another request may already have paused the queue for longer.
-  Duration _pauseRemaining(Duration fallback) {
-    final remaining = _resumeAt?.difference(_now()) ?? fallback;
+  Duration _pauseRemaining() {
+    final remaining = _resumeAt!.difference(_now());
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
