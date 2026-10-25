@@ -135,6 +135,28 @@ void main() {
     expect(service.loadedPages, [0]);
   });
 
+  test('一批里部分收录失败时，收录成功的图仍即时出现在首页', () async {
+    final container = createContainer();
+    final notifier = notifierOf(container);
+    await notifier.initialize();
+    service.admissionsByPath[r'G:\gallery\broken.png'] =
+        GalleryIndexAdmission.failed;
+
+    final admission = await notifier.addNewlySavedImages([
+      r'G:\gallery\new.png',
+      r'G:\gallery\broken.png',
+    ]);
+
+    expect(admission, GalleryIndexAdmission.failed);
+    expect(
+      container
+          .read(localGalleryNotifierProvider)
+          .currentImages
+          .map((record) => record.path),
+      [r'G:\gallery\new.png'],
+    );
+  });
+
   test('分组视图下收录新图后分组列表包含新图', () async {
     final container = createContainer();
     final notifier = notifierOf(container);
@@ -204,6 +226,8 @@ class _RecordingGalleryService extends Mock implements LocalGalleryService {
   final List<int> loadedPages = <int>[];
   final List<LocalImageRecord> _records = <LocalImageRecord>[];
   GalleryIndexAdmission nextAdmission = GalleryIndexAdmission.added;
+  final Map<String, GalleryIndexAdmission> admissionsByPath =
+      <String, GalleryIndexAdmission>{};
   int refreshes = 0;
   int _totalCount = 0;
 
@@ -225,13 +249,14 @@ class _RecordingGalleryService extends Mock implements LocalGalleryService {
     NaiImageMetadata? metadata,
   }) async {
     admitted.add(filePath);
-    if (nextAdmission == GalleryIndexAdmission.added) {
+    final admission = admissionsByPath[filePath] ?? nextAdmission;
+    if (admission == GalleryIndexAdmission.added) {
       _totalCount++;
       _records.add(
         LocalImageRecord(path: filePath, size: 0, modifiedAt: DateTime(2026)),
       );
     }
-    return nextAdmission;
+    return admission;
   }
 
   @override
