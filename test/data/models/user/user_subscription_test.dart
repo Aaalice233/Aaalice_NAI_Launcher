@@ -66,7 +66,6 @@ void main() {
       expect(usage.percent, 45);
       expect(usage.purchasedPercent, 200);
       expect(usage.regularDisplayPercent, 45);
-      expect(usage.extraPercent, 200);
       expect(usage.hasExtraUsage, isTrue);
       expect(usage.availablePercent, 245);
     });
@@ -74,7 +73,7 @@ void main() {
     test('keeps fractional extra usage values', () {
       final usage = parseUsage({'percent': 0, 'purchasedPercent': 37.5});
 
-      expect(usage.extraPercent, 37.5);
+      expect(usage.purchasedPercent, 37.5);
       expect(usage.availablePercent, 37.5);
     });
 
@@ -92,7 +91,7 @@ void main() {
         expect(usage.hasExtraUsage, isFalse);
         expect(usage.availablePercent, 50);
       }
-      expect(negativeExtra.extraPercent, 0);
+      expect(negativeExtra.purchasedPercent, 0);
       expect(negativeExtra.hasExtraUsage, isFalse);
       expect(negativeExtra.availablePercent, 50);
     });
