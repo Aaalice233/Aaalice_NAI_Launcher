@@ -590,6 +590,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     List<String> filePaths,
   ) async {
     var admission = GalleryIndexAdmission.alreadyIndexed;
+    var anyIndexed = false;
     var addedCount = 0;
 
     try {
@@ -597,6 +598,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         // 尝试即时添加新图像（不等待扫描）
         final result = await service.addNewImageImmediately(filePath);
         if (result == GalleryIndexAdmission.added) addedCount++;
+        if (result.isIndexed) anyIndexed = true;
         admission = admission.merge(result);
       }
 
@@ -616,7 +618,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
 
       // 扫描器抢先收录时同样要重取，否则开着图库会看不到新图。
-      if (admission.isIndexed &&
+      if (anyIndexed &&
           state.isInitialized &&
           (state.isGroupedView || state.currentPage == 0)) {
         await _reloadFirstView();
