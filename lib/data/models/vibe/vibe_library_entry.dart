@@ -5,6 +5,7 @@ import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/extensions/list_sort_extensions.dart';
+import '../../../core/utils/byte_content.dart';
 import 'vibe_reference.dart';
 
 part 'vibe_library_entry.freezed.dart';
@@ -200,6 +201,58 @@ abstract class VibeLibraryEntry with _$VibeLibraryEntry {
     );
   }
 
+  /// 全部持久化字段都与 [other] 相同时返回 true。
+  ///
+  /// freezed 的 `==` 对字节字段逐元素比较，几 MB 的原图会很慢；这里按字长比较。
+  bool hasSameStoredContent(VibeLibraryEntry other) =>
+      id == other.id &&
+      name == other.name &&
+      vibeDisplayName == other.vibeDisplayName &&
+      vibeEncoding == other.vibeEncoding &&
+      ByteContent.equals(vibeThumbnail, other.vibeThumbnail) &&
+      ByteContent.equals(rawImageData, other.rawImageData) &&
+      strength == other.strength &&
+      infoExtracted == other.infoExtracted &&
+      sourceTypeIndex == other.sourceTypeIndex &&
+      categoryId == other.categoryId &&
+      _sameElements(tags, other.tags) &&
+      isFavorite == other.isFavorite &&
+      usedCount == other.usedCount &&
+      lastUsedAt == other.lastUsedAt &&
+      createdAt == other.createdAt &&
+      ByteContent.equals(thumbnail, other.thumbnail) &&
+      filePath == other.filePath &&
+      bundleId == other.bundleId &&
+      _sameElements(bundledVibeNames, other.bundledVibeNames) &&
+      _sameBytes(bundledVibePreviews, other.bundledVibePreviews) &&
+      _sameElements(bundledVibeEncodings, other.bundledVibeEncodings) &&
+      _sameElements(bundledVibeStrengths, other.bundledVibeStrengths) &&
+      _sameElements(bundledVibeInfoExtracted, other.bundledVibeInfoExtracted) &&
+      encodingModel == other.encodingModel &&
+      _sameElements(bundledVibeEncodingModels, other.bundledVibeEncodingModels);
+
+  static bool _sameElements<T>(List<T>? left, List<T>? right) {
+    if (identical(left, right)) return true;
+    if (left == null || right == null || left.length != right.length) {
+      return false;
+    }
+    for (var i = 0; i < left.length; i++) {
+      if (left[i] != right[i]) return false;
+    }
+    return true;
+  }
+
+  static bool _sameBytes(List<Uint8List>? left, List<Uint8List>? right) {
+    if (identical(left, right)) return true;
+    if (left == null || right == null || left.length != right.length) {
+      return false;
+    }
+    for (var i = 0; i < left.length; i++) {
+      if (!ByteContent.equals(left[i], right[i])) return false;
+    }
+    return true;
+  }
+
   /// 数据来源类型
   VibeSourceType get sourceType => VibeSourceType.values[sourceTypeIndex];
 
@@ -277,6 +330,37 @@ abstract class VibeLibraryEntry with _$VibeLibraryEntry {
       bundledVibeEncodingModels:
           bundledVibeEncodingModels ?? this.bundledVibeEncodingModels,
       isFavorite: isFavorite ?? this.isFavorite,
+    );
+  }
+
+  VibeReference mergeFileVibeData(VibeReference fileVibe) {
+    final fileHasImage = fileVibe.canReencodeFromRawSource;
+    final fileHasEncoding = fileVibe.hasVibeEncoding;
+    late final sameImage = ByteContent.equals(
+      fileVibe.rawImageData,
+      rawImageData,
+    );
+    late final sameEncoding = fileVibe.vibeEncoding == vibeEncoding;
+    final useStoredEncoding =
+        vibeEncoding.isNotEmpty &&
+        !fileHasEncoding &&
+        (!fileHasImage || sameImage);
+    final useStoredImage = !fileHasImage && (!fileHasEncoding || sameEncoding);
+    late final sameContent =
+        (fileHasEncoding || fileHasImage) &&
+        (!fileHasEncoding || sameEncoding) &&
+        (!fileHasImage || sameImage);
+    final fileEncodingModel =
+        fileVibe.encodingModel ??
+        (fileHasEncoding && sameEncoding ? encodingModel : null);
+    return fileVibe.copyWith(
+      vibeEncoding: useStoredEncoding ? vibeEncoding : fileVibe.vibeEncoding,
+      infoExtracted: useStoredEncoding ? infoExtracted : fileVibe.infoExtracted,
+      thumbnail:
+          fileVibe.thumbnail ??
+          (sameContent ? vibeThumbnail ?? thumbnail : null),
+      rawImageData: useStoredImage ? rawImageData : fileVibe.rawImageData,
+      encodingModel: useStoredEncoding ? encodingModel : fileEncodingModel,
     );
   }
 

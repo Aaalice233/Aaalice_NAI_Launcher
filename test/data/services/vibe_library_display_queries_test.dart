@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/utils/vibe_library_path_helper.dart';
 import 'package:nai_launcher/data/cloud_sync/vibe_library_cloud_sync_adapter.dart';
@@ -360,7 +361,7 @@ void main() {
   );
 
   test(
-    'folder refresh keeps custom thumbnails without pinning the source',
+    'folder refresh repairs stale display fields without rewriting unchanged entries',
     () async {
       final vibeDirectory =
           '${hiveTempDir.path}${Platform.pathSeparator}vibes_refresh';
@@ -379,22 +380,40 @@ void main() {
           categoryId: 'kept-category',
         ),
       );
-      final custom = Uint8List.fromList([7, 7, 7]);
+      final custom = Uint8List.fromList(
+        img.encodePng(img.Image(width: 2, height: 2)),
+      );
       await storage.updateEntryThumbnail(saved.id, custom);
       await storage.getDisplayEntries();
 
       final result = await storage.syncWithFileSystem();
 
       expect(result.errors, isEmpty);
-      expect(result.upsertedCount, 1);
+      expect(result.upsertedCount + result.unchangedCount, 1);
       expect(result.deletedCount, 0);
-      final refreshed = await Hive.lazyBox<VibeLibraryEntry>(
-        _entriesBox,
-      ).get(saved.id);
-      expect(refreshed?.thumbnail, custom);
-      expect(refreshed?.categoryId, 'kept-category');
+      final source = Hive.lazyBox<VibeLibraryEntry>(_entriesBox);
+      final refreshed = (await source.get(saved.id))!;
+      expect(refreshed.thumbnail, custom);
+      expect(refreshed.categoryId, 'kept-category');
       expect(ids(await storage.getDisplayEntries()), {saved.id});
       expectSourceTableStaysLazy();
+
+      expect(await storage.getDisplayThumbnail(saved.id), isNotNull);
+      expect(await repository.readThumbnail(saved.id), isNotNull);
+      await repository.putEntry(refreshed.copyWith(isFavorite: true));
+      final display = Hive.box<VibeLibraryEntry>(_displayBox);
+      expect(display.get(saved.id)?.isFavorite, isFalse);
+      final writesBefore = repository.putCount;
+
+      final second = await storage.syncWithFileSystem();
+
+      expect(second.errors, isEmpty);
+      expect(second.upsertedCount, 0);
+      expect(second.unchangedCount, 1);
+      expect(repository.putCount, writesBefore);
+      expect(display.get(saved.id)?.isFavorite, isTrue);
+      expect(await repository.readThumbnail(saved.id), isNotNull);
+      expect((await source.get(saved.id))?.thumbnail, custom);
     },
   );
 }
@@ -462,9 +481,12 @@ class _ScriptedRepository extends HiveVibeLibraryRepository {
     }
   }
 
+  int putCount = 0;
+
   @override
   Future<void> putEntry(VibeLibraryEntry entry) async {
     await super.putEntry(entry);
+    putCount++;
     _putIds.add(entry.id);
     _sourceWrites.add(null);
   }

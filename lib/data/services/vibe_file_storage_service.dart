@@ -130,11 +130,13 @@ class VibeFileStorageService {
     required Map<String, String> existingFilePathsById,
     required Future<VibeLibraryEntry?> Function(String id) loadExistingEntry,
     required Future<void> Function(VibeLibraryEntry entry) onUpsertEntry,
+    Future<void> Function(VibeLibraryEntry entry)? onUnchangedEntry,
     Future<void> Function(String id)? onDeleteEntry,
   }) => _folderSync.syncFolderToHive(
     existingFilePathsById: existingFilePathsById,
     loadExistingEntry: loadExistingEntry,
     onUpsertEntry: onUpsertEntry,
+    onUnchangedEntry: onUnchangedEntry,
     onDeleteEntry: onDeleteEntry,
   );
 }

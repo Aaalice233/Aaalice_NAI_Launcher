@@ -134,12 +134,18 @@ class VibeDisplayCacheRepository {
   Future<void> entryChanged(VibeLibraryEntry entry) {
     _memoryThumbnails.remove(entry.id);
     return _serialized(() async {
-      await _mirror(() => _repository.upsertDisplayEntryIfReady(entry));
+      await _mirrorEntry(entry);
       await _repository.deleteThumbnail(entry.id);
       // 排队期间的读取可能把旧缩略图重新放回内存
       _memoryThumbnails.remove(entry.id);
     });
   }
+
+  Future<void> mirrorEntry(VibeLibraryEntry entry) =>
+      _serialized(() => _mirrorEntry(entry));
+
+  Future<void> _mirrorEntry(VibeLibraryEntry entry) =>
+      _mirror(() => _repository.upsertDisplayEntryIfReady(entry));
 
   Future<void> entryDeleted(String id) {
     _memoryThumbnails.remove(id);

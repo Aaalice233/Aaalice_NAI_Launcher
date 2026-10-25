@@ -27,6 +27,7 @@ class VibeLibrarySyncService {
         await _repository.putEntry(entry);
         await _displayCache.entryChanged(entry);
       },
+      onUnchangedEntry: _displayCache.mirrorEntry,
       onDeleteEntry: removeMissingEntries
           ? (id) async {
               await _repository.deleteEntry(id);

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -89,6 +90,59 @@ void main() {
     );
   });
 
+  test('merge fills a missing model only for the matching file encoding', () {
+    const fileVibe = VibeReference(
+      displayName: 'Vibe',
+      vibeEncoding: 'encoding',
+      sourceType: VibeSourceType.naiv4vibe,
+    );
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'Vibe',
+      vibeData: fileVibe.copyWith(
+        encodingModel: ImageModels.animeDiffusionV45Full,
+      ),
+    );
+
+    expect(
+      entry.mergeFileVibeData(fileVibe).encodingModel,
+      entry.encodingModel,
+    );
+    expect(
+      entry
+          .mergeFileVibeData(fileVibe.copyWith(vibeEncoding: 'changed'))
+          .encodingModel,
+      isNull,
+    );
+    final fileWithModel = fileVibe.copyWith(
+      encodingModel: ImageModels.animeDiffusionV4Full,
+    );
+    expect(
+      entry.mergeFileVibeData(fileWithModel).encodingModel,
+      fileWithModel.encodingModel,
+    );
+  });
+
+  test('merge keeps the model declared by a file without an encoding', () {
+    final fileVibe = VibeReference(
+      displayName: 'Vibe',
+      vibeEncoding: '',
+      rawImageData: Uint8List.fromList([1, 2, 3]),
+      encodingModel: ImageModels.animeDiffusionV4Full,
+      sourceType: VibeSourceType.rawImage,
+    );
+    final entry = VibeLibraryEntry.fromVibeReference(
+      name: 'Vibe',
+      vibeData: fileVibe.copyWith(
+        encodingModel: ImageModels.animeDiffusionV45Full,
+      ),
+    );
+
+    expect(
+      entry.mergeFileVibeData(fileVibe).encodingModel,
+      fileVibe.encodingModel,
+    );
+  });
+
   test('sortedByName 不区分大小写，名称为空时按 vibeDisplayName 参与排序', () {
     final entries = [
       _namedEntry('c', name: '', vibeDisplayName: 'Charlie'),
@@ -102,6 +156,111 @@ void main() {
       ['c', 'a', 'b'],
       reason: '排序不能改动原列表',
     );
+  });
+
+  group('hasSameStoredContent', () {
+    VibeLibraryEntry full() => VibeLibraryEntry(
+      id: 'entry',
+      name: 'name',
+      vibeDisplayName: 'display',
+      vibeEncoding: 'encoding',
+      vibeThumbnail: Uint8List.fromList(List.generate(19, (i) => i)),
+      rawImageData: Uint8List.fromList(List.generate(33, (i) => i * 3)),
+      strength: 0.6,
+      infoExtracted: 0.7,
+      sourceTypeIndex: VibeSourceType.naiv4vibebundle.index,
+      categoryId: 'category',
+      tags: ['a', 'b'],
+      isFavorite: true,
+      usedCount: 4,
+      lastUsedAt: DateTime(2026, 10, 1),
+      createdAt: DateTime(2026, 9, 1),
+      thumbnail: Uint8List.fromList(List.generate(17, (i) => 255 - i)),
+      filePath: 'C:/vibes/entry.naiv4vibebundle',
+      bundleId: 'bundle',
+      bundledVibeNames: ['first', 'second'],
+      bundledVibePreviews: [
+        Uint8List.fromList([1, 2, 3]),
+        Uint8List.fromList(List.generate(24, (i) => i)),
+      ],
+      bundledVibeEncodings: ['e1', 'e2'],
+      bundledVibeStrengths: [0.1, 0.2],
+      bundledVibeInfoExtracted: [0.3, 0.4],
+      encodingModel: 'nai-diffusion-4-full',
+      bundledVibeEncodingModels: ['nai-diffusion-4-full', null],
+    );
+
+    final mutations = <String, VibeLibraryEntry Function(VibeLibraryEntry)>{
+      'id': (e) => e.copyWith(id: 'other'),
+      'name': (e) => e.copyWith(name: 'other'),
+      'vibeDisplayName': (e) => e.copyWith(vibeDisplayName: 'other'),
+      'vibeEncoding': (e) => e.copyWith(vibeEncoding: 'other'),
+      'vibeThumbnail': (e) => e.copyWith(
+        vibeThumbnail: Uint8List.fromList([...e.vibeThumbnail!]..[18] = 0),
+      ),
+      'rawImageData': (e) => e.copyWith(
+        rawImageData: Uint8List.fromList([...e.rawImageData!]..[1] = 0),
+      ),
+      'strength': (e) => e.copyWith(strength: 0.61),
+      'infoExtracted': (e) => e.copyWith(infoExtracted: 0.71),
+      'sourceTypeIndex': (e) =>
+          e.copyWith(sourceTypeIndex: VibeSourceType.naiv4vibe.index),
+      'categoryId': (e) => e.copyWith(categoryId: null),
+      'tags': (e) => e.copyWith(tags: ['a']),
+      'isFavorite': (e) => e.copyWith(isFavorite: false),
+      'usedCount': (e) => e.copyWith(usedCount: 5),
+      'lastUsedAt': (e) => e.copyWith(lastUsedAt: DateTime(2026, 10, 2)),
+      'createdAt': (e) => e.copyWith(createdAt: DateTime(2026, 9, 2)),
+      'thumbnail': (e) => e.copyWith(thumbnail: null),
+      'filePath': (e) => e.copyWith(filePath: 'C:/vibes/moved.naiv4vibebundle'),
+      'bundleId': (e) => e.copyWith(bundleId: 'other'),
+      'bundledVibeNames': (e) => e.copyWith(bundledVibeNames: ['first']),
+      'bundledVibePreviews': (e) => e.copyWith(
+        bundledVibePreviews: [
+          e.bundledVibePreviews!.first,
+          Uint8List.fromList(List.generate(24, (i) => i == 23 ? 0 : i)),
+        ],
+      ),
+      'bundledVibeEncodings': (e) =>
+          e.copyWith(bundledVibeEncodings: ['e1', 'changed']),
+      'bundledVibeStrengths': (e) =>
+          e.copyWith(bundledVibeStrengths: [0.1, 0.25]),
+      'bundledVibeInfoExtracted': (e) =>
+          e.copyWith(bundledVibeInfoExtracted: [0.3, 0.45]),
+      'encodingModel': (e) => e.copyWith(encodingModel: null),
+      'bundledVibeEncodingModels': (e) => e.copyWith(
+        bundledVibeEncodingModels: ['nai-diffusion-4-full', 'other'],
+      ),
+    };
+
+    test('equal content in distinct instances counts as unchanged', () {
+      final left = full();
+      final right = full();
+
+      expect(identical(left.rawImageData, right.rawImageData), isFalse);
+      expect(left.hasSameStoredContent(right), isTrue);
+      expect(left.hasSameStoredContent(left.copyWith()), isTrue);
+    });
+
+    for (final MapEntry(key: field, value: mutate) in mutations.entries) {
+      test('a change to $field counts as changed', () {
+        final original = full();
+        final changed = mutate(full());
+
+        expect(original.hasSameStoredContent(changed), isFalse);
+        expect(changed.hasSameStoredContent(original), isFalse);
+      });
+    }
+
+    test('every persisted field is covered', () {
+      final source = File(
+        'lib/data/models/vibe/vibe_library_entry.dart',
+      ).readAsStringSync();
+      final fieldCount = RegExp(r'@HiveField\(').allMatches(source).length;
+
+      // 新增持久化字段时必须同步加进比较，否则刷新会漏写它的变化
+      expect(mutations, hasLength(fieldCount));
+    });
   });
 }
 
