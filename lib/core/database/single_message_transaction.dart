@@ -22,7 +22,6 @@ extension SingleMessageTransaction on Database {
       ..execute(readOnly ? 'BEGIN DEFERRED' : 'BEGIN IMMEDIATE');
     build(batch);
     final statementCount = batch.length - 1;
-    if (statementCount == 0) return const [];
     batch.execute('COMMIT');
 
     final List<Object?> results;
