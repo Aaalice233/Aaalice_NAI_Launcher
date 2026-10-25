@@ -579,6 +579,13 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       );
       final compactResult = result.valueOrNull;
       state = state.copyWith(compacting: false);
+      // 摘要已返回也不写入：停止后不能再改动会话。
+      if (signal?.aborted == true) {
+        return (
+          messages: messages,
+          outcome: const AgentChatCompactionCancelled(),
+        );
+      }
       if (compactResult == null) {
         final error = result.errorOrNull;
         return (
