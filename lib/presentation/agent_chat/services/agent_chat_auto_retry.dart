@@ -17,20 +17,17 @@ class AgentChatAutoRetry {
     required void Function(AgentChatRetryStatus status) onRetryStart,
     required void Function() onRetryEnd,
     required void Function(AssistantMessage failed) omitFailedAttempt,
-    int Function()? contextWindow,
     int Function()? now,
     this.policy = agentChatRetryPolicy,
   }) : _onRetryStart = onRetryStart,
        _onRetryEnd = onRetryEnd,
        _omitFailedAttempt = omitFailedAttempt,
-       _contextWindow = contextWindow ?? (() => 0),
        _now = now ?? (() => DateTime.now().millisecondsSinceEpoch);
 
   final RetryPolicy policy;
   final void Function(AgentChatRetryStatus) _onRetryStart;
   final void Function() _onRetryEnd;
   final void Function(AssistantMessage) _omitFailedAttempt;
-  final int Function() _contextWindow;
   final int Function() _now;
 
   int _attempt = 0;
@@ -53,8 +50,7 @@ class AgentChatAutoRetry {
 
   // 上下文溢出交给压缩处理，重发同样的上下文只会再次溢出。
   bool isRetryable(AssistantMessage message) =>
-      !isContextOverflow(message, _contextWindow()) &&
-      isRetryableAssistantError(message);
+      !isContextOverflow(message) && isRetryableAssistantError(message);
 
   /// run 结束事件处是否将接着重试；与 [takeRetry] 的判定一致。
   bool willRetryAfter(List<AgentMessage> messages) {
@@ -116,14 +112,12 @@ class AgentChatAutoRetry {
       return false;
     }
     final delayMs = retryDelayMs(policy, _attempt);
-    final errorMessage = message.errorMessage?.isNotEmpty == true
-        ? message.errorMessage!
-        : 'Unknown error';
     _onRetryStart(
       AgentChatRetryStatus(
         attempt: _attempt,
         maxAttempts: policy.maxRetries,
-        errorMessage: errorMessage,
+        // isRetryable 已确认错误文本非空。
+        errorMessage: message.errorMessage!,
         resumesAtMs: _now() + delayMs,
       ),
     );

@@ -116,8 +116,6 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     onRetryStart: _handleRetryStart,
     onRetryEnd: _handleRetryEnd,
     omitFailedAttempt: _omitFailedAttempt,
-    contextWindow: () =>
-        _modelCapability(_activeRoute ?? _routeCache).model.contextWindow,
     policy: _retryPolicy,
   );
   AbortController? _manualCompaction;
