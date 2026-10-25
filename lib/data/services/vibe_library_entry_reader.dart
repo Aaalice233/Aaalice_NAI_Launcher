@@ -104,19 +104,7 @@ class VibeLibraryEntryReader {
       fileLoaded = true;
 
       var merged = stored
-          .updateVibeData(
-            fileVibe.copyWith(
-              vibeEncoding: fileVibe.vibeEncoding.isNotEmpty
-                  ? fileVibe.vibeEncoding
-                  : stored.vibeEncoding,
-              thumbnail:
-                  fileVibe.thumbnail ??
-                  stored.vibeThumbnail ??
-                  stored.thumbnail,
-              rawImageData: fileVibe.rawImageData ?? stored.rawImageData,
-              encodingModel: fileVibe.encodingModel ?? stored.encodingModel,
-            ),
-          )
+          .updateVibeData(stored.mergeFileVibeData(fileVibe))
           .copyWith(filePath: path);
       if (children.isNotEmpty) {
         final previews = children

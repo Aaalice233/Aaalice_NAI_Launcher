@@ -206,6 +206,59 @@ void main() {
       expect(deleted, isEmpty);
     });
 
+    test('an entry already matching its file is not rewritten', () async {
+      final firstPass = <VibeLibraryEntry>[];
+      await VibeFolderSync(repository).syncFolderToHive(
+        existingFilePathsById: {full.id: file.path},
+        loadExistingEntry: (_) async => full,
+        onUpsertEntry: (entry) async => firstPass.add(entry),
+      );
+      final stored = firstPass.single;
+      final secondPass = <VibeLibraryEntry>[];
+
+      final result = await VibeFolderSync(repository).syncFolderToHive(
+        existingFilePathsById: {stored.id: file.path},
+        loadExistingEntry: (_) async => stored,
+        onUpsertEntry: (entry) async => secondPass.add(entry),
+      );
+
+      expect(secondPass, isEmpty);
+      expect(result.scannedCount, 1);
+      expect(result.upsertedCount, 0);
+      expect(result.unchangedCount, 1);
+      expect(result.errors, isEmpty);
+    });
+
+    test(
+      'replacing the encoding drops the original image from the old encoding',
+      () async {
+        final stored = full.copyWith(
+          rawImageData: Uint8List.fromList([4, 5, 6]),
+        );
+        when(() => repository.loadVibeFromFile(file.path)).thenAnswer(
+          (_) async => VibeReference(
+            displayName: 'kept',
+            vibeEncoding: 'edited-encoding',
+            thumbnail: Uint8List.fromList([1, 2, 3]),
+            sourceType: VibeSourceType.naiv4vibe,
+          ),
+        );
+        final secondPass = <VibeLibraryEntry>[];
+
+        final result = await VibeFolderSync(repository).syncFolderToHive(
+          existingFilePathsById: {stored.id: file.path},
+          loadExistingEntry: (_) async => stored,
+          onUpsertEntry: (entry) async => secondPass.add(entry),
+        );
+
+        expect(secondPass.single.vibeEncoding, 'edited-encoding');
+        expect(secondPass.single.rawImageData, isNull);
+        expect(secondPass.single.thumbnail, customThumbnail);
+        expect(result.upsertedCount, 1);
+        expect(result.unchangedCount, 0);
+      },
+    );
+
     test('a failed full read skips that file and reports it', () async {
       final upserts = <VibeLibraryEntry>[];
       final deleted = <String>[];
