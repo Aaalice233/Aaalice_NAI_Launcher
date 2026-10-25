@@ -5,32 +5,20 @@ import 'raster_cache_layer.dart';
 
 /// 大块且多数时间静止的区域：邻近有动画时把它缓存成像素对齐的纹理，视觉逐像素不变。
 ///
-/// 内容会裁剪到自身尺寸加 [paintOverflow]，实时绘制与缓存回贴范围一致；
-/// 阴影或悬停放大会画出边界时用它声明余量。
+/// 内容会裁剪到自身尺寸，实时绘制与缓存回贴范围一致。
 class RasterCacheBoundary extends SingleChildRenderObjectWidget {
-  const RasterCacheBoundary({
-    super.key,
-    this.paintOverflow = EdgeInsets.zero,
-    super.child,
-  });
-
-  final EdgeInsets paintOverflow;
+  const RasterCacheBoundary({super.key, super.child});
 
   @override
   RenderRasterCacheBoundary createRenderObject(BuildContext context) =>
-      RenderRasterCacheBoundary(
-        enabled: RasterCacheScope.enabledOf(context),
-        paintOverflow: paintOverflow,
-      );
+      RenderRasterCacheBoundary(enabled: RasterCacheScope.enabledOf(context));
 
   @override
   void updateRenderObject(
     BuildContext context,
     RenderRasterCacheBoundary renderObject,
   ) {
-    renderObject
-      ..enabled = RasterCacheScope.enabledOf(context)
-      ..paintOverflow = paintOverflow;
+    renderObject.enabled = RasterCacheScope.enabledOf(context);
   }
 }
 
@@ -54,13 +42,9 @@ class RasterCacheScope extends InheritedWidget {
 }
 
 class RenderRasterCacheBoundary extends RenderProxyBox {
-  RenderRasterCacheBoundary({
-    bool enabled = true,
-    EdgeInsets paintOverflow = EdgeInsets.zero,
-    RenderBox? child,
-  }) : _enabled = enabled,
-       _paintOverflow = paintOverflow,
-       super(child);
+  RenderRasterCacheBoundary({bool enabled = true, RenderBox? child})
+    : _enabled = enabled,
+      super(child);
 
   final LayerHandle<ClipRectLayer> _clipLayer = LayerHandle<ClipRectLayer>();
 
@@ -72,15 +56,7 @@ class RenderRasterCacheBoundary extends RenderProxyBox {
     markNeedsCompositedLayerUpdate();
   }
 
-  EdgeInsets get paintOverflow => _paintOverflow;
-  EdgeInsets _paintOverflow;
-  set paintOverflow(EdgeInsets value) {
-    if (_paintOverflow == value) return;
-    _paintOverflow = value;
-    markNeedsPaint();
-  }
-
-  Rect get _contentBounds => _paintOverflow.inflateRect(Offset.zero & size);
+  Rect get _contentBounds => Offset.zero & size;
 
   @override
   bool get isRepaintBoundary => true;
@@ -91,16 +67,7 @@ class RenderRasterCacheBoundary extends RenderProxyBox {
   }) => (oldLayer ?? RasterCacheLayer())..enabled = _enabled;
 
   @override
-  Rect get paintBounds => _contentBounds;
-
-  @override
   Rect? describeApproximatePaintClip(RenderObject child) => _contentBounds;
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    if (!_contentBounds.contains(position)) return false;
-    return super.hitTest(result, position: position);
-  }
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -131,8 +98,8 @@ class RenderRasterCacheBoundary extends RenderProxyBox {
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties
-      ..add(FlagProperty('enabled', value: _enabled, ifFalse: 'disabled'))
-      ..add(DiagnosticsProperty<EdgeInsets>('paintOverflow', _paintOverflow));
+    properties.add(
+      FlagProperty('enabled', value: _enabled, ifFalse: 'disabled'),
+    );
   }
 }
