@@ -12,17 +12,15 @@ double contrastRatio(Color a, Color b) {
 }
 
 /// Returns [foreground] as painted on [background], moved toward black or
-/// white by the smallest amount that reaches [minContrast].
+/// white by the smallest amount that reaches [minimumTextContrast].
 ///
 /// [background] must be the opaque color actually painted behind the text,
 /// for example `Color.alphaBlend(tint, surface)`.
-Color legibleForeground(
-  Color foreground,
-  Color background, {
-  double minContrast = minimumTextContrast,
-}) {
+Color legibleForeground(Color foreground, Color background) {
   foreground = Color.alphaBlend(foreground, background);
-  if (contrastRatio(foreground, background) >= minContrast) return foreground;
+  if (contrastRatio(foreground, background) >= minimumTextContrast) {
+    return foreground;
+  }
   final target =
       contrastRatio(Colors.white, background) >
           contrastRatio(Colors.black, background)
@@ -35,7 +33,7 @@ Color legibleForeground(
   for (var i = 0; i < 16; i++) {
     final middle = (low + high) / 2;
     if (contrastRatio(Color.lerp(foreground, target, middle)!, background) <
-        minContrast) {
+        minimumTextContrast) {
       low = middle;
     } else {
       high = middle;
