@@ -182,7 +182,7 @@ class DerivativeRegistry {
     return _storage.setSetting(_kind.storageKey, jsonEncode(bounded));
   }
 
-  Map<String, Object?> _read() => deepMutableJsonMap(_entries());
+  Map<String, Object?> _read() => Map<String, Object?>.of(_entries());
 
   Map<String, Object?> _entries() {
     final encoded = _storage.getSetting<Object?>(_kind.storageKey);
