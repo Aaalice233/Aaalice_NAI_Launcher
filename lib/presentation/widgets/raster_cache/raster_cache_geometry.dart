@@ -57,15 +57,6 @@ class DevicePixelTransform {
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is DevicePixelTransform &&
-      other.scale == scale &&
-      other.translation == translation;
-
-  @override
-  int get hashCode => Object.hash(scale, translation);
-
-  @override
   String toString() => 'DevicePixelTransform(scale: $scale, $translation)';
 }
 

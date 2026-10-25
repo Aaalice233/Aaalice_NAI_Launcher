@@ -12,13 +12,10 @@ import 'raster_cache_promotion.dart';
 /// Impeller 没有光栅缓存，相邻区域有动画时整窗静态内容每帧都要重放一遍。
 /// 祖先若以不同 pixelRatio 调用 layer.toImage，快照会被最近邻缩放；应用内没有此类调用。
 class RasterCacheLayer extends OffsetLayer {
-  RasterCacheLayer({RasterCachePromotionPolicy? policy})
-    : _policy = policy ?? RasterCachePromotionPolicy();
-
   static const int maxDimension = 8192;
   static const int maxPixels = 3840 * 2160 * 2;
 
-  final RasterCachePromotionPolicy _policy;
+  final RasterCachePromotionPolicy _policy = RasterCachePromotionPolicy();
   final LayerHandle<_RasterCacheContentLayer> _contentHandle = LayerHandle(
     _RasterCacheContentLayer(),
   );
