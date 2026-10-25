@@ -110,8 +110,8 @@ class RasterCacheLayer extends OffsetLayer {
     _frameCallbackScheduled = false;
     if (_disposed) return;
     if (!attached) {
-      // 旧 engine layer 仍引用快照；不标脏的话重新挂上时会被原样 addRetained。
-      if (_snapshot != null) markNeedsAddToScene();
+      // 旧 engine layer 经 DisplayList 仍持有快照贴图；置空后才释放，重新挂上时也不会被原样 addRetained。
+      if (_snapshot != null) engineLayer = null;
       _evict(recordEviction: false);
       return;
     }
