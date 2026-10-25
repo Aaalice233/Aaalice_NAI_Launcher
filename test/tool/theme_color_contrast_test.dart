@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,8 @@ import 'package:nai_launcher/presentation/providers/font_provider.dart';
 import 'package:nai_launcher/presentation/themes/app_theme.dart';
 import 'package:nai_launcher/presentation/themes/theme_extension.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_text_selection_toolbar.dart';
+
+import '../helpers/wcag_contrast.dart';
 
 /// 主题配色对比度守卫。
 ///
@@ -405,8 +406,6 @@ void main() {
   });
 }
 
-const double wcagAA = 4.5;
-
 /// 每个探针只渲染一个组件，便于定位背景与前景。
 final _componentProbes = <String, Widget>{
   'ChoiceChip选中': const ChoiceChip(
@@ -516,23 +515,6 @@ _Measurement? _measure(WidgetTester tester, ThemeData theme) {
   );
 }
 
-/// WCAG 相对亮度。
-double relativeLuminance(Color color) {
-  double channel(double value) => value <= 0.03928
-      ? value / 12.92
-      : math.pow((value + 0.055) / 1.055, 2.4).toDouble();
-  return 0.2126 * channel(color.r) +
-      0.7152 * channel(color.g) +
-      0.0722 * channel(color.b);
-}
-
-/// WCAG 对比度，取值 1.0（同色）到 21.0（黑白）。
-double contrastRatio(Color a, Color b) {
-  final x = relativeLuminance(a);
-  final y = relativeLuminance(b);
-  return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
-}
-
 /// 把半透明前景按其背景合成为不透明色，否则对比度算不准。
 Color _flatten(Color foreground, Color background) {
   final alpha = foreground.a;
@@ -542,12 +524,4 @@ Color _flatten(Color foreground, Color background) {
     green: foreground.g * alpha + background.g * (1 - alpha),
     blue: foreground.b * alpha + background.b * (1 - alpha),
   );
-}
-
-String hexOf(Color color) {
-  final rgb =
-      (color.r * 255).round() << 16 |
-      (color.g * 255).round() << 8 |
-      (color.b * 255).round();
-  return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
 }

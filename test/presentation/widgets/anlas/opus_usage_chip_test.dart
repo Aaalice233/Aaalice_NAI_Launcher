@@ -10,6 +10,8 @@ import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/themes/app_theme.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/opus_usage_chip.dart';
 
+import '../../../helpers/wcag_contrast.dart';
+
 class _SubscriptionStub extends SubscriptionNotifier {
   _SubscriptionStub(this._state);
 
@@ -59,14 +61,6 @@ Future<void> _pumpChip(
   await tester.pump();
 }
 
-double _contrast(Color a, Color b) {
-  final first = a.computeLuminance();
-  final second = b.computeLuminance();
-  final lighter = first > second ? first : second;
-  final darker = first > second ? second : first;
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
 /// 徽章文字实际所在的底色：主题色（耗尽时为错误色）10% 叠在 surface 上。
 Color _chipSurface(WidgetTester tester, {bool exhausted = false}) {
   final colors = Theme.of(
@@ -80,7 +74,7 @@ double _textContrast(
   WidgetTester tester,
   Finder text, {
   bool exhausted = false,
-}) => _contrast(
+}) => contrastRatio(
   tester.widget<Text>(text).style!.color!,
   _chipSurface(tester, exhausted: exhausted),
 );

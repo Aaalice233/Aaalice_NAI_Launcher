@@ -6,8 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nai_launcher/presentation/themes/app_theme.dart';
 
-// 复用同目录守卫里的 WCAG 算法，避免两套对比度实现给出不同结论。
-import 'theme_color_contrast_test.dart' show contrastRatio, hexOf, wcagAA;
+import '../helpers/wcag_contrast.dart';
 
 void main() {
   // 构建主题会走 GoogleFonts 的资源加载，需要 binding；关掉运行时抓取避免
