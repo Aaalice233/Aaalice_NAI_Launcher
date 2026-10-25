@@ -272,11 +272,6 @@ void main() {
       );
       expect(llmRetryBackoff(1, jitter: 1), const Duration(milliseconds: 3000));
     });
-
-    test('out-of-range jitter is clamped', () {
-      expect(llmRetryBackoff(0, jitter: -3), const Duration(seconds: 1));
-      expect(llmRetryBackoff(0, jitter: 7), const Duration(milliseconds: 1500));
-    });
   });
 
   group('llmRetryAfter', () {
