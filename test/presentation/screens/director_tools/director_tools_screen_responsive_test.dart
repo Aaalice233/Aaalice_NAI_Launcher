@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -18,6 +17,8 @@ import 'package:nai_launcher/presentation/screens/director_tools/director_tools_
 import 'package:nai_launcher/presentation/screens/director_tools/widgets/director_result_variant_selector.dart';
 import 'package:nai_launcher/presentation/services/image_workflow_launcher.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
+
+import '../../../helpers/text_layout_expectations.dart';
 
 const _tinyPng =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
@@ -526,7 +527,7 @@ void main() {
             emotion == DirectorEmotion.neutral || selected,
             reason: label,
           );
-          _expectTextNotClipped(tester, label);
+          expectFullyVisible(tester, find.text(label), reason: label);
           expect(
             tester.getSize(chip).height,
             greaterThanOrEqualTo(44),
@@ -554,7 +555,7 @@ void main() {
     );
 
     await _scrollControlIntoView(tester, find.text('Defry'));
-    _expectTextNotClipped(tester, 'Defry');
+    expectFullyVisible(tester, find.text('Defry'), reason: 'Defry');
     await _scrollControlIntoView(tester, find.text('Run Colorize'));
     expect(find.text('Run Colorize'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -875,31 +876,8 @@ Future<void> _expectSegmentsOnOneRow(
     final size = tester.getSize(segmentOf(label));
     expect(size.height, greaterThanOrEqualTo(44), reason: label);
     expect(size.width, greaterThanOrEqualTo(44), reason: label);
-    _expectTextNotClipped(tester, label);
+    expectSingleLineUntruncated(tester, find.text(label), reason: label);
   }
-}
-
-void _expectTextNotClipped(WidgetTester tester, String label) {
-  final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
-  expect(paragraph.didExceedMaxLines, isFalse, reason: label);
-  // 不折行的文本比单行宽度窄，就是被裁切或淡出了。
-  if (!paragraph.softWrap) {
-    expect(
-      paragraph.size.width,
-      greaterThanOrEqualTo(
-        paragraph.getMaxIntrinsicWidth(double.infinity) - 0.5,
-      ),
-      reason: label,
-    );
-  }
-  // 折行后的文字仍须完整落在自身绘制区域内。
-  expect(
-    paragraph.size.height,
-    greaterThanOrEqualTo(
-      paragraph.getMaxIntrinsicHeight(paragraph.size.width) - 0.5,
-    ),
-    reason: label,
-  );
 }
 
 Uint8List _resultPreviewBytes(WidgetTester tester) => tester
