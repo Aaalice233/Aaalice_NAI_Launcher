@@ -861,39 +861,6 @@ void main() {
     );
 
     test(
-      'registerExternalImage should keep the file name suffix on the entry and the saved file',
-      () async {
-        final notifier = container.read(
-          imageGenerationNotifierProvider.notifier,
-        );
-        final params = container.read(generationParamsNotifierProvider);
-        final tempDir = await Directory.systemTemp.createTemp(
-          'nai_launcher_director_suffix_',
-        );
-        addTearDown(() => tempDir.delete(recursive: true));
-
-        await notifier.registerExternalImage(
-          _validImageBytes(width: 512, height: 768),
-          params: params,
-          saveToLocal: true,
-          saveDirectoryPath: tempDir.path,
-          syncToGalleryIndex: false,
-          fileNameSuffix: '_masked',
-        );
-
-        final savedImage = container
-            .read(imageGenerationNotifierProvider)
-            .history
-            .first;
-        expect(savedImage.fileNameSuffix, '_masked');
-        expect(
-          p.basenameWithoutExtension(savedImage.filePath!),
-          endsWith('_masked'),
-        );
-      },
-    );
-
-    test(
       'registerExternalImage with a shared createdAt names sibling outputs identically except the suffix',
       () async {
         final notifier = container.read(
@@ -926,6 +893,13 @@ void main() {
             .history
             .take(suffixes.length);
         expect(history.map((image) => image.createdAt).toSet(), {createdAt});
+        expect(
+          {for (final image in history) image.filePath: image.fileNameSuffix},
+          {
+            for (final (index, path) in savedPaths.indexed)
+              path: suffixes[index],
+          },
+        );
         final stems = savedPaths.map(p.basenameWithoutExtension).toList();
         final sharedStems = <String>{
           for (final (index, stem) in stems.indexed)
