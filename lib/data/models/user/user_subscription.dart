@@ -134,17 +134,14 @@ abstract class OpusUsageInfo with _$OpusUsageInfo {
   /// 常规配额展示值：透支时为 0，否则截掉负数，不设上限。
   double get regularDisplayPercent => !isNegative && percent > 0 ? percent : 0;
 
-  /// 额外用量展示值：缺失或非正数按 0 处理。
-  double get extraPercent => purchasedPercent > 0 ? purchasedPercent : 0;
-
-  bool get hasExtraUsage => extraPercent > 0;
+  bool get hasExtraUsage => purchasedPercent > 0;
 
   /// 额外用量的整数展示值：有余量但不足 1% 时显示 1，避免“有额外用量”却显示 0。
   int get extraDisplayPercent =>
-      hasExtraUsage ? math.max(1, extraPercent.round()) : 0;
+      hasExtraUsage ? math.max(1, purchasedPercent.round()) : 0;
 
   /// 两池合计可用百分比，用于估算剩余可生成张数。
-  double get availablePercent => regularDisplayPercent + extraPercent;
+  double get availablePercent => regularDisplayPercent + purchasedPercent;
 
   /// 常规配额每天回充的百分比，保留一位小数；服务端未给出回充间隔时为 0。
   double get refillPercentPerDay => timeUntilNextPercent > 0
