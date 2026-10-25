@@ -11,6 +11,8 @@ import '../../core/utils/vibe_library_path_helper.dart';
 import '../models/vibe/vibe_library_entry.dart';
 import '../models/vibe/vibe_reference.dart';
 import 'vibe_file_storage_service.dart';
+import 'vibe_library_hive_repository.dart';
+import 'vibe_library_storage_protocol.dart';
 
 typedef ProgressCallback = void Function(VibeLibraryMigrationProgress progress);
 
@@ -47,10 +49,13 @@ class VibeLibraryMigrationResult {
 }
 
 class VibeLibraryMigrationService {
-  VibeLibraryMigrationService({VibeFileStorageService? fileStorage})
-      : _fileStorage = fileStorage ?? VibeFileStorageService();
+  VibeLibraryMigrationService({
+    VibeFileStorageService? fileStorage,
+    VibeLibraryRepositoryProtocol? repository,
+  })  : _fileStorage = fileStorage ?? VibeFileStorageService(),
+        _repository = repository ?? HiveVibeLibraryRepository();
 
-  static const String _entriesBoxName = 'vibe_library_entries';
+  static const String _entriesBoxName = HiveVibeLibraryRepository.entriesBoxName;
   static const String _settingsBoxName = StorageKeys.settingsBox;
   static const int _targetSchemaVersion = 23;
   static const int _legacyTypeId = 20;
@@ -62,6 +67,7 @@ class VibeLibraryMigrationService {
   static const String _tag = 'VibeLibraryMigration';
 
   final VibeFileStorageService _fileStorage;
+  final VibeLibraryRepositoryProtocol _repository;
   static bool _localLock = false;
 
   Future<VibeLibraryMigrationResult> migrateIfNeeded({
@@ -122,6 +128,8 @@ class VibeLibraryMigrationService {
     List<String> createdFiles,
   ) async {
     var totalExported = 0;
+    // 迁移绕过仓库直接重建、删除或回滚主表，展示表必须从新主表重建
+    await _repository.setDisplayCacheReady(false);
     onProgress?.call(const VibeLibraryMigrationProgress(
       stage: 'backup', current: 0, total: 1, message: '开始备份 Hive 数据', percentage: 0,
     ),);
@@ -279,16 +287,21 @@ class VibeLibraryMigrationService {
       Hive.registerAdapter(LegacyVibeLibraryEntryV20Adapter());
     }
 
-    if (Hive.isBoxOpen(_entriesBoxName)) {
-      await Hive.box(_entriesBoxName).close();
-    }
+    await _closeCurrentEntriesBox();
 
     try {
-      final box = await Hive.openBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
-      final entries = box.values.toList(growable: false);
-      await box.close();
-      AppLogger.i('读取到旧条目 ${entries.length} 条', _tag);
-      return entries;
+      final box = await Hive.openLazyBox<LegacyVibeLibraryEntryV20>(
+        _entriesBoxName,
+      );
+      try {
+        final entries = [
+          for (final key in box.keys) (await box.get(key))!,
+        ];
+        AppLogger.i('读取到旧条目 ${entries.length} 条', _tag);
+        return entries;
+      } finally {
+        await box.close();
+      }
     } catch (error, stackTrace) {
       if (_isUnknownTypeIdError(error)) {
         final errorText = error.toString();
@@ -388,20 +401,21 @@ class VibeLibraryMigrationService {
   }
 
   Future<void> _rebuildEntriesBox(List<_ExportedEntry> exportedEntries) async {
-    if (Hive.isBoxOpen(_entriesBoxName)) {
-      await Hive.box(_entriesBoxName).close();
-    }
+    await _closeCurrentEntriesBox();
 
     final legacyBox =
-        await Hive.openBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
-    await legacyBox.clear();
-    await legacyBox.close();
+        await Hive.openLazyBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
+    try {
+      await legacyBox.clear();
+    } finally {
+      await legacyBox.close();
+    }
 
     if (!Hive.isAdapterRegistered(_targetSchemaVersion)) {
       Hive.registerAdapter(VibeLibraryEntryAdapter());
     }
 
-    final newBox = await Hive.openBox<VibeLibraryEntry>(_entriesBoxName);
+    final newBox = await Hive.openLazyBox<VibeLibraryEntry>(_entriesBoxName);
     for (final exported in exportedEntries) {
       final old = exported.legacy;
       final mapped = VibeLibraryEntry(
@@ -440,9 +454,7 @@ class VibeLibraryMigrationService {
   }) async {
     AppLogger.w('开始回滚 Vibe 库迁移', _tag);
 
-    if (Hive.isBoxOpen(_entriesBoxName)) {
-      await Hive.box(_entriesBoxName).close();
-    }
+    await _closeCurrentEntriesBox();
 
     if (backupDirPath.isNotEmpty) {
       await _restoreFromBackup(backupDirPath);
@@ -455,6 +467,12 @@ class VibeLibraryMigrationService {
     final settingsBox = await _openSettingsBox();
     await settingsBox.put(_migrationInProgressKey, false);
     AppLogger.w('Vibe 库迁移已回滚', _tag);
+  }
+
+  Future<void> _closeCurrentEntriesBox() async {
+    if (Hive.isBoxOpen(_entriesBoxName)) {
+      await Hive.lazyBox<VibeLibraryEntry>(_entriesBoxName).close();
+    }
   }
 
   Future<void> _restoreFromBackup(String backupDirPath) async {

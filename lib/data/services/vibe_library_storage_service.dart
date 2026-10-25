@@ -43,7 +43,6 @@ class VibeLibraryStorageService {
     _writer = VibeLibraryEntryWriter(_repository, _files, _displayCache);
     _categories = VibeLibraryCategoryRepository(
       _repository,
-      getEntriesByCategory: getEntriesByCategory,
       updateEntryCategory: updateEntryCategory,
     );
     _sync = VibeLibrarySyncService(_repository, _files, _displayCache);
@@ -94,6 +93,9 @@ class VibeLibraryStorageService {
       _reader.loadBundleChild(id, childIndex);
   Future<List<VibeLibraryEntry>> getAllEntries() => _reader.all();
   Future<List<VibeLibraryEntry>> getDisplayEntries() => _reader.display();
+
+  Stream<VibeLibraryEntry> streamStoredEntries() => _repository.streamEntries();
+
   Future<List<VibeLibraryEntry>> getEntriesByCategory(String? categoryId) =>
       _reader.byCategory(categoryId);
   Future<List<VibeLibraryEntry>> searchEntries(String query) =>
@@ -265,11 +267,11 @@ class VibeLibraryStorageService {
   Future<int> getCategoriesCount() async => (await getAllCategories()).length;
   Future<bool> categoryExists(String id) async => await getCategory(id) != null;
   Future<void> clearAllCategories() => _repository.clearCategories();
-  Future<Set<String>> getAllTags() => _categories.getAllTags();
+  Future<Set<String>> getAllTags() => _reader.tags();
   Future<List<VibeLibraryEntry>> getEntriesByTag(String tag) =>
-      _categories.getEntriesByTag(tag);
+      _reader.byTag(tag);
   Future<List<VibeLibraryEntry>> getEntriesByUsage({int limit = 20}) =>
-      _categories.getEntriesByUsage(limit: limit);
+      _reader.byUsage(limit: limit);
 
   /// [stateJson] is the whole state as UTF-8 JSON; it embeds base64 images,
   /// so callers encode it off the UI isolate.

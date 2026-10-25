@@ -127,11 +127,13 @@ class VibeFileStorageService {
       _repository.deleteVibeFile(filePath);
 
   Future<VibeFolderSyncResult> syncFolderToHive({
-    required List<VibeLibraryEntry> existingEntries,
+    required Map<String, String> existingFilePathsById,
+    required Future<VibeLibraryEntry?> Function(String id) loadExistingEntry,
     required Future<void> Function(VibeLibraryEntry entry) onUpsertEntry,
-    Future<void> Function(VibeLibraryEntry entry)? onDeleteEntry,
+    Future<void> Function(String id)? onDeleteEntry,
   }) => _folderSync.syncFolderToHive(
-    existingEntries: existingEntries,
+    existingFilePathsById: existingFilePathsById,
+    loadExistingEntry: loadExistingEntry,
     onUpsertEntry: onUpsertEntry,
     onDeleteEntry: onDeleteEntry,
   );

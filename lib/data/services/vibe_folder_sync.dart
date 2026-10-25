@@ -18,19 +18,19 @@ class VibeFolderSync {
   final VibeFileRepositoryProtocol _repository;
 
   Future<VibeFolderSyncResult> syncFolderToHive({
-    required List<VibeLibraryEntry> existingEntries,
+    required Map<String, String> existingFilePathsById,
+    required Future<VibeLibraryEntry?> Function(String id) loadExistingEntry,
     required Future<void> Function(VibeLibraryEntry entry) onUpsertEntry,
-    Future<void> Function(VibeLibraryEntry entry)? onDeleteEntry,
+    Future<void> Function(String id)? onDeleteEntry,
   }) async {
     final errors = <String>[];
     var scannedCount = 0;
     var upsertedCount = 0;
     var deletedCount = 0;
 
-    final existingPathMap = <String, VibeLibraryEntry>{
-      for (final entry in existingEntries)
-        if (entry.filePath != null && entry.filePath!.isNotEmpty)
-          _normalizePath(entry.filePath!): entry,
+    final existingIdsByPath = <String, String>{
+      for (final entry in existingFilePathsById.entries)
+        _normalizePath(entry.value): entry.key,
     };
 
     final currentPathSet = <String>{};
@@ -53,11 +53,13 @@ class VibeFolderSync {
           final normalizedPath = _normalizePath(filePath);
 
           try {
-            final existingEntry = existingPathMap[normalizedPath];
-            final discovered = await _buildEntryFromFile(
-              filePath,
-              existingEntry,
-            );
+            final listedId = existingIdsByPath[normalizedPath];
+            final existingEntry = listedId == null
+                ? null
+                : await loadExistingEntry(listedId);
+            final discovered = listedId == null || existingEntry != null
+                ? await _buildEntryFromFile(filePath, existingEntry)
+                : null;
 
             return (
               path: normalizedPath,
@@ -91,15 +93,13 @@ class VibeFolderSync {
 
     // 删除已不存在的条目
     if (onDeleteEntry != null) {
-      for (final entry in existingEntries) {
-        final filePath = entry.filePath;
-        if (filePath == null || filePath.isEmpty) continue;
-
+      for (final entry in existingFilePathsById.entries) {
+        final filePath = entry.value;
         final normalizedPath = _normalizePath(filePath);
         if (currentPathSet.contains(normalizedPath)) continue;
 
         try {
-          await onDeleteEntry(entry);
+          await onDeleteEntry(entry.key);
           deletedCount++;
         } catch (e, stackTrace) {
           errors.add('删除失效条目失败: $filePath, error: $e');

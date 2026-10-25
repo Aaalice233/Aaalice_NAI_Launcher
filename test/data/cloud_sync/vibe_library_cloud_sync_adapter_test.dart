@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync.dart';
+import 'package:nai_launcher/data/models/vibe/vibe_library_category.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
+import 'package:nai_launcher/data/services/vibe_library_hive_repository.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 
 void main() {
@@ -84,13 +86,25 @@ void main() {
     expect(storage.imported, isEmpty);
     expect(storage.entries, isEmpty);
   });
+
+  test('export propagates a failed read of a stored Vibe', () async {
+    final storage = _MemoryVibeStorage(repository: _UnreadableVibeRepository());
+    final adapter = VibeLibraryCloudSyncAdapter(storage);
+
+    await expectLater(adapter.exportRecords().toList(), throwsStateError);
+  });
 }
 
 class _MemoryVibeStorage extends VibeLibraryStorageService {
+  _MemoryVibeStorage({super.repository});
+
   final Map<String, List<int>> imported = {};
   final List<VibeLibraryEntry> entries = [];
   var _index = 0;
   bool failCommit = false;
+
+  @override
+  Future<List<VibeLibraryCategory>> getAllCategories() async => const [];
 
   @override
   Future<String> importPortableFile(
@@ -137,5 +151,12 @@ class _MemoryVibeStorage extends VibeLibraryStorageService {
   @override
   Future<void> discardPortableFile(String filePath) async {
     imported.remove(filePath);
+  }
+}
+
+class _UnreadableVibeRepository extends HiveVibeLibraryRepository {
+  @override
+  Stream<VibeLibraryEntry> streamEntries() async* {
+    throw StateError('source entry unavailable');
   }
 }

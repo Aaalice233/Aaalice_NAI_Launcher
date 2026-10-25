@@ -7,8 +7,11 @@ import 'package:nai_launcher/data/services/vibe_library_storage_protocol.dart';
 
 class _Repository extends Mock implements VibeLibraryRepositoryProtocol {}
 
+typedef _VisitEntry = Future<void> Function(VibeLibraryEntry);
+
 void main() {
   setUpAll(() {
+    registerFallbackValue((VibeLibraryEntry _) async {});
     registerFallbackValue(
       VibeLibraryCategory(
         id: 'fallback',
@@ -46,13 +49,16 @@ void main() {
       when(
         repository.readCategories,
       ).thenAnswer((_) async => [parent, category, child]);
+      when(() => repository.forEachEntry(any())).thenAnswer((invocation) async {
+        final visit = invocation.positionalArguments.single as _VisitEntry;
+        await visit(_entry('entry', category.id));
+      });
       when(() => repository.putCategory(any())).thenAnswer((_) async {});
       when(
         () => repository.deleteCategory(category.id),
       ).thenAnswer((_) async {});
       final service = VibeLibraryCategoryRepository(
         repository,
-        getEntriesByCategory: (_) async => [_entry('entry', category.id)],
         updateEntryCategory: (id, categoryId) async {
           movedEntries[id] = categoryId;
           return _entry(id, categoryId);
