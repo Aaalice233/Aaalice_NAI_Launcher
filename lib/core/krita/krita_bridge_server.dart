@@ -143,14 +143,7 @@ class KritaBridgeServer {
 
   Future<void> _closeConnection(WebSocket socket) async {
     _connections.remove(socket);
-    try {
-      await socket.close();
-    } on IOException catch (error) {
-      AppLogger.w(
-        'Closing bridge connection failed: ${error.runtimeType}',
-        _logTag,
-      );
-    }
+    await socket.close();
   }
 
   Future<void> _deleteDiscoveryFile() async {
