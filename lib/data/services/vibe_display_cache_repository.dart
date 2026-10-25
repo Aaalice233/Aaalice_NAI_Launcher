@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import '../../core/database/utils/lru_cache.dart';
+import '../../core/utils/app_logger.dart';
 import '../../core/utils/async_work_pool.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
 import '../../core/utils/vibe_performance_diagnostics.dart';
@@ -14,22 +15,29 @@ import 'vibe_library_storage_protocol.dart';
 class VibeDisplayCacheRepository {
   VibeDisplayCacheRepository(this._repository);
 
+  static const _tag = 'VibeLibrary';
+
   final VibeLibraryRepositoryProtocol _repository;
   final AsyncWorkPool _thumbnailReadPool = AsyncWorkPool(4);
   final Map<String, Future<Uint8List?>> _loadsById = {};
   int _thumbnailLoadGeneration = 0;
 
+  // 重建先取键快照再逐条读；排在它后面的镜像写入才不会被重建结果覆盖或漏掉
+  Future<void> _maintenance = Future<void>.value();
+
   // 缩略图 ≤256px/64KB，256 条上限最多约 16MB
   final LRUCache<String, Uint8List> _memoryThumbnails = LRUCache(maxSize: 256);
 
-  Future<List<VibeLibraryEntry>> getEntries() async {
+  Future<List<VibeLibraryEntry>> getEntries() => _serialized(() async {
     if (await _repository.isDisplayCacheReady()) {
       return _repository.readDisplayEntries();
     }
-    return rebuild();
-  }
+    return _rebuild();
+  });
 
-  Future<List<VibeLibraryEntry>> rebuild() async {
+  Future<List<VibeLibraryEntry>> rebuild() => _serialized(_rebuild);
+
+  Future<List<VibeLibraryEntry>> _rebuild() async {
     final span = VibePerformanceDiagnostics.start(
       'storage.rebuildDisplayEntriesCache',
     );
@@ -39,12 +47,20 @@ class VibeDisplayCacheRepository {
         entries.add(entry.toDisplayEntry());
         await Future<void>.delayed(Duration.zero);
       });
+      // 展示表替换失败时，下次读取会重新构建。
+      await _repository.setDisplayCacheReady(false);
       await _repository.replaceDisplayEntries(entries);
       await _repository.setDisplayCacheReady(true);
       return List.unmodifiable(entries);
     } finally {
       span.finish(details: {'entries': entries.length});
     }
+  }
+
+  Future<T> _serialized<T>(Future<T> Function() operation) {
+    final result = _maintenance.then((_) => operation());
+    _maintenance = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
   }
 
   /// 同步读取内存缓存的缩略图；未命中返回 null。
@@ -115,22 +131,50 @@ class VibeDisplayCacheRepository {
     return null;
   }
 
-  Future<void> entryChanged(VibeLibraryEntry entry) async {
+  Future<void> entryChanged(VibeLibraryEntry entry) {
     _memoryThumbnails.remove(entry.id);
-    await _repository.upsertDisplayEntryIfReady(entry);
-    await _repository.deleteThumbnail(entry.id);
+    return _serialized(() async {
+      await _mirror(() => _repository.upsertDisplayEntryIfReady(entry));
+      await _repository.deleteThumbnail(entry.id);
+      // 排队期间的读取可能把旧缩略图重新放回内存
+      _memoryThumbnails.remove(entry.id);
+    });
   }
 
-  Future<void> entryDeleted(String id) async {
+  Future<void> entryDeleted(String id) {
     _memoryThumbnails.remove(id);
-    await _repository.deleteDisplayEntryIfReady(id);
-    await _repository.deleteThumbnail(id);
+    return _serialized(() async {
+      await _mirror(() => _repository.deleteDisplayEntryIfReady(id));
+      await _repository.deleteThumbnail(id);
+      _memoryThumbnails.remove(id);
+    });
   }
 
-  Future<void> clear() async {
+  Future<void> clear() {
     _memoryThumbnails.clear();
-    await _repository.replaceDisplayEntries(const []);
-    await _repository.clearThumbnails();
-    await _repository.setDisplayCacheReady(true);
+    return _serialized(() async {
+      await _repository.replaceDisplayEntries(const []);
+      await _repository.clearThumbnails();
+      await _repository.setDisplayCacheReady(true);
+    });
+  }
+
+  // 源条目已经写入；镜像失败却保持就绪，旧行会一直被当成最新数据
+  Future<void> _mirror(Future<void> Function() write) async {
+    try {
+      await write();
+    } catch (error, stackTrace) {
+      try {
+        await _repository.setDisplayCacheReady(false);
+      } catch (resetError, resetStackTrace) {
+        AppLogger.e(
+          'Failed to invalidate Vibe display cache',
+          resetError,
+          resetStackTrace,
+          _tag,
+        );
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
   }
 }

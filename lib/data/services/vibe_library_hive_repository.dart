@@ -18,14 +18,14 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
   static const displayCacheReadyKey = 'vibe_library_display_cache_ready_v2';
   static const _tag = 'VibeLibrary';
 
-  Box<VibeLibraryEntry>? entriesBox;
-  LazyBox<VibeLibraryEntry>? lazyEntriesBox;
+  // Entries embed encodings and source images; a non-lazy box would pin the
+  // whole table in memory for the rest of the session.
+  LazyBox<VibeLibraryEntry>? entriesBox;
   Box<VibeLibraryEntry>? displayEntriesBox;
   LazyBox<Uint8List>? thumbnailCacheBox;
   Box<VibeLibraryCategory>? categoriesBox;
 
   Future<void>? _entriesInitFuture;
-  Future<void>? _lazyEntriesInitFuture;
   Future<void>? _displayEntriesInitFuture;
   Future<void>? _thumbnailCacheInitFuture;
   Future<void>? _categoriesInitFuture;
@@ -50,14 +50,12 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
 
   Future<void> ensureEntriesBox() async {
     if (entriesBox?.isOpen == true) return;
-    if (lazyEntriesBox?.isOpen == true) {
-      await lazyEntriesBox!.close();
-      lazyEntriesBox = null;
-    }
     _registerAdapters();
     final active = _entriesInitFuture;
     if (active != null) return active;
-    final future = Hive.openBox<VibeLibraryEntry>(entriesBoxName).then((box) {
+    final future = Hive.openLazyBox<VibeLibraryEntry>(entriesBoxName).then((
+      box,
+    ) {
       entriesBox = box;
     });
     _entriesInitFuture = future;
@@ -68,24 +66,9 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
     }
   }
 
-  Future<void> ensureLazyEntriesBox() async {
-    if (entriesBox?.isOpen == true || lazyEntriesBox?.isOpen == true) return;
-    _registerAdapters();
-    final active = _lazyEntriesInitFuture;
-    if (active != null) return active;
-    final future = Hive.openLazyBox<VibeLibraryEntry>(entriesBoxName).then((
-      box,
-    ) {
-      lazyEntriesBox = box;
-    });
-    _lazyEntriesInitFuture = future;
-    try {
-      await future;
-    } finally {
-      if (identical(_lazyEntriesInitFuture, future)) {
-        _lazyEntriesInitFuture = null;
-      }
-    }
+  Future<LazyBox<VibeLibraryEntry>> _entries() async {
+    await ensureEntriesBox();
+    return entriesBox!;
   }
 
   Future<void> ensureDisplayEntriesBox() async {
@@ -149,69 +132,47 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
   }
 
   @override
-  Future<void> ensureInit() async {
-    await VibePerformanceDiagnostics.measure('storage.ensureInit', () async {
-      await Future.wait([ensureEntriesBox(), ensureCategoriesBox()]);
-    });
-  }
+  Future<VibeLibraryEntry?> readEntry(String id) async =>
+      (await _entries()).get(id);
 
   @override
-  Future<VibeLibraryEntry?> readEntry(String id) async {
-    if (entriesBox?.isOpen == true) return entriesBox!.get(id);
-    await ensureLazyEntriesBox();
-    return lazyEntriesBox!.get(id);
-  }
+  Future<void> putEntry(VibeLibraryEntry entry) async =>
+      (await _entries()).put(entry.id, entry);
 
   @override
-  Future<void> putEntry(VibeLibraryEntry entry) async {
-    if (entriesBox?.isOpen == true) {
-      await entriesBox!.put(entry.id, entry);
-    } else {
-      await ensureLazyEntriesBox();
-      await lazyEntriesBox!.put(entry.id, entry);
-    }
-  }
-
-  @override
-  Future<void> deleteEntry(String id) async {
-    if (entriesBox?.isOpen == true) {
-      await entriesBox!.delete(id);
-    } else {
-      await ensureLazyEntriesBox();
-      await lazyEntriesBox!.delete(id);
-    }
-  }
+  Future<void> deleteEntry(String id) async => (await _entries()).delete(id);
 
   @override
   Future<void> clearEntries() async {
-    if (entriesBox?.isOpen == true) {
-      await entriesBox!.clear();
-    } else {
-      await ensureLazyEntriesBox();
-      await lazyEntriesBox!.clear();
-    }
+    await (await _entries()).clear();
   }
 
   @override
+  Future<Set<String>> readEntryIds() async =>
+      (await _entries()).keys.whereType<String>().toSet();
+
+  @override
   Future<List<VibeLibraryEntry>> readAllEntries() async {
-    await ensureEntriesBox();
-    return entriesBox!.values.toList(growable: false);
+    final entries = <VibeLibraryEntry>[];
+    await forEachEntry((entry) async => entries.add(entry));
+    return entries;
+  }
+
+  @override
+  Stream<VibeLibraryEntry> streamEntries() async* {
+    final box = await _entries();
+    for (final key in box.keys.toList(growable: false)) {
+      final entry = await box.get(key);
+      if (entry != null) yield entry;
+    }
   }
 
   @override
   Future<void> forEachEntry(
     Future<void> Function(VibeLibraryEntry) visit,
   ) async {
-    if (entriesBox?.isOpen == true) {
-      for (final entry in entriesBox!.values) {
-        await visit(entry);
-      }
-      return;
-    }
-    await ensureLazyEntriesBox();
-    for (final key in lazyEntriesBox!.keys.toList(growable: false)) {
-      final entry = await lazyEntriesBox!.get(key);
-      if (entry != null) await visit(entry);
+    await for (final entry in streamEntries()) {
+      await visit(entry);
     }
   }
 
@@ -230,10 +191,13 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
   }
 
   @override
-  Future<bool> containsEntry(String id) async {
-    if (entriesBox?.isOpen == true) return entriesBox!.containsKey(id);
-    await ensureLazyEntriesBox();
-    return lazyEntriesBox!.containsKey(id);
+  Future<bool> containsEntry(String id) async =>
+      (await _entries()).containsKey(id);
+
+  @override
+  Future<Set<String>> readDisplayEntryIds() async {
+    await ensureDisplayEntriesBox();
+    return displayEntriesBox!.keys.whereType<String>().toSet();
   }
 
   @override
@@ -345,7 +309,6 @@ class HiveVibeLibraryRepository implements VibeLibraryRepositoryProtocol {
   @override
   Future<void> close() async {
     await _closeBox(entriesBox);
-    await _closeBox(lazyEntriesBox);
     await _closeBox(displayEntriesBox);
     await _closeBox(thumbnailCacheBox);
     await _closeBox(categoriesBox);

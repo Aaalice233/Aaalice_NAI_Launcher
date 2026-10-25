@@ -7,13 +7,10 @@ import 'vibe_library_storage_protocol.dart';
 class VibeLibraryCategoryRepository {
   VibeLibraryCategoryRepository(
     this._repository, {
-    required this.getEntriesByCategory,
     required this.updateEntryCategory,
   });
 
   final VibeLibraryRepositoryProtocol _repository;
-  final Future<List<VibeLibraryEntry>> Function(String? categoryId)
-  getEntriesByCategory;
   final Future<VibeLibraryEntry?> Function(String id, String? categoryId)
   updateEntryCategory;
 
@@ -53,9 +50,13 @@ class VibeLibraryCategoryRepository {
         () async {
           final category = await get(id);
           if (category == null) return false;
-          for (final entry in await getEntriesByCategory(id)) {
+          final entryIds = <String>[];
+          await _repository.forEachEntry((entry) async {
+            if (entry.categoryId == id) entryIds.add(entry.id);
+          });
+          for (final entryId in entryIds) {
             await updateEntryCategory(
-              entry.id,
+              entryId,
               moveEntriesToParent ? category.parentId : null,
             );
           }
@@ -97,33 +98,6 @@ class VibeLibraryCategoryRepository {
         },
         null,
         'move category',
-      );
-
-  Future<Set<String>> getAllTags() => _withFallback(
-    () async => {
-      for (final entry in await _repository.readAllEntries()) ...entry.tags,
-    },
-    <String>{},
-    'get all tags',
-  );
-
-  Future<List<VibeLibraryEntry>> getEntriesByTag(String tag) => _withFallback(
-    () async => (await _repository.readAllEntries())
-        .where((entry) => entry.tags.contains(tag))
-        .toList(),
-    const <VibeLibraryEntry>[],
-    'get entries by tag',
-  );
-
-  Future<List<VibeLibraryEntry>> getEntriesByUsage({int limit = 20}) =>
-      _withFallback(
-        () async {
-          final entries = await _repository.readAllEntries();
-          entries.sort((a, b) => b.usedCount.compareTo(a.usedCount));
-          return entries.take(limit).toList();
-        },
-        const <VibeLibraryEntry>[],
-        'get entries by usage',
       );
 
   Future<T> _withFallback<T>(

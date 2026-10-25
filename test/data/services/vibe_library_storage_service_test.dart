@@ -253,7 +253,7 @@ void main() {
       filePath: filePath,
     );
 
-    final entriesBox = await Hive.openBox<VibeLibraryEntry>(
+    final entriesBox = await Hive.openLazyBox<VibeLibraryEntry>(
       'vibe_library_entries',
     );
     await entriesBox.put(staleEntry.id, staleEntry);
