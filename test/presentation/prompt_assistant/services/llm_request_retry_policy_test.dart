@@ -153,6 +153,22 @@ void main() {
         ),
         LlmRequestFailureKind.terminal,
       ),
+      for (final (name, message) in [
+        ('non-numeric', 'Content-Length must contain only digits'),
+        ('oversized', 'Content-Length too large'),
+        (
+          'repeated',
+          'The Content-Length header occurred more than once, '
+              'at most one is allowed.',
+        ),
+      ])
+        '$name Content-Length': (
+          _transport(
+            DioExceptionType.unknown,
+            cause: HttpException(message),
+          ),
+          LlmRequestFailureKind.terminal,
+        ),
       for (final part in [
         'Method',
         'Reason phrase',
