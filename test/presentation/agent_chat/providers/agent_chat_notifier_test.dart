@@ -1430,8 +1430,7 @@ User instructions.
       },
     );
 
-    test('stopping a manual compaction during backoff ends it', () async {
-      final notifier = container.read(provider.notifier);
+    Future<void> seedCompactableSession(AgentChatNotifier notifier) async {
       await _selectChatModel(container);
       final longReply = List.filled(20000, 'word').join(' ');
       wireCompletion = (request) {
@@ -1444,6 +1443,11 @@ User instructions.
       await notifier.send('first');
       await notifier.send('second');
       requests.clear();
+    }
+
+    test('stopping a manual compaction during backoff ends it', () async {
+      final notifier = container.read(provider.notifier);
+      await seedCompactableSession(notifier);
       wireCompletion = (request) {
         requests.add(request);
         return Stream<AgentWireEvent>.value(
@@ -1465,11 +1469,42 @@ User instructions.
 
       expect(stopping, isNotNull);
       expect(requests, hasLength(1));
-      expect(outcome, isA<AgentChatCompactionFailed>());
+      expect(outcome, isA<AgentChatCompactionCancelled>());
       final state = container.read(provider);
       expect(state.compacting, isFalse);
       expect(state.retryStatus, isNull);
+      expect(state.error, isEmpty);
       expect(state.workPhase, AgentChatWorkPhase.idle);
+    });
+
+    test('a summary that returns after stopping is not written', () async {
+      final notifier = container.read(provider.notifier);
+      await seedCompactableSession(notifier);
+      final contextBefore = container.read(provider).messages;
+      Future<void>? stopping;
+      wireCompletion = (request) {
+        requests.add(request);
+        stopping ??= notifier.abort();
+        return Stream<AgentWireEvent>.fromIterable(const [
+          AgentWireTextDelta('summary'),
+          AgentWireFinish(stopReason: StopReason.stop),
+        ]);
+      };
+
+      final outcome = await notifier.compactNow();
+      await stopping;
+
+      expect(requests, isNotEmpty);
+      expect(outcome, isA<AgentChatCompactionCancelled>());
+      final state = container.read(provider);
+      expect(state.messages, contextBefore);
+      final metadata = (await sessionRepo.list()).firstWhere(
+        (item) => item.id == state.activeSessionId,
+      );
+      final entries = await (await sessionRepo.open(
+        metadata,
+      )).findEntriesOnBranch();
+      expect(entries.whereType<CompactionEntry>(), isEmpty);
     });
 
     test('a manual context window unlocks an unplaceable model', () async {

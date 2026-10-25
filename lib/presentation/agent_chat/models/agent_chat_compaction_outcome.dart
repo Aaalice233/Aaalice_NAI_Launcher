@@ -24,11 +24,16 @@ class AgentChatCompactionSkipped extends AgentChatCompactionOutcome {
   final AgentChatCompactionSkipReason reason;
 }
 
-/// 摘要生成失败或被中止。
+/// 摘要生成失败。
 class AgentChatCompactionFailed extends AgentChatCompactionOutcome {
   const AgentChatCompactionFailed(this.message);
 
   final String message;
+}
+
+/// 用户停止了压缩；上下文保持原样，也不需要提示。
+class AgentChatCompactionCancelled extends AgentChatCompactionOutcome {
+  const AgentChatCompactionCancelled();
 }
 
 enum AgentChatCompactionSkipReason {

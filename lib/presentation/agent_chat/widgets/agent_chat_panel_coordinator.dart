@@ -555,6 +555,8 @@ class AgentChatPanelCoordinator {
         });
       case AgentChatCompactionFailed(:final message):
         AppToast.error(context, l10n.agentChat_compactFailed(message));
+      case AgentChatCompactionCancelled():
+        break;
     }
   }
 }
