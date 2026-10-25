@@ -1420,28 +1420,14 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     state = state.copyWith(clearRetryStatus: true);
   }
 
-  /// 失败回合留在会话历史里，但不能留在续跑的上下文中：同时剔除它与其工具
-  /// 调用对应的结果，否则孤立的结果会让下一次请求失败。
+  /// 失败回合留在会话历史里，但不能留在续跑的上下文中：continueRun 不能从
+  /// 末尾的助手消息续跑。
   void _omitFailedAttempt(AssistantMessage failed) {
     final agent = _sessionControllerValue?.agent;
     if (agent == null) return;
-    final messages = agent.state.messages;
-    final index = messages.indexWhere(
-      (message) => identical(message, failed),
-    );
-    if (index < 0) return;
-    final toolCallIds = {for (final call in failed.toolCalls) call.id};
-    final omitted = <AgentMessage>[failed];
-    for (final message in messages.skip(index + 1)) {
-      if (message is AssistantMessage) break;
-      if (message is ToolResultMessage &&
-          toolCallIds.contains(message.toolCallId)) {
-        omitted.add(message);
-      }
-    }
     agent.state.messages = [
-      for (final message in messages)
-        if (!omitted.any((target) => identical(target, message))) message,
+      for (final message in agent.state.messages)
+        if (!identical(message, failed)) message,
     ];
   }
 
