@@ -27,13 +27,33 @@ class HiveStartupBoxOpener {
     String name, {
     String? hivePath,
     Future<void> Function()? openBoxOverride,
+  }) => _openWithRecovery(
+    name,
+    hivePath: hivePath,
+    open: openBoxOverride ?? () => Hive.openBox<E>(name),
+  );
+
+  static Future<HiveStartupBoxOpenResult> openLazyBox<E>(
+    String name, {
+    String? hivePath,
+    Future<void> Function()? openBoxOverride,
+  }) => _openWithRecovery(
+    name,
+    hivePath: hivePath,
+    open: openBoxOverride ?? () => Hive.openLazyBox<E>(name),
+  );
+
+  static Future<HiveStartupBoxOpenResult> _openWithRecovery(
+    String name, {
+    required String? hivePath,
+    required Future<void> Function() open,
   }) async {
     if (Hive.isBoxOpen(name)) {
       return HiveStartupBoxOpenResult(name: name, recovered: false);
     }
 
     try {
-      await _openBox<E>(name, openBoxOverride: openBoxOverride);
+      await open();
       return HiveStartupBoxOpenResult(name: name, recovered: false);
     } catch (error, stackTrace) {
       AppLogger.e(
@@ -52,7 +72,7 @@ class HiveStartupBoxOpener {
       }
 
       try {
-        await _openBox<E>(name, openBoxOverride: openBoxOverride);
+        await open();
         AppLogger.w(
           'Recovered Hive box "$name" from backup at $backupDirectory',
           _tag,
@@ -72,17 +92,6 @@ class HiveStartupBoxOpener {
         Error.throwWithStackTrace(retryError, retryStackTrace);
       }
     }
-  }
-
-  static Future<void> _openBox<E>(
-    String name, {
-    required Future<void> Function()? openBoxOverride,
-  }) async {
-    if (openBoxOverride != null) {
-      await openBoxOverride();
-      return;
-    }
-    await Hive.openBox<E>(name);
   }
 
   static Future<String?> _backupAndRemoveBoxFiles(

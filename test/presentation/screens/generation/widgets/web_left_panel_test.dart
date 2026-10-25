@@ -33,7 +33,6 @@ void main() {
     Hive.init(hiveDirectory.path);
     // 内存后端：落盘写一旦从 widget test 的 FakeAsync 时钟发起就不会完成，会锁死 box
     await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
-    await Hive.openBox(StorageKeys.historyBox, bytes: Uint8List(0));
   });
 
   setUp(() async {
@@ -42,7 +41,6 @@ void main() {
     );
     SharedPreferences.setMockInitialValues({});
     await Hive.box(StorageKeys.settingsBox).clear();
-    await Hive.box(StorageKeys.historyBox).clear();
   });
 
   tearDown(() {

@@ -35,7 +35,7 @@ void main() {
     hiveTempDir = await Directory.systemTemp.createTemp('nai_launcher_hive_');
     Hive.init(hiveTempDir.path);
     await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
+    await Hive.openLazyBox<dynamic>(StorageKeys.historyBox);
     await Hive.openBox(StorageKeys.statisticsCacheBox);
   });
 

@@ -17,7 +17,7 @@ class LocalStorageService {
   Box get _settingsBox => Hive.box(StorageKeys.settingsBox);
 
   /// 获取已打开的 history box (在 main.dart 中预先打开)
-  Box get _historyBox => Hive.box(StorageKeys.historyBox);
+  LazyBox get _historyBox => Hive.lazyBox(StorageKeys.historyBox);
 
   // ==================== Settings ====================
 

@@ -28,7 +28,7 @@ void main() {
     );
     Hive.init(hiveTempDir.path);
     await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
+    await Hive.openLazyBox<dynamic>(StorageKeys.historyBox);
   });
 
   tearDownAll(() async {
@@ -45,7 +45,7 @@ void main() {
   tearDown(() async {
     SharedPreferences.setMockInitialValues({});
     await Hive.box(StorageKeys.settingsBox).clear();
-    await Hive.box(StorageKeys.historyBox).clear();
+    await Hive.lazyBox<dynamic>(StorageKeys.historyBox).clear();
   });
 
   test('encodeVibesNow 编码后会保留原图数据以便后续重新编码', () async {

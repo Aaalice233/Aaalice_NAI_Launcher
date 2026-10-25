@@ -156,7 +156,7 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
       initializeCriticalServices: () async {
         final hivePath = await HiveStorageHelper.instance.getPath();
         await Future.wait([
-          HiveStartupBoxOpener.openBox(
+          HiveStartupBoxOpener.openLazyBox<dynamic>(
             StorageKeys.historyBox,
             hivePath: hivePath,
           ),

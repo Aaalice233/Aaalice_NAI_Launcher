@@ -22,7 +22,7 @@ void main() {
     );
     Hive.init(hiveTempDir.path);
     await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
+    await Hive.openLazyBox<dynamic>(StorageKeys.historyBox);
   });
 
   tearDownAll(() async {
@@ -37,7 +37,7 @@ void main() {
 
     setUp(() async {
       await Hive.box(StorageKeys.settingsBox).clear();
-      await Hive.box(StorageKeys.historyBox).clear();
+      await Hive.lazyBox<dynamic>(StorageKeys.historyBox).clear();
       container = ProviderContainer();
     });
 

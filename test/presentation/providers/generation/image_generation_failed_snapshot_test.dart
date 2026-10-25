@@ -138,7 +138,7 @@ Future<_Harness> _createHarness(
 
 void main() {
   setUpImageGenerationTestEnvironment();
-  setUp(() => Hive.box(StorageKeys.historyBox).clear());
+  setUp(() => Hive.lazyBox<dynamic>(StorageKeys.historyBox).clear());
 
   test(
     'cancel reaches the coordinator before the snapshot is composed',
@@ -387,7 +387,7 @@ void main() {
 
     expect(lastObservedState, same(stateAtDispose));
     expect(lastObservedState.history, isEmpty);
-    expect(Hive.box(StorageKeys.historyBox).isEmpty, isTrue);
+    expect(Hive.lazyBox<dynamic>(StorageKeys.historyBox).isEmpty, isTrue);
   });
 }
 
