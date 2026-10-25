@@ -487,7 +487,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final danbooruCleared = Completer<int>();
     final aiCleared = Completer<int>();
-    final statistics = _CacheStatisticsProbe();
+    final statistics = _CacheStatisticsProbe([5, 4, 3]);
 
     await tester.pumpWidget(
       _buildSubject(
@@ -498,14 +498,14 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(statistics.loads, 1);
+    expect(find.text('AI 翻译缓存：5 条'), findsOneWidget);
 
     final failures = {
-      '清除 Danbooru 缓存': danbooruCleared,
-      '清除 AI 汉化缓存': aiCleared,
+      '清除 Danbooru 缓存': (cleared: danbooruCleared, refreshed: 4),
+      '清除 AI 汉化缓存': (cleared: aiCleared, refreshed: 3),
     };
-    for (final MapEntry(key: label, value: cleared) in failures.entries) {
-      final loadsBefore = statistics.loads;
+    for (final MapEntry(key: label, value: (:cleared, :refreshed))
+        in failures.entries) {
       final clearButton = find.text(label);
       await tester.ensureVisible(clearButton);
       await tester.pump();
@@ -521,7 +521,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: label);
       expect(find.text('清除缓存失败；请稍后重试。'), findsOneWidget, reason: label);
       expect(find.textContaining('已清除'), findsNothing, reason: label);
-      expect(statistics.loads, loadsBefore + 1, reason: label);
+      expect(find.text('AI 翻译缓存：$refreshed 条'), findsOneWidget, reason: label);
       expect(
         tester
             .widget<OutlinedButton>(
@@ -696,11 +696,14 @@ class _GatedAutocompleteCache extends AutocompleteCacheDatabase {
 }
 
 class _CacheStatisticsProbe {
-  var loads = 0;
+  _CacheStatisticsProbe(Iterable<int> aiTranslationCounts)
+    : _aiTranslationCounts = aiTranslationCounts.iterator;
+
+  final Iterator<int> _aiTranslationCounts;
 
   Map<String, int> load() {
-    loads++;
-    return const {'danbooruCache': 0, 'aiTranslations': 0};
+    _aiTranslationCounts.moveNext();
+    return {'danbooruCache': 0, 'aiTranslations': _aiTranslationCounts.current};
   }
 }
 
