@@ -120,6 +120,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
         _modelCapability(_activeRoute ?? _routeCache).model.contextWindow,
     policy: _retryPolicy,
   );
+  AbortController? _manualCompaction;
   AgentChatSessionController? _sessionControllerValue;
   AgentToolPermissionController? _permissionController;
   AgentUserQuestionController? _questionController;
@@ -175,6 +176,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       });
     }
     ref.onDispose(() {
+      _manualCompaction?.abort();
       _autoRetry.requestAbort();
       _sessionControllerValue?.agent?.abort();
       _questionController?.cancel();
@@ -1514,11 +1516,15 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
   }
 
   Future<void> abort() async {
+    _manualCompaction?.abort();
     final agent = _sessionController.agent;
     if (agent == null) {
       return;
     }
-    state = state.copyWith(workPhase: AgentChatWorkPhase.stopping);
+    // 手动压缩不改运行状态，停止它时没有运行收尾来把阶段复位。
+    if (state.status == AgentChatRunStatus.running) {
+      state = state.copyWith(workPhase: AgentChatWorkPhase.stopping);
+    }
     _autoRetry.requestAbort();
     agent.abort();
     _permissionController?.cancelApproval();
@@ -1535,16 +1541,22 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
         AgentChatCompactionSkipReason.busy,
       );
     }
-    final result = await _compactContext(
-      List.of(agent.state.messages),
-      null,
-      force: true,
-    );
-    if (result.outcome is AgentChatCompactionDone) {
-      agent.state.messages = List.of(result.messages);
-      state = state.copyWith(messages: List.of(result.messages));
+    final controller = AbortController();
+    _manualCompaction = controller;
+    try {
+      final result = await _compactContext(
+        List.of(agent.state.messages),
+        controller.signal,
+        force: true,
+      );
+      if (result.outcome is AgentChatCompactionDone) {
+        agent.state.messages = List.of(result.messages);
+        state = state.copyWith(messages: List.of(result.messages));
+      }
+      return result.outcome;
+    } finally {
+      _manualCompaction = null;
     }
-    return result.outcome;
   }
 
   Future<void> _handleEvent(AgentEvent event, AbortSignal signal) =>

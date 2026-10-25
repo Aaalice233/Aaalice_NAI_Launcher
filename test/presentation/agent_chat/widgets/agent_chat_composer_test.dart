@@ -958,6 +958,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a manual compaction can be stopped from the send target', (
+    tester,
+  ) async {
+    var stopped = false;
+    await _pumpComposer(
+      tester,
+      width: 600,
+      mobile: false,
+      state: _readyState.copyWith(compacting: true),
+      onStop: () => stopped = true,
+    );
+
+    expect(find.bySemanticsLabel('Stop'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('agent-chat-send')));
+    expect(stopped, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('keyboard insets and composing enter preserve the draft', (
     tester,
   ) async {
