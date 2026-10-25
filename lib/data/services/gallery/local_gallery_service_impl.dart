@@ -266,7 +266,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
           '[AddNewImage] Retrying ($attempt/$_admissionAttempts): $filePath',
           'LocalGalleryService',
         );
-        await Future<void>.delayed(_admissionRetryDelay * attempt);
+        await Future<void>.delayed(_admissionRetryDelay);
       }
     }
   }
