@@ -20,6 +20,9 @@ import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
+import '../../helpers/image_generation_test_environment.dart'
+    show AuthenticatedAuthNotifier;
+
 final Uint8List _resultBytes = Uint8List.fromList(<int>[1, 2, 3, 4]);
 
 final PixelSnapOutput _pixelSnapOutput = PixelSnapOutput(
@@ -858,11 +861,6 @@ const List<Locale> _directorLocales = <Locale>[
   Locale('ja'),
 ];
 
-class _AuthenticatedNotifier extends AuthNotifier {
-  @override
-  AuthState build() => const AuthState(status: AuthStatus.authenticated);
-}
-
 class _SilentSubscriptionNotifier extends SubscriptionNotifier {
   @override
   SubscriptionState build() => const SubscriptionState.initial();
@@ -910,7 +908,7 @@ ProviderContainer _promptContainer(
 }) {
   final ProviderContainer container = ProviderContainer(
     overrides: <Override>[
-      authNotifierProvider.overrideWith(_AuthenticatedNotifier.new),
+      authNotifierProvider.overrideWith(AuthenticatedAuthNotifier.new),
       naiImageEnhancementApiServiceProvider.overrideWithValue(service),
       subscriptionNotifierProvider.overrideWith(
         _SilentSubscriptionNotifier.new,
@@ -957,7 +955,7 @@ class _BackgroundRemovalService extends NAIImageEnhancementApiService {
 ProviderContainer _backgroundRemovalContainer(_Registrar registrar) {
   final ProviderContainer container = ProviderContainer(
     overrides: <Override>[
-      authNotifierProvider.overrideWith(_AuthenticatedNotifier.new),
+      authNotifierProvider.overrideWith(AuthenticatedAuthNotifier.new),
       naiImageEnhancementApiServiceProvider.overrideWithValue(
         _BackgroundRemovalService(),
       ),
