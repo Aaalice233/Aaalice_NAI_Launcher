@@ -653,7 +653,6 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
         retryStatus: AgentChatRetryStatus(
           attempt: attempt,
           maxAttempts: maxAttempts,
-          delayMs: delayMs,
           errorMessage: errorMessage,
           resumesAtMs: DateTime.now().millisecondsSinceEpoch + delayMs,
         ),
@@ -1416,7 +1415,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     );
   }
 
-  void _handleRetryEnd(AgentChatRetryEnd end) {
+  void _handleRetryEnd() {
     if (!mounted) return;
     state = state.copyWith(clearRetryStatus: true);
   }

@@ -521,7 +521,7 @@ void main() {
       ),
       autoRetry: AgentChatAutoRetry(
         onRetryStart: (_) {},
-        onRetryEnd: (_) {},
+        onRetryEnd: () {},
         omitFailedAttempt: (_) {},
       ),
       readState: () => state,

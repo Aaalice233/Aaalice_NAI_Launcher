@@ -19,7 +19,6 @@ AgentChatRetryStatus _retryStatus({
 }) => AgentChatRetryStatus(
   attempt: 2,
   maxAttempts: 3,
-  delayMs: 4000,
   errorMessage: errorMessage,
   resumesAtMs: DateTime.now().millisecondsSinceEpoch + resumesInMs,
 );
