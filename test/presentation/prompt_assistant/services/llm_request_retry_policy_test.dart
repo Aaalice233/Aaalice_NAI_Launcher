@@ -163,10 +163,7 @@ void main() {
         ),
       ])
         '$name Content-Length': (
-          _transport(
-            DioExceptionType.unknown,
-            cause: HttpException(message),
-          ),
+          _transport(DioExceptionType.unknown, cause: HttpException(message)),
           LlmRequestFailureKind.terminal,
         ),
       for (final part in [

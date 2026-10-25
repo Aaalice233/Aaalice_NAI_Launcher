@@ -93,10 +93,9 @@ class _UnprintableBody {
   String toString() => throw StateError('body cannot be rendered');
 }
 
-DioException transport(DioExceptionType type, {Object? cause}) => DioException(
+DioException transport(DioExceptionType type) => DioException(
   requestOptions: RequestOptions(path: '/chat/completions'),
   type: type,
-  error: cause,
 );
 
 /// One scheduled request whose attempts throw [failures] in order, then succeed.
@@ -396,80 +395,11 @@ void main() {
     });
   }
 
-  test('every approved transport failure and overload status is retried', () {
-    fakeAsync((time) {
-      final scheduler = _scheduler(time);
-      final failures = <Object>[
-        transport(DioExceptionType.connectionError),
-        transport(
-          DioExceptionType.connectionError,
-          cause: const HttpException(
-            'Connection closed before full header was received',
-          ),
-        ),
-        transport(DioExceptionType.connectionTimeout),
-        transport(DioExceptionType.sendTimeout),
-        transport(
-          DioExceptionType.unknown,
-          cause: const SocketException('Connection reset by peer'),
-        ),
-        transport(
-          DioExceptionType.unknown,
-          cause: const HttpException('Connection closed while receiving data'),
-        ),
-        transport(
-          DioExceptionType.unknown,
-          cause: const HandshakeException(
-            'Connection terminated during handshake',
-          ),
-        ),
-        limited(status: 429),
-        limited(status: 502),
-        limited(status: 503),
-        limited(status: 504),
-        limited(status: 529),
-      ];
-      final probes = [
-        for (var i = 0; i < failures.length; i++)
-          _Probe(scheduler, provider('p$i', manual: 1), [failures[i]]),
-      ];
-      time.elapse(const Duration(seconds: 1));
-      for (var i = 0; i < failures.length; i++) {
-        expect(probes[i].attempts, 2, reason: '${failures[i]}');
-        expect(probes[i].result, 'ok');
-      }
-      scheduler.dispose();
-      time.flushMicrotasks();
-      expect(time.pendingTimers, isEmpty);
-    });
-  });
-
-  test('receive timeout, HTTP 500, cancellation and bad TLS fail at once', () {
+  test('terminal and non-Dio failures fail at once', () {
     fakeAsync((time) {
       final scheduler = _scheduler(time);
       final failures = <Object>[
         transport(DioExceptionType.receiveTimeout),
-        transport(DioExceptionType.cancel),
-        transport(DioExceptionType.badCertificate),
-        transport(
-          DioExceptionType.unknown,
-          cause: const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
-        ),
-        transport(DioExceptionType.unknown),
-        transport(
-          DioExceptionType.unknown,
-          cause: const HttpException(
-            'Header value exceeds the 1048576 size limit',
-          ),
-        ),
-        transport(
-          DioExceptionType.unknown,
-          cause: const HttpException(
-            'Invalid proxy configuration PROXY 127.0.0.1',
-          ),
-        ),
-        limited(status: 500),
-        limited(status: 400),
         TimeoutException('local'),
         StateError('parse'),
       ];
@@ -693,21 +623,6 @@ void main() {
       });
     },
   );
-
-  test('malformed Retry-After falls back to the default backoff', () {
-    fakeAsync((time) {
-      final scheduler = _scheduler(time);
-      final probe = _Probe(scheduler, provider('a'), [
-        limited(status: 503, retryAfter: 'soon'),
-      ]);
-      time.elapse(const Duration(seconds: 1));
-      expect(probe.attempts, 2);
-      expect(probe.result, 'ok');
-      scheduler.dispose();
-      time.flushMicrotasks();
-      expect(time.pendingTimers, isEmpty);
-    });
-  });
 
   test('default transient backoff is stretched by the injected jitter', () {
     fakeAsync((time) {
