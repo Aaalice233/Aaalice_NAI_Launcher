@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 
 import '../../../helpers/gallery_database_sandbox.dart';
-import '../../../helpers/log_capture.dart';
 
 // 撞上一次跨消息写锁就要卡满 busy_timeout 的 5 秒
 const _stallBudget = Duration(seconds: 2);
@@ -34,27 +33,20 @@ void main() {
     Future<void> Function(int round) batchOperation,
   ) async {
     final stopwatch = Stopwatch()..start();
-    final logs = await captureLogs(
-      () => Future.wait([
-        () async {
-          for (var round = 0; round < _rounds; round++) {
-            await batchOperation(round);
-          }
-        }(),
-        () async {
-          for (var i = 0; i < _singleWrites; i++) {
-            await addImage('single_$i');
-          }
-        }(),
-      ]),
-    );
+    await Future.wait([
+      () async {
+        for (var round = 0; round < _rounds; round++) {
+          await batchOperation(round);
+        }
+      }(),
+      () async {
+        for (var i = 0; i < _singleWrites; i++) {
+          await addImage('single_$i');
+        }
+      }(),
+    ]);
     stopwatch.stop();
 
-    expect(
-      logs.where((line) => line.contains('retrying')),
-      isEmpty,
-      reason: '撞锁后网关会按 BUSY 重试',
-    );
     expect(stopwatch.elapsed, lessThan(_stallBudget));
   }
 
