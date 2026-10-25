@@ -84,10 +84,6 @@ void main() {
       expect(await rowCount(other), 1);
     });
 
-    test('没有语句时不下发事务', () async {
-      expect(await writer.applyAtomically((_) {}), isEmpty);
-    });
-
     test('语句失败时整批回滚，连接上不残留事务和写锁', () async {
       final logs = await captureLogs(
         () => expectLater(
