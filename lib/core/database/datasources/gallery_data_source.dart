@@ -38,7 +38,7 @@ class GalleryDataSource extends EnhancedBaseDataSource {
 
   GalleryDataSource._internal() {
     _gateway = EnhancedGalleryDatabaseGateway(this);
-    _ftsIndex = GalleryFtsIndex(gateway: _gateway);
+    _ftsIndex = GalleryFtsIndex(gateway: _gateway, context: _context);
     _schema = GallerySchema(
       gateway: _gateway,
       context: _context,

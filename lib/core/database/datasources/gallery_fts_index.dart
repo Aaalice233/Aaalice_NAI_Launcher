@@ -3,6 +3,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../../utils/app_logger.dart';
 import '../database_error_summary.dart';
 import 'gallery_database_gateway.dart';
+import 'gallery_store_context.dart';
 import 'gallery_tables.dart';
 
 /// 提示词全文索引：rowid 即图片 id，内容派生自 gallery_metadata.full_prompt_text。
@@ -10,9 +11,10 @@ import 'gallery_tables.dart';
 /// 本类从不开事务：所有连接共用一个 sqflite isolate，
 /// 事务跨消息持有写锁时，其他连接的写入会在 isolate 里干等满 busy_timeout。
 class GalleryFtsIndex {
-  GalleryFtsIndex({required this.gateway});
+  GalleryFtsIndex({required this.gateway, required this.context});
 
   final GalleryDatabaseGateway gateway;
+  final GalleryStoreContext context;
 
   // 每批约 0.1～0.3 秒，期间其他数据库操作在 isolate 里排队
   static const _rebuildBatchSize = 500;
@@ -139,6 +141,7 @@ class GalleryFtsIndex {
           return;
         }
         indexedRows += batchRows;
+        context.markDataChanged();
         await Future<void>.delayed(_rebuildBatchPause);
       }
     } catch (e) {

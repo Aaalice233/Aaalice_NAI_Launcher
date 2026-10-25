@@ -25,7 +25,7 @@ void main() {
     );
     gateway = _RecordingGateway(db);
     final context = GalleryStoreContext();
-    final ftsIndex = GalleryFtsIndex(gateway: gateway);
+    final ftsIndex = GalleryFtsIndex(gateway: gateway, context: context);
     await GallerySchema(
       gateway: gateway,
       context: context,
