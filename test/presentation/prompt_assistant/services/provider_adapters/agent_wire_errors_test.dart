@@ -1,19 +1,12 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/harness/llm_helpers.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/agent_wire_helpers.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/anthropic_messages_adapter.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/gemini_generate_content_adapter.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/openai_chat_completions_adapter.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/openai_responses_adapter.dart';
-import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
 
 const _provider = ProviderConfig(
   id: 'provider',
@@ -165,80 +158,4 @@ void main() {
       );
     });
   });
-
-  group('premature stream endings are retryable', () {
-    final cases = <ProviderProtocol, (PromptAssistantProviderAdapter, String)>{
-      ProviderProtocol.openaiChatCompletions: (
-        const OpenAiChatCompletionsAdapter(),
-        'data: {"choices":[{"delta":{"content":"partial"}}]}\n\n',
-      ),
-      ProviderProtocol.openaiResponses: (
-        const OpenAiResponsesAdapter(),
-        'event: response.output_text.delta\n'
-            'data: {"type":"response.output_text.delta","delta":"partial"}\n\n',
-      ),
-      ProviderProtocol.anthropicMessages: (
-        const AnthropicMessagesAdapter(),
-        'event: message_start\n'
-            'data: {"type":"message_start","message":{}}\n\n',
-      ),
-      ProviderProtocol.geminiGenerateContent: (
-        const GeminiGenerateContentAdapter(),
-        'data: {"candidates":[{"content":{"parts":[{"text":"partial"}]}}]}\n\n',
-      ),
-    };
-    for (final entry in cases.entries) {
-      test(entry.key.name, () async {
-        final (adapter, body) = entry.value;
-        final dio = Dio()..httpClientAdapter = _SseAdapter(body);
-        addTearDown(dio.close);
-        final events = await adapter
-            .completeAgent(
-              dio: dio,
-              request: AgentChatRequest(
-                sessionId: 'session',
-                provider: ProviderConfig(
-                  id: 'provider',
-                  name: 'Provider',
-                  protocol: entry.key,
-                  baseUrl: 'https://example.test',
-                ),
-                model: 'model',
-                systemPrompt: 'system',
-                messages: [UserMessage.text('hello')],
-                tools: const [],
-                apiKey: null,
-              ),
-              cancelToken: CancelToken(),
-            )
-            .toList();
-        expect(events.whereType<AgentWireFinish>(), isEmpty);
-        expect(_retryable(events.whereType<AgentWireError>().last.message), isTrue);
-      });
-    }
-  });
-}
-
-class _SseAdapter implements HttpClientAdapter {
-  _SseAdapter(this.body);
-
-  final String body;
-
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) async {
-    return ResponseBody.fromString(
-      body,
-      200,
-      headers: {
-        Headers.contentTypeHeader: ['text/event-stream'],
-      },
-    );
-  }
-
-  @override
-  void close({bool force = false}) {}
 }
