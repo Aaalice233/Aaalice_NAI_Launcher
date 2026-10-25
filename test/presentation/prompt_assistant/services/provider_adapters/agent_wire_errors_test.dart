@@ -34,6 +34,9 @@ void main() {
       'dropped before headers': const HttpException(
         'Connection closed before full header was received',
       ),
+      'socket failure while awaiting headers': const HttpException(
+        'Read failed',
+      ),
       'localized socket reset': const SocketException(
         '远程主机强迫关闭了一个现有的连接。',
       ),
@@ -135,6 +138,7 @@ void main() {
     test('malformed responses and local bugs are not network errors', () {
       for (final error in [
         const HttpException('Invalid response status code with 1'),
+        const HttpException('Content-Length must contain only digits'),
         StateError('invalid local state'),
         DioException.badCertificate(requestOptions: options),
         const HandshakeException('CERTIFICATE_VERIFY_FAILED'),

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
 import '../../models/agent_protocol.dart';
+import '../llm_request_retry_policy.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 
 /// SSE（Server-Sent Events）增量解析器。
@@ -170,20 +170,8 @@ bool _isTransientConnectionError(Object error) {
       _ => false,
     };
   }
-  if (error is HandshakeException) {
-    // Certificate failures require configuration changes, not another request.
-    return error.message.toLowerCase().contains(
-      'connection terminated during handshake',
-    );
-  }
-  if (error is HttpException) {
-    // Other HttpException messages are protocol violations, not dropped links.
-    return _droppedConnectionPrefixes.any(error.message.startsWith);
-  }
-  return error is SocketException || error is TimeoutException;
+  return error is TimeoutException || isTransientNetworkFailure(error);
 }
-
-const _droppedConnectionPrefixes = ['Connection closed', 'Socket closed'];
 
 /// 流式 POST：返回 SSE 字节流。只发一次请求，重试预算由智能体外层统一管理。
 Stream<Uint8List> agentStreamPost(
