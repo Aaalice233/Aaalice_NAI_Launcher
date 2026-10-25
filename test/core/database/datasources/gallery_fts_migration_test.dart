@@ -133,7 +133,7 @@ void main() {
     expect(tables, isNot(contains(GalleryTables.ftsRebuild)));
   });
 
-  test('迁移按元数据重建：重复行、孤儿行和漏写的行都被纠正', () async {
+  test('迁移按元数据重建：重复行、孤儿行和漏写的行都被纠正，回填前的搜索结果随之失效', () async {
     final alpha = await addImage('alpha', 'alpha current');
     final beta = await addImage('beta', 'beta current');
     final hidden = await addImage('hidden', 'hidden gamma');
@@ -145,7 +145,10 @@ void main() {
       (rowid: 3, imageId: beta, text: 'beta current'),
     ]);
 
-    await relaunch();
+    await sandbox.dataSource.dispose();
+    await sandbox.dataSource.initialize();
+    expect(await sandbox.dataSource.searchFullText('alpha'), isEmpty);
+    await sandbox.dataSource.whenFtsIndexSettled();
 
     // 软删除图片的元数据仍保留，索引随元数据保留，恢复时直接可搜，查询层按 is_deleted 过滤
     expect(await indexedTexts(), {
