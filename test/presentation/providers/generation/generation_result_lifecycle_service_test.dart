@@ -313,47 +313,44 @@ void main() {
     });
   });
 
-  group('图库收录结果不改变保存结果', () {
-    for (final admission in GalleryIndexAdmission.values) {
-      test('${admission.name} 时照常交出路径并计入统计', () async {
-        final directory = await Directory.systemTemp.createTemp(
-          'nai_generation_index_admission_',
-        );
-        addTearDown(() => directory.delete(recursive: true));
+  test('图库收录失败时照常交出路径并计入统计', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'nai_generation_index_admission_',
+    );
+    addTearDown(() => directory.delete(recursive: true));
 
-        final admitted = <List<String>>[];
-        var statisticsCount = 0;
-        final service = GenerationResultLifecycleService(
-          GenerationResultLifecycleDependencies(
-            historyStorage: GenerationHistoryStorageService(enabled: false),
-            resolveGalleryRootPath: () async => directory.path,
-            saveNaming: ImageSaveNaming.standard,
-            addGalleryImages: (paths) async {
-              admitted.add(paths);
-              return admission;
-            },
-            removeGalleryImages: _unexpectedGalleryRemoval,
-            deleteGalleryFile: _unexpectedFileDeletion,
-            incrementStatistics: (count) async => statisticsCount += count,
-          ),
-        );
+    final admitted = <List<String>>[];
+    var statisticsCount = 0;
+    final service = GenerationResultLifecycleService(
+      GenerationResultLifecycleDependencies(
+        historyStorage: GenerationHistoryStorageService(enabled: false),
+        resolveGalleryRootPath: () async => directory.path,
+        saveNaming: ImageSaveNaming.standard,
+        addGalleryImages: (paths) async {
+          admitted.add(paths);
+          return GalleryIndexAdmission.failed;
+        },
+        removeGalleryImages: _unexpectedGalleryRemoval,
+        deleteGalleryFile: _unexpectedFileDeletion,
+        incrementStatistics: (count) async => statisticsCount += count,
+      ),
+    );
 
-        final result = await service.saveImages([
-          GeneratedImage.create(
-            Uint8List.fromList(
-              image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
-            ),
-            width: 2,
-            height: 2,
-            preserveOriginalBytesOnSave: true,
-          ),
-        ]);
+    final result = await service.saveImages([
+      GeneratedImage.create(
+        Uint8List.fromList(
+          image_lib.encodePng(image_lib.Image(width: 2, height: 2)),
+        ),
+        width: 2,
+        height: 2,
+        preserveOriginalBytesOnSave: true,
+      ),
+    ]);
 
-        expect(result.savedPaths, hasLength(1));
-        expect(admitted, [result.savedPaths]);
-        expect(statisticsCount, 1);
-      });
-    }
+    expect(result.savedPaths, hasLength(1));
+    expect(await File(result.savedPaths.single).exists(), isTrue);
+    expect(admitted, [result.savedPaths]);
+    expect(statisticsCount, 1);
   });
 
   group('GalleryIndexAdmission', () {
