@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/agent/harness/llm_helpers.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/anthropic_messages_adapter.dart';
@@ -12,6 +13,14 @@ import 'package:nai_launcher/presentation/prompt_assistant/services/provider_ada
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/openai_chat_completions_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/openai_responses_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
+
+bool _isRetryable(AgentWireError error) => isRetryableAssistantError(
+  AssistantMessage(
+    content: const [],
+    stopReason: StopReason.error,
+    errorMessage: error.message,
+  ),
+);
 
 void main() {
   test('streaming HTTP errors preserve the provider response body', () async {
@@ -99,6 +108,7 @@ void main() {
 
     expect(events.whereType<AgentWireError>(), hasLength(1));
     expect(events.whereType<AgentWireFinish>(), isEmpty);
+    expect(_isRetryable(events.whereType<AgentWireError>().single), isTrue);
   });
 
   test('DeepSeek replays reasoning content before tool results', () async {
@@ -407,6 +417,26 @@ void main() {
     );
   });
 
+  test('Gemini rejects a truncated stream', () async {
+    final dio = Dio()
+      ..httpClientAdapter = _SseAdapter(
+        'data: {"candidates":[{"content":{"parts":[{"text":"partial"}]}}]}\n\n',
+      );
+    addTearDown(dio.close);
+
+    final events = await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: _request(ProviderProtocol.geminiGenerateContent),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    expect(events.whereType<AgentWireError>(), hasLength(1));
+    expect(events.whereType<AgentWireFinish>(), isEmpty);
+    expect(_isRetryable(events.whereType<AgentWireError>().single), isTrue);
+  });
+
   test('Gemini maps cached and thinking tokens like Pi', () async {
     final dio = Dio()
       ..httpClientAdapter = _SseAdapter(
@@ -658,6 +688,7 @@ void main() {
 
     expect(events.whereType<AgentWireError>(), hasLength(1));
     expect(events.whereType<AgentWireFinish>(), isEmpty);
+    expect(_isRetryable(events.whereType<AgentWireError>().single), isTrue);
   });
 
   test(
@@ -754,6 +785,7 @@ void main() {
 
     expect(events.whereType<AgentWireError>(), hasLength(1));
     expect(events.whereType<AgentWireFinish>(), isEmpty);
+    expect(_isRetryable(events.whereType<AgentWireError>().single), isTrue);
   });
 
   test('OpenAI Responses persists encrypted reasoning and replays it', () async {
