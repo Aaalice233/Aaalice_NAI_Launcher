@@ -33,6 +33,8 @@ const _deterministicHttpFailures = [
   'failed to parse',
   'illegal value',
   'invalid proxy configuration',
+  'content-length',
+  'the content-length header',
 ];
 
 final _headerSizeLimitExceeded = RegExp(r' exceeds the \d+ size limit$');
