@@ -27,10 +27,13 @@ class GalleryAspectRatioCache {
     if (known != null) return Future.value(known);
     final source = sourceOf(record);
     return _pending[source] ??= _readFile(record.path)
-        .then<double>(
-          (value) => value.isFinite && value > 0 ? value : fallback,
-          onError: (Object _) => fallback,
-        )
+        .catchError((Object error) {
+          AppLogger.d(
+            'Failed to read gallery image aspect ratio: $error',
+            'GalleryContent',
+          );
+          return fallback;
+        })
         .then((value) {
           _resolved[source] = value;
           _pending.remove(source);
@@ -55,17 +58,12 @@ class GalleryAspectRatioCache {
   }
 
   static Future<double> _readEncodedAspectRatio(String path) async {
-    try {
-      final (width, height) = await readEncodedImageDimensions(
-        await ui.ImmutableBuffer.fromFilePath(path),
-      );
-      if (width > 0 && height > 0) return width / height;
-    } catch (e) {
-      AppLogger.d(
-        'Failed to read gallery image aspect ratio: $e',
-        'GalleryContent',
-      );
+    final (width, height) = await readEncodedImageDimensions(
+      await ui.ImmutableBuffer.fromFilePath(path),
+    );
+    if (width <= 0 || height <= 0) {
+      throw FormatException('Invalid image dimensions ${width}x$height');
     }
-    return fallback;
+    return width / height;
   }
 }
