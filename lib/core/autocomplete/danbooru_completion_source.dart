@@ -58,9 +58,6 @@ class DanbooruCompletionSource implements CompletionSource {
   @visibleForTesting
   int get memoryEntryCount => _memory.size;
 
-  @visibleForTesting
-  int get memoryCandidateCount => _memory.totalWeight;
-
   void cancelPending() {
     _cancelToken?.cancel('Autocomplete query replaced');
     _cancelToken = null;

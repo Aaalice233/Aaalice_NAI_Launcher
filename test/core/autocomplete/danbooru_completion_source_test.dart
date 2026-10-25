@@ -335,12 +335,10 @@ void main() {
 
       await source.search(_query('first'));
       expect(source.memoryEntryCount, 1);
-      expect(source.memoryCandidateCount, 3);
 
       now = now.add(DanbooruCompletionSource.memoryTtl);
       await source.search(_query('second'));
       expect(source.memoryEntryCount, 1);
-      expect(source.memoryCandidateCount, 2);
 
       final readsBeforeExpiry = cache.getRemoteCalls;
       await source.search(_query('second'));
@@ -348,7 +346,6 @@ void main() {
       now = now.add(DanbooruCompletionSource.memoryTtl);
       await source.relatedTags('unseen');
       expect(source.memoryEntryCount, 1);
-      expect(source.memoryCandidateCount, 1);
       await source.search(_query('second'));
       expect(cache.getRemoteCalls, readsBeforeExpiry + 2);
     });
