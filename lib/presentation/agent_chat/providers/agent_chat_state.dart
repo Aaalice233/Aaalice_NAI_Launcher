@@ -211,14 +211,12 @@ class AgentChatRetryStatus {
   const AgentChatRetryStatus({
     required this.attempt,
     required this.maxAttempts,
-    required this.delayMs,
     required this.errorMessage,
     required this.resumesAtMs,
   });
 
   final int attempt;
   final int maxAttempts;
-  final int delayMs;
   final String errorMessage;
 
   /// 退避结束、重试开始的时刻（毫秒时间戳）。

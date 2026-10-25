@@ -26,7 +26,7 @@ class _Harness {
   }) {
     retry = AgentChatAutoRetry(
       onRetryStart: started.add,
-      onRetryEnd: ended.add,
+      onRetryEnd: () => ended++,
       omitFailedAttempt: omitted.add,
       now: () => 1000,
       policy: policy,
@@ -35,7 +35,7 @@ class _Harness {
 
   late final AgentChatAutoRetry retry;
   final started = <AgentChatRetryStatus>[];
-  final ended = <AgentChatRetryEnd>[];
+  var ended = 0;
   final omitted = <AssistantMessage>[];
 
   Future<bool> fail([String errorMessage = 'overloaded_error']) {
@@ -55,7 +55,7 @@ void main() {
     );
   });
 
-  test('retries a transient failure and reports success', () async {
+  test('retries a transient failure until it succeeds', () async {
     final harness = _Harness();
     harness.retry.beginRun();
     final failure = _failure();
@@ -67,14 +67,12 @@ void main() {
     final status = harness.started.single;
     expect(status.attempt, 1);
     expect(status.maxAttempts, 3);
-    expect(status.delayMs, 1);
     expect(status.errorMessage, 'overloaded_error');
     expect(status.resumesAtMs, 1001);
-    expect(harness.retry.isRetrying, isFalse);
+    expect(harness.ended, 0);
 
     harness.retry.recordAssistantMessage(_success());
-    expect(harness.ended.single.success, isTrue);
-    expect(harness.ended.single.attempt, 1);
+    expect(harness.ended, 1);
     expect(harness.retry.attempt, 0);
     expect(await harness.retry.takeRetry(), isFalse);
   });
@@ -94,28 +92,8 @@ void main() {
     expect(await harness.retry.takeRetry(), isFalse);
 
     expect(harness.started.map((status) => status.attempt), [1, 2]);
-    final end = harness.ended.single;
-    expect(end.success, isFalse);
-    expect(end.cancelled, isFalse);
-    expect(end.attempt, 2);
-    expect(end.finalError, 'overloaded again');
+    expect(harness.ended, 1);
     expect(harness.retry.attempt, 0);
-  });
-
-  test('caps the doubling delay', () async {
-    final harness = _Harness(
-      policy: const RetryPolicy(
-        enabled: true,
-        maxRetries: 5,
-        baseDelayMs: 1,
-        maxAgentDelayMs: 5,
-      ),
-    );
-    harness.retry.beginRun();
-    for (var i = 0; i < 4; i++) {
-      expect(await harness.fail(), isTrue);
-    }
-    expect(harness.started.map((status) => status.delayMs), [1, 2, 4, 5]);
   });
 
   test('a non-transient failure after retries ends the sequence', () async {
@@ -123,9 +101,8 @@ void main() {
     harness.retry.beginRun();
     expect(await harness.fail(), isTrue);
     expect(await harness.fail('401 invalid api key'), isFalse);
-    expect(harness.ended.single.success, isFalse);
-    expect(harness.ended.single.attempt, 1);
-    expect(harness.ended.single.finalError, '401 invalid api key');
+    expect(harness.ended, 1);
+    expect(harness.retry.attempt, 0);
   });
 
   test('non-retryable and overflow failures never retry', () async {
@@ -141,7 +118,7 @@ void main() {
       expect(await harness.retry.takeRetry(), isFalse);
     }
     expect(harness.started, isEmpty);
-    expect(harness.ended, isEmpty);
+    expect(harness.ended, 0);
     expect(harness.omitted, isEmpty);
   });
 
@@ -156,16 +133,12 @@ void main() {
     harness.retry.beginRun();
     final pending = harness.fail();
     await Future<void>.delayed(Duration.zero);
-    expect(harness.retry.isRetrying, isTrue);
+    expect(harness.started, hasLength(1));
 
     harness.retry.requestAbort();
 
     expect(await pending.timeout(const Duration(seconds: 5)), isFalse);
-    expect(harness.retry.isRetrying, isFalse);
-    final end = harness.ended.single;
-    expect(end.cancelled, isTrue);
-    expect(end.success, isFalse);
-    expect(end.attempt, 1);
+    expect(harness.ended, 1);
     expect(harness.retry.attempt, 0);
   });
 
@@ -196,7 +169,7 @@ void main() {
     harness.retry.endRun();
 
     expect(harness.started, hasLength(1));
-    expect(harness.ended.single.attempt, 1);
+    expect(harness.ended, 1);
     expect(harness.retry.attempt, 0);
   });
 

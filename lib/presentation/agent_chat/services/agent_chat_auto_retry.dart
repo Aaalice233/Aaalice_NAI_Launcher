@@ -12,24 +12,10 @@ const agentChatRetryPolicy = RetryPolicy(
   maxAgentDelayMs: defaultMaxAgentRetryDelayMs,
 );
 
-class AgentChatRetryEnd {
-  const AgentChatRetryEnd({
-    required this.success,
-    required this.attempt,
-    this.finalError,
-    this.cancelled = false,
-  });
-
-  final bool success;
-  final int attempt;
-  final String? finalError;
-  final bool cancelled;
-}
-
 class AgentChatAutoRetry {
   AgentChatAutoRetry({
     required void Function(AgentChatRetryStatus status) onRetryStart,
-    required void Function(AgentChatRetryEnd end) onRetryEnd,
+    required void Function() onRetryEnd,
     required void Function(AssistantMessage failed) omitFailedAttempt,
     int Function()? contextWindow,
     int Function()? now,
@@ -42,7 +28,7 @@ class AgentChatAutoRetry {
 
   final RetryPolicy policy;
   final void Function(AgentChatRetryStatus) _onRetryStart;
-  final void Function(AgentChatRetryEnd) _onRetryEnd;
+  final void Function() _onRetryEnd;
   final void Function(AssistantMessage) _omitFailedAttempt;
   final int Function() _contextWindow;
   final int Function() _now;
@@ -54,8 +40,6 @@ class AgentChatAutoRetry {
 
   /// 当前已进行的重试次数（未重试为 0）。
   int get attempt => _attempt;
-  bool get abortRequested => _abortRequested;
-  bool get isRetrying => _sleepController != null;
 
   void beginRun() {
     _abortRequested = false;
@@ -86,9 +70,8 @@ class AgentChatAutoRetry {
     _lastAssistantMessage = message;
     // 成功响应立即清零，避免同一回合内多次 LLM 调用累计重试次数。
     if (message.stopReason != StopReason.error && _attempt > 0) {
-      final attempt = _attempt;
       _attempt = 0;
-      _onRetryEnd(AgentChatRetryEnd(success: true, attempt: attempt));
+      _onRetryEnd();
     }
   }
 
@@ -113,15 +96,8 @@ class AgentChatAutoRetry {
       return false;
     }
     if (message.stopReason == StopReason.error && _attempt > 0) {
-      final attempt = _attempt;
       _attempt = 0;
-      _onRetryEnd(
-        AgentChatRetryEnd(
-          success: false,
-          attempt: attempt,
-          finalError: message.errorMessage,
-        ),
-      );
+      _onRetryEnd();
     }
     return false;
   }
@@ -147,7 +123,6 @@ class AgentChatAutoRetry {
       AgentChatRetryStatus(
         attempt: _attempt,
         maxAttempts: policy.maxRetries,
-        delayMs: delayMs,
         errorMessage: errorMessage,
         resumesAtMs: _now() + delayMs,
       ),
@@ -168,15 +143,7 @@ class AgentChatAutoRetry {
 
   void _finishCancelledRetry() {
     if (_attempt == 0) return;
-    final attempt = _attempt;
     _attempt = 0;
-    _onRetryEnd(
-      AgentChatRetryEnd(
-        success: false,
-        attempt: attempt,
-        finalError: 'Retry cancelled',
-        cancelled: true,
-      ),
-    );
+    _onRetryEnd();
   }
 }
