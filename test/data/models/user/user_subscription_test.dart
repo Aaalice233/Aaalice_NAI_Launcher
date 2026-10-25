@@ -86,14 +86,11 @@ void main() {
       final nullExtra = parseUsage({'percent': 50, 'purchasedPercent': null});
       final negativeExtra = parseUsage({'percent': 50, 'purchasedPercent': -3});
 
-      for (final usage in [legacy, nullExtra]) {
+      for (final usage in [legacy, nullExtra, negativeExtra]) {
         expect(usage.purchasedPercent, 0);
         expect(usage.hasExtraUsage, isFalse);
         expect(usage.availablePercent, 50);
       }
-      expect(negativeExtra.purchasedPercent, 0);
-      expect(negativeExtra.hasExtraUsage, isFalse);
-      expect(negativeExtra.availablePercent, 50);
     });
 
     test('treats non-numeric and non-finite extra usage as zero', () {
@@ -121,13 +118,6 @@ void main() {
         expect(usage.hasExtraUsage, isFalse, reason: '$raw');
         expect(usage.availablePercent, 50, reason: '$raw');
       }
-    });
-
-    test('clamps negative extra usage to zero while parsing', () {
-      expect(
-        parseUsage({'percent': 50, 'purchasedPercent': -3}).purchasedPercent,
-        0,
-      );
     });
 
     test('never rounds a non-empty extra usage pool down to zero', () {

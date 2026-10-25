@@ -116,6 +116,17 @@ void main() {
 
     expect(find.text('98%'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(
+      find.byKey(const ValueKey('opus-usage-extra-percent')),
+      findsNothing,
+    );
+    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+    expect(
+      tooltip.message,
+      '98% of Opus Generations remaining\n'
+      'About 1695 images left\n'
+      'Currently refills at 18% per day (~311 images)',
+    );
   });
 
   testWidgets('shows overflow quota without capping the text or estimate', (
@@ -261,24 +272,6 @@ void main() {
 
     expect(find.text('0%'), findsOneWidget);
     expect(find.byIcon(Icons.hourglass_bottom_rounded), findsOneWidget);
-  });
-
-  testWidgets('keeps the regular-only chip unchanged without extra usage', (
-    tester,
-  ) async {
-    await _pumpChip(tester, opusWithUsage, ImageModels.animeDiffusionV5Curated);
-
-    expect(
-      find.byKey(const ValueKey('opus-usage-extra-percent')),
-      findsNothing,
-    );
-    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
-    expect(
-      tooltip.message,
-      '98% of Opus Generations remaining\n'
-      'About 1695 images left\n'
-      'Currently refills at 18% per day (~311 images)',
-    );
   });
 
   testWidgets('appends the extra usage pool once the regular pool is empty', (
