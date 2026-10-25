@@ -612,7 +612,7 @@ void main() {
       expect(read(container).result, same(_lineArtBytes));
     });
 
-    test('三张都带后缀进历史和图库，只有选中的那张顶替当前展示', () async {
+    test('三张共用创建时间、带后缀进历史和图库，只有选中的那张顶替当前展示，并报告成功', () async {
       final _Registrar registrar = _Registrar();
       final ProviderContainer container = _backgroundRemovalContainer(
         registrar,
@@ -621,7 +621,8 @@ void main() {
         container,
       );
 
-      await notifier.registerResult();
+      final DirectorResultRegistration registration = await notifier
+          .registerResult();
 
       expect(
         registrar.registrations.map((_Registration r) => r.bytes).toList(),
@@ -645,25 +646,18 @@ void main() {
         ),
         isTrue,
       );
-    });
-
-    test('同一次处理的三张共用同一个创建时间', () async {
-      final _Registrar registrar = _Registrar();
-      final ProviderContainer container = _backgroundRemovalContainer(
-        registrar,
-      );
-      final DirectorToolsNotifier notifier = await runBackgroundRemoval(
-        container,
-      );
-
-      await notifier.registerResult();
 
       final Set<DateTime?> createdAts = registrar.registrations
           .map((_Registration r) => r.createdAt)
           .toSet();
-      expect(registrar.registrations, hasLength(3));
       expect(createdAts, hasLength(1));
       expect(createdAts.single, isNotNull);
+
+      expect(registration.total, 3);
+      expect(registration.succeeded, isTrue);
+      expect(registration.failedCount, 0);
+      expect(registration.allFailed, isFalse);
+      expect(registration.selectedFailed, isFalse);
     });
 
     test('选中第 1 张后登记，只有那张顶替当前展示', () async {
@@ -686,24 +680,6 @@ void main() {
         <Uint8List>[_generatedBytes],
       );
       expect(registrar.registrations, hasLength(3));
-    });
-
-    test('三张全部登记成功时报告成功', () async {
-      final ProviderContainer container = _backgroundRemovalContainer(
-        _Registrar(),
-      );
-      final DirectorToolsNotifier notifier = await runBackgroundRemoval(
-        container,
-      );
-
-      final DirectorResultRegistration registration = await notifier
-          .registerResult();
-
-      expect(registration.total, 3);
-      expect(registration.succeeded, isTrue);
-      expect(registration.failedCount, 0);
-      expect(registration.allFailed, isFalse);
-      expect(registration.selectedFailed, isFalse);
     });
 
     test('某张登记失败不影响其余几张，也不向外抛出，并报告失败序号', () async {
