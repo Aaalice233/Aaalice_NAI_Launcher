@@ -70,7 +70,7 @@ const _backoffJitterRatio = 0.5;
 // Jitter only lengthens the wait, so batches that failed together spread out.
 Duration llmRetryBackoff(int retry, {required double jitter}) {
   final base = 1000 << math.min(retry, 2);
-  final spread = jitter.clamp(0.0, 1.0) * _backoffJitterRatio;
+  final spread = jitter * _backoffJitterRatio;
   return Duration(milliseconds: (base * (1 + spread)).round());
 }
 
