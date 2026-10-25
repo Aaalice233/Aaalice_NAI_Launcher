@@ -198,12 +198,10 @@ class DerivativeRegistry {
     _decodeCount++;
     try {
       final decoded = jsonDecode(encoded);
-      if (decoded is! Map) return const {};
+      if (decoded is! Map<String, Object?>) return const {};
       // Shared by every lookup until the stored text changes.
       return deepFrozenJsonMap(decoded);
     } on FormatException {
-      return const {};
-    } on TypeError {
       return const {};
     }
   }
