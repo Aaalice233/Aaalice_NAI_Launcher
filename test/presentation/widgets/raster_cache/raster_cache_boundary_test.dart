@@ -280,7 +280,16 @@ class _Harness extends StatelessWidget {
                   ),
                 ),
                 // 测试绑定只在有排帧时才出帧；缓存的前提正是相邻区域持续动画。
-                const Positioned(right: 0, bottom: 0, child: _Spinner()),
+                const Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: RepaintBoundary(
+                    child: SizedBox.square(
+                      dimension: 8,
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -313,54 +322,6 @@ class _Content extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Spinner extends StatefulWidget {
-  const _Spinner();
-
-  @override
-  State<_Spinner> createState() => _SpinnerState();
-}
-
-class _SpinnerState extends State<_Spinner>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 1),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: CustomPaint(
-        size: const Size(8, 8),
-        painter: _SpinnerPainter(_controller),
-      ),
-    );
-  }
-}
-
-class _SpinnerPainter extends CustomPainter {
-  _SpinnerPainter(this.progress) : super(repaint: progress);
-
-  final Animation<double> progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = Color.lerp(Colors.white, Colors.black, progress.value)!,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_SpinnerPainter oldDelegate) => false;
 }
 
 class _SwatchPainter extends CustomPainter {
