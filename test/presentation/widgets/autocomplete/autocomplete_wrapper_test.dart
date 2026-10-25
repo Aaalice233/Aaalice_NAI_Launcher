@@ -98,7 +98,6 @@ void main() {
     Hive.init(hivePath);
     // Memory backend: writes under FakeAsync never finish and lock the box
     await Hive.openBox(StorageKeys.settingsBox, bytes: Uint8List(0));
-    await Hive.openBox(StorageKeys.historyBox, bytes: Uint8List(0));
   });
 
   tearDown(() async {

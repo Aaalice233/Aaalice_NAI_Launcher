@@ -13,47 +13,32 @@ final generationHistoryBoxStorageProvider =
 class GenerationHistoryBoxStorage {
   const GenerationHistoryBoxStorage();
 
-  Box<dynamic>? get _box {
-    if (!Hive.isBoxOpen(StorageKeys.historyBox)) {
-      return null;
-    }
-    return Hive.box<dynamic>(StorageKeys.historyBox);
-  }
+  LazyBox<dynamic> get _box => Hive.lazyBox<dynamic>(StorageKeys.historyBox);
 
   bool get isOpen => Hive.isBoxOpen(StorageKeys.historyBox);
 
-  Object? read(String key) => _box?.get(key);
+  Future<Object?> read(String key) => _box.get(key);
 
   List<String> keysWithPrefix(String prefix) {
-    final box = _box;
-    if (box == null) return const [];
-    return box.keys
+    if (!isOpen) return const [];
+    return _box.keys
         .whereType<String>()
         .where((key) => key.startsWith(prefix))
         .toList();
   }
 
   Future<void> put(String key, Object? value) async {
-    final box = _box;
-    if (box == null) return;
-    await box.put(key, value);
+    if (!isOpen) return;
+    await _box.put(key, value);
   }
 
   Future<void> putAll(Map<String, Object?> entries) async {
-    final box = _box;
-    if (box == null || entries.isEmpty) return;
-    await box.putAll(entries);
-  }
-
-  Future<void> delete(String key) async {
-    final box = _box;
-    if (box == null) return;
-    await box.delete(key);
+    if (!isOpen || entries.isEmpty) return;
+    await _box.putAll(entries);
   }
 
   Future<void> deleteAll(Iterable<String> keys) async {
-    final box = _box;
-    if (box == null) return;
-    await box.deleteAll(keys);
+    if (!isOpen) return;
+    await _box.deleteAll(keys);
   }
 }

@@ -248,8 +248,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     await lifecycle.flushHistory();
   }
 
-  void _retainHistoryCaches() {
-    if (_isDisposed) return;
+  void _retainShareHistoryCache() {
     final retainedIds = <String>{
       for (final image in state.currentImages) image.id,
       for (final image in state.history) image.id,
@@ -257,6 +256,11 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     unawaited(
       ShareImagePreparationService.instance.retainHistoryImageIds(retainedIds),
     );
+  }
+
+  void _retainHistoryCaches() {
+    if (_isDisposed) return;
+    _retainShareHistoryCache();
     final changed = state.history
         .where(
           (image) =>
@@ -1163,12 +1167,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
   void clearHistory() {
     _pendingFailedSnapshots.discardAll();
+    final epoch = _lifecycleEpoch;
+    ref.read(generationHistoryStorageServiceProvider).clear().then((_) {
+      if (_isCurrentLifecycle(epoch)) _persistedHistoryFilePaths.clear();
+    }).ignore();
     state = state.copyWith(
       currentImages: [],
       history: [],
       completionPreviews: const {},
     );
-    _retainHistoryCaches();
+    _retainShareHistoryCache();
   }
 
   /// 从当前批次、历史与中央预览移除这些结果，并永久删除它们关联的图库文件。

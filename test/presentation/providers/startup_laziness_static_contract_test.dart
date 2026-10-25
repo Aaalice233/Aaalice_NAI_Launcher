@@ -41,6 +41,20 @@ void main() {
     expect(criticalStart, greaterThanOrEqualTo(0));
     expect(mainShellStart, greaterThan(criticalStart));
     expect(deferredStart, greaterThan(mainShellStart));
+    final criticalSource = initializationSource.substring(
+      criticalStart,
+      mainShellStart,
+    );
+    expect(
+      criticalSource,
+      isNot(
+        matches(
+          RegExp(
+            r'HiveStartupBoxOpener\.openBox(?:<[^>]+>)?\(\s*StorageKeys\.historyBox\b',
+          ),
+        ),
+      ),
+    );
     final mainShellSource = initializationSource.substring(
       mainShellStart,
       deferredStart,

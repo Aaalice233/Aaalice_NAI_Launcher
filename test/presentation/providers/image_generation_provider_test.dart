@@ -31,6 +31,7 @@ import 'package:nai_launcher/presentation/providers/image_save_settings_provider
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
+import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
 import 'package:path/path.dart' as p;
 
 class MockNAIImageGenerationApiService extends Mock
@@ -103,7 +104,7 @@ void main() {
     hiveTempDir = await Directory.systemTemp.createTemp('nai_launcher_hive_');
     Hive.init(hiveTempDir.path);
     await Hive.openBox(StorageKeys.settingsBox);
-    await Hive.openBox(StorageKeys.historyBox);
+    await Hive.openLazyBox<dynamic>(StorageKeys.historyBox);
     await Hive.openBox(StorageKeys.statisticsCacheBox);
   });
 
@@ -829,6 +830,74 @@ void main() {
             .comparisonSource;
         expect(sourceAfterClear, isNot(same(sourceAfterEviction)));
         await notifier.flushGenerationHistory();
+      },
+    );
+
+    test(
+      'clearHistory removes unreadable and queued records before new saves',
+      () async {
+        final box = Hive.lazyBox<dynamic>(StorageKeys.historyBox);
+        const orderKey = 'generation_history_v1_order';
+        const recordPrefix = 'generation_history_v1_record_';
+        final bytes = _validImageBytes(width: 64, height: 64);
+        final raw = {'bytes': bytes, 'width': 64, 'height': 64};
+        await box.putAll({
+          orderKey: ['kept', 'unreadable'],
+          '${recordPrefix}kept': raw,
+          '${recordPrefix}unreadable': {...raw, 'kind': 42},
+        });
+
+        final storage = GenerationHistoryStorageService();
+        final historyContainer = _createAuthenticatedContainer(
+          overrides: [
+            generationHistoryStorageServiceProvider.overrideWithValue(storage),
+            localGalleryNotifierProvider.overrideWith(
+              TestLocalGalleryNotifier.new,
+            ),
+          ],
+        );
+        addTearDown(() async {
+          historyContainer.dispose();
+          await storage.flush();
+          await box.clear();
+        });
+        final notifier = historyContainer.read(
+          imageGenerationNotifierProvider.notifier,
+        );
+        await notifier.ensureGenerationHistoryRestored();
+        expect(
+          historyContainer
+              .read(imageGenerationNotifierProvider)
+              .history
+              .single
+              .id,
+          'kept',
+        );
+
+        final earlierSave = storage.persistImages(
+          changedImages: [
+            GeneratedImage(id: 'queued', bytes: bytes, width: 64, height: 64),
+          ],
+          order: const ['queued', 'kept'],
+        );
+        notifier.clearHistory();
+        await earlierSave;
+        await notifier.flushGenerationHistory();
+        expect(box.keys.toSet(), {orderKey});
+        expect(await box.get(orderKey), isEmpty);
+
+        await notifier.registerExternalImage(
+          bytes,
+          params: const ImageParams(),
+          embedNaiMetadata: false,
+        );
+        await notifier.flushGenerationHistory();
+        final newImage = historyContainer
+            .read(imageGenerationNotifierProvider)
+            .history
+            .single;
+        expect(await box.get(orderKey), [newImage.id]);
+        expect(box.keys.toSet(), {orderKey, '$recordPrefix${newImage.id}'});
       },
     );
 
