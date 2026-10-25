@@ -45,6 +45,17 @@ void main() {
         '远程主机强迫关闭了一个现有的连接。',
       ),
       'timeout': TimeoutException('no data'),
+      'handshake termination': const HandshakeException(
+        'Connection terminated during handshake',
+      ),
+      'dio connection timeout': DioException.connectionTimeout(
+        timeout: const Duration(seconds: 30),
+        requestOptions: options,
+      ),
+      'dio send timeout': DioException.sendTimeout(
+        timeout: const Duration(seconds: 30),
+        requestOptions: options,
+      ),
       'dio connection error': DioException.connectionError(
         requestOptions: options,
         reason: 'Connection refused',
@@ -133,6 +144,7 @@ void main() {
         const HttpException('Invalid response status code with 1'),
         StateError('invalid local state'),
         DioException.badCertificate(requestOptions: options),
+        const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
       ]) {
         final message = agentWireErrorFrom(error, _provider).message;
         expect(message, isNot(contains('network error')));

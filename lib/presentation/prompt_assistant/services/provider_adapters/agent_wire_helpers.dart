@@ -157,48 +157,6 @@ Map<String, dynamic>? parseSseJson(String data) {
   return null;
 }
 
-/// 流式 POST：返回 SSE 字节流。
-Stream<Uint8List> agentStreamPost(
-  Dio dio, {
-  required String endpoint,
-  required Object payload,
-  required Map<String, dynamic> headers,
-  required CancelToken cancelToken,
-  Duration? receiveTimeout = const Duration(minutes: 5),
-}) async* {
-  var receivedBytes = false;
-  for (var attempt = 0; ; attempt++) {
-    if (cancelToken.cancelError case final error?) throw error;
-    try {
-      await for (final chunk in _agentStreamPostOnce(
-        dio,
-        endpoint: endpoint,
-        payload: payload,
-        headers: headers,
-        cancelToken: cancelToken,
-        receiveTimeout: receiveTimeout,
-      )) {
-        if (chunk.isNotEmpty) receivedBytes = true;
-        yield chunk;
-      }
-      return;
-    } on Object catch (error) {
-      if (cancelToken.cancelError case final cancelled?) throw cancelled;
-      // Never replay a stream after bytes have reached its parser, even if
-      // those bytes have not yet produced a visible text or tool event.
-      if (receivedBytes ||
-          attempt >= 2 ||
-          !_isTransientConnectionError(error)) {
-        rethrow;
-      }
-      await _waitForRetry(
-        Duration(milliseconds: 500 * (1 << attempt)),
-        cancelToken,
-      );
-    }
-  }
-}
-
 bool _isTransientConnectionError(Object error) {
   if (error is DioException) {
     if (error.response != null) return false;
@@ -227,24 +185,14 @@ bool _isTransientConnectionError(Object error) {
 
 const _droppedConnectionPrefixes = ['Connection closed', 'Socket closed'];
 
-Future<void> _waitForRetry(Duration delay, CancelToken cancelToken) async {
-  final ready = Completer<void>();
-  final timer = Timer(delay, ready.complete);
-  try {
-    await Future.any([ready.future, cancelToken.whenCancel]);
-    if (cancelToken.cancelError case final error?) throw error;
-  } finally {
-    timer.cancel();
-  }
-}
-
-Stream<Uint8List> _agentStreamPostOnce(
+/// 流式 POST：返回 SSE 字节流。只发一次请求，重试预算由智能体外层统一管理。
+Stream<Uint8List> agentStreamPost(
   Dio dio, {
   required String endpoint,
   required Object payload,
   required Map<String, dynamic> headers,
   required CancelToken cancelToken,
-  required Duration? receiveTimeout,
+  Duration? receiveTimeout = const Duration(minutes: 5),
 }) async* {
   late final Response<ResponseBody> response;
   try {
