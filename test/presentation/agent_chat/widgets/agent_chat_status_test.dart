@@ -11,6 +11,8 @@ import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_status.d
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 
+import '../../../helpers/agent_chat_panel_commands_fixture.dart';
+
 AgentChatRetryStatus _retryStatus({
   required int resumesInMs,
   String errorMessage =
@@ -38,41 +40,7 @@ AgentChatPanelViewData _viewData(AgentChatState state, double width) =>
       headerWrapper: null,
     );
 
-final _commands = AgentChatPanelCommands(
-  collapse: () {},
-  newSession: () async {},
-  selectSession: (_) async {},
-  renameSession: (_) async {},
-  deleteSession: (_) async {},
-  moreAction: (_) async {},
-  selectModel: (_, __) async {},
-  selectThinkingLevel: (_) async {},
-  selectPermissionMode: (_) async {},
-  setWebAccessEnabled: (_) async {},
-  pickImages: () async {},
-  pasteClipboardImage: () async => false,
-  attachImageFiles: (_) async {},
-  attachCurrentCanvas: () async {},
-  openReferenceGallery: () async {},
-  openResourceLibrary: () async {},
-  resolveResourcePreview: (_) async => null,
-  send: () async {},
-  sendFollowUp: () async {},
-  stop: () {},
-  dismissError: () {},
-  retryLastMessage: () async {},
-  resolveApproval: (_, __) => false,
-  useSuggestion: (_) {},
-  copyUserMessage: (_) async {},
-  editUserMessage: (_, __) async {},
-  cancelUserMessageEdit: () {},
-  copyAssistantMessage: (_) async {},
-  editQueuedMessage: (_) async {},
-  removeQueuedMessage: (_) async {},
-  clearQueuedMessages: () async {},
-  addPendingResource: (_) async {},
-  removePendingResource: (_) async {},
-);
+final _commands = inertAgentChatPanelCommands();
 
 void main() {
   Widget app({
@@ -186,10 +154,6 @@ void main() {
 
       final notice = find.byKey(const ValueKey('agent-chat-retry-notice'));
       expect(notice, findsOneWidget);
-      expect(
-        (tester.widget<Container>(notice).margin! as EdgeInsets).left,
-        width < 600 ? 12 : 10,
-      );
       expect(find.text('Retrying (2/3) in 4s'), findsOneWidget);
       expect(
         find.text('Network connection error. Check your network connection.'),

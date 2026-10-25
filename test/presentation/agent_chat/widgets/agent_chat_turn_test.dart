@@ -16,6 +16,8 @@ import 'package:nai_launcher/presentation/agent_settings/providers/agent_setting
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 
+import '../../../helpers/agent_chat_panel_commands_fixture.dart';
+
 void main() {
   test(
     'assembler pairs call_id and keeps final assistant outside work items',
@@ -763,38 +765,6 @@ final _onePixelPng = base64Decode(
 
 Message? _editedSource;
 
-final _commands = AgentChatPanelCommands(
-  collapse: () {},
-  newSession: () async {},
-  selectSession: (_) async {},
-  renameSession: (_) async {},
-  deleteSession: (_) async {},
-  moreAction: (_) async {},
-  selectModel: (_, __) async {},
-  selectThinkingLevel: (_) async {},
-  selectPermissionMode: (_) async {},
-  setWebAccessEnabled: (_) async {},
-  pickImages: () async {},
-  pasteClipboardImage: () async => false,
-  attachImageFiles: (_) async {},
-  attachCurrentCanvas: () async {},
-  openReferenceGallery: () async {},
-  openResourceLibrary: () async {},
-  resolveResourcePreview: (_) async => null,
-  send: () async {},
-  sendFollowUp: () async {},
-  stop: () {},
-  dismissError: () {},
-  retryLastMessage: () async {},
-  resolveApproval: (_, __) => false,
-  useSuggestion: (_) {},
-  copyUserMessage: (_) async {},
+final _commands = inertAgentChatPanelCommands(
   editUserMessage: (message, _) async => _editedSource = message,
-  cancelUserMessageEdit: () {},
-  copyAssistantMessage: (_) async {},
-  editQueuedMessage: (_) async {},
-  removeQueuedMessage: (_) async {},
-  clearQueuedMessages: () async {},
-  addPendingResource: (_) async {},
-  removePendingResource: (_) async {},
 );
