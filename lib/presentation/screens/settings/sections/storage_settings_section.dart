@@ -38,6 +38,7 @@ class _StorageSettingsSectionState
   Future<void> _selectSaveDirectory(BuildContext context) async {
     try {
       final result = await FilePicker.platform.getDirectoryPath(
+        lockParentWindow: true,
         dialogTitle: context.l10n.settings_selectFolder,
       );
 
@@ -65,6 +66,7 @@ class _StorageSettingsSectionState
 
     try {
       final result = await FilePicker.platform.getDirectoryPath(
+        lockParentWindow: true,
         dialogTitle: context.l10n.settings_selectLocalOnnxTaggerFolder,
       );
       if (result == null || !mounted) return;
@@ -424,6 +426,7 @@ class _VibeLibraryPathTileState extends State<VibeLibraryPathTile> {
   Future<void> _selectVibeLibraryDirectory(BuildContext context) async {
     try {
       final result = await FilePicker.platform.getDirectoryPath(
+        lockParentWindow: true,
         dialogTitle: context.l10n.settings_selectVibeLibraryFolder,
       );
 
@@ -541,6 +544,7 @@ class _HiveStoragePathTileState extends State<HiveStoragePathTile> {
   Future<void> _selectHiveStorageDirectory(BuildContext context) async {
     try {
       final result = await FilePicker.platform.getDirectoryPath(
+        lockParentWindow: true,
         dialogTitle: context.l10n.settings_selectHiveFolder,
       );
 
