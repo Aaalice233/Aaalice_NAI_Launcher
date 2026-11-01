@@ -274,8 +274,7 @@ class _LocalGalleryShell extends ConsumerWidget {
     return LocalGalleryToolbar(
       showPageTitle: true,
       searchFocusNode: controller.searchFocusNode,
-      onRefresh: () =>
-          ref.read(localGalleryNotifierProvider.notifier).refresh(),
+      onRefresh: controller.refreshGallery,
       onEnterSelectionMode: () =>
           ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
       canUndo: bulk.canUndo,

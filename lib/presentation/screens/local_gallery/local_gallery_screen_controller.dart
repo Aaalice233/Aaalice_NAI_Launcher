@@ -85,6 +85,8 @@ class LocalGalleryScreenController extends ChangeNotifier {
   void start() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissionsAndScan();
+      // 打开画廊时同步一次文件夹列表，不受 autoRefresh 的 30 秒节流影响
+      await _syncCategories();
       await _showFirstTimeTip();
       await autoRefresh();
     });
@@ -136,8 +138,19 @@ class LocalGalleryScreenController extends ChangeNotifier {
     }
   }
 
-  void refreshGallery() {
-    _ref.read(localGalleryNotifierProvider.notifier).refresh();
+  /// 刷新图片，并让文件夹列表与磁盘同步（工具栏刷新按钮与快捷键共用）
+  Future<void> refreshGallery() async {
+    await _ref.read(localGalleryNotifierProvider.notifier).refresh();
+    await _syncCategories();
+  }
+
+  /// 等分类首次加载完成后再与磁盘同步，避免用空列表覆盖已保存的分类
+  Future<void> _syncCategories() async {
+    if (!_mounted()) return;
+    final notifier = _ref.read(galleryCategoryNotifierProvider.notifier);
+    await notifier.whenLoaded();
+    if (!_mounted()) return;
+    await notifier.syncWithFileSystem();
   }
 
   void focusSearch() => searchFocusNode.requestFocus();
@@ -214,9 +227,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
         await _ref
             .read(localGalleryNotifierProvider.notifier)
             .refresh(scan: false);
-        await _ref
-            .read(galleryCategoryNotifierProvider.notifier)
-            .syncWithFileSystem();
+        await _syncCategories();
       } finally {
         if (!completer.isCompleted) completer.complete();
       }

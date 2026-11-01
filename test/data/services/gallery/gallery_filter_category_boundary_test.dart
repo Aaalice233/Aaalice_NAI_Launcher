@@ -71,7 +71,7 @@ void main() {
     });
 
     test('matching ignores case and accepts backslash separators', () async {
-      final windowsPath = r'C:\Gallery\Images\Data\x.png';
+      const windowsPath = r'C:\Gallery\Images\Data\x.png';
       final matched = await filterBy('Data', [
         windowsPath,
         r'C:\Gallery\Images\Metadata\x.png',
