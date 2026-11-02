@@ -50,6 +50,7 @@ class GalleryGrid extends StatefulWidget {
   )?
   onSendAction;
   final bool isKritaConnected;
+  final bool inAlbum;
   final Set<int>? selectedIndices;
   final double preloadScreens;
   final bool enableDrag;
@@ -67,6 +68,7 @@ class GalleryGrid extends StatefulWidget {
     this.onFavoriteToggle,
     this.onSendAction,
     this.isKritaConnected = false,
+    this.inAlbum = false,
     this.selectedIndices,
     this.preloadScreens = 2.0,
     this.enableDrag = true,
@@ -235,6 +237,7 @@ class _GalleryGridState extends State<GalleryGrid> {
                       : null,
                   enableAddToAgent: widget.enableDrag,
                   isKritaConnected: widget.isKritaConnected,
+                  inAlbum: widget.inAlbum,
                 ),
               ),
             );
@@ -299,6 +302,7 @@ class _GalleryImageCard extends StatefulWidget {
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
   final bool enableAddToAgent;
   final bool isKritaConnected;
+  final bool inAlbum;
 
   const _GalleryImageCard({
     super.key,
@@ -317,6 +321,7 @@ class _GalleryImageCard extends StatefulWidget {
     this.onSendAction,
     this.enableAddToAgent = true,
     this.isKritaConnected = false,
+    this.inAlbum = false,
   });
 
   @override
@@ -341,6 +346,7 @@ class _GalleryImageCardState extends State<_GalleryImageCard> {
       onSendAction: widget.onSendAction,
       enableAddToAgent: widget.enableAddToAgent,
       isKritaConnected: widget.isKritaConnected,
+      inAlbum: widget.inAlbum,
       // 使用 dragWrapper 将拖拽功能注入到卡片内部
       // 解决 GestureDetector 与拖拽手势的冲突问题
       dragWrapper: widget.enableDrag

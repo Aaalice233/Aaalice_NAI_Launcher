@@ -22,6 +22,8 @@ import '../../../screens/watermark/watermark_editor_launcher.dart';
 import '../../../utils/clipboard_image.dart';
 import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
+import '../image_card_action.dart';
+import '../image_card_context_menu.dart';
 import '../horizontal_resize_handle.dart';
 import '../resizable_pane.dart';
 import 'components/detail_image_page.dart';
@@ -54,6 +56,16 @@ class ImageDetailCallbacks {
   /// 发送到反推模块回调
   final Future<void> Function(ImageDetailData image)? onSendToReversePrompt;
 
+  /// 加入相簿回调；提供后顶栏出现「加入相簿」按钮
+  final Future<void> Function(ImageDetailData image)? onAddToAlbum;
+
+  /// 在图片上点右键时，除收藏、复制图像外要显示的菜单项；提供后右键才有菜单
+  final List<ImageCardAction> Function(
+    BuildContext context,
+    ImageDetailData image,
+  )?
+  contextMenuActions;
+
   const ImageDetailCallbacks({
     this.onFavoriteToggle,
     this.onReuseMetadata,
@@ -62,7 +74,23 @@ class ImageDetailCallbacks {
     this.onCopyImage,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.onAddToAlbum,
+    this.contextMenuActions,
   });
+}
+
+/// 查看器到头或到尾时，向调用方要相邻一页的图片。
+///
+/// 画廊按页加载（每页 50 张），查看器只拿到当前页。传入后，在第一张继续
+/// 向左、在最后一张继续向右，会换成相邻页的图片接着看。
+class ImageDetailPageNavigator {
+  /// 向后（[forward] 为 true）或向前是否还有相邻页
+  final bool Function(bool forward) hasMore;
+
+  /// 加载相邻页；没有加载成功时返回 null 或空列表
+  final Future<List<ImageDetailData>?> Function(bool forward) load;
+
+  const ImageDetailPageNavigator({required this.hasMore, required this.load});
 }
 
 /// 通用图像详情查看器
@@ -99,6 +127,9 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
   /// 跳页前等待元数据预取的上限
   final Duration prefetchWaitLimit;
 
+  /// 到头或到尾时继续翻到相邻页；为空则只在当前列表内切换
+  final ImageDetailPageNavigator? pageNavigator;
+
   const ImageDetailViewer({
     super.key,
     required this.images,
@@ -108,6 +139,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     this.callbacks,
     this.heroTagPrefix,
     this.prefetchWaitLimit = metadataPrefetchWaitLimit,
+    this.pageNavigator,
   });
 
   /// 打开或跳页前等待元数据预取的默认上限；超时照常显示加载态，读完再回填
@@ -124,6 +156,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
     ImageDetailCallbacks? callbacks,
     String? heroTagPrefix,
     Duration prefetchWaitLimit = metadataPrefetchWaitLimit,
+    ImageDetailPageNavigator? pageNavigator,
   }) async {
     if (images.isNotEmpty) {
       await _prefetchWithinLimit(
@@ -158,6 +191,7 @@ class ImageDetailViewer extends ConsumerStatefulWidget {
             callbacks: callbacks,
             heroTagPrefix: heroTagPrefix,
             prefetchWaitLimit: prefetchWaitLimit,
+            pageNavigator: pageNavigator,
           );
           if (isWindows) {
             return viewer;
@@ -204,7 +238,14 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
 
   late PageController _pageController;
   late ScrollController _thumbnailController;
+  late List<ImageDetailData> _images;
   late int _currentIndex;
+  // 换页后重建 PageView，让新列表从目标位置开始
+  int _pageGeneration = 0;
+  bool _isLoadingAdjacentPage = false;
+  // 锁定缩放后所有图共用这一个控制器，切图时缩放比例不变
+  bool _zoomLocked = false;
+  final _sharedZoomController = TransformationController();
   // 始终显示控制栏（不自动收起）
   final bool _showControls = true;
   final _focusNode = FocusNode();
@@ -217,6 +258,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   @override
   void initState() {
     super.initState();
+    _images = widget.images;
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
     _thumbnailController = ScrollController();
@@ -236,15 +278,15 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   // 滑动只会到相邻页，提前预取让切页后的首帧就有元数据
   void _prefetchNeighbors(int index) {
     for (final neighbor in [index - 1, index + 1]) {
-      if (neighbor < 0 || neighbor >= widget.images.length) continue;
-      unawaited(widget.images[neighbor].prefetchMetadata());
+      if (neighbor < 0 || neighbor >= _images.length) continue;
+      unawaited(_images[neighbor].prefetchMetadata());
     }
   }
 
   // 预取超时时页面已先行显示；读完后重建一次，顶栏等同步读取方才能拿到元数据
   void _refreshWhenPrefetched(int index) {
-    if (index < 0 || index >= widget.images.length) return;
-    final image = widget.images[index];
+    if (index < 0 || index >= _images.length) return;
+    final image = _images[index];
     if (!image.isPrefetchingMetadata) return;
     unawaited(
       image.prefetchMetadata().then((_) {
@@ -279,11 +321,18 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   void _goToPage(int index) {
-    if (index < 0 || index >= widget.images.length) return;
+    if (index < 0 || index >= _images.length) {
+      // 已经到头或到尾：有相邻页就接着往下看
+      final forward = index >= 0;
+      if (widget.pageNavigator?.hasMore(forward) == true) {
+        unawaited(_loadAdjacentPage(forward: forward));
+      }
+      return;
+    }
     _navigationRequest++;
 
     // 动画过半才切页，预取多半已完成；没读完的切页后由 _onPageChanged 回填
-    unawaited(widget.images[index].prefetchMetadata());
+    unawaited(_images[index].prefetchMetadata());
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -292,19 +341,53 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   void _jumpToPage(int index) {
-    if (index < 0 || index >= widget.images.length) return;
+    if (index < 0 || index >= _images.length) return;
     unawaited(_jumpAfterPrefetch(index, ++_navigationRequest));
   }
 
   // 缩略图可跳到任意页，立即切页前先等预取；等待期间又切了页则放弃这次跳转
   Future<void> _jumpAfterPrefetch(int index, int request) async {
-    await _prefetchWithinLimit(widget.images[index], widget.prefetchWaitLimit);
+    await _prefetchWithinLimit(_images[index], widget.prefetchWaitLimit);
     if (!mounted ||
         request != _navigationRequest ||
         !_pageController.hasClients) {
       return;
     }
     _pageController.jumpToPage(index);
+  }
+
+  // 向前翻到上一页的最后一张，向后翻到下一页的第一张；加载期间不重复触发
+  Future<void> _loadAdjacentPage({required bool forward}) async {
+    final navigator = widget.pageNavigator;
+    if (navigator == null || _isLoadingAdjacentPage) return;
+    _isLoadingAdjacentPage = true;
+    final request = ++_navigationRequest;
+    try {
+      final images = await navigator.load(forward);
+      if (images == null || images.isEmpty) return;
+      final index = forward ? 0 : images.length - 1;
+      await _prefetchWithinLimit(images[index], widget.prefetchWaitLimit);
+      if (!mounted || request != _navigationRequest) return;
+
+      final previousController = _pageController;
+      setState(() {
+        _images = images;
+        _currentIndex = index;
+        _pageGeneration++;
+        _pageController = PageController(initialPage: index);
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        previousController.dispose();
+        if (!mounted) return;
+        _scrollToThumbnail(index, animate: false);
+      });
+      _refreshWhenPrefetched(index);
+      _prefetchNeighbors(index);
+    } catch (error) {
+      AppLogger.w('Failed to load adjacent page: $error', 'ImageDetailViewer');
+    } finally {
+      _isLoadingAdjacentPage = false;
+    }
   }
 
   void _onPageChanged(int index) {
@@ -314,6 +397,46 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     _scrollToThumbnail(index);
     _refreshWhenPrefetched(index);
     _prefetchNeighbors(index);
+  }
+
+  // 翻转后换了一个控制器，把当前的缩放接上，当前图不会跳
+  void _toggleZoomLock() {
+    final zoom = _currentTransformController.value;
+    setState(() {
+      _zoomLocked = !_zoomLocked;
+      _currentTransformController.value = zoom;
+    });
+  }
+
+  // 只在提供了 contextMenuActions 时才会被调用
+  Future<void> _showImageContextMenu(Offset position) {
+    final image = _currentImage;
+    final l10n = context.l10n;
+    final actions = <ImageCardAction>[
+      if (widget.callbacks?.onFavoriteToggle != null &&
+          image.showFavoriteButton)
+        ImageCardAction(
+          id: ImageCardActionId.favorite,
+          icon: image.isFavorite ? Icons.favorite : Icons.favorite_border,
+          label: image.isFavorite
+              ? l10n.common_unfavorite
+              : l10n.common_favorite,
+          invoke: _toggleFavorite,
+        ),
+      if (image.showCopyButton)
+        ImageCardAction(
+          id: ImageCardActionId.copy,
+          icon: Icons.copy,
+          label: l10n.shortcut_action_copy_image,
+          invoke: () => _copyImageToClipboard(context),
+        ),
+      ...widget.callbacks!.contextMenuActions!(context, image),
+    ];
+    return ImageCardContextMenu.show(
+      context: context,
+      position: position,
+      actions: actions,
+    );
   }
 
   void _handleKeyboardCloseRequest() {
@@ -379,16 +502,19 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  ImageDetailData get _currentImage => widget.images[_currentIndex];
+  ImageDetailData get _currentImage => _images[_currentIndex];
 
   /// 获取当前图片的 TransformationController
-  TransformationController get _currentTransformController {
-    final identifier = _currentImage.identifier;
-    return _transformationControllers.putIfAbsent(
-      identifier,
-      TransformationController.new,
-    );
-  }
+  TransformationController get _currentTransformController =>
+      _transformControllerFor(_currentImage);
+
+  TransformationController _transformControllerFor(ImageDetailData image) =>
+      _zoomLocked
+      ? _sharedZoomController
+      : _transformationControllers.putIfAbsent(
+          image.identifier,
+          TransformationController.new,
+        );
 
   /// 放大
   void _zoomIn() {
@@ -518,7 +644,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       // 第一张
       ShortcutIds.firstImage: () => _goToPage(0),
       // 最后一张
-      ShortcutIds.lastImage: () => _goToPage(widget.images.length - 1),
+      ShortcutIds.lastImage: () => _goToPage(_images.length - 1),
       // 放大
       ShortcutIds.zoomIn: _zoomIn,
       // 缩小
@@ -600,29 +726,31 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   Widget _buildMainContent({required bool showMetadataAction}) {
-    final showThumbnails = widget.showThumbnails && widget.images.length > 1;
+    final showThumbnails = widget.showThumbnails && _images.length > 1;
 
     return Stack(
       children: [
         // 主图预览区域
         // 注意：移除 onTap 切换控制栏，让顶部工具栏始终显示
         PageView.builder(
+          key: ValueKey('detail-page-view-$_pageGeneration'),
           controller: _pageController,
-          itemCount: widget.images.length,
+          itemCount: _images.length,
           onPageChanged: _onPageChanged,
           itemBuilder: (context, index) {
-            final data = widget.images[index];
+            final data = _images[index];
             final heroTag =
                 widget.heroTagPrefix != null && index == _currentIndex
                 ? '${widget.heroTagPrefix}_${data.identifier}'
                 : null;
-            final transformationController = _transformationControllers
-                .putIfAbsent(data.identifier, TransformationController.new);
             return DetailImagePage(
               key: ValueKey(data.identifier),
               data: data,
               heroTag: heroTag,
-              transformationController: transformationController,
+              transformationController: _transformControllerFor(data),
+              onSecondaryTap: widget.callbacks?.contextMenuActions == null
+                  ? null
+                  : (position) => unawaited(_showImageContextMenu(position)),
             );
           },
         ),
@@ -637,7 +765,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           right: 0,
           child: DetailTopBar(
             currentIndex: _currentIndex,
-            totalImages: widget.images.length,
+            totalImages: _images.length,
             currentImage: _currentImage,
             onClose: () => _requestClose('top-bar-close'),
             onShowMetadata: showMetadataAction ? _showMetadataPanel : null,
@@ -668,6 +796,13 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 widget.callbacks?.onSendToReversePrompt != null
                 ? () => widget.callbacks!.onSendToReversePrompt!(_currentImage)
                 : null,
+            onAddToAlbum: widget.callbacks?.onAddToAlbum != null
+                ? () => widget.callbacks!.onAddToAlbum!(_currentImage)
+                : null,
+            zoomLocked: _zoomLocked,
+            onToggleZoomLock: _images.length > 1 || widget.pageNavigator != null
+                ? _toggleZoomLock
+                : null,
           ),
         ),
 
@@ -684,8 +819,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           ),
 
         // 左右导航按钮
-        if (_showControls && widget.images.length > 1) ...[
-          if (_currentIndex > 0)
+        if (_showControls &&
+            (_images.length > 1 || widget.pageNavigator != null)) ...[
+          if (_currentIndex > 0 || widget.pageNavigator?.hasMore(false) == true)
             Positioned(
               left: 16,
               top: 0,
@@ -697,7 +833,8 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 ),
               ),
             ),
-          if (_currentIndex < widget.images.length - 1)
+          if (_currentIndex < _images.length - 1 ||
+              widget.pageNavigator?.hasMore(true) == true)
             Positioned(
               right: 16,
               top: 0,
@@ -726,7 +863,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         ),
       ),
       child: DetailThumbnailBar(
-        images: widget.images,
+        images: _images,
         currentIndex: _currentIndex,
         scrollController: _thumbnailController,
         onTap: _jumpToPage,
@@ -858,6 +995,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       controller.dispose();
     }
     _transformationControllers.clear();
+    _sharedZoomController.dispose();
     _pageController.dispose();
     _thumbnailController.dispose();
     _focusNode.dispose();

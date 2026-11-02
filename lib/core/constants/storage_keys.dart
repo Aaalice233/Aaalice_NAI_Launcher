@@ -140,6 +140,7 @@ class StorageKeys {
   static const String selectedResolutionPresetId =
       'selected_resolution_preset_id';
   static const String imageSavePath = 'image_save_path';
+  static const String imageSavePathHistory = 'image_save_path_history';
   static const String autoSaveImages = 'auto_save_images';
   static const String syncImagesToSystemGallery =
       'sync_images_to_system_gallery';

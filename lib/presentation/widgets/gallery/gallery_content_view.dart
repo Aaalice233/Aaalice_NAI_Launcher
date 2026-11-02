@@ -26,6 +26,7 @@ import '../common/image_detail/image_detail_data.dart';
 import '../common/shimmer_skeleton.dart';
 import 'gallery_grid.dart';
 import 'gallery_state_views.dart';
+import '../common/image_card_action.dart';
 import 'local_image_context_menu.dart';
 
 /// 画廊项目构建函数类型
@@ -106,6 +107,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   )?
   onSendAction;
   final bool isKritaConnected;
+  final bool inAlbum;
   final String? emptyTitle;
   final String? emptySubtitle;
   final IconData? emptyIcon;
@@ -134,6 +136,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.view3DConfig,
     this.onSendAction,
     this.isKritaConnected = false,
+    this.inAlbum = false,
     this.emptyTitle,
     this.emptySubtitle,
     this.emptyIcon,
@@ -345,6 +348,7 @@ class _GenericGalleryContentViewState<T>
                 : null,
             enableAddToAgent: !selectionState.isActive,
             isKritaConnected: widget.isKritaConnected,
+            inAlbum: widget.inAlbum,
           ),
         );
       },
@@ -479,6 +483,7 @@ class _GenericGalleryContentViewState<T>
           ? (record, index, action) => widget.onSendAction!(record, action)
           : null,
       isKritaConnected: widget.isKritaConnected,
+      inAlbum: widget.inAlbum,
     );
   }
 
@@ -533,6 +538,20 @@ class _LocalSelectionStateAdapter implements SelectionState {
   Set<String> get selectedIds => _state.selectedIds;
 }
 
+// 大图查看器里的右键菜单：这些操作会离开画廊页
+const _leavesGallery = {
+  LocalImageContextAction.sendToTextToImage,
+  LocalImageContextAction.importMetadata,
+  LocalImageContextAction.sendToImg2Img,
+  LocalImageContextAction.sendToReversePrompt,
+  LocalImageContextAction.sendToStyleTransfer,
+  LocalImageContextAction.sendToPreciseReference,
+  LocalImageContextAction.upscale,
+};
+
+// 这些操作会移动或删除文件，查看器里的图片列表不会跟着更新，所以右键菜单不提供
+const _hiddenInViewer = {ImageCardActionId.classify, ImageCardActionId.delete};
+
 /// 本地画廊内容视图
 class LocalGalleryContentView extends ConsumerWidget {
   final bool use3DCardView;
@@ -547,6 +566,7 @@ class LocalGalleryContentView extends ConsumerWidget {
   onSendAction;
   final VoidCallback? onDeleted;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
+  final bool inAlbum;
 
   const LocalGalleryContentView({
     super.key,
@@ -558,6 +578,7 @@ class LocalGalleryContentView extends ConsumerWidget {
     this.onSendAction,
     this.onDeleted,
     this.groupedGridViewKey,
+    this.inAlbum = false,
   });
 
   @override
@@ -584,18 +605,73 @@ class LocalGalleryContentView extends ConsumerWidget {
         return image?.isFavorite ?? false;
       }
 
+      List<ImageDetailData> toDetailData(List<LocalImageRecord> records) =>
+          records
+              .map(
+                (r) => LocalImageDetailData(
+                  r,
+                  getFavoriteStatus: getFavoriteStatus,
+                ),
+              )
+              .toList();
+
+      // 查看器翻到头尾时换成相邻一页；画廊列表同步翻页，关掉查看器后停在同一页
+      Future<List<ImageDetailData>?> loadAdjacentPage(bool forward) async {
+        final notifier = ref.read(localGalleryNotifierProvider.notifier);
+        final before = ref.read(localGalleryNotifierProvider).currentPage;
+        await (forward ? notifier.loadNextPage() : notifier.loadPreviousPage());
+        final after = ref.read(localGalleryNotifierProvider);
+        return after.currentPage == before
+            ? null
+            : toDetailData(after.currentImages);
+      }
+
+      final send = onSendAction;
+      LocalImageRecord recordOf(ImageDetailData data) =>
+          (data as LocalImageDetailData).record;
+
       ImageDetailOpener.showMultipleImmediate(
         context,
-        images: images
-            .map(
-              (r) =>
-                  LocalImageDetailData(r, getFavoriteStatus: getFavoriteStatus),
-            )
-            .toList(),
+        images: toDetailData(images),
         initialIndex: initialIndex,
         showMetadataPanel: true,
         showThumbnails: images.length > 1,
+        pageNavigator: ImageDetailPageNavigator(
+          hasMore: (forward) {
+            final s = ref.read(localGalleryNotifierProvider);
+            return !s.isGroupedView &&
+                !(forward ? s.isLastPage : s.isFirstPage);
+          },
+          load: loadAdjacentPage,
+        ),
         callbacks: ImageDetailCallbacks(
+          onAddToAlbum: send == null
+              ? null
+              : (data) =>
+                    send(recordOf(data), LocalImageContextAction.addToAlbum),
+          contextMenuActions: send == null
+              ? null
+              : (menuContext, data) {
+                  final record = recordOf(data);
+                  final metadata = record.metadata;
+                  return LocalImageContextMenu.buildActions(
+                        menuContext,
+                        onAction: (action) async {
+                          // 这些操作会离开画廊（跳到生成页），先关掉查看器
+                          if (_leavesGallery.contains(action) &&
+                              menuContext.mounted) {
+                            Navigator.of(menuContext).pop();
+                          }
+                          await send(record, action);
+                        },
+                        hasImportableMetadata: metadata?.hasData == true,
+                        hasPrompt: metadata?.prompt.isNotEmpty == true,
+                        hasSeed: metadata?.seed != null,
+                        isKritaConnected: isKritaConnected,
+                      )
+                      .where((action) => !_hiddenInViewer.contains(action.id))
+                      .toList();
+                },
           onReuseMetadata: onReuseMetadata != null
               ? (data) async =>
                     onReuseMetadata?.call((data as LocalImageDetailData).record)
@@ -666,6 +742,7 @@ class LocalGalleryContentView extends ConsumerWidget {
             : null,
         enableAddToAgent: !config.selectionMode,
         isKritaConnected: isKritaConnected,
+        inAlbum: inAlbum,
       ),
       onSelectionToggle: (record) => ref
           .read(localGallerySelectionNotifierProvider.notifier)
@@ -691,6 +768,7 @@ class LocalGalleryContentView extends ConsumerWidget {
       ),
       onSendAction: onSendAction,
       isKritaConnected: isKritaConnected,
+      inAlbum: inAlbum,
     );
   }
 }

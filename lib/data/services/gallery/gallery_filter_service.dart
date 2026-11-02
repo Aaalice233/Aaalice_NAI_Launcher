@@ -782,9 +782,9 @@ class GalleryFilterService {
             .toLowerCase();
 
         // 检查文件路径是否包含分类文件夹路径
-        // 使用 / 确保精确匹配文件夹名（如 "test_batch/" 不匹配 "test_batch_2/"）
-        return normalizedFilePath.contains('$normalizedCategoryPath/') ||
-            normalizedFilePath.endsWith('/$normalizedCategoryPath');
+        // 前后都用 / 限定目录边界，精确匹配文件夹名
+        // （如 "test_batch" 不匹配 "test_batch_2/"，"1" 不匹配 "2026-10-31/"）
+        return normalizedFilePath.contains('/$normalizedCategoryPath/');
       }).toList();
     } catch (e) {
       AppLogger.w('Failed to filter by category: $e', 'GalleryFilterService');

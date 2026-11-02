@@ -181,12 +181,32 @@ class SqliteGalleryImageRepository implements GalleryImageRepository {
           final fileName =
               newFileName ?? newPath.split(Platform.pathSeparator).last;
 
+          // 目标路径上可能留着以前同路径文件的已删除记录；file_path 唯一，
+          // 不清掉会冲突（并被反复重试）。只清已删除的，有效记录交给调用方判断。
+          final staleRows = await db.rawQuery(
+            'SELECT id FROM ${GalleryTables.images} '
+            'WHERE file_path = ? AND id != ? AND is_deleted = 1',
+            [newPath, imageId],
+          );
+          for (final row in staleRows) {
+            final staleId = (row['id'] as num?)?.toInt();
+            if (staleId == null) continue;
+            await db.delete(
+              GalleryTables.images,
+              where: 'id = ?',
+              whereArgs: [staleId],
+            );
+          }
+
           await db.update(
             GalleryTables.images,
             {
               'file_path': newPath,
               'file_name': fileName,
               'indexed_at': DateTime.now().millisecondsSinceEpoch,
+              // 扫描会先把找不到的旧路径标为已删除，再识别出这是移动；
+              // 改路径时必须一并恢复，否则这条记录会一直被当成已删除。
+              'is_deleted': 0,
             },
             where: 'id = ?',
             whereArgs: [imageId],

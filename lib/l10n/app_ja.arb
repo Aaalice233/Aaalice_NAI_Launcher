@@ -5672,6 +5672,8 @@
   "detail_sendToReversePrompt": "逆プロンプトに送信",
   "detail_loadingImage": "画像を読み込み中...",
   "detail_imageLoadFailed": "画像のロードに失敗しました",
+  "detail_lockZoom": "ズームを固定",
+  "detail_unlockZoom": "ズーム固定を解除",
   "detail_noImage": "画像がありません",
   "detail_parsingMetadata": "メタデータを解析しています...",
   "detail_noMetadata": "この画像にはメタデータがありません",

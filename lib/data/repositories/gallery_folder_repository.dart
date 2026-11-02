@@ -31,6 +31,11 @@ class GalleryFolderRepository {
     }
 
     // 使用默认路径
+    return getDefaultRootPath();
+  }
+
+  /// 默认图片保存根路径：Documents/NAI_Launcher/images/
+  Future<String> getDefaultRootPath() async {
     final appDir = await getApplicationDocumentsDirectory();
     return p.join(appDir.path, 'NAI_Launcher', 'images');
   }

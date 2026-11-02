@@ -288,6 +288,74 @@ void main() {
     expect(cardTapCount, 0);
   });
 
+  for (final grouped in [false, true]) {
+    testWidgets('${grouped ? '分组视图' : '主网格'}：在相簿里才有「移出相簿」', (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.android,
+      );
+      final record = LocalImageRecord(
+        path: 'G:/gallery/in-album-${grouped ? 'grouped' : 'grid'}.png',
+        size: 42,
+        modifiedAt: DateTime(2026, 11, 3),
+      );
+      Future<void> openMenu({required bool inAlbum}) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            child: InteractionPolicyScope(
+              child: MaterialApp(
+                locale: const Locale('en'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: Scaffold(
+                  body: Align(
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: 360,
+                      height: 600,
+                      child: GenericGalleryContentView<LocalImageRecord>(
+                        columns: 1,
+                        itemWidth: 160,
+                        state: _GroupedGalleryState(record, grouped: grouped),
+                        selectionState: const _InactiveSelectionState(),
+                        itemBuilder: (_, __, ___, ____) =>
+                            const SizedBox.shrink(),
+                        idExtractor: (item) => item.path,
+                        onSendAction: (_, __) async {},
+                        inAlbum: inAlbum,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await _observeTouch(tester);
+        await tester.tap(find.byTooltip('More actions'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+
+      // 菜单是可滚动列表，滚到「删除」所在的末尾，管理组的项都已构建
+      Future<void> scrollToEnd() => tester.scrollUntilVisible(
+        find.text('Delete'),
+        180,
+        scrollable: find.byType(Scrollable).last,
+      );
+
+      await openMenu(inAlbum: true);
+      await scrollToEnd();
+      expect(find.text('Remove from Album'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await openMenu(inAlbum: false);
+      await scrollToEnd();
+      expect(find.text('Add to Album'), findsOneWidget);
+      expect(find.text('Remove from Album'), findsNothing);
+    });
+  }
+
   testWidgets('grouped gallery send button dispatches the shared send action', (
     tester,
   ) async {
@@ -379,9 +447,10 @@ Future<void> _observeTouch(WidgetTester tester) async {
 }
 
 class _GroupedGalleryState implements GalleryState<LocalImageRecord> {
-  const _GroupedGalleryState(this.record);
+  const _GroupedGalleryState(this.record, {this.grouped = true});
 
   final LocalImageRecord record;
+  final bool grouped;
 
   @override
   List<LocalImageRecord> get currentImages => [record];
@@ -390,7 +459,7 @@ class _GroupedGalleryState implements GalleryState<LocalImageRecord> {
   List<LocalImageRecord> get groupedImages => [record];
 
   @override
-  bool get isGroupedView => true;
+  bool get isGroupedView => grouped;
 
   @override
   bool get isPageLoading => false;

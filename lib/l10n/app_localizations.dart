@@ -20592,6 +20592,18 @@ abstract class AppLocalizations {
   /// **'Failed to load image'**
   String get detail_imageLoadFailed;
 
+  /// No description provided for @detail_lockZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock zoom'**
+  String get detail_lockZoom;
+
+  /// No description provided for @detail_unlockZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock zoom'**
+  String get detail_unlockZoom;
+
   /// No description provided for @detail_noImage.
   ///
   /// In en, this message translates to:

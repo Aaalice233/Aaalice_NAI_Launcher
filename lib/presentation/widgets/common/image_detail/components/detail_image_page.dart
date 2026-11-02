@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../image_viewport_surface.dart';
@@ -15,11 +16,15 @@ class DetailImagePage extends StatefulWidget {
   /// 外部传入的 TransformationController，用于快捷键控制缩放
   final TransformationController? transformationController;
 
+  /// 在图片上点鼠标右键（放大后同样有效）；参数是屏幕上的位置
+  final void Function(Offset globalPosition)? onSecondaryTap;
+
   const DetailImagePage({
     super.key,
     required this.data,
     this.heroTag,
     this.transformationController,
+    this.onSecondaryTap,
   });
 
   @override
@@ -213,14 +218,24 @@ class _DetailImagePageState extends State<DetailImagePage>
     return Stack(
       children: [
         // 主图像区域
-        GestureDetector(
-          onDoubleTapDown: _handleDoubleTapDown,
-          onDoubleTap: _handleDoubleTap,
-          child: InteractiveViewer(
-            transformationController: _transformController,
-            minScale: _minScale,
-            maxScale: _maxScale,
-            child: Center(child: imageWidget),
+        // 右键用 Listener 直接读指针：不进手势竞技场，放大平移后也不会被
+        // InteractiveViewer 吃掉
+        Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (event) {
+            if (event.buttons == kSecondaryMouseButton) {
+              widget.onSecondaryTap?.call(event.position);
+            }
+          },
+          child: GestureDetector(
+            onDoubleTapDown: _handleDoubleTapDown,
+            onDoubleTap: _handleDoubleTap,
+            child: InteractiveViewer(
+              transformationController: _transformController,
+              minScale: _minScale,
+              maxScale: _maxScale,
+              child: Center(child: imageWidget),
+            ),
           ),
         ),
 
