@@ -234,6 +234,28 @@ class LocalStorageService {
     await setSetting(StorageKeys.imageSavePath, path);
   }
 
+  /// 曾经使用过的图片保存目录（最近的在前），用于把旧路径换算到新目录
+  List<String> getImageSavePathHistory() {
+    final raw = getSetting<List>(StorageKeys.imageSavePathHistory);
+    return raw == null ? const [] : raw.whereType<String>().toList();
+  }
+
+  /// 记录被替换掉的图片保存目录，去重并只保留最近 [limit] 个
+  Future<void> rememberPreviousImageSavePath(
+    String path, {
+    int limit = 8,
+  }) async {
+    if (path.isEmpty) return;
+    final history = [
+      path,
+      ...getImageSavePathHistory().where((item) => item != path),
+    ];
+    await setSetting(
+      StorageKeys.imageSavePathHistory,
+      history.take(limit).toList(),
+    );
+  }
+
   /// 获取是否自动保存图片
   bool getAutoSaveImages() {
     return getSetting<bool>(StorageKeys.autoSaveImages, defaultValue: true) ??

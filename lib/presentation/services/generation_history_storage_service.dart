@@ -142,6 +142,30 @@ class GenerationHistoryStorageService {
     });
   }
 
+  /// 用 [remap] 改写已保存记录里的 `filePath`，返回被改写的条数。
+  ///
+  /// 只更新路径发生变化的记录，不触碰其余记录的图片字节。
+  Future<int> remapFilePaths(String Function(String filePath) remap) {
+    var changed = 0;
+    return _enqueue(() async {
+      final box = _box;
+      if (box == null) return;
+      final updates = <String, Map<dynamic, dynamic>>{};
+      for (final key in box.keys) {
+        if (key is! String || !key.startsWith(_recordPrefix)) continue;
+        final raw = box.get(key);
+        if (raw is! Map) continue;
+        final filePath = raw['filePath'];
+        if (filePath is! String || filePath.isEmpty) continue;
+        final remapped = remap(filePath);
+        if (remapped == filePath) continue;
+        updates[key] = <dynamic, dynamic>{...raw, 'filePath': remapped};
+      }
+      if (updates.isNotEmpty) await box.putAll(updates);
+      changed = updates.length;
+    }).then((_) => changed);
+  }
+
   Future<void> flush() => _pendingWrite;
 
   Future<void> _enqueue(Future<void> Function() operation) {
