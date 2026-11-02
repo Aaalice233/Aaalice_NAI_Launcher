@@ -562,6 +562,7 @@ class LocalGalleryContentView extends ConsumerWidget {
   onSendAction;
   final VoidCallback? onDeleted;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
+  final bool inAlbum;
 
   const LocalGalleryContentView({
     super.key,
@@ -573,6 +574,7 @@ class LocalGalleryContentView extends ConsumerWidget {
     this.onSendAction,
     this.onDeleted,
     this.groupedGridViewKey,
+    this.inAlbum = false,
   });
 
   @override
@@ -734,6 +736,7 @@ class LocalGalleryContentView extends ConsumerWidget {
             : null,
         enableAddToAgent: !config.selectionMode,
         isKritaConnected: isKritaConnected,
+        inAlbum: inAlbum,
       ),
       onSelectionToggle: (record) => ref
           .read(localGallerySelectionNotifierProvider.notifier)

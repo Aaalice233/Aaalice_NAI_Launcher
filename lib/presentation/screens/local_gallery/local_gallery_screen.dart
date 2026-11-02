@@ -320,6 +320,9 @@ class _LocalGalleryShell extends ConsumerWidget {
         LocalGalleryImageAction(record: record, action: action),
       ),
       onContextMenu: actions.showImageContextMenu,
+      inAlbum: ref.watch(
+        galleryAlbumNotifierProvider.select((s) => s.isInRegularAlbum),
+      ),
     );
   }
 }

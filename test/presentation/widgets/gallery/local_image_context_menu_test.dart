@@ -39,6 +39,8 @@ void main() {
               LocalImageContextAction.createWatermark,
               LocalImageContextAction.createMosaic,
               LocalImageContextAction.saveToSystemGallery,
+              // 只在相簿里浏览时才有
+              LocalImageContextAction.removeFromAlbum,
             }.contains(action),
           )
           .map(LocalImageContextMenu.idFor)

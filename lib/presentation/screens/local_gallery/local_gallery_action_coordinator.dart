@@ -512,6 +512,7 @@ class LocalGalleryActionCoordinator {
           PlatformCapabilities.current.supportsKritaBridge &&
           _ref.read(kritaBridgeNotifierProvider).status ==
               KritaBridgeStatus.connected,
+      inAlbum: _ref.read(galleryAlbumNotifierProvider).isInRegularAlbum,
       watermarkEnabled: _ref
           .read(watermarkSettingsProvider)
           .configuration
@@ -544,6 +545,8 @@ class LocalGalleryActionCoordinator {
         await _moveImageToCategory(record);
       case LocalImageContextAction.addToAlbum:
         await addSelectedToAlbum({record.path});
+      case LocalImageContextAction.removeFromAlbum:
+        await removeSelectedFromAlbum({record.path});
       case LocalImageContextAction.sendToTextToImage:
       case LocalImageContextAction.importMetadata:
         await importImageMetadata(record);
