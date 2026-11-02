@@ -107,6 +107,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   )?
   onSendAction;
   final bool isKritaConnected;
+  final bool inAlbum;
   final String? emptyTitle;
   final String? emptySubtitle;
   final IconData? emptyIcon;
@@ -135,6 +136,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.view3DConfig,
     this.onSendAction,
     this.isKritaConnected = false,
+    this.inAlbum = false,
     this.emptyTitle,
     this.emptySubtitle,
     this.emptyIcon,
@@ -346,6 +348,7 @@ class _GenericGalleryContentViewState<T>
                 : null,
             enableAddToAgent: !selectionState.isActive,
             isKritaConnected: widget.isKritaConnected,
+            inAlbum: widget.inAlbum,
           ),
         );
       },
@@ -480,6 +483,7 @@ class _GenericGalleryContentViewState<T>
           ? (record, index, action) => widget.onSendAction!(record, action)
           : null,
       isKritaConnected: widget.isKritaConnected,
+      inAlbum: widget.inAlbum,
     );
   }
 
@@ -622,6 +626,10 @@ class LocalGalleryContentView extends ConsumerWidget {
             : toDetailData(after.currentImages);
       }
 
+      final send = onSendAction;
+      LocalImageRecord recordOf(ImageDetailData data) =>
+          (data as LocalImageDetailData).record;
+
       ImageDetailOpener.showMultipleImmediate(
         context,
         images: toDetailData(images),
@@ -637,16 +645,14 @@ class LocalGalleryContentView extends ConsumerWidget {
           load: loadAdjacentPage,
         ),
         callbacks: ImageDetailCallbacks(
-          onAddToAlbum: onSendAction == null
+          onAddToAlbum: send == null
               ? null
-              : (data) => onSendAction!(
-                  (data as LocalImageDetailData).record,
-                  LocalImageContextAction.addToAlbum,
-                ),
-          contextMenuActions: onSendAction == null
+              : (data) =>
+                    send(recordOf(data), LocalImageContextAction.addToAlbum),
+          contextMenuActions: send == null
               ? null
               : (menuContext, data) {
-                  final record = (data as LocalImageDetailData).record;
+                  final record = recordOf(data);
                   final metadata = record.metadata;
                   return LocalImageContextMenu.buildActions(
                         menuContext,
@@ -656,7 +662,7 @@ class LocalGalleryContentView extends ConsumerWidget {
                               menuContext.mounted) {
                             Navigator.of(menuContext).pop();
                           }
-                          await onSendAction!(record, action);
+                          await send(record, action);
                         },
                         hasImportableMetadata: metadata?.hasData == true,
                         hasPrompt: metadata?.prompt.isNotEmpty == true,
@@ -762,6 +768,7 @@ class LocalGalleryContentView extends ConsumerWidget {
       ),
       onSendAction: onSendAction,
       isKritaConnected: isKritaConnected,
+      inAlbum: inAlbum,
     );
   }
 }

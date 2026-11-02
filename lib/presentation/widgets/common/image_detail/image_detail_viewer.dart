@@ -399,24 +399,17 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     _prefetchNeighbors(index);
   }
 
+  // 翻转后换了一个控制器，把当前的缩放接上，当前图不会跳
   void _toggleZoomLock() {
+    final zoom = _currentTransformController.value;
     setState(() {
-      if (_zoomLocked) {
-        // 解除后当前图保持现在的缩放
-        _transformationControllers
-            .putIfAbsent(_currentImage.identifier, TransformationController.new)
-            .value = _sharedZoomController
-            .value;
-      } else {
-        _sharedZoomController.value = _currentTransformController.value;
-      }
       _zoomLocked = !_zoomLocked;
+      _currentTransformController.value = zoom;
     });
   }
 
-  Future<void> _showImageContextMenu(Offset position) async {
-    final provider = widget.callbacks?.contextMenuActions;
-    if (provider == null) return;
+  // 只在提供了 contextMenuActions 时才会被调用
+  Future<void> _showImageContextMenu(Offset position) {
     final image = _currentImage;
     final l10n = context.l10n;
     final actions = <ImageCardAction>[
@@ -437,9 +430,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           label: l10n.shortcut_action_copy_image,
           invoke: () => _copyImageToClipboard(context),
         ),
-      ...provider(context, image),
+      ...widget.callbacks!.contextMenuActions!(context, image),
     ];
-    await ImageCardContextMenu.show(
+    return ImageCardContextMenu.show(
       context: context,
       position: position,
       actions: actions,
