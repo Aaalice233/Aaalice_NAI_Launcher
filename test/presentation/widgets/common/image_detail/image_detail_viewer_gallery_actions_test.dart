@@ -421,6 +421,45 @@ void main() {
       expect(ids[classify + 1], ImageCardActionId.addToAlbum);
       expect(actions[classify + 1].label, _l10n.localGallery_addToAlbum);
     });
+
+    testWidgets('只有在相簿里浏览时，菜单才有「移出相簿」，且紧跟在「加入相簿」后面', (tester) async {
+      late List<ImageCardAction> inAlbum;
+      late List<ImageCardAction> notInAlbum;
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) {
+              List<ImageCardAction> build({required bool album}) =>
+                  LocalImageContextMenu.buildActions(
+                    context,
+                    onAction: (_) async {},
+                    hasImportableMetadata: true,
+                    hasPrompt: true,
+                    hasSeed: true,
+                    isKritaConnected: false,
+                    inAlbum: album,
+                  );
+              inAlbum = build(album: true);
+              notInAlbum = build(album: false);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+
+      final ids = inAlbum.map((action) => action.id).toList();
+      expect(
+        ids[ids.indexOf(ImageCardActionId.addToAlbum) + 1],
+        ImageCardActionId.removeFromAlbum,
+      );
+      expect(
+        notInAlbum.map((action) => action.id),
+        isNot(contains(ImageCardActionId.removeFromAlbum)),
+      );
+    });
   });
 }
 

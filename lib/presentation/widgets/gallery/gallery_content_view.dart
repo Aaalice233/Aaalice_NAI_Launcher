@@ -66,6 +66,9 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
   final String? emptySubtitle;
   final IconData? emptyIcon;
 
+  /// 当前是否在某个普通相簿里浏览；传给卡片决定右键菜单是否显示「移出相簿」
+  final bool inAlbum;
+
   const GenericGalleryContentView({
     super.key,
     required this.columns,
@@ -88,6 +91,7 @@ class GenericGalleryContentView<T> extends ConsumerStatefulWidget {
     this.emptyTitle,
     this.emptySubtitle,
     this.emptyIcon,
+    this.inAlbum = false,
   });
 
   @override
@@ -275,6 +279,7 @@ class _GenericGalleryContentViewState<T>
               : null,
           enableAddToAgent: !selectionState.isActive,
           isKritaConnected: widget.isKritaConnected,
+          inAlbum: widget.inAlbum,
         ),
       ),
     );
@@ -367,6 +372,7 @@ class _GenericGalleryContentViewState<T>
           ? (record, index, action) => widget.onSendAction!(record, action)
           : null,
       isKritaConnected: widget.isKritaConnected,
+      inAlbum: widget.inAlbum,
     );
   }
 
@@ -447,6 +453,7 @@ class LocalGalleryContentView extends ConsumerWidget {
   })?
   onSendAction;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
+  final bool inAlbum;
 
   const LocalGalleryContentView({
     super.key,
@@ -457,6 +464,7 @@ class LocalGalleryContentView extends ConsumerWidget {
     this.onContextMenu,
     this.onSendAction,
     this.groupedGridViewKey,
+    this.inAlbum = false,
   });
 
   @override
@@ -633,6 +641,7 @@ class LocalGalleryContentView extends ConsumerWidget {
       ),
       onSendAction: onSendAction,
       isKritaConnected: isKritaConnected,
+      inAlbum: inAlbum,
     );
   }
 }

@@ -47,6 +47,9 @@ class GalleryGrid extends StatelessWidget {
   )?
   onSendAction;
   final bool isKritaConnected;
+
+  /// 当前是否在某个普通相簿里浏览，右键菜单据此决定是否显示「移出相簿」
+  final bool inAlbum;
   final Set<int>? selectedIndices;
   final double preloadScreens;
   final bool enableDrag;
@@ -64,6 +67,7 @@ class GalleryGrid extends StatelessWidget {
     this.onFavoriteToggle,
     this.onSendAction,
     this.isKritaConnected = false,
+    this.inAlbum = false,
     this.selectedIndices,
     this.preloadScreens = 2.0,
     this.enableDrag = true,
@@ -157,6 +161,7 @@ class GalleryGrid extends StatelessWidget {
           : null,
       enableAddToAgent: enableDrag,
       isKritaConnected: isKritaConnected,
+      inAlbum: inAlbum,
       // 使用 dragWrapper 将拖拽功能注入到卡片内部
       // 解决 GestureDetector 与拖拽手势的冲突问题
       dragWrapper: enableDrag

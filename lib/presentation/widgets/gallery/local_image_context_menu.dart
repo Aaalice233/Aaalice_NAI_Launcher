@@ -8,6 +8,7 @@ enum LocalImageContextAction {
   addToAgent,
   moveToCategory,
   addToAlbum,
+  removeFromAlbum,
   sendToTextToImage,
   sendToImg2Img,
   sendToReversePrompt,
@@ -37,6 +38,8 @@ class LocalImageContextMenu {
     LocalImageContextAction.addToAgent => ImageCardActionId.addToAgent,
     LocalImageContextAction.moveToCategory => ImageCardActionId.classify,
     LocalImageContextAction.addToAlbum => ImageCardActionId.addToAlbum,
+    LocalImageContextAction.removeFromAlbum =>
+      ImageCardActionId.removeFromAlbum,
     LocalImageContextAction.sendToTextToImage =>
       ImageCardActionId.sendToGeneration,
     LocalImageContextAction.sendToImg2Img => ImageCardActionId.imageToImage,
@@ -70,6 +73,7 @@ class LocalImageContextMenu {
     required bool hasPrompt,
     required bool hasSeed,
     required bool isKritaConnected,
+    bool inAlbum = false,
     bool watermarkEnabled = false,
     bool isWatermarkDerivative = false,
     bool mosaicEnabled = false,
@@ -88,6 +92,7 @@ class LocalImageContextMenu {
         hasPrompt: hasPrompt,
         hasSeed: hasSeed,
         isKritaConnected: isKritaConnected,
+        inAlbum: inAlbum,
         watermarkEnabled: watermarkEnabled,
         isWatermarkDerivative: isWatermarkDerivative,
         mosaicEnabled: mosaicEnabled,
@@ -104,6 +109,7 @@ class LocalImageContextMenu {
     required bool hasPrompt,
     required bool hasSeed,
     required bool isKritaConnected,
+    bool inAlbum = false,
     bool watermarkEnabled = false,
     bool isWatermarkDerivative = false,
     bool mosaicEnabled = false,
@@ -131,6 +137,12 @@ class LocalImageContextMenu {
         icon: Icons.photo_album_outlined,
         label: context.l10n.localGallery_addToAlbum,
       ),
+      if (inAlbum)
+        action(
+          value: LocalImageContextAction.removeFromAlbum,
+          icon: Icons.playlist_remove,
+          label: context.l10n.localGallery_removeFromAlbum,
+        ),
       if (watermarkEnabled)
         action(
           value: LocalImageContextAction.createWatermark,

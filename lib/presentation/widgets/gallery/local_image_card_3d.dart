@@ -45,6 +45,8 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
   final Future<void> Function(LocalImageContextAction action)? onSendAction;
   final bool enableAddToAgent;
   final bool isKritaConnected;
+  /// 当前是否在某个相簿里浏览；是的话右键菜单有「移出相簿」
+  final bool inAlbum;
 
   /// 可选的拖拽包装器，用于将卡片内容包装在 DragItemWidget 中
   /// 解决 GestureDetector 与拖拽手势冲突的问题
@@ -65,6 +67,7 @@ class LocalImageCard3D extends ConsumerStatefulWidget {
     this.onSendAction,
     this.enableAddToAgent = true,
     this.isKritaConnected = false,
+    this.inAlbum = false,
     this.dragWrapper,
   });
 
@@ -492,6 +495,7 @@ class _LocalImageCard3DState extends ConsumerState<LocalImageCard3D> {
           hasPrompt: true,
           hasSeed: metadata?.seed != null,
           isKritaConnected: widget.isKritaConnected,
+          inAlbum: widget.inAlbum,
           watermarkEnabled: watermarkEnabled,
           isWatermarkDerivative:
               watermarkEnabled &&
