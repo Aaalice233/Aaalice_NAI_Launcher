@@ -79,6 +79,23 @@ void main() {
     expect(settings.syncToSystemGallery, isFalse);
   });
 
+  test('更换保存位置时记下旧位置，清除自定义位置时同样记下', () async {
+    final container = createContainer();
+    final notifier = container.read(imageSaveSettingsNotifierProvider.notifier);
+
+    await notifier.setCustomPath('D:/first');
+    expect(storage.getImageSavePathHistory(), isEmpty);
+
+    await notifier.setCustomPath('D:/second');
+    expect(storage.getImageSavePathHistory(), ['D:/first']);
+
+    await notifier.setCustomPath('D:/second');
+    expect(storage.getImageSavePathHistory(), ['D:/first']);
+
+    await notifier.resetToDefault();
+    expect(storage.getImageSavePathHistory(), ['D:/second', 'D:/first']);
+  });
+
   test('未写过命名规则时沿用日期文件夹与时间-种子命名', () {
     expect(
       createContainer().read(imageSaveSettingsNotifierProvider).naming,
