@@ -11614,6 +11614,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get detail_imageLoadFailed => '无法加载图片';
 
   @override
+  String get detail_lockZoom => '锁定缩放';
+
+  @override
+  String get detail_unlockZoom => '解除缩放锁定';
+
+  @override
   String get detail_noImage => '无图片';
 
   @override
@@ -27463,6 +27469,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get detail_imageLoadFailed => '無法載入圖片';
+
+  @override
+  String get detail_lockZoom => '鎖定縮放';
+
+  @override
+  String get detail_unlockZoom => '解除縮放鎖定';
 
   @override
   String get detail_noImage => '無圖片';

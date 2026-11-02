@@ -7,6 +7,7 @@ import '../common/image_card_context_menu.dart';
 enum LocalImageContextAction {
   addToAgent,
   moveToCategory,
+  addToAlbum,
   sendToTextToImage,
   sendToImg2Img,
   sendToReversePrompt,
@@ -35,6 +36,7 @@ class LocalImageContextMenu {
   ) => switch (action) {
     LocalImageContextAction.addToAgent => ImageCardActionId.addToAgent,
     LocalImageContextAction.moveToCategory => ImageCardActionId.classify,
+    LocalImageContextAction.addToAlbum => ImageCardActionId.addToAlbum,
     LocalImageContextAction.sendToTextToImage =>
       ImageCardActionId.sendToGeneration,
     LocalImageContextAction.sendToImg2Img => ImageCardActionId.imageToImage,
@@ -123,6 +125,11 @@ class LocalImageContextMenu {
         value: LocalImageContextAction.moveToCategory,
         icon: Icons.drive_file_move_outline,
         label: context.l10n.localGallery_moveToCategory,
+      ),
+      action(
+        value: LocalImageContextAction.addToAlbum,
+        icon: Icons.photo_album_outlined,
+        label: context.l10n.localGallery_addToAlbum,
       ),
       if (watermarkEnabled)
         action(
