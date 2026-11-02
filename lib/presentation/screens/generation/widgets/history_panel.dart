@@ -566,6 +566,67 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         },
         onSaveAs: (detail) =>
             GenerationSaveService.saveImageAsFromDetail(context, ref, detail),
+        contextMenuActions: (_, detail) {
+          final image = sequence.firstWhereOrNull(
+            (i) => i.id == detail.identifier,
+          );
+          if (image == null) return const [];
+          final l10n = context.l10n;
+          ImageCardAction action(
+            ImageCardActionId id,
+            IconData icon,
+            String label,
+            VoidCallback run,
+          ) => ImageCardAction(id: id, icon: icon, label: label, invoke: run);
+          return [
+            if (image.canUseAsGenerationInput) ...[
+              action(
+                ImageCardActionId.reversePrompt,
+                Icons.manage_search_rounded,
+                l10n.drop_reversePrompt,
+                () =>
+                    unawaited(_sendHistoryImageToReversePrompt(context, image)),
+              ),
+              action(
+                ImageCardActionId.imageToImage,
+                Icons.image_outlined,
+                l10n.drop_img2img,
+                () => _sendHistoryImageToImageToImage(context, image),
+              ),
+              action(
+                ImageCardActionId.vibeTransfer,
+                Icons.palette_outlined,
+                l10n.drop_vibeTransfer,
+                () =>
+                    unawaited(_sendHistoryImageToVibeTransfer(context, image)),
+              ),
+              action(
+                ImageCardActionId.preciseReference,
+                Icons.center_focus_strong,
+                l10n.drop_characterReference,
+                () => unawaited(
+                  _sendHistoryImageToPreciseReference(context, image),
+                ),
+              ),
+              action(
+                ImageCardActionId.saveToPreciseRefLibrary,
+                Icons.bookmark_add_outlined,
+                l10n.drop_saveToPreciseRefLibrary,
+                () => unawaited(
+                  saveBytesToPreciseRefLibrary(ref, context, image.bytes),
+                ),
+              ),
+            ],
+            if (image.canSave &&
+                PlatformCapabilities.current.supportsOpenFolder)
+              action(
+                ImageCardActionId.openFolder,
+                Icons.folder_open,
+                l10n.shortcut_action_open_folder,
+                () => unawaited(_openImageInExplorer(context, image)),
+              ),
+          ];
+        },
       ),
     );
   }

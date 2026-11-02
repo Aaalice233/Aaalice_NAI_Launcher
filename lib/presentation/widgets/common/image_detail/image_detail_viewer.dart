@@ -435,6 +435,20 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
               : l10n.common_favorite,
           invoke: _toggleFavorite,
         ),
+      if (image.showSaveButton && widget.callbacks?.onSave != null)
+        ImageCardAction(
+          id: ImageCardActionId.save,
+          icon: Icons.save_alt_rounded,
+          label: l10n.common_save,
+          invoke: () => widget.callbacks!.onSave!(image),
+        ),
+      if (image.showSaveAsButton && widget.callbacks?.onSaveAs != null)
+        ImageCardAction(
+          id: ImageCardActionId.saveAs,
+          icon: Icons.save_as_rounded,
+          label: l10n.image_saveAs,
+          invoke: () => widget.callbacks!.onSaveAs!(image),
+        ),
       if (image.showCopyButton)
         ImageCardAction(
           id: ImageCardActionId.copy,
