@@ -5492,6 +5492,8 @@
   "detail_sendToReversePrompt": "傳送到反推",
   "detail_loadingImage": "載入圖片中...",
   "detail_imageLoadFailed": "無法載入圖片",
+  "detail_lockZoom": "鎖定縮放",
+  "detail_unlockZoom": "解除縮放鎖定",
   "detail_noImage": "無圖片",
   "detail_parsingMetadata": "正在解析後設資料...",
   "detail_noMetadata": "此圖片無後設資料",

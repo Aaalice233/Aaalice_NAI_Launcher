@@ -542,6 +542,8 @@ class LocalGalleryActionCoordinator {
         await _addToAgent(record);
       case LocalImageContextAction.moveToCategory:
         await _moveImageToCategory(record);
+      case LocalImageContextAction.addToAlbum:
+        await addSelectedToAlbum({record.path});
       case LocalImageContextAction.sendToTextToImage:
       case LocalImageContextAction.importMetadata:
         await importImageMetadata(record);

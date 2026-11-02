@@ -5451,6 +5451,8 @@
   "detail_sendToReversePrompt": "发送到反推",
   "detail_loadingImage": "加载图片中...",
   "detail_imageLoadFailed": "无法加载图片",
+  "detail_lockZoom": "锁定缩放",
+  "detail_unlockZoom": "解除缩放锁定",
   "detail_noImage": "无图片",
   "detail_parsingMetadata": "正在解析元数据...",
   "detail_noMetadata": "此图片无元数据",

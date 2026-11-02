@@ -11512,6 +11512,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get detail_imageLoadFailed => '画像のロードに失敗しました';
 
   @override
+  String get detail_lockZoom => 'ズームを固定';
+
+  @override
+  String get detail_unlockZoom => 'ズーム固定を解除';
+
+  @override
   String get detail_noImage => '画像がありません';
 
   @override

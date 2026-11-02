@@ -5658,6 +5658,8 @@
   "detail_sendToReversePrompt": "Send to Reverse Prompt",
   "detail_loadingImage": "Loading image...",
   "detail_imageLoadFailed": "Failed to load image",
+  "detail_lockZoom": "Lock zoom",
+  "detail_unlockZoom": "Unlock zoom",
   "detail_noImage": "No image",
   "detail_parsingMetadata": "Parsing metadata...",
   "detail_noMetadata": "This image has no metadata",

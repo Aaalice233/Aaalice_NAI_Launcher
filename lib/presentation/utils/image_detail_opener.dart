@@ -108,6 +108,7 @@ class ImageDetailOpener {
     bool showMetadataPanel = true,
     bool showThumbnails = true,
     ImageDetailCallbacks? callbacks,
+    ImageDetailPageNavigator? pageNavigator,
   }) {
     // 使用 microtask 确保不阻塞当前帧
     Future.microtask(() {
@@ -120,6 +121,7 @@ class ImageDetailOpener {
         showMetadataPanel: showMetadataPanel,
         showThumbnails: showThumbnails && images.length > 1,
         callbacks: callbacks,
+        pageNavigator: pageNavigator,
       );
     });
   }
