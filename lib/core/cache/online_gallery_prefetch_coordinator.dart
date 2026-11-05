@@ -34,7 +34,7 @@ class GalleryImagePreloadOperation {
 enum GalleryPrefetchPauseReason {
   scrolling,
   pageHidden,
-  appBackground,
+  appHidden,
   criticalNetworkActivity,
 }
 
@@ -151,9 +151,9 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
     cancelPriorities: GalleryImagePriority.values.toSet(),
   );
 
-  void setAppForeground(bool foreground) => _setPause(
-    GalleryPrefetchPauseReason.appBackground,
-    !foreground,
+  void setAppVisible(bool visible) => _setPause(
+    GalleryPrefetchPauseReason.appHidden,
+    !visible,
     cancelPriorities: GalleryImagePriority.values.toSet(),
   );
 
@@ -328,7 +328,7 @@ class OnlineGalleryPrefetchCoordinator extends ChangeNotifier {
 
   bool _accepts(GalleryImagePriority priority) {
     if (_pauseReasons.contains(GalleryPrefetchPauseReason.pageHidden) ||
-        _pauseReasons.contains(GalleryPrefetchPauseReason.appBackground)) {
+        _pauseReasons.contains(GalleryPrefetchPauseReason.appHidden)) {
       return false;
     }
     if (_pauseReasons.contains(

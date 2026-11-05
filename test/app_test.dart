@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
@@ -28,18 +27,14 @@ import 'package:nai_launcher/core/utils/nai_resolution_adapter.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_statistics.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
-import 'package:nai_launcher/data/models/image/image_params.dart'
-    show ImageParams;
 import 'package:nai_launcher/data/models/tag/local_tag.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
-import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
-import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/share_image_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
@@ -65,29 +60,10 @@ import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_
 import 'package:nai_launcher/presentation/widgets/prompt/unified/unified_prompt_input.dart';
 import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 
+import 'helpers/app_bootstrap_effects_harness.dart';
 import 'helpers/grayscale_png_fixture.dart';
 
 class _MockDio extends Mock implements Dio {}
-
-class _IdleQueueExecutionNotifier extends QueueExecutionNotifier {
-  @override
-  QueueExecutionState build() => const QueueExecutionState();
-}
-
-class _InertGenerationParamsNotifier extends GenerationParamsNotifier {
-  @override
-  ImageParams build() => const ImageParams();
-
-  @override
-  Future<void> saveGenerationState() async {}
-}
-
-List<Override> _backgroundLifecycleOverrides() => [
-  queueExecutionNotifierProvider.overrideWith(_IdleQueueExecutionNotifier.new),
-  generationParamsNotifierProvider.overrideWith(
-    _InertGenerationParamsNotifier.new,
-  ),
-];
 
 void _returnFromBackground(WidgetTester tester) {
   for (final state in const [
@@ -191,7 +167,7 @@ void main() {
       final inert = Provider<int>((ref) => 0);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: _backgroundLifecycleOverrides(),
+          overrides: appBackgroundLifecycleOverrides(),
           child: MaterialApp(
             home: AppBootstrapEffects(
               anlasWatcher: inert,
@@ -256,7 +232,7 @@ void main() {
       final inert = Provider<int>((ref) => 0);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: _backgroundLifecycleOverrides(),
+          overrides: appBackgroundLifecycleOverrides(),
           child: MaterialApp(
             home: AppBootstrapEffects(
               anlasWatcher: inert,

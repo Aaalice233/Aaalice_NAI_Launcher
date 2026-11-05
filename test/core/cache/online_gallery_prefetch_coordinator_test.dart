@@ -758,10 +758,10 @@ void main() {
     );
 
     coordinator.setPageVisible(false);
-    coordinator.setAppForeground(false);
+    coordinator.setAppVisible(false);
     expect(coordinator.pauseReasons, {
       GalleryPrefetchPauseReason.pageHidden,
-      GalleryPrefetchPauseReason.appBackground,
+      GalleryPrefetchPauseReason.appHidden,
     });
 
     coordinator.setPageVisible(true);
@@ -774,7 +774,7 @@ void main() {
       isFalse,
     );
 
-    coordinator.setAppForeground(true);
+    coordinator.setAppVisible(true);
     expect(coordinator.isPaused, isFalse);
     expect(
       await coordinator.submit(
