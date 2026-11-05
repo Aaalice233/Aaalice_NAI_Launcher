@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/services/interactive_work_gate.dart';
@@ -78,25 +79,196 @@ void main() {
     expect(events, ['ready', 'long']);
   });
 
-  testWidgets('idle work waits while the desktop window is unfocused', (
-    tester,
-  ) async {
-    final gate = InteractiveWorkGate.forTesting();
-    var ran = false;
-    gate.setWindowFocused(false);
+  group('a visible window without focus', () {
+    tearDown(() {
+      WidgetsBinding.instance.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+    });
 
-    final operation = gate.runWhenIdle(
-      quietPeriod: Duration.zero,
-      pollInterval: const Duration(milliseconds: 10),
-      action: () async => ran = true,
-    );
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(ran, isFalse);
+    testWidgets('admits work despite recent interaction and animations', (
+      tester,
+    ) async {
+      final gate = InteractiveWorkGate.forTesting();
+      final events = <String>[];
+      final animation = Ticker((_) {})..start();
+      gate.markInteraction();
+      unawaited(
+        gate.runWhenIdle(
+          pollInterval: const Duration(milliseconds: 10),
+          priority: InteractiveWorkPriority.userVisible,
+          action: () async => events.add('ordinary'),
+        ),
+      );
+      unawaited(
+        gate.runWhenIdle(
+          pollInterval: const Duration(milliseconds: 10),
+          priority: InteractiveWorkPriority.maintenance,
+          action: () async => events.add('maintenance'),
+        ),
+      );
 
-    gate.setWindowFocused(true);
-    await tester.pump(const Duration(milliseconds: 20));
-    await operation;
-    expect(ran, isTrue);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      gate.handleLifecycleStateChanged(AppLifecycleState.inactive);
+      gate.setWindowFocused(false);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(events, ['ordinary', 'maintenance']);
+      animation.dispose();
+    });
+
+    testWidgets('still waits out input the window itself receives', (
+      tester,
+    ) async {
+      final gate = InteractiveWorkGate.forTesting();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      gate.setWindowFocused(false);
+
+      await tester.runAsync(() async {
+        var ran = false;
+        // Windows scrolls an inactive window under the cursor.
+        gate.markInteraction();
+        final stopwatch = Stopwatch()..start();
+        final operation = gate.runWhenIdle(
+          quietPeriod: const Duration(milliseconds: 80),
+          pollInterval: const Duration(milliseconds: 10),
+          priority: InteractiveWorkPriority.maintenance,
+          action: () async => ran = true,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(ran, isFalse);
+
+        await operation;
+        expect(stopwatch.elapsed, greaterThanOrEqualTo(_minimumDelayFloor));
+      });
+    });
+
+    testWidgets('still waits for the minimum delay', (tester) async {
+      final gate = InteractiveWorkGate.forTesting();
+      var ran = false;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      gate.setWindowFocused(false);
+
+      await tester.runAsync(() async {
+        final stopwatch = Stopwatch()..start();
+        await gate.runWhenIdle(
+          minimumDelay: const Duration(milliseconds: 80),
+          pollInterval: const Duration(milliseconds: 10),
+          action: () async => ran = true,
+        );
+        expect(stopwatch.elapsed, greaterThanOrEqualTo(_minimumDelayFloor));
+      });
+      expect(ran, isTrue);
+    });
+
+    testWidgets('still waits while the window is hidden', (tester) async {
+      final gate = InteractiveWorkGate.forTesting();
+      var ran = false;
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+
+      final operation = gate.runWhenIdle(
+        quietPeriod: Duration.zero,
+        pollInterval: const Duration(milliseconds: 10),
+        action: () async => ran = true,
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(ran, isFalse);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await tester.pump(const Duration(milliseconds: 20));
+      await operation;
+      expect(ran, isTrue);
+    });
+  });
+
+  group('returning to the window', () {
+    tearDown(() {
+      WidgetsBinding.instance.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      );
+    });
+
+    void enter(
+      WidgetTester tester,
+      InteractiveWorkGate gate,
+      List<AppLifecycleState> states,
+    ) {
+      for (final state in states) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+        gate.handleLifecycleStateChanged(state);
+      }
+    }
+
+    testWidgets('regaining focus is not an interaction', (tester) async {
+      final gate = InteractiveWorkGate.forTesting();
+      var ran = false;
+      enter(tester, gate, [AppLifecycleState.inactive]);
+      gate.setWindowFocused(false);
+
+      gate.setWindowFocused(true);
+      enter(tester, gate, [AppLifecycleState.resumed]);
+      unawaited(
+        gate.runWhenIdle(
+          pollInterval: const Duration(milliseconds: 10),
+          action: () async => ran = true,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(ran, isTrue);
+    });
+
+    testWidgets('coming back from the background defers work like an '
+        'interaction', (tester) async {
+      final gate = InteractiveWorkGate.forTesting();
+      enter(tester, gate, [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]);
+
+      await tester.runAsync(() async {
+        final stopwatch = Stopwatch()..start();
+        await gate.runWhenIdle(
+          quietPeriod: const Duration(milliseconds: 80),
+          pollInterval: const Duration(milliseconds: 10),
+          action: () async {},
+        );
+        expect(stopwatch.elapsed, greaterThanOrEqualTo(_minimumDelayFloor));
+      });
+    });
+
+    testWidgets('work queued while hidden waits out the return even before '
+        'focus comes back', (tester) async {
+      final gate = InteractiveWorkGate.forTesting();
+      enter(tester, gate, [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+      ]);
+
+      await tester.runAsync(() async {
+        var ran = false;
+        final operation = gate.runWhenIdle(
+          quietPeriod: const Duration(milliseconds: 80),
+          pollInterval: const Duration(milliseconds: 10),
+          priority: InteractiveWorkPriority.maintenance,
+          action: () async => ran = true,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(ran, isFalse);
+
+        // The engine reports the window shown before it reports focus.
+        enter(tester, gate, [AppLifecycleState.inactive]);
+        final stopwatch = Stopwatch()..start();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(ran, isFalse);
+
+        await operation;
+        expect(stopwatch.elapsed, greaterThanOrEqualTo(_minimumDelayFloor));
+      });
+    });
   });
 
   testWidgets('idle work waits while the application is backgrounded', (
@@ -120,3 +292,6 @@ void main() {
     expect(ran, isTrue);
   });
 }
+
+// Timer granularity on Windows can fire a few milliseconds early.
+const _minimumDelayFloor = Duration(milliseconds: 60);

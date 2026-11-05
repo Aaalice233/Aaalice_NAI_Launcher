@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
+import 'package:nai_launcher/core/services/interactive_work_gate.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_user_info_api_service.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
@@ -442,6 +444,85 @@ void main() {
     notifier.setAppVisible(true);
     await tester.pump(const Duration(milliseconds: 250));
     expect(requestCount, 1);
+    container.dispose();
+  });
+
+  testWidgets('a visible window without focus keeps the periodic refresh', (
+    tester,
+  ) async {
+    final apiService = _MockNAIUserInfoApiService();
+    var requestCount = 0;
+    when(
+      () => apiService.getUserSubscription(
+        receiveTimeout: any(named: 'receiveTimeout'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer((_) async {
+      requestCount += 1;
+      return _subscriptionJson(balance: 90 - requestCount);
+    });
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_HydratedAuthNotifier.new),
+        naiUserInfoApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(() {
+      InteractiveWorkGate.instance.setWindowFocused(true);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+    container.read(subscriptionNotifierProvider);
+    await tester.pump();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    InteractiveWorkGate.instance.setWindowFocused(false);
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(requestCount, 1);
+    expect(container.read(subscriptionNotifierProvider).balance, 89);
+    container.dispose();
+  });
+
+  testWidgets('a refresh queued behind an animation still runs once focus is '
+      'lost', (tester) async {
+    final apiService = _MockNAIUserInfoApiService();
+    var requestCount = 0;
+    when(
+      () => apiService.getUserSubscription(
+        receiveTimeout: any(named: 'receiveTimeout'),
+        cancelToken: any(named: 'cancelToken'),
+      ),
+    ).thenAnswer((_) async {
+      requestCount += 1;
+      return _subscriptionJson(balance: 90 - requestCount);
+    });
+    final container = ProviderContainer(
+      overrides: [
+        authNotifierProvider.overrideWith(_HydratedAuthNotifier.new),
+        naiUserInfoApiServiceProvider.overrideWithValue(apiService),
+      ],
+    );
+    addTearDown(() {
+      InteractiveWorkGate.instance.setWindowFocused(true);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+    container.read(subscriptionNotifierProvider);
+    await tester.pump();
+    // 生成时的光晕动画让闸门一直不空闲
+    final generationGlow = Ticker((_) {})..start();
+
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pump(const Duration(seconds: 2));
+    expect(requestCount, 0, reason: 'the refresh is queued behind the glow');
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    InteractiveWorkGate.instance.setWindowFocused(false);
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(requestCount, 1);
+    expect(container.read(subscriptionNotifierProvider).balance, 89);
+    generationGlow.dispose();
     container.dispose();
   });
 

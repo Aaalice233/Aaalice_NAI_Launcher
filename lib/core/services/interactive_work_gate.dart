@@ -4,9 +4,15 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../utils/app_background_return.dart';
+import '../utils/app_lifecycle_visibility.dart';
+
 enum InteractiveWorkPriority { userVisible, normal, maintenance }
 
-/// Keeps non-essential work out of active interaction and backgrounded windows.
+/// Keeps non-essential work out of active interaction and hidden windows.
+///
+/// A visible window without focus has no interaction of its own: the user is
+/// working in another window, so earlier input no longer delays queued work.
 class InteractiveWorkGate {
   InteractiveWorkGate._();
 
@@ -16,20 +22,35 @@ class InteractiveWorkGate {
   static final InteractiveWorkGate instance = InteractiveWorkGate._();
 
   DateTime _lastInteraction = DateTime.fromMillisecondsSinceEpoch(0);
+  // Windows scrolls an unfocused window under the cursor; that input counts.
+  DateTime _lastUnfocusedInteraction = DateTime.fromMillisecondsSinceEpoch(0);
   final List<_PendingIdleWork> _pending = <_PendingIdleWork>[];
+  final AppBackgroundReturnTracker _backgroundReturn =
+      AppBackgroundReturnTracker();
   bool _draining = false;
   bool _windowFocused = true;
   Completer<void>? _queueChanged;
 
   void markInteraction() {
-    _lastInteraction = DateTime.now();
+    final now = DateTime.now();
+    _lastInteraction = now;
+    if (!_isFocused) _lastUnfocusedInteraction = now;
     _signalStateChanged();
   }
 
+  /// Regaining focus alone is not an interaction.
   void setWindowFocused(bool isFocused) {
     _windowFocused = isFocused;
-    if (isFocused) _lastInteraction = DateTime.now();
     _signalStateChanged();
+  }
+
+  void handleLifecycleStateChanged(AppLifecycleState state) {
+    // Returning from the background counts even before focus; refocus does not.
+    if (_backgroundReturn.returnedToView(state)) {
+      markInteraction();
+    } else {
+      _signalStateChanged();
+    }
   }
 
   void _signalStateChanged() {
@@ -55,8 +76,7 @@ class InteractiveWorkGate {
       action: action,
     );
     _pending.add(work);
-    _queueChanged?.complete();
-    _queueChanged = null;
+    _signalStateChanged();
     unawaited(_drain());
     return work.completer.future;
   }
@@ -72,26 +92,21 @@ class InteractiveWorkGate {
         if (remaining > Duration.zero) {
           final changed = Completer<void>();
           _queueChanged = changed;
-          await Future.any<void>(<Future<void>>[
-            Future<void>.delayed(remaining),
-            changed.future,
-          ]);
-          if (identical(_queueChanged, changed)) _queueChanged = null;
+          final due = Timer(remaining, _signalStateChanged);
+          await changed.future;
+          due.cancel();
           continue;
         }
 
         final pollInterval = _pending
             .map((work) => work.pollInterval)
             .reduce((a, b) => a < b ? a : b);
-        await waitForIdle(
-          quietPeriod: Duration.zero,
-          pollInterval: pollInterval,
-        );
+        if (!await _waitForAdmission(pollInterval)) continue;
 
         final selectionTime = DateTime.now();
         final ready =
             _pending
-                .where((work) => !_eligibleAt(work).isAfter(selectionTime))
+                .where((work) => _isAdmissible(work, selectionTime))
                 .toList()
               ..sort((a, b) {
                 final priorityOrder = a.priority.index.compareTo(
@@ -116,28 +131,41 @@ class InteractiveWorkGate {
     }
   }
 
-  DateTime _eligibleAt(_PendingIdleWork work) {
-    final quietAt = _lastInteraction.add(work.quietPeriod);
-    return quietAt.isAfter(work.notBefore) ? quietAt : work.notBefore;
-  }
-
-  Future<void> waitForIdle({
-    Duration quietPeriod = const Duration(seconds: 2),
-    Duration pollInterval = const Duration(milliseconds: 200),
-  }) async {
+  /// Returns false once nothing pending is due any more, so the caller can
+  /// sleep until the next task becomes due instead of polling.
+  Future<bool> _waitForAdmission(Duration pollInterval) async {
     while (true) {
-      final lifecycle = WidgetsBinding.instance.lifecycleState;
-      final isForeground =
-          lifecycle == null || lifecycle == AppLifecycleState.resumed;
-      final hasBeenQuiet =
-          DateTime.now().difference(_lastInteraction) >= quietPeriod;
-      final schedulerIdle =
-          SchedulerBinding.instance.transientCallbackCount == 0;
-      if (isForeground && _windowFocused && hasBeenQuiet && schedulerIdle) {
-        return;
+      final now = DateTime.now();
+      if (_pending.any((work) => _isAdmissible(work, now))) return true;
+      if (_pending.every((work) => _eligibleAt(work).isAfter(now))) {
+        return false;
       }
       await Future<void>.delayed(pollInterval);
     }
+  }
+
+  bool _isAdmissible(_PendingIdleWork work, DateTime now) =>
+      !_eligibleAt(work).isAfter(now) && _isIdle;
+
+  DateTime _eligibleAt(_PendingIdleWork work) {
+    final lastInteraction = _isFocused
+        ? _lastInteraction
+        : _lastUnfocusedInteraction;
+    final quietAt = lastInteraction.add(work.quietPeriod);
+    return quietAt.isAfter(work.notBefore) ? quietAt : work.notBefore;
+  }
+
+  bool get _isFocused {
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    return (lifecycle == null || lifecycle == AppLifecycleState.resumed) &&
+        _windowFocused;
+  }
+
+  // Animations count only while focused, or a looping one stalls work forever.
+  bool get _isIdle {
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (!AppLifecycleVisibility.isVisible(lifecycle)) return false;
+    return !_isFocused || SchedulerBinding.instance.transientCallbackCount == 0;
   }
 }
 
@@ -158,7 +186,8 @@ class _PendingIdleWork {
   final Completer<void> completer = Completer<void>();
 }
 
-/// Records pointer, scroll, and keyboard activity at the application boundary.
+/// Records pointer, scroll, keyboard and lifecycle activity at the application
+/// boundary.
 class InteractiveActivityObserver extends StatefulWidget {
   const InteractiveActivityObserver({super.key, required this.child});
 
@@ -181,9 +210,7 @@ class _InteractiveActivityObserverState
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      InteractiveWorkGate.instance.markInteraction();
-    }
+    InteractiveWorkGate.instance.handleLifecycleStateChanged(state);
   }
 
   bool _handleKeyEvent(KeyEvent event) {
