@@ -38,6 +38,7 @@ import '../../prompt_assistant/services/prompt_assistant_service.dart';
 import '../../providers/fixed_tags_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/subscription_provider.dart';
 import '../../providers/tag_library_page_provider.dart';
 import '../../providers/vibe_library_provider.dart';
 import '../../router/app_router_config.dart';
@@ -1041,6 +1042,8 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     queueRuntime: _queueControlRuntime,
     manualInpaintToolbox: _manualInpaintToolbox,
     imageUpscaleToolbox: _imageUpscaleToolbox,
+    freshBilling: () =>
+        ref.read(subscriptionNotifierProvider.notifier).freshBillingView(),
   );
 
   List<String> _describePreparedFileTargets(

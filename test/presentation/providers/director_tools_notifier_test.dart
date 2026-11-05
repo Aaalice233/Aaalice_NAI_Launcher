@@ -257,15 +257,16 @@ void main() {
 
     test('新增情绪按官网格式拼进请求，强度原样发送', () async {
       final _PromptRecordingService service = _PromptRecordingService();
+      final container = _promptContainer(service);
       final DirectorToolsNotifier notifier = await _initPromptNotifier(
-        _promptContainer(service),
+        container,
       );
       notifier
         ..selectTool(DirectorToolType.fixEmotion)
         ..selectEmotion(DirectorEmotion.scared)
         ..updateDefry(4);
 
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
 
       expect(service.emotionPrompts, <String>['scared;;']);
       expect(service.emotionDefries, <int>[4]);
@@ -304,7 +305,7 @@ void main() {
         );
       }
 
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
 
       expect(service.emotionPrompts, <String>[
         'playful;;tears, looking at viewer',
@@ -325,7 +326,7 @@ void main() {
       expect(state.selectedEmotion, DirectorEmotion.neutral);
       expect(state.emotionRequestPrompt, 'neutral;;');
 
-      await notifier.runTool();
+      await notifier.runTool(state);
 
       expect(service.emotionPrompts, <String>['neutral;;']);
       expect(service.emotionDefries, <int>[0]);
@@ -357,14 +358,14 @@ void main() {
         read().activePromptParams,
         const DirectorPromptParams(prompt: 'tears', defry: 5),
       );
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
 
       notifier.selectTool(DirectorToolType.colorize);
       expect(
         read().activePromptParams,
         const DirectorPromptParams(prompt: 'red hair', defry: 2),
       );
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
 
       notifier.selectTool(DirectorToolType.fixEmotion);
       expect(
@@ -517,17 +518,17 @@ void main() {
         ..selectTool(DirectorToolType.fixEmotion)
         ..updatePrompt('tears')
         ..selectEmotion(DirectorEmotion.sad);
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
       await notifier.registerResult();
 
       notifier.selectTool(DirectorToolType.colorize);
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
       await notifier.registerResult();
 
       notifier
         ..selectTool(DirectorToolType.fixEmotion)
         ..updatePrompt('');
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
       await notifier.registerResult();
 
       expect(
@@ -545,7 +546,7 @@ void main() {
         directorToolsNotifierProvider.notifier,
       );
       await notifier.init(_resultBytes);
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
       return notifier;
     }
 
@@ -597,7 +598,7 @@ void main() {
       );
 
       notifier.selectResult(1);
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
       expect(read(container).selectedResultIndex, 0);
       expect(read(container).results, hasLength(3));
 
@@ -607,7 +608,7 @@ void main() {
       expect(read(container).results, isEmpty);
       expect(read(container).selectedResultIndex, 0);
 
-      await notifier.runTool();
+      await notifier.runTool(container.read(directorToolsNotifierProvider));
       expect(read(container).results, hasLength(1));
       expect(read(container).result, same(_lineArtBytes));
     });

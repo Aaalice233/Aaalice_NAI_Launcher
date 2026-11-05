@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -5,19 +6,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/services/pixel_snap/pixel_snap_progress.dart';
+import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/models/director/director_emotion.dart';
 import 'package:nai_launcher/data/models/director/director_tool_output.dart';
 import 'package:nai_launcher/data/models/director/director_tool_type.dart';
+import 'package:nai_launcher/data/models/user/user_subscription.dart';
+import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
+import 'package:nai_launcher/presentation/providers/subscription_billing.dart';
+import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/director_tools/director_tools_screen.dart';
 import 'package:nai_launcher/presentation/screens/director_tools/widgets/director_result_variant_selector.dart';
 import 'package:nai_launcher/presentation/services/image_workflow_launcher.dart';
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
+import '../../../helpers/image_generation_test_environment.dart';
 import '../../../helpers/text_layout_expectations.dart';
 
 const _tinyPng =
@@ -290,6 +298,61 @@ void main() {
     expect(notifier.runCalls, 1);
     expect(find.text('Confirm Anlas usage'), findsNothing);
   });
+
+  testWidgets(
+    'runs the confirmed tool after selection changes during billing',
+    (tester) async {
+      final initialState = DirectorToolsState(
+        selectedTool: DirectorToolType.extractLineArt,
+        sourceImage: sourceImage,
+        imageWidth: 1024,
+        imageHeight: 1024,
+      );
+      final billing = Completer<SubscriptionBillingView>();
+      final notifier = _ExecutingDirectorToolsNotifier(initialState);
+      final api = _MockEnhancementApi();
+      when(
+        () => api.extractLineArt(sourceImage),
+      ).thenAnswer((_) async => DirectorToolOutput.single(_maskedBytes));
+      when(
+        () => api.removeBackground(sourceImage),
+      ).thenAnswer((_) async => DirectorToolOutput.single(_generatedBytes));
+      await _pumpScreen(
+        tester,
+        size: const Size(840, 720),
+        initialState: initialState,
+        notifier: notifier,
+        subscription: _DirectorSubscription(billing.future),
+        enhancementApi: api,
+      );
+
+      await _scrollControlIntoView(tester, find.text('Run Line Art'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Run Line Art'));
+      await tester.pump();
+      expect(find.text('Confirm Anlas usage'), findsNothing);
+      notifier.selectTool(DirectorToolType.removeBackground);
+      await tester.pump();
+      expect(find.text('Run Remove Background'), findsOneWidget);
+
+      billing.complete(
+        const SubscriptionBillingView(isOpus: true, opusQuotaExhausted: false),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Running Line Art is estimated to cost 0 Anlas. '
+          'Do you want to continue?',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
+
+      verify(() => api.extractLineArt(sourceImage)).called(1);
+      verifyNever(() => api.removeBackground(sourceImage));
+      expect(find.text('Line Art completed'), findsOneWidget);
+    },
+  );
 
   for (final outcome
       in <({String name, int selected, Set<int> failed, String message})>[
@@ -774,6 +837,8 @@ Future<void> _pumpScreen(
   required DirectorToolsState initialState,
   double textScale = 1,
   DirectorToolsNotifier? notifier,
+  SubscriptionNotifier? subscription,
+  NAIImageEnhancementApiService? enhancementApi,
   Locale locale = const Locale('en'),
 }) async {
   await tester.binding.setSurfaceSize(size);
@@ -784,6 +849,8 @@ Future<void> _pumpScreen(
       textScale: textScale,
       initialState: initialState,
       notifier: notifier,
+      subscription: subscription,
+      enhancementApi: enhancementApi,
       locale: locale,
       home: DirectorToolsScreen(sourceImage: initialState.sourceImage!),
     ),
@@ -798,11 +865,19 @@ Widget _testApp({
   required Widget home,
   double textScale = 1,
   DirectorToolsNotifier? notifier,
+  SubscriptionNotifier? subscription,
+  NAIImageEnhancementApiService? enhancementApi,
   ImageWorkflowController? workflow,
   Locale locale = const Locale('en'),
 }) {
   return ProviderScope(
     overrides: [
+      authNotifierProvider.overrideWith(AuthenticatedAuthNotifier.new),
+      subscriptionNotifierProvider.overrideWith(
+        () => subscription ?? _DirectorSubscription(),
+      ),
+      if (enhancementApi != null)
+        naiImageEnhancementApiServiceProvider.overrideWithValue(enhancementApi),
       directorToolsNotifierProvider.overrideWith(
         () => notifier ?? _ScenarioDirectorToolsNotifier(initialState),
       ),
@@ -895,9 +970,48 @@ class _RecordingDirectorToolsNotifier extends _ScenarioDirectorToolsNotifier {
   int runCalls = 0;
 
   @override
-  Future<void> runTool() async {
+  Future<void> runTool(DirectorToolsState request) async {
     runCalls++;
   }
+}
+
+class _MockEnhancementApi extends Mock
+    implements NAIImageEnhancementApiService {}
+
+class _DirectorSubscription extends SubscriptionNotifier {
+  _DirectorSubscription([this.pendingBilling]);
+
+  final Future<SubscriptionBillingView>? pendingBilling;
+
+  @override
+  SubscriptionState build() => const SubscriptionState.initial();
+
+  @override
+  Future<SubscriptionBillingView> freshBillingView() =>
+      pendingBilling ?? Future.value(SubscriptionBillingView.unverified);
+
+  @override
+  void schedulePostBillingRefresh({
+    Duration delay = SubscriptionNotifier.postBillingRefreshDelay,
+  }) {}
+}
+
+class _ExecutingDirectorToolsNotifier extends DirectorToolsNotifier {
+  _ExecutingDirectorToolsNotifier(this.initialState);
+
+  final DirectorToolsState initialState;
+
+  @override
+  DirectorToolsState build() => initialState;
+
+  @override
+  Future<void> init(Uint8List sourceImage) async {
+    state = initialState.copyWith(sourceImage: sourceImage);
+  }
+
+  @override
+  Future<DirectorResultRegistration> registerResult() async =>
+      const DirectorResultRegistration(total: 1, selectedIndex: 0);
 }
 
 /// 运行时直接给出背景移除的三张结果，登记按预设的失败序号返回，不碰真实历史与图库。
@@ -913,7 +1027,7 @@ class _RegisteringDirectorToolsNotifier extends _ScenarioDirectorToolsNotifier {
   int registerCalls = 0;
 
   @override
-  Future<void> runTool() async {
+  Future<void> runTool(DirectorToolsState request) async {
     state = _backgroundRemovalResultState(
       state.sourceImage!,
     ).copyWith(selectedResultIndex: selectedIndex);
@@ -944,7 +1058,7 @@ class _ScenarioDirectorToolsNotifier extends DirectorToolsNotifier {
   }
 
   @override
-  Future<void> runTool() async {
+  Future<void> runTool(DirectorToolsState request) async {
     throw StateError('Widget tests must not execute Director Tools requests.');
   }
 }

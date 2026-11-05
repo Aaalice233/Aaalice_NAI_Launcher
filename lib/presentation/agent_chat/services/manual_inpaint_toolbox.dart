@@ -47,7 +47,7 @@ typedef ManualInpaintResourceLoader =
       AgentChatResourceReference reference,
     );
 typedef ManualInpaintAnlasEstimator =
-    int Function(ImageParams params, int batchSize);
+    FutureOr<int> Function(ImageParams params, int batchSize);
 
 /// 把 ready 草稿装载进生成页重绘面板，并把用户带到那一页。
 typedef ManualInpaintPanelHandoff =
@@ -118,7 +118,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
            anlasEstimator ??
            ((params, batchSize) => GenerationAnlasEstimator(
              _ref,
-           ).estimate(params, requestCount: 1, batchSize: batchSize));
+           ).estimateFresh(params, requestCount: 1, batchSize: batchSize));
 
   /// 与 ImageWorkflowState.minimumContextMegaPixels 的默认值一致。
   static const double _defaultContextPadding =
@@ -204,7 +204,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
     );
   }
 
-  /// 权限层按此实时估价，草稿里存的估价也必须走同一条路径，两道门禁才不会分歧。
+  /// 权限层与提交时都按此实时估价，草稿里存的估价也必须走同一条路径，两道门禁才不会分歧。
   Future<int> _estimateDraftAnlas(
     Map<String, dynamic> snapshot,
     Uint8List? mask,
@@ -683,24 +683,29 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
           'Draft status is ${draft.status.name}; ready is required.',
         );
       }
-      if (draft.estimatedAnlas < 0) {
+      final mask = await _repository.readMask(id);
+      if (mask == null) {
+        return agentToolError('invalid_draft', 'Ready draft has no mask.');
+      }
+      // 草稿存下的估价可能出自已经过期的订阅数据
+      final estimatedAnlas = await _estimateDraftAnlas(
+        draft.parameterSnapshot,
+        mask,
+      );
+      if (estimatedAnlas < 0) {
         return agentToolError(
           'invalid_cost_estimate',
           'The inpaint draft does not have a valid Anlas estimate and cannot '
               'be submitted.',
         );
       }
-      if (draft.estimatedAnlas > 0 && args['confirm'] != true) {
+      if (estimatedAnlas > 0 && args['confirm'] != true) {
         return agentToolError(
           'confirmation_required',
           'Paid inpainting requires confirm=true and tool permission approval.',
         );
       }
       final source = await _repository.readSource(id);
-      final mask = await _repository.readMask(id);
-      if (mask == null) {
-        return agentToolError('invalid_draft', 'Ready draft has no mask.');
-      }
       // isOutpaint 不进 JSON 快照，必须在这里从私有键还原。
       final params = ImageParams.fromJson(draft.parameterSnapshot).copyWith(
         action: ImageGenerationAction.infill,

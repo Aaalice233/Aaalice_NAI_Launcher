@@ -40,6 +40,7 @@ import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/providers/subscription_billing.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
 
@@ -89,6 +90,10 @@ void main() {
             count: 1,
             autoStart: false,
             estimatedAnlas: 0,
+            billing: const SubscriptionBillingView(
+              isOpus: true,
+              opusQuotaExhausted: false,
+            ),
             arguments: const {'prompt': 'test'},
           ),
         );
@@ -431,6 +436,10 @@ void main() {
           count: 2,
           autoStart: true,
           estimatedAnlas: 0,
+          billing: const SubscriptionBillingView(
+            isOpus: true,
+            opusQuotaExhausted: false,
+          ),
           arguments: const {'prompt': '1girl'},
         ),
       );
@@ -476,6 +485,10 @@ void main() {
           count: 2,
           autoStart: false,
           estimatedAnlas: 0,
+          billing: const SubscriptionBillingView(
+            isOpus: true,
+            opusQuotaExhausted: false,
+          ),
           arguments: const {'prompt': '1girl'},
         ),
       );
@@ -511,6 +524,10 @@ void main() {
         count: count,
         autoStart: autoStart,
         estimatedAnlas: 0,
+        billing: const SubscriptionBillingView(
+          isOpus: true,
+          opusQuotaExhausted: false,
+        ),
         arguments: const {'prompt': '1girl'},
       );
 

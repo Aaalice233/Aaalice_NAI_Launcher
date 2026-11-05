@@ -29,6 +29,8 @@ import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
+import '../../../helpers/stale_opus_subscription.dart';
+
 final _refProvider = Provider<Ref>((ref) => ref);
 
 Map<String, dynamic> _json(AgentToolResult result) =>
@@ -83,6 +85,28 @@ void main() {
       0,
     );
   });
+
+  for (final (outcome, free) in [
+    (StaleOpusRefreshOutcome.stillFresh, true),
+    (StaleOpusRefreshOutcome.failed, false),
+  ]) {
+    test(
+      'the NovelAI quote refreshes stale data first (${outcome.name})',
+      () async {
+        final subscription = StaleOpusSubscription(outcome);
+        final harness = await _Harness.create(
+          source: _png(640, 640),
+          subscription: () => subscription,
+        );
+        addTearDown(harness.dispose);
+
+        final estimate = await harness.estimate({'resource_ref': _sourceRef});
+
+        expect(subscription.billingChecks, 1);
+        expect(estimate, free ? 0 : greaterThan(0));
+      },
+    );
+  }
 
   test('a paid NovelAI upscale runs only at the approved price', () async {
     final harness = await _Harness.create(
@@ -302,6 +326,7 @@ final class _Harness {
     UpscaleBackend pageBackend = UpscaleBackend.novelai,
     bool comfyEnabled = false,
     int subscriptionTier = 1,
+    SubscriptionNotifier Function()? subscription,
     bool novelAiRunning = false,
     ImageUpscaleResult? result,
   }) async {
@@ -318,7 +343,7 @@ final class _Harness {
           ),
         ),
         subscriptionNotifierProvider.overrideWith(
-          () => _TestSubscription(subscriptionTier),
+          subscription ?? () => _TestSubscription(subscriptionTier),
         ),
         imageUpscaleCoordinatorProvider.overrideWith(
           (ref) => _FakeCoordinator(ref, result),

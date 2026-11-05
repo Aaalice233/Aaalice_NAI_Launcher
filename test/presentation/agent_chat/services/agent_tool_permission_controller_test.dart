@@ -10,6 +10,7 @@ import 'package:nai_launcher/presentation/agent_chat/services/agent_prepared_fil
 import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_permission_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_preparation_runtime.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_tool_registry_builder.dart';
+import 'package:nai_launcher/presentation/providers/subscription_billing.dart';
 
 void main() {
   test(
@@ -255,6 +256,10 @@ void main() {
           count: 1,
           autoStart: false,
           estimatedAnlas: 0,
+          billing: const SubscriptionBillingView(
+            isOpus: true,
+            opusQuotaExhausted: false,
+          ),
           arguments: const {'prompt': 'test'},
           savePath: r'D:\art\out.png',
         ),

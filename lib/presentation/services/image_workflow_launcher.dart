@@ -101,16 +101,12 @@ class ImageWorkflowLauncher {
               smea: params.effectiveSmea,
               smeaDyn: params.effectiveSmeaDyn,
               strength: params.inpaintStrength,
-              subscriptionTier:
-                  read(subscriptionNotifierProvider).subscription?.isOpus ==
-                      true
-                  ? AnlasCalculator.opusTier
-                  : 0,
-              opusQuotaExhausted:
-                  read(
-                    subscriptionNotifierProvider,
-                  ).subscription?.usage?.isNegative ??
-                  false,
+              subscriptionTier: read(
+                subscriptionBillingViewProvider,
+              ).subscriptionTier,
+              opusQuotaExhausted: read(
+                subscriptionBillingViewProvider,
+              ).opusQuotaExhausted,
               extraPerSampleCost:
                   AnlasCalculator.resolvePreciseReferenceExtraCost(params),
               currentWidth: params.width,

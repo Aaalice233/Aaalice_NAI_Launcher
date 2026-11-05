@@ -2,9 +2,16 @@ import 'package:uuid/uuid.dart';
 
 import '../../../data/models/image/image_params.dart';
 import '../../providers/generation/image_workflow_controller.dart';
+import '../../providers/subscription_billing.dart';
 import 'generation_enhance_resolver.dart';
 
-enum GenerationPreparationKind { generate, queue }
+enum GenerationPreparationKind {
+  generate,
+  queue;
+
+  /// 队列按条数逐次请求；单次生成的多张图在同一请求里走 nSamples。
+  int requestCount(int count) => this == queue ? count : 1;
+}
 
 enum GenerationPreparationStatus { prepared, submitted, cancelled }
 
@@ -27,6 +34,7 @@ class GenerationPreparation {
     required this.count,
     required this.autoStart,
     required this.estimatedAnlas,
+    required this.billing,
     required this.arguments,
     this.savePath,
     this.savePathSource,
@@ -44,6 +52,11 @@ class GenerationPreparation {
   final int count;
   final bool autoStart;
   final int estimatedAnlas;
+
+  int get requestCount => kind.requestCount(count);
+
+  /// 估出 [estimatedAnlas] 时依据的订阅视图；审批时与当前视图不同就要重估。
+  final SubscriptionBillingView billing;
   final Map<String, dynamic> arguments;
   final String? savePath;
 

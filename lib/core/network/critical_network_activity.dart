@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../utils/app_logger.dart';
@@ -19,12 +21,31 @@ class CriticalNetworkActivityCoordinator extends ChangeNotifier {
 
   final Map<CriticalNetworkActivityType, int> _counts = {};
   int _activeLeaseCount = 0;
+  int _endedActivityCount = 0;
 
   bool get isActive => _activeLeaseCount > 0;
+
+  /// Times the last held lease was released, so a listener that was detached
+  /// for a while can tell whether it missed an end of activity.
+  int get endedActivityCount => _endedActivityCount;
   int get activeLeaseCount => _activeLeaseCount;
   Set<CriticalNetworkActivityType> get activeTypes => Set.unmodifiable(
     _counts.entries.where((entry) => entry.value > 0).map((entry) => entry.key),
   );
+
+  /// Completes once no lease is held; immediately when already inactive.
+  Future<void> whenInactive() {
+    if (!isActive) return Future<void>.value();
+    final inactive = Completer<void>();
+    void listener() {
+      if (isActive) return;
+      removeListener(listener);
+      inactive.complete();
+    }
+
+    addListener(listener);
+    return inactive.future;
+  }
 
   CriticalNetworkActivityLease acquire(CriticalNetworkActivityType type) {
     final wasActive = isActive;
@@ -56,7 +77,10 @@ class CriticalNetworkActivityCoordinator extends ChangeNotifier {
           '${DateTime.now().difference(startedAt).inMilliseconds}',
       'NetworkQoS',
     );
-    if (!isActive) notifyListeners();
+    if (!isActive) {
+      _endedActivityCount++;
+      notifyListeners();
+    }
   }
 }
 
