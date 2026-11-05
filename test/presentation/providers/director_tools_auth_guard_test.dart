@@ -97,7 +97,7 @@ void main() {
         ..selectTool(DirectorToolType.removeBackground);
       final before = container.read(directorToolsNotifierProvider);
 
-      await notifier.runTool();
+      await notifier.runTool(before);
 
       final after = container.read(directorToolsNotifierProvider);
       expect(apiService.uploadCalls, 0);
@@ -125,7 +125,7 @@ void main() {
     await notifier.init(Uint8List.fromList([1, 2, 3]));
     notifier.selectTool(DirectorToolType.pixelSnap);
 
-    await notifier.runTool();
+    await notifier.runTool(container.read(directorToolsNotifierProvider));
 
     final after = container.read(directorToolsNotifierProvider);
     expect(apiService.uploadCalls, 0);
@@ -142,7 +142,7 @@ void main() {
     final notifier = container.read(directorToolsNotifierProvider.notifier);
     await notifier.init(Uint8List.fromList([1, 2, 3]));
 
-    await notifier.runTool();
+    await notifier.runTool(container.read(directorToolsNotifierProvider));
 
     final state = container.read(directorToolsNotifierProvider);
     expect(apiService.uploadCalls, 1);

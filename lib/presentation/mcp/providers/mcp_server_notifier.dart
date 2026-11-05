@@ -28,6 +28,7 @@ import '../../agent_chat/services/agent_workspace_directory.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../providers/notification_settings_provider.dart';
 import '../../providers/share_image_settings_provider.dart';
+import '../../providers/subscription_provider.dart';
 import '../services/mcp_approval_coordinator.dart';
 import '../services/mcp_external_tool_registry_factory.dart';
 import '../services/mcp_tool_call_pipeline.dart';
@@ -362,6 +363,9 @@ class McpServerNotifier extends Notifier<McpServerState> {
           queueRuntime: factory.queueRuntime,
           manualInpaintToolbox: factory.manualInpaintToolbox,
           imageUpscaleToolbox: factory.imageUpscaleToolbox,
+          freshBilling: () => ref
+              .read(subscriptionNotifierProvider.notifier)
+              .freshBillingView(),
         ),
         describeFileTargets: (toolName, args) => preparedFileTargets(
           toolName,

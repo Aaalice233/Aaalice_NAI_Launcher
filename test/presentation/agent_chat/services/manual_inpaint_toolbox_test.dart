@@ -341,6 +341,55 @@ void main() {
     );
   });
 
+  test('submit reprices a draft that was free when it became ready', () async {
+    final sourceFile = File('${root.path}/source.png');
+    await sourceFile.writeAsBytes(_png(value: 30));
+    final editorResult = Completer<ImageEditorResult?>();
+    var cost = 0;
+    var submissions = 0;
+    final toolbox = ManualInpaintToolbox(
+      container.read(_refProvider),
+      supportDirectory: root,
+      anlasEstimator: (_, _) => cost,
+      workspaceDir: root.path,
+      repository: repository,
+      editorLauncher: (_, __, ___) =>
+          ManualInpaintEditorSession(result: editorResult.future, close: () {}),
+      submitter: (_) async {
+        submissions++;
+        return const ManualInpaintSubmissionResult(accepted: true);
+      },
+      activeSessionId: () => 'session-a',
+    );
+    final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+    final created = await tools['create_manual_inpaint_draft']!.execute(
+      'create',
+      {'source_image': sourceFile.path, 'prompt': 'repair face'},
+    );
+    final id =
+        (_json(created)['draft'] as Map<String, dynamic>)['draftId'] as String;
+    editorResult.complete(
+      ImageEditorResult(
+        maskImage: _png(value: 255),
+        inpaintSourceImage: _png(value: 30),
+        hasMaskChanges: true,
+      ),
+    );
+    await _waitForStatus(repository, id, InpaintDraftStatus.ready);
+    expect((await repository.get(id))!.estimatedAnlas, 0);
+
+    // 订阅刷新后得知配额池已透支
+    cost = 7;
+    final unconfirmed = await tools['submit_manual_inpaint_draft']!.execute(
+      'submit',
+      {'draft_id': id},
+    );
+
+    expect(unconfirmed.details['code'], 'confirmation_required');
+    expect((await repository.get(id))!.status, InpaintDraftStatus.ready);
+    expect(submissions, 0);
+  });
+
   group('authored masks', () {
     late Directory workspace;
     late AgentImageObservationLedger ledger;

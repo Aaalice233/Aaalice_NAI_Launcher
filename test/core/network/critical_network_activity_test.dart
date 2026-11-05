@@ -26,4 +26,21 @@ void main() {
     expect(coordinator.isActive, isFalse);
     expect(notifications, 2);
   });
+
+  test('counts each end of activity once, however many leases it held', () {
+    final coordinator = CriticalNetworkActivityCoordinator();
+    final generation = coordinator.acquire(
+      CriticalNetworkActivityType.imageGeneration,
+    );
+    final vibe = coordinator.acquire(CriticalNetworkActivityType.vibeEncoding);
+
+    vibe.release();
+    expect(coordinator.endedActivityCount, 0);
+    generation.release();
+    generation.release();
+    expect(coordinator.endedActivityCount, 1);
+
+    coordinator.acquire(CriticalNetworkActivityType.cloudUpscale).release();
+    expect(coordinator.endedActivityCount, 2);
+  });
 }

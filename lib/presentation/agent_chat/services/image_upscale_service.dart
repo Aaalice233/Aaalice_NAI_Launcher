@@ -15,6 +15,7 @@ import '../../providers/generation/image_upscale_coordinator.dart';
 import '../../providers/generation/image_workflow_controller.dart';
 import '../../providers/generation/novel_ai_upscale_task_provider.dart';
 import '../../providers/image_generation_provider.dart';
+import '../../providers/subscription_billing.dart';
 import '../../providers/subscription_provider.dart';
 import 'agent_image_source_loader.dart';
 import 'defined_agent_tool.dart';
@@ -67,7 +68,10 @@ final class ImageUpscaleService {
     }
     final bytes = (await _sourceLoader.load(args)).bytes;
     if (bytes == null) return null;
-    return (key: _quoteKey(args), cost: _novelAiCost(bytes));
+    final billing = await _ref
+        .read(subscriptionNotifierProvider.notifier)
+        .freshBillingView();
+    return (key: _quoteKey(args), cost: _novelAiCost(bytes, billing));
   }
 
   /// [quote] 是审批时报出的价格，付费请求只按它执行。
@@ -217,18 +221,15 @@ final class ImageUpscaleService {
     return ok(page.copyWith(backend: backend, comfyScale: rawScale.toDouble()));
   }
 
-  int _novelAiCost(Uint8List source) {
+  int _novelAiCost(Uint8List source, SubscriptionBillingView billing) {
     final size = NaiResolutionAdapter.readImageSize(source);
     if (size == null) return AnlasCalculator.invalidCost;
-    final subscription = _ref.read(subscriptionNotifierProvider).subscription;
     // 计费按实际上传的原图面积，不是生成页导入后的请求尺寸。
     return AnlasCalculator.calculateNovelAiUpscaleCost(
       inputWidth: size.$1,
       inputHeight: size.$2,
       scale: 2,
-      subscriptionTier: subscription?.isOpus == true
-          ? AnlasCalculator.opusTier
-          : 0,
+      subscriptionTier: billing.subscriptionTier,
     );
   }
 
@@ -238,7 +239,10 @@ final class ImageUpscaleService {
     Map<String, dynamic> args,
     ImageUpscaleQuote? quote,
   ) {
-    final cost = _novelAiCost(source);
+    final cost = _novelAiCost(
+      source,
+      _ref.read(subscriptionBillingViewProvider),
+    );
     if (cost == AnlasCalculator.invalidCost) {
       return agentToolError(
         'upscale_source_too_large',

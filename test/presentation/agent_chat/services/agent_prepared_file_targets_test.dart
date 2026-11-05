@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_prepared_file_targets.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_preparation_runtime.dart';
+import 'package:nai_launcher/presentation/providers/subscription_billing.dart';
 
 void main() {
   GenerationPreparation prepare(
@@ -16,6 +17,10 @@ void main() {
       count: 1,
       autoStart: false,
       estimatedAnlas: 0,
+      billing: const SubscriptionBillingView(
+        isOpus: true,
+        opusQuotaExhausted: false,
+      ),
       arguments: const {'prompt': 'test'},
       savePath: savePath,
     ),

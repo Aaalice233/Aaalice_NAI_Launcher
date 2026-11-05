@@ -44,6 +44,7 @@ int _estimateWith(OpusUsageInfo usage) {
         const ImageParams(model: ImageModels.animeDiffusionV5Curated),
         requestCount: 1,
         batchSize: 1,
+        billing: container.read(subscriptionBillingViewProvider),
       );
 }
 

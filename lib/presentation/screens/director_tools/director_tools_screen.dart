@@ -604,10 +604,12 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     final requestState = ref.read(directorToolsNotifierProvider);
     // 本机工具不花 Anlas，弹消耗确认只会让用户以为要扣费。
     if (!requestState.selectedTool.runsLocally) {
+      final billing = await ref
+          .read(subscriptionNotifierProvider.notifier)
+          .freshBillingView();
+      if (!mounted) return;
       final label = requestState.selectedTool.labelKey(context.l10n);
-      final cost = requestState.estimatedAnlasCost(
-        isOpus: ref.read(isOpusSubscriptionProvider),
-      );
+      final cost = requestState.estimatedAnlasCost(isOpus: billing.isOpus);
       final confirmed = await ThemedConfirmDialog.show(
         context: context,
         title: context.l10n.img2img_directorConfirmTitle,
@@ -621,7 +623,7 @@ class _DirectorToolsScreenState extends ConsumerState<DirectorToolsScreen> {
     }
 
     final notifier = ref.read(directorToolsNotifierProvider.notifier);
-    await notifier.runTool();
+    await notifier.runTool(requestState);
 
     if (!mounted) return;
     final state = ref.read(directorToolsNotifierProvider);

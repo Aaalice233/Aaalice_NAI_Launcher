@@ -164,8 +164,12 @@ FutureOr<FocusedInpaintGeometry?> focusedInpaintMaskRequestSize(Ref ref) {
 
 /// 蒙版外接矩形仍在后台计算时先等它落定，给出与同步计算一致的预估消耗。
 ///
-/// 界面在计算期间只有上一次的结果或"计算中"，需要确切数值的确认流程走这里。
+/// 界面在计算期间只有上一次的结果或"计算中"，需要确切数值的确认流程走这里；
+/// 订阅数据过期时先刷新，刷新失败则按不免费计价。
 Future<int> readSettledEstimatedCost(ProviderContainer container) async {
+  await container
+      .read(subscriptionNotifierProvider.notifier)
+      .ensureFreshForBilling();
   final maskGeometry = container.listen(
     focusedInpaintMaskRequestSizeProvider,
     (_, __) {},
@@ -194,14 +198,10 @@ int? estimatedCost(Ref ref) {
   final params = ref.watch(generationParamsNotifierProvider);
   final workflow = ref.watch(imageWorkflowControllerProvider);
   final imagesPerRequest = ref.watch(imagesPerRequestProvider);
-  final subscription = ref.watch(
-    subscriptionNotifierProvider.select((state) => state.subscription),
-  );
-  final subscriptionTier = subscription?.isOpus == true
-      ? AnlasCalculator.opusTier
-      : 0;
+  final billing = ref.watch(subscriptionBillingViewProvider);
+  final subscriptionTier = billing.subscriptionTier;
   // V5 的 Opus 免费额度是随时间回充的配额池，透支后按正常价扣 Anlas。
-  final opusQuotaExhausted = subscription?.usage?.isNegative ?? false;
+  final opusQuotaExhausted = billing.opusQuotaExhausted;
 
   if (workflow.isUpscale) {
     if (workflow.upscale.backend != UpscaleBackend.novelai) {

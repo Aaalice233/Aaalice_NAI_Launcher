@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/cache/box_fit_resize_image.dart';
+import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/models/director/director_prompt_params.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/director_tools_notifier.dart';
@@ -14,6 +15,7 @@ import 'package:nai_launcher/presentation/screens/director_tools/director_tools_
 import 'package:nai_launcher/presentation/widgets/common/decoded_memory_image.dart';
 
 import '../../../helpers/light_theme_contrast.dart';
+import '../../../helpers/stale_opus_subscription.dart';
 
 final Uint8List _sourceImage = Uint8List.fromList(
   img.encodePng(img.Image(width: 16, height: 16)),
@@ -23,12 +25,16 @@ final Uint8List _sourceImage = Uint8List.fromList(
 Future<ProviderContainer> _pumpScreen(
   WidgetTester tester, {
   ProviderContainer? container,
+  SubscriptionNotifier Function()? subscription,
 }) async {
   if (container == null) {
     // 面板只用订阅态决定 Anlas 徽章，直接钉死，免得把认证链路拖进来。
     container = createStorageFreeContainer(
       overrides: <Override>[
-        isOpusSubscriptionProvider.overrideWithValue(false),
+        if (subscription == null)
+          isOpusSubscriptionProvider.overrideWithValue(false)
+        else
+          subscriptionNotifierProvider.overrideWith(subscription),
       ],
     );
     addTearDown(container.dispose);
@@ -87,6 +93,27 @@ DirectorToolsState _state(ProviderContainer container) =>
     container.read(directorToolsNotifierProvider);
 
 void main() {
+  testWidgets('确认消耗前先刷新订阅，刷新失败按非 Opus 报价', (WidgetTester tester) async {
+    final subscription = StaleOpusSubscription(StaleOpusRefreshOutcome.failed);
+    await _pumpScreen(tester, subscription: () => subscription);
+    await tester.tap(find.text('线稿提取'));
+    await tester.pumpAndSettle();
+    final paid = AnlasCalculator.calculateAugmentCost(width: 16, height: 16);
+    expect(paid, greaterThan(0));
+    expect(
+      AnlasCalculator.calculateAugmentCost(width: 16, height: 16, isOpus: true),
+      0,
+    );
+
+    await tester.tap(find.text('运行 线稿提取'));
+    await tester.pumpAndSettle();
+
+    expect(subscription.billingChecks, 1);
+    expect(find.text('运行线稿提取预计消耗 $paid Anlas，是否继续？'), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('像素对齐出现在工具列表里', (WidgetTester tester) async {
     await _pumpScreen(tester);
     expect(find.text('像素对齐'), findsOneWidget);

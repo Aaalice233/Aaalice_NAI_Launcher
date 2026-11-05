@@ -442,10 +442,12 @@ class GenerationPreparationService {
       useCoords: useCoords,
     );
     final batchSize = _anlasEstimator.currentBatchSize;
+    final billing = await _anlasEstimator.freshBilling();
     final estimate = _anlasEstimator.estimate(
       params,
-      requestCount: kind == GenerationPreparationKind.queue ? count : 1,
+      requestCount: kind.requestCount(count),
       batchSize: batchSize,
+      billing: billing,
     );
     if (estimate == AnlasCalculator.invalidCost) {
       return agentToolError(
@@ -469,6 +471,7 @@ class GenerationPreparationService {
         count: count,
         autoStart: args['auto_start'] as bool? ?? true,
         estimatedAnlas: estimate,
+        billing: billing,
         arguments: canonicalArgs,
         savePath: savePathResult.valueOrNull?.path,
         savePathSource: savePathResult.valueOrNull?.source,

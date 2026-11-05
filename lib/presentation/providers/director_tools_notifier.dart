@@ -254,24 +254,24 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   /// 取消正在跑的 Pixel Snap。其它工具没有取消入口。
   void cancelRun() => _pixelSnapCancellation?.cancel();
 
-  Future<void> runTool() async {
-    final source = state.sourceImage;
+  Future<void> runTool(DirectorToolsState request) async {
+    final source = request.sourceImage;
     if (source == null) return;
     // 门禁只拦要发请求、要扣 Anlas 的工具，本机工具与马赛克/水印编辑器一样直接放行。
-    if (!state.selectedTool.runsLocally &&
+    if (!request.selectedTool.runsLocally &&
         !requireAuthenticatedAction(ref, AuthPromptReason.directorTools)) {
       return;
     }
 
-    state = state.copyWith(
+    state = request.copyWith(
       isRunning: true,
       clearError: true,
       clearResult: true,
       clearProgress: true,
     );
 
-    if (state.selectedTool == DirectorToolType.pixelSnap) {
-      await _runPixelSnap(source);
+    if (request.selectedTool == DirectorToolType.pixelSnap) {
+      await _runPixelSnap(source, request.pixelSnap);
       return;
     }
 
@@ -279,7 +279,7 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
       final service = ref.read(naiImageEnhancementApiServiceProvider);
 
       final DirectorToolOutput output;
-      switch (state.selectedTool) {
+      switch (request.selectedTool) {
         case DirectorToolType.removeBackground:
           output = await service.removeBackground(source);
         case DirectorToolType.extractLineArt:
@@ -287,7 +287,7 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
         case DirectorToolType.toSketch:
           output = await service.toSketch(source);
         case DirectorToolType.colorize:
-          final params = state.colorizeParams;
+          final params = request.colorizeParams;
           final prompt = params.prompt.trim();
           output = await service.colorize(
             source,
@@ -297,8 +297,8 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
         case DirectorToolType.fixEmotion:
           output = await service.fixEmotion(
             source,
-            prompt: state.emotionRequestPrompt,
-            defry: state.emotionParams.defry,
+            prompt: request.emotionRequestPrompt,
+            defry: request.emotionParams.defry,
           );
         case DirectorToolType.declutter:
           output = await service.declutter(source);
@@ -322,13 +322,13 @@ class DirectorToolsNotifier extends Notifier<DirectorToolsState> {
   }
 
   /// Pixel Snap 走本机计算，不碰订阅也不触发计费刷新。
-  Future<void> _runPixelSnap(Uint8List source) async {
+  Future<void> _runPixelSnap(Uint8List source, PixelSnapOptions options) async {
     final cancellation = PixelSnapCancellation();
     _pixelSnapCancellation = cancellation;
     try {
       final output = await const PixelSnapService().run(
         source,
-        state.pixelSnap,
+        options,
         cancellation: cancellation,
         onProgress: (progress) {
           if (!state.isRunning) return;

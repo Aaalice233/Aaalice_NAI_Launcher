@@ -15,6 +15,7 @@ import '../../providers/image_generation_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/queued_generation_request.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../providers/subscription_billing.dart';
 import 'defined_agent_tool.dart';
 import 'generation_anlas_estimator.dart';
 import 'queue_toolbox_serialization.dart';
@@ -28,6 +29,7 @@ class QueueControlPreparation {
     required this.taskIds,
     required this.taskFingerprints,
     required this.estimatedAnlas,
+    required this.billing,
   }) : id = const Uuid().v4(),
        createdAt = DateTime.now();
 
@@ -37,6 +39,9 @@ class QueueControlPreparation {
   final List<String> taskIds;
   final List<String> taskFingerprints;
   final int estimatedAnlas;
+
+  /// 估出 [estimatedAnlas] 时依据的订阅视图；审批时与当前视图不同就不能沿用。
+  final SubscriptionBillingView billing;
 }
 
 class QueueControlRuntime {
@@ -206,9 +211,11 @@ class QueueToolbox {
       if (tasks.isEmpty) {
         return agentToolError('queue_empty', 'Queue is empty.');
       }
+      final estimator = GenerationAnlasEstimator(_ref);
+      final billing = await estimator.freshBilling();
       late final int estimate;
       try {
-        estimate = await _estimate(tasks);
+        estimate = await _estimate(tasks, estimator, billing);
       } on QueueBlobReadFailedException catch (error) {
         // Windows 上读到正在删除的文件会报拒绝访问，同样可能只是并发变更的结果
         if (!_samePendingTasks(tasks)) {
@@ -251,6 +258,7 @@ class QueueToolbox {
           taskIds: tasks.map((task) => task.id).toList(),
           taskFingerprints: fingerprints,
           estimatedAnlas: estimate,
+          billing: billing,
         ),
       );
       return agentToolJsonResult({
@@ -478,12 +486,15 @@ class QueueToolbox {
   }
 
   // 与执行端同源：快照记录的批量与聚焦状态优先，缺失时跟随生成页当前设置
-  Future<int> _estimate(List<ReplicationTask> tasks) async {
+  Future<int> _estimate(
+    List<ReplicationTask> tasks,
+    GenerationAnlasEstimator estimator,
+    SubscriptionBillingView billing,
+  ) async {
     final base = _ref.read(generationParamsNotifierProvider);
     final pageFocused = _ref
         .read(imageWorkflowControllerProvider)
         .focusedSnapshot;
-    final estimator = GenerationAnlasEstimator(_ref);
     final blobStore = _ref.read(replicationQueueBlobStoreProvider);
     var total = 0;
     // 逐个解码：同一时刻只持有一份任务的图片
@@ -516,6 +527,7 @@ class QueueToolbox {
         batchSize: snapshot == null
             ? null
             : ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot),
+        billing: billing,
       );
       if (cost == AnlasCalculator.invalidCost) return cost;
       total += cost;
