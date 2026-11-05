@@ -48,6 +48,40 @@ void main() {
     }
   });
 
+  test('reports leaving the screen once and returning once', () {
+    final tracker = AppBackgroundReturnTracker();
+
+    expect(
+      [for (final state in _androidBackground) tracker.observe(state)],
+      [
+        AppVisibilityChange.unchanged,
+        AppVisibilityChange.leftView,
+        AppVisibilityChange.unchanged,
+        AppVisibilityChange.unchanged,
+        AppVisibilityChange.returnedToView,
+        AppVisibilityChange.unchanged,
+      ],
+    );
+    expect(tracker.isVisible, isTrue);
+  });
+
+  test('a tracker created while hidden reports the first visible state as a '
+      'return', () {
+    final tracker = AppBackgroundReturnTracker(
+      initialState: AppLifecycleState.hidden,
+    );
+
+    expect(tracker.isVisible, isFalse);
+    expect(
+      tracker.observe(AppLifecycleState.paused),
+      AppVisibilityChange.unchanged,
+    );
+    expect(
+      tracker.observe(AppLifecycleState.inactive),
+      AppVisibilityChange.returnedToView,
+    );
+  });
+
   testWidgets('the listener only calls back after the window left the screen', (
     tester,
   ) async {
@@ -74,6 +108,24 @@ void main() {
     expect(returns, 1);
 
     enter(_focusSwitch);
+    expect(returns, 1);
+  });
+
+  testWidgets('a listener mounted while hidden reports the first return', (
+    tester,
+  ) async {
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    var returns = 0;
+    final listener = AppBackgroundReturnListener(onReturn: () => returns++);
+    addTearDown(() {
+      listener.dispose();
+      binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    expect(returns, 1);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     expect(returns, 1);
   });
 }
