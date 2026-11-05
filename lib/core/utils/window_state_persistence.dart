@@ -34,6 +34,18 @@ class WindowStateSnapshot {
     );
   }
 
+  @override
+  bool operator ==(Object other) =>
+      other is WindowStateSnapshot &&
+      other.normalBounds == normalBounds &&
+      other.maximized == maximized &&
+      other.positionKnown == positionKnown &&
+      other.scaleFactor == scaleFactor;
+
+  @override
+  int get hashCode =>
+      Object.hash(normalBounds, maximized, positionKnown, scaleFactor);
+
   Map<String, Object> toJson() => {
     'version': 2,
     'x': normalBounds.left,
