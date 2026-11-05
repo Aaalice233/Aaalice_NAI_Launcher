@@ -232,6 +232,49 @@ void main() {
     expect(checks, 3);
   });
 
+  testWidgets('窗口失焦时照常计时，切换焦点不重置延迟', (tester) async {
+    var checks = 0;
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    void switchFocus() {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: AutomaticUpdateCheck(
+          delay: const Duration(seconds: 10),
+          checkRunner: (_) async => checks++,
+          child: const SizedBox(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 4));
+    switchFocus();
+    await tester.pump(const Duration(seconds: 4));
+    switchFocus();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump(const Duration(seconds: 2));
+    expect(checks, 1);
+
+    await tester.pump(UpdateCheckService.failedCheckRetryInterval);
+    expect(checks, 2);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await tester.pump(const Duration(hours: 1));
+    expect(checks, 2);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump(const Duration(seconds: 10));
+    expect(checks, 3);
+
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('数据库失败保留 Splash，点击重试后才进入主应用', (tester) async {
     var databaseAttempts = 0;
     var criticalServiceCalls = 0;
