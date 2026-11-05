@@ -104,7 +104,6 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     LocalGalleryThumbnailProvider.setAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed) {
-      InteractiveWorkGate.instance.markInteraction();
       unawaited(_resumeQueueAfterBackground());
       // 桌面端切换窗口焦点也会 inactive→resumed，只有真正进过后台才重新恢复连接
       if (_cloudSyncRestoreOnResume) {
