@@ -435,11 +435,11 @@ void main() {
     await tester.pump();
     expect(requestCount, 0);
 
-    notifier.setAppForeground(false);
+    notifier.setAppVisible(false);
     await tester.pump(const Duration(minutes: 5));
     expect(requestCount, 0);
 
-    notifier.setAppForeground(true);
+    notifier.setAppVisible(true);
     await tester.pump(const Duration(milliseconds: 250));
     expect(requestCount, 1);
     container.dispose();

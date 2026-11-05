@@ -37,7 +37,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   bool _lastBalanceRefreshWasPreempted = false;
   Timer? _postBillingRefreshTimer;
   int _networkFailureCount = 0;
-  bool _isAppForeground = true;
+  bool _isAppVisible = true;
   bool _criticalActivityListenerAttached = false;
   bool _refreshDeferredForCriticalActivity = false;
   SubscriptionRefreshPriority _deferredRefreshPriority =
@@ -200,7 +200,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   void _scheduleNextRefresh(Duration delay) {
     _refreshTimer?.cancel();
-    if (!_isAppForeground) {
+    if (!_isAppVisible) {
       _refreshTimer = null;
       return;
     }
@@ -218,7 +218,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       await InteractiveWorkGate.instance.runWhenIdle(
         priority: InteractiveWorkPriority.maintenance,
         action: () async {
-          if (!_isAppForeground) return;
+          if (!_isAppVisible) return;
           await _runRefreshCycle();
         },
       );
@@ -276,13 +276,13 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     _scheduleNextRefresh(backoff);
   }
 
-  /// Stops periodic network work while the app is backgrounded and performs
-  /// one fresh synchronization when it returns to the foreground.
-  void setAppForeground(bool isForeground) {
-    if (_isAppForeground == isForeground) return;
-    _isAppForeground = isForeground;
+  /// Stops periodic network work while the window is hidden and performs one
+  /// fresh synchronization when it is shown again; losing focus changes nothing.
+  void setAppVisible(bool isVisible) {
+    if (_isAppVisible == isVisible) return;
+    _isAppVisible = isVisible;
 
-    if (!isForeground) {
+    if (!isVisible) {
       _stopAutoRefresh();
       if (_activeBalanceRefreshPriority ==
               SubscriptionRefreshPriority.background &&
@@ -316,7 +316,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       }
       return;
     }
-    if (!_refreshDeferredForCriticalActivity || !_isAppForeground) {
+    if (!_refreshDeferredForCriticalActivity || !_isAppVisible) {
       return;
     }
     _refreshDeferredForCriticalActivity = false;

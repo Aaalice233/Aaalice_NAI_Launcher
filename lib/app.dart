@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'core/cache/gallery_cache_manager.dart';
 import 'core/cache/local_gallery_thumbnail_provider.dart';
+import 'core/utils/app_lifecycle_visibility.dart';
 import 'core/utils/app_logger.dart';
 import 'core/platform/platform_capabilities.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
@@ -98,10 +99,8 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final isForeground = state == AppLifecycleState.resumed;
-    ref
-        .read(subscriptionNotifierProvider.notifier)
-        .setAppForeground(isForeground);
+    final visible = AppLifecycleVisibility.isVisible(state);
+    ref.read(subscriptionNotifierProvider.notifier).setAppVisible(visible);
     LocalGalleryThumbnailProvider.setAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed) {
@@ -112,9 +111,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
         _cloudSyncRestoreOnResume = false;
         unawaited(_restoreCloudBackupConnection());
       }
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
+    } else if (!visible) {
       _cloudSyncRestoreOnResume = true;
       unawaited(_persistAndPauseForBackground());
     }

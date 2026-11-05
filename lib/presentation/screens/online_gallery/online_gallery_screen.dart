@@ -11,6 +11,7 @@ import '../../../core/cache/gallery_image_request.dart';
 import '../../../core/cache/online_gallery_prefetch_coordinator.dart';
 import '../../../core/network/critical_network_activity.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../../core/utils/app_lifecycle_visibility.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/services/danbooru_auth_service.dart';
@@ -51,7 +52,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
   late final OnlineGalleryScreenCommands _commands;
   late final ProviderSubscription<OnlineGalleryState> _gallerySubscription;
   late final OnlineGalleryNotifier _galleryNotifier;
-  bool _appForeground = true;
+  bool _appVisible = true;
   bool _backgroundNetworkSyncScheduled = false;
   bool _disposed = false;
   int _pageJumpRevision = 0;
@@ -68,7 +69,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final lifecycleState = WidgetsBinding.instance.lifecycleState;
-    _appForeground = _isForegroundLifecycleState(lifecycleState);
+    _appVisible = AppLifecycleVisibility.isVisible(lifecycleState);
     _galleryNotifier = ref.read(onlineGalleryNotifierProvider.notifier);
     _imageLoader = CancellableGalleryImageLoader();
     _controller = OnlineGalleryScreenController(
@@ -79,7 +80,7 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     CriticalNetworkActivityCoordinator.instance.addListener(
       _handleCriticalNetworkActivity,
     );
-    _controller.prefetchCoordinator.setAppForeground(_appForeground);
+    _controller.prefetchCoordinator.setAppVisible(_appVisible);
     _handleCriticalNetworkActivity();
     _detailLauncher = OnlineGalleryDetailLauncher(
       context: context,
@@ -202,17 +203,17 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
     if (_disposed) return;
     _galleryNotifier.setBackgroundNetworkPaused(
       !_controller.branchVisible ||
-          !_appForeground ||
+          !_appVisible ||
           CriticalNetworkActivityCoordinator.instance.isActive,
     );
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    _appForeground = _isForegroundLifecycleState(state);
-    _controller.prefetchCoordinator.setAppForeground(_appForeground);
+    _appVisible = AppLifecycleVisibility.isVisible(state);
+    _controller.prefetchCoordinator.setAppVisible(_appVisible);
     _syncBackgroundNetworkActivity();
-    if (_appForeground && _controller.branchVisible) {
+    if (_appVisible && _controller.branchVisible) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_controller.branchVisible) return;
         _scrollCoordinator.scheduleVisiblePrefetch();
@@ -222,11 +223,6 @@ class _OnlineGalleryScreenState extends ConsumerState<OnlineGalleryScreen>
       });
     }
   }
-
-  bool _isForegroundLifecycleState(AppLifecycleState? state) =>
-      state == null ||
-      state == AppLifecycleState.resumed ||
-      state == AppLifecycleState.inactive;
 
   Future<void> _goToPage(int page) async {
     final revision = ++_pageJumpRevision;

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/app_lifecycle_visibility.dart';
 import 'box_fit_resize_image.dart';
 
 /// The resize behavior used while decoding a local gallery image.
@@ -255,10 +256,13 @@ class LocalGalleryThumbnailProvider
 
   static void setAppLifecycleState(ui.AppLifecycleState state) {
     _LocalGalleryDecodeScheduler.instance.setAppVisible(
-      state == ui.AppLifecycleState.resumed ||
-          state == ui.AppLifecycleState.inactive,
+      AppLifecycleVisibility.isVisible(state),
     );
   }
+
+  @visibleForTesting
+  static bool get decodesAppVisible =>
+      _LocalGalleryDecodeScheduler.instance._appVisible;
 
   static void setGalleryVisible(bool visible) {
     _LocalGalleryDecodeScheduler.instance.setGalleryVisible(visible);
