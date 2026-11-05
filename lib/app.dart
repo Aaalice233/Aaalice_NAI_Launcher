@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 import 'core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'core/cache/gallery_cache_manager.dart';
 import 'core/cache/local_gallery_thumbnail_provider.dart';
+import 'core/utils/app_background_return.dart';
 import 'core/utils/app_lifecycle_visibility.dart';
 import 'core/utils/app_logger.dart';
 import 'core/platform/platform_capabilities.dart';
@@ -72,7 +73,8 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
   bool _queuePausedForBackground = false;
   bool _cloudSyncLifecycleRunning = false;
-  bool _cloudSyncRestoreOnResume = false;
+  final AppBackgroundReturnTracker _backgroundReturn =
+      AppBackgroundReturnTracker();
 
   @override
   void initState() {
@@ -100,18 +102,14 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final visible = AppLifecycleVisibility.isVisible(state);
+    final returnedToView = _backgroundReturn.returnedToView(state);
     ref.read(subscriptionNotifierProvider.notifier).setAppVisible(visible);
     LocalGalleryThumbnailProvider.setAppLifecycleState(state);
 
+    if (returnedToView) unawaited(_restoreCloudBackupConnection());
     if (state == AppLifecycleState.resumed) {
       unawaited(_resumeQueueAfterBackground());
-      // 桌面端切换窗口焦点也会 inactive→resumed，只有真正进过后台才重新恢复连接
-      if (_cloudSyncRestoreOnResume) {
-        _cloudSyncRestoreOnResume = false;
-        unawaited(_restoreCloudBackupConnection());
-      }
     } else if (!visible) {
-      _cloudSyncRestoreOnResume = true;
       unawaited(_persistAndPauseForBackground());
     }
   }

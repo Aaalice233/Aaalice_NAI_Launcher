@@ -18,3 +18,19 @@ final class AppBackgroundReturnTracker {
     return true;
   }
 }
+
+/// 只在窗口离开过屏幕、再重新可见时回调 [onReturn]。
+final class AppBackgroundReturnListener {
+  AppBackgroundReturnListener({required VoidCallback onReturn}) {
+    _listener = AppLifecycleListener(
+      onStateChange: (state) {
+        if (_tracker.returnedToView(state)) onReturn();
+      },
+    );
+  }
+
+  final AppBackgroundReturnTracker _tracker = AppBackgroundReturnTracker();
+  late final AppLifecycleListener _listener;
+
+  void dispose() => _listener.dispose();
+}

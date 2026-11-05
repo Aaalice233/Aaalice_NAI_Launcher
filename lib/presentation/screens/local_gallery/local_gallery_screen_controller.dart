@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/shortcuts/default_shortcuts.dart';
+import '../../../core/utils/app_background_return.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/file_explorer_utils.dart';
 import '../../../core/utils/localization_extension.dart';
@@ -72,7 +73,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
   late final Map<String, VoidCallback> shortcuts;
   final FocusNode searchFocusNode = FocusNode(debugLabel: 'LocalGallerySearch');
 
-  AppLifecycleListener? _lifecycleListener;
+  AppBackgroundReturnListener? _backgroundReturnListener;
   Timer? _refreshDebounceTimer;
   Completer<void>? _refreshCompleter;
   DateTime? _lastRefreshTime;
@@ -98,8 +99,8 @@ class LocalGalleryScreenController extends ChangeNotifier {
       await _showFirstTimeTip();
       await autoRefresh();
     });
-    _lifecycleListener = AppLifecycleListener(
-      onResume: () {
+    _backgroundReturnListener = AppBackgroundReturnListener(
+      onReturn: () {
         Future<void>.delayed(const Duration(milliseconds: 500), () async {
           if (!_mounted()) return;
           try {
@@ -123,7 +124,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
     if (_refreshCompleter case final completer? when !completer.isCompleted) {
       completer.complete();
     }
-    _lifecycleListener?.dispose();
+    _backgroundReturnListener?.dispose();
     searchFocusNode.dispose();
     super.dispose();
   }

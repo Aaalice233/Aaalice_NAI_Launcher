@@ -47,4 +47,33 @@ void main() {
       expect(feed(tracker, _focusSwitch), everyElement(isFalse));
     }
   });
+
+  testWidgets('the listener only calls back after the window left the screen', (
+    tester,
+  ) async {
+    var returns = 0;
+    final listener = AppBackgroundReturnListener(onReturn: () => returns++);
+    addTearDown(listener.dispose);
+    addTearDown(
+      () => tester.binding.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+
+    void enter(List<AppLifecycleState> states) {
+      for (final state in states) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+    }
+
+    enter(_focusSwitch);
+    enter(_focusSwitch);
+    expect(returns, 0);
+
+    enter(_minimizeAndRestore);
+    expect(returns, 1);
+
+    enter(_focusSwitch);
+    expect(returns, 1);
+  });
 }
