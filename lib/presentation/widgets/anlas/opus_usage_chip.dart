@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/user/user_subscription.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../../themes/core/legible_color.dart';
@@ -43,6 +43,7 @@ class OpusUsageChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 徽标展示服务端返回的原始配额，有意不随核实状态变化；估价与放行只认 SubscriptionBillingView
     final usage = ref.watch(
       subscriptionNotifierProvider.select(
         (state) => state.subscription?.isOpus == true
@@ -52,11 +53,7 @@ class OpusUsageChip extends ConsumerWidget {
     );
     final modelInfo = ref.watch(
       generationParamsNotifierProvider.select((params) {
-        final billingSize = resolveGenerationBillingSize(
-          width: params.width,
-          height: params.height,
-          maxEnhance: params.effectiveUpscaledEnhance,
-        );
+        final billingSize = AnlasCalculator.billingSize(params);
         return (
           hasOpusUsageLimit: params.capabilities.hasOpusUsageLimit,
           area: billingSize.width * billingSize.height,

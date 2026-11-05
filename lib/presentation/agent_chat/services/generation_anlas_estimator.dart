@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/services/anlas_calculator.dart';
 import '../../../data/models/image/image_params.dart';
-import '../../providers/cost_estimate_provider.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/subscription_billing.dart';
 import '../../providers/subscription_provider.dart';
@@ -50,35 +49,11 @@ class GenerationAnlasEstimator {
     required int requestCount,
     required int batchSize,
     required SubscriptionBillingView billing,
-  }) {
-    final billingSize = resolveGenerationBillingSize(
-      width: params.width,
-      height: params.height,
-      maxEnhance: params.effectiveUpscaledEnhance,
-    );
-    return AnlasCalculator.calculateRequestCost(
-      width: billingSize.width,
-      height: billingSize.height,
-      steps: params.steps,
-      batchCount: params.nSamples * requestCount,
-      batchSize: batchSize,
-      smea: params.effectiveSmea,
-      smeaDyn: params.effectiveSmeaDyn,
-      model: params.model,
-      subscriptionTier: billing.subscriptionTier,
-      opusQuotaExhausted: billing.opusQuotaExhausted,
-      strength: switch (params.action) {
-        ImageGenerationAction.img2img => params.strength,
-        ImageGenerationAction.infill => params.inpaintStrength,
-        ImageGenerationAction.generate => 1.0,
-      },
-      extraPerSampleCost: AnlasCalculator.resolvePreciseReferenceExtraCost(
-        params,
-      ),
-      extraPerRequestCost: AnlasCalculator.resolveVibeReferenceExtraCost(
-        params,
-      ),
-      oneTimeCost: AnlasCalculator.resolveVibeEncodingCost(params),
-    );
-  }
+  }) => AnlasCalculator.calculate(
+    params,
+    batchCount: params.nSamples * requestCount,
+    batchSize: batchSize,
+    isOpus: billing.isOpus,
+    opusQuotaExhausted: billing.opusQuotaExhausted,
+  );
 }

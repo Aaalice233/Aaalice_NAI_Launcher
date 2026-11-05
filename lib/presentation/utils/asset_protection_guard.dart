@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/file_export_service.dart';
-import '../providers/cost_estimate_provider.dart';
 import '../providers/share_image_settings_provider.dart';
 import '../widgets/common/themed_confirm_dialog.dart';
 import '../../core/utils/localization_extension.dart';
@@ -70,7 +69,7 @@ class AssetProtectionGuard {
   static Future<bool> confirmHighAnlasCost({
     required BuildContext context,
     required WidgetRef ref,
-    int? cost,
+    required Future<int?> Function() estimateCost,
   }) async {
     final threshold = ref
         .read(shareImageSettingsProvider)
@@ -79,16 +78,10 @@ class AssetProtectionGuard {
       return true;
     }
 
-    final estimatedCost =
-        cost ??
-        await readSettledEstimatedCost(
-          ProviderScope.containerOf(context, listen: false),
-        );
+    final estimatedCost = await estimateCost();
+    if (estimatedCost == null || !context.mounted) return false;
     if (estimatedCost < threshold) {
       return true;
-    }
-    if (!context.mounted) {
-      return false;
     }
 
     final l10n = context.l10n;

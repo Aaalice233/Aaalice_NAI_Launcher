@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,14 +8,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/providers/subscription_billing.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/batch_settings_button.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/generation_controls/generation_controls.dart';
@@ -772,6 +777,81 @@ void main() {
       expect(tester.takeException(), isNull, reason: reason);
     }
   });
+  for (final switchAccount in [false, true]) {
+    testWidgets(
+      switchAccount
+          ? 'switching accounts during billing abandons the generation'
+          : 'the billing dialog and submission use the request at click time',
+      (tester) async {
+        final auth = _SwitchableBillingAuth();
+        final billing = Completer<SubscriptionBillingView>();
+        final generation = _RecordingGeneration();
+        final params = _BillingTestParams();
+        final workflow = _BillingTestWorkflow();
+        final container = ProviderContainer(
+          overrides: [
+            ..._footerOverrides(
+              storage: _MemoryLocalStorageService({
+                StorageKeys.protectionMode: true,
+              }),
+              imageGeneration: () => generation,
+              auth: () => auth,
+              billingNotifier: () =>
+                  _DeferredBillingSubscription(billing.future),
+            ),
+            generationParamsNotifierProvider.overrideWith(() => params),
+            imageWorkflowControllerProvider.overrideWith(() => workflow),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: const MaterialApp(
+              locale: Locale('en'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: Scaffold(body: GenerationControls(compact: true)),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Generate'));
+        await tester.pump();
+        expect(generation.submitted, isEmpty);
+        expect(find.text('Continue Generation'), findsNothing);
+
+        if (switchAccount) {
+          auth.switchToSecondAccount();
+        } else {
+          params.setBatchCount(1);
+          container.read(imagesPerRequestProvider.notifier).set(2);
+          workflow.setFocusedInpaintEnabled(false);
+        }
+        billing.complete(SubscriptionBillingView.unverified);
+        await tester.pumpAndSettle();
+        if (switchAccount) {
+          expect(find.text('Continue Generation'), findsNothing);
+          expect(generation.submitted, isEmpty);
+          return;
+        }
+
+        expect(
+          find.textContaining('estimated to cost 60 Anlas'),
+          findsOneWidget,
+        );
+        expect(generation.submitted, isEmpty);
+        await tester.tap(find.text('Continue Generation'));
+        await tester.pumpAndSettle();
+        expect(generation.submitted.single.params, _BillingTestParams.clicked);
+        expect(generation.submitted.single.batchSize, 1);
+        expect(
+          generation.submitted.single.focus?.selectionRect,
+          _BillingTestWorkflow.selection,
+        );
+        expect(generation.submitted.single.focus?.enabled, isTrue);
+      },
+    );
+  }
 }
 
 Future<void> _pumpBatchSettingsForm(WidgetTester tester) async {
@@ -858,6 +938,75 @@ class _FixedAuthNotifier extends AuthNotifier {
   AuthState build() => AuthState(status: status);
 }
 
+class _SwitchableBillingAuth extends AuthNotifier {
+  @override
+  AuthState build() =>
+      const AuthState(status: AuthStatus.authenticated, accountId: 'first');
+
+  void switchToSecondAccount() => state = state.copyWith(accountId: 'second');
+}
+
+class _BillingTestParams extends GenerationParamsNotifier {
+  static const clicked = ImageParams(
+    prompt: 'snapshot prompt',
+    model: 'nai-diffusion-4-5-full',
+    width: 1024,
+    height: 1024,
+    steps: 28,
+    nSamples: 3,
+  );
+
+  @override
+  ImageParams build() => clicked;
+
+  void setBatchCount(int count) => state = state.copyWith(nSamples: count);
+}
+
+class _BillingTestWorkflow extends ImageWorkflowController {
+  static const selection = Rect.fromLTWH(32, 64, 128, 256);
+
+  @override
+  ImageWorkflowState build() => const ImageWorkflowState(
+    focusedInpaintEnabled: true,
+    focusedSelectionRect: selection,
+  );
+
+  @override
+  void setFocusedInpaintEnabled(bool enabled) {
+    state = state.copyWith(focusedInpaintEnabled: enabled);
+  }
+}
+
+class _RecordingGeneration extends ImageGenerationNotifier {
+  final submitted =
+      <
+        ({ImageParams params, int? batchSize, GenerationFocusedSnapshot? focus})
+      >[];
+
+  @override
+  ImageGenerationState build() => const ImageGenerationState();
+
+  @override
+  generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
+    bool bypassRandomPrompt = false,
+  }) {
+    submitted.add((
+      params: params,
+      batchSize: batchSizeOverride,
+      focus: focusedOverride,
+    ));
+    // 走生成器的忙碌保护，只记录提交参数。
+    state = const ImageGenerationState(isSubmitting: true);
+    final outcome = super.generate(params);
+    state = const ImageGenerationState();
+    return outcome;
+  }
+}
+
 class _TestImageGenerationNotifier extends ImageGenerationNotifier {
   int cancelCount = 0;
   int skipCount = 0;
@@ -935,6 +1084,15 @@ class _FixedSubscriptionNotifier extends SubscriptionNotifier {
   SubscriptionState build() => SubscriptionState.loaded(subscription);
 }
 
+class _DeferredBillingSubscription extends _FixedSubscriptionNotifier {
+  _DeferredBillingSubscription(this.pending) : super(_plainSubscription);
+
+  final Future<SubscriptionBillingView> pending;
+
+  @override
+  Future<SubscriptionBillingView> freshBillingView() => pending;
+}
+
 const _plainSubscription = UserSubscription(
   tier: 1,
   active: true,
@@ -961,8 +1119,12 @@ List<Override> _footerOverrides({
   AuthStatus authStatus = AuthStatus.authenticated,
   UserSubscription subscription = _plainSubscription,
   ImageGenerationNotifier Function()? imageGeneration,
+  AuthNotifier Function()? auth,
+  SubscriptionNotifier Function()? billingNotifier,
 }) => [
-  authNotifierProvider.overrideWith(() => _FixedAuthNotifier(authStatus)),
+  authNotifierProvider.overrideWith(
+    auth ?? () => _FixedAuthNotifier(authStatus),
+  ),
   if (imageGeneration != null)
     imageGenerationNotifierProvider.overrideWith(imageGeneration),
   localStorageServiceProvider.overrideWith((ref) => storage),
@@ -972,7 +1134,7 @@ List<Override> _footerOverrides({
   ),
   queueExecutionNotifierProvider.overrideWith(_TestQueueExecutionNotifier.new),
   subscriptionNotifierProvider.overrideWith(
-    () => _FixedSubscriptionNotifier(subscription),
+    billingNotifier ?? () => _FixedSubscriptionNotifier(subscription),
   ),
   estimatedCostProvider.overrideWith((ref) => 0),
   isFreeGenerationProvider.overrideWith((ref) => true),

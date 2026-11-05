@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
-import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_anlas_estimator.dart';
@@ -27,7 +26,7 @@ int _estimateWith(OpusUsageInfo usage) {
         () => _SubscriptionStub(
           SubscriptionState.loaded(
             UserSubscription(
-              tier: AnlasCalculator.opusTier,
+              tier: 3,
               active: true,
               usage: usage,
             ),

@@ -23,7 +23,10 @@ void main() {
     expect(container.read(estimatedCostProvider), 0);
     expect(container.read(isFreeGenerationProvider), isTrue);
 
-    final cost = await readSettledEstimatedCost(container);
+    final cost = await readSettledEstimatedCost(
+      container,
+      readGenerationPageRequest(container),
+    );
 
     expect(cost, greaterThan(0));
     expect(container.read(isFreeGenerationProvider), isFalse);
@@ -38,7 +41,13 @@ void main() {
     expect(await notifier.ensureFreshForBilling(), isFalse);
 
     expect(notifier.billingView, SubscriptionBillingView.unverified);
-    expect(await readSettledEstimatedCost(container), greaterThan(0));
+    expect(
+      await readSettledEstimatedCost(
+        container,
+        readGenerationPageRequest(container),
+      ),
+      greaterThan(0),
+    );
     expect(container.read(isFreeGenerationProvider), isFalse);
     expect(container.read(isOpusSubscriptionProvider), isFalse);
   });

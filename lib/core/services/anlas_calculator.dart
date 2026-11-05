@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
+
 import '../../data/models/image/image_params.dart';
+import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
 
 /// Anlas 消耗计算器
@@ -9,8 +12,6 @@ import '../constants/model_capabilities.dart';
 /// Reference 附加费遵循官方功能文档。服务端计费仍是最终依据。
 class AnlasCalculator {
   AnlasCalculator._();
-
-  static const int opusTier = 3;
 
   /// Opus 基础免费额度覆盖的最大像素面积。
   static const int opusFreeMaxPixels = 1024 * 1024;
@@ -80,26 +81,31 @@ class AnlasCalculator {
     return extraReferenceCount * _vibeCost;
   }
 
-  /// 计算预估 Anlas 消耗
+  /// 参数到 Anlas 费用的唯一入口。
   ///
-  /// [params] 图像生成参数
-  /// [isOpus] 是否 Opus 订阅
+  /// [requestSize] 是调用方已经确定的请求几何（如聚焦重绘的裁切尺寸），按原样
+  /// 计费；不传时按 [params] 的尺寸计费，增强 max 档按 [billingSize] 换算。
+  /// [batchCount] 是独立请求数，默认取 `params.nSamples`；[batchSize] 是单次
+  /// 请求的张数。[isOpus] 与 [opusQuotaExhausted] 是订阅档位与 V5 配额池是否透支。
   static int calculate(
     ImageParams params, {
+    ({int width, int height})? requestSize,
+    int? batchCount,
+    int batchSize = 1,
     bool isOpus = false,
     bool opusQuotaExhausted = false,
-    int batchSize = 1,
   }) {
+    final size = requestSize ?? billingSize(params);
     return calculateRequestCost(
-      width: params.width,
-      height: params.height,
+      width: size.width,
+      height: size.height,
       steps: params.steps,
-      batchCount: params.nSamples,
+      batchCount: batchCount ?? params.nSamples,
       batchSize: batchSize,
       smea: params.effectiveSmea,
       smeaDyn: params.effectiveSmeaDyn,
       model: params.model,
-      subscriptionTier: isOpus ? opusTier : 0,
+      isOpus: isOpus,
       opusQuotaExhausted: opusQuotaExhausted,
       strength: switch (params.action) {
         ImageGenerationAction.img2img => params.strength,
@@ -112,6 +118,25 @@ class AnlasCalculator {
     );
   }
 
+  /// Anlas 与 Opus 配额共用的计费尺寸。
+  static ({int width, int height}) billingSize(ImageParams params) =>
+      resolveBillingSize(
+        width: params.width,
+        height: params.height,
+        maxEnhance: params.effectiveUpscaledEnhance,
+      );
+
+  /// 增强 max 档请求携带原图尺寸，服务端却按放大到 3.14MP 的面积计费。
+  static ({int width, int height}) resolveBillingSize({
+    required int width,
+    required int height,
+    required bool maxEnhance,
+  }) {
+    if (!maxEnhance) return (width: width, height: height);
+    return E2eUpscale.resolveMaxEnhanceTargetSize(width, height);
+  }
+
+  @visibleForTesting
   static int calculateRequestCost({
     required int width,
     required int height,
@@ -121,7 +146,7 @@ class AnlasCalculator {
     required bool smea,
     required bool smeaDyn,
     required String model,
-    int subscriptionTier = 0,
+    bool isOpus = false,
     bool opusQuotaExhausted = false,
     double strength = 1.0,
     int extraPerSampleCost = 0,
@@ -143,7 +168,7 @@ class AnlasCalculator {
         smea: smea,
         smeaDyn: smeaDyn,
         model: model,
-        subscriptionTier: isFirstImageInRequest ? subscriptionTier : 0,
+        isOpus: isFirstImageInRequest && isOpus,
         opusQuotaExhausted: opusQuotaExhausted,
         strength: strength,
       );
@@ -164,15 +189,14 @@ class AnlasCalculator {
     required int inputWidth,
     required int inputHeight,
     required int scale,
-    int subscriptionTier = 0,
+    bool isOpus = false,
   }) {
     if (inputWidth <= 0 || inputHeight <= 0 || scale <= 0) {
       return invalidCost;
     }
 
     final inputPixels = inputWidth * inputHeight;
-    if (subscriptionTier >= opusTier &&
-        inputPixels <= novelAiUpscaleOpusFreeMaxInputPixels) {
+    if (isOpus && inputPixels <= novelAiUpscaleOpusFreeMaxInputPixels) {
       return 0;
     }
 
@@ -183,6 +207,7 @@ class AnlasCalculator {
   }
 
   /// 根据具体参数值计算 Anlas 消耗
+  @visibleForTesting
   static int calculateFromValues({
     required int width,
     required int height,
@@ -192,7 +217,6 @@ class AnlasCalculator {
     required bool smeaDyn,
     required String model,
     bool isOpus = false,
-    int subscriptionTier = 0,
     bool opusQuotaExhausted = false,
     double strength = 1.0,
   }) {
@@ -235,7 +259,7 @@ class AnlasCalculator {
     final opusDiscount =
         !quotaBlocked &&
             _isOpusFree(
-              isOpus: isOpus || subscriptionTier >= opusTier,
+              isOpus: isOpus,
               steps: effectiveSteps,
               resolution: pixels,
             )

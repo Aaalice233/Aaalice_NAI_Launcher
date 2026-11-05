@@ -4,13 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 
-import '../../core/services/anlas_calculator.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
-import '../../data/models/image/image_params.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../providers/generation/image_workflow_controller.dart';
@@ -94,23 +92,9 @@ class ImageWorkflowLauncher {
           workflow.focusedContextCrop == null,
       focusedInpaintCostConfig: isInpaint
           ? ImageEditorFocusedInpaintCostConfig(
-              model: params.model,
-              steps: params.steps,
-              batchCount: params.nSamples,
+              params: params,
               batchSize: read(imagesPerRequestProvider),
-              smea: params.effectiveSmea,
-              smeaDyn: params.effectiveSmeaDyn,
-              strength: params.inpaintStrength,
-              subscriptionTier: read(
-                subscriptionBillingViewProvider,
-              ).subscriptionTier,
-              opusQuotaExhausted: read(
-                subscriptionBillingViewProvider,
-              ).opusQuotaExhausted,
-              extraPerSampleCost:
-                  AnlasCalculator.resolvePreciseReferenceExtraCost(params),
-              currentWidth: params.width,
-              currentHeight: params.height,
+              billing: read(subscriptionBillingViewProvider),
             )
           : null,
       showMaskExport: isInpaint,

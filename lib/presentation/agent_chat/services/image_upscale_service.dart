@@ -229,7 +229,7 @@ final class ImageUpscaleService {
       inputWidth: size.$1,
       inputHeight: size.$2,
       scale: 2,
-      subscriptionTier: billing.subscriptionTier,
+      isOpus: billing.isOpus,
     );
   }
 

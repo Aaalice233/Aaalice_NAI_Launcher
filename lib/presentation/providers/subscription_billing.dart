@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../core/services/anlas_calculator.dart';
 import '../../data/models/user/user_subscription.dart';
 
 /// 估价用到的订阅事实：是否 Opus，V5 配额池是否已透支。
@@ -32,8 +31,6 @@ class SubscriptionBillingView {
 
   final bool isOpus;
   final bool opusQuotaExhausted;
-
-  int get subscriptionTier => isOpus ? AnlasCalculator.opusTier : 0;
 
   @override
   bool operator ==(Object other) =>

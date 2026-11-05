@@ -22,10 +22,10 @@ import '../../providers/layout_state_provider.dart';
 import '../../providers/mobile_shell_overlay_provider.dart';
 import '../../providers/prompt_maximize_provider.dart';
 import '../../providers/replication_queue_provider.dart';
-import '../../utils/asset_protection_guard.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/drag_claim_notification.dart';
 import '../../widgets/queue/enqueue_result_toast.dart';
+import 'handlers/generation_action_handlers.dart';
 import 'mobile_generation_view_data.dart';
 
 class MobileGenerationController extends ChangeNotifier
@@ -349,17 +349,13 @@ class MobileGenerationController extends ChangeNotifier
       AppToast.info(context, context.l10n.generation_pleaseInputPrompt);
       return;
     }
-    if (ref.read(promptMaximizeNotifierProvider)) {
-      closePromptEditor();
-      await Future<void>.delayed(Duration.zero);
-      if (_disposed || !context.mounted) return;
-    }
-    final confirmed = await AssetProtectionGuard.confirmHighAnlasCost(
-      context: context,
-      ref: ref,
+    await submitGenerationWithProtection(
+      context,
+      ref,
+      closePromptEditor: ref.read(promptMaximizeNotifierProvider)
+          ? closePromptEditor
+          : null,
     );
-    if (!confirmed || _disposed || !context.mounted) return;
-    ref.read(imageGenerationNotifierProvider.notifier).generate(params);
   }
 
   void cancelGeneration() =>
