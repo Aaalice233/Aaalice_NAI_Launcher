@@ -69,6 +69,7 @@ class DesktopWindowStateController {
   final Future<void> Function(WindowStateSnapshot snapshot) _persist;
 
   WindowStateSnapshot _state;
+  WindowStateSnapshot? _persisted;
   Future<void> _writeTail = Future<void>.value();
   Future<void>? _activeCapture;
   bool _captureRequested = false;
@@ -145,8 +146,11 @@ class DesktopWindowStateController {
 
   Future<void> _queuePersist(WindowStateSnapshot snapshot) {
     final operation = _writeTail.then((_) async {
+      // 反复最小化、恢复时状态没变，不重复写盘
+      if (snapshot == _persisted) return;
       try {
         await _persist(snapshot);
+        _persisted = snapshot;
       } catch (error, stackTrace) {
         throw WindowStatePersistenceException(error, stackTrace);
       }

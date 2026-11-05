@@ -74,6 +74,14 @@ void main() {
     expect(writes.single.normalBounds, const Rect.fromLTWH(10, 10, 1000, 700));
   });
 
+  test('flushing an unchanged state does not write it again', () async {
+    await controller.captureCurrentState();
+    await controller.flush();
+    await controller.flush();
+
+    expect(writes.single.normalBounds, platform.bounds);
+  });
+
   test('unmaximize records restored normal bounds', () async {
     await controller.recordMaximized();
     platform.bounds = const Rect.fromLTWH(40, 50, 1300, 850);

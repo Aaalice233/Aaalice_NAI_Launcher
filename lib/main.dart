@@ -34,6 +34,7 @@ import 'core/utils/window_focus_tracker.dart';
 import 'core/utils/windows_clipboard_history_key_fix.dart';
 import 'core/utils/window_state_persistence.dart';
 import 'core/windowing/desktop_window_state_controller.dart';
+import 'core/windowing/desktop_window_state_observer.dart';
 import 'core/windowing/windows_native_window_state.dart';
 import 'data/models/gallery/nai_image_metadata.dart';
 import 'data/repositories/gallery_folder_repository.dart';
@@ -90,33 +91,6 @@ Future<void> _runNonFatalStartupStep(
     '$name completed in ${stopwatch.elapsedMilliseconds}ms',
     'Startup',
   );
-}
-
-/// 在桌面生命周期切换时刷新最后一个有效的普通窗口状态。
-class WindowStateObserver extends WidgetsBindingObserver {
-  WindowStateObserver(this.controller);
-
-  final DesktopWindowStateController controller;
-
-  @override
-  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state != AppLifecycleState.paused &&
-        state != AppLifecycleState.detached) {
-      return;
-    }
-
-    try {
-      await controller.flush();
-      await AppLogger.flush();
-    } catch (error, stackTrace) {
-      AppLogger.e(
-        'Failed to flush window state during lifecycle transition',
-        error,
-        stackTrace,
-        'Main',
-      );
-    }
-  }
 }
 
 Future<void> _restoreWindowIfMinimized() async {
@@ -330,7 +304,9 @@ class _DesktopWindowConfiguration {
       );
     });
 
-    WidgetsBinding.instance.addObserver(WindowStateObserver(stateController));
+    WidgetsBinding.instance.addObserver(
+      DesktopWindowStateObserver(stateController),
+    );
     nativePlatform?.setBoundsChangedHandler(() async {
       try {
         await stateController.captureCurrentState();
