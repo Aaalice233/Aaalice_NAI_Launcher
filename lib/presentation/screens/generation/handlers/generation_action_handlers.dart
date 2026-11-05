@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
+import '../../../../data/services/auth_provider.dart';
+import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/krita/krita_bridge_notifier.dart';
 import '../../../utils/asset_protection_guard.dart';
@@ -23,12 +25,44 @@ Future<void> generateWithProtection(BuildContext context, WidgetRef ref) async {
     AppToast.warning(context, context.l10n.generation_pleaseInputPrompt);
     return;
   }
-  final confirmed = await AssetProtectionGuard.confirmHighAnlasCost(
-    context: context,
-    ref: ref,
+  await submitGenerationWithProtection(context, ref);
+}
+
+Future<void> submitGenerationWithProtection(
+  BuildContext context,
+  WidgetRef ref, {
+  VoidCallback? closePromptEditor,
+}) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final request = readGenerationPageRequest(container);
+  var accountChanged = false;
+  final account = container.listen(
+    authNotifierProvider.select((auth) => auth.accountId),
+    (_, __) => accountChanged = true,
   );
-  if (!confirmed || !context.mounted) {
-    return;
+  try {
+    if (closePromptEditor != null) {
+      closePromptEditor();
+      await Future<void>.delayed(Duration.zero);
+    }
+    if (!context.mounted || accountChanged) return;
+    final confirmed = await AssetProtectionGuard.confirmHighAnlasCost(
+      context: context,
+      ref: ref,
+      estimateCost: () async {
+        final cost = await readSettledEstimatedCost(container, request);
+        return accountChanged ? null : cost;
+      },
+    );
+    if (!confirmed || !context.mounted || accountChanged) return;
+    final (params, workflow, batchSize) = request;
+    final generation = ref.read(imageGenerationNotifierProvider.notifier);
+    generation.generate(
+      params,
+      batchSizeOverride: batchSize,
+      focusedOverride: workflow.focusedSnapshot,
+    );
+  } finally {
+    account.close();
   }
-  ref.read(imageGenerationNotifierProvider.notifier).generate(currentParams);
 }

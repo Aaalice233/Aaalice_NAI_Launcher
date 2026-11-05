@@ -22,6 +22,8 @@ import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 import '../../helpers/shared_compute_gate.dart';
 
+const _opusTier = 3;
+
 void main() {
   late Directory hiveTempDir;
 
@@ -106,7 +108,7 @@ void main() {
       );
 
       subscription.state = const SubscriptionState.loaded(
-        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+        UserSubscription(tier: _opusTier, active: true),
       );
       paramsNotifier.updateAction(ImageGenerationAction.img2img);
       paramsNotifier.setSourceImage(_buildPng(width: 1536, height: 1024));
@@ -115,17 +117,10 @@ void main() {
       paramsNotifier.updateStrength(0.5);
 
       final params = container.read(generationParamsNotifierProvider);
-      final expected = AnlasCalculator.calculateRequestCost(
-        width: 1536,
-        height: 1024,
-        steps: params.steps,
-        batchCount: params.nSamples,
+      final expected = AnlasCalculator.calculate(
+        params,
         batchSize: container.read(imagesPerRequestProvider),
-        smea: params.effectiveSmea,
-        smeaDyn: params.effectiveSmeaDyn,
-        model: params.model,
-        subscriptionTier: AnlasCalculator.opusTier,
-        strength: 0.5,
+        isOpus: true,
       );
 
       expect(expected, greaterThan(0));
@@ -142,7 +137,7 @@ void main() {
       );
 
       subscription.state = const SubscriptionState.loaded(
-        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+        UserSubscription(tier: _opusTier, active: true),
       );
       paramsNotifier.updateAction(ImageGenerationAction.img2img);
       paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
@@ -170,7 +165,7 @@ void main() {
 
       subscription.state = const SubscriptionState.loaded(
         UserSubscription(
-          tier: AnlasCalculator.opusTier,
+          tier: _opusTier,
           active: true,
           usage: OpusUsageInfo(percent: 0, purchasedPercent: 200),
         ),
@@ -179,7 +174,7 @@ void main() {
 
       subscription.state = const SubscriptionState.loaded(
         UserSubscription(
-          tier: AnlasCalculator.opusTier,
+          tier: _opusTier,
           active: true,
           usage: OpusUsageInfo(
             percent: -1,
@@ -192,7 +187,7 @@ void main() {
     });
 
     test('should share the max enhance billing size with quota estimates', () {
-      final billingSize = resolveGenerationBillingSize(
+      final billingSize = AnlasCalculator.resolveBillingSize(
         width: 832,
         height: 1216,
         maxEnhance: true,
@@ -212,7 +207,7 @@ void main() {
       );
 
       subscription.state = const SubscriptionState.loaded(
-        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+        UserSubscription(tier: _opusTier, active: true),
       );
       paramsNotifier.updateModel(
         ImageModels.animeDiffusionV5Curated,
@@ -227,22 +222,11 @@ void main() {
       paramsNotifier.updateUpscaledEnhance(true);
 
       final params = container.read(generationParamsNotifierProvider);
-      final billingSize = resolveGenerationBillingSize(
-        width: params.width,
-        height: params.height,
-        maxEnhance: params.effectiveUpscaledEnhance,
-      );
-      final expected = AnlasCalculator.calculateRequestCost(
-        width: billingSize.width,
-        height: billingSize.height,
-        steps: params.steps,
-        batchCount: params.nSamples,
+      final billingSize = AnlasCalculator.billingSize(params);
+      final expected = AnlasCalculator.calculate(
+        params,
         batchSize: container.read(imagesPerRequestProvider),
-        smea: params.effectiveSmea,
-        smeaDyn: params.effectiveSmeaDyn,
-        model: params.model,
-        subscriptionTier: AnlasCalculator.opusTier,
-        strength: params.strength,
+        isOpus: true,
       );
 
       expect(params.upscaledEnhance, isTrue);
@@ -264,7 +248,7 @@ void main() {
       );
 
       subscription.state = const SubscriptionState.loaded(
-        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+        UserSubscription(tier: _opusTier, active: true),
       );
       paramsNotifier.updateAction(ImageGenerationAction.infill);
       paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
@@ -283,7 +267,7 @@ void main() {
       );
 
       subscription.state = const SubscriptionState.loaded(
-        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+        UserSubscription(tier: _opusTier, active: true),
       );
       paramsNotifier.updateModel('nai-diffusion-4-5-full');
       paramsNotifier.updateSize(832, 1216);
@@ -305,7 +289,7 @@ void main() {
       );
 
       subscription.state = const SubscriptionState.loaded(
-        UserSubscription(tier: AnlasCalculator.opusTier, active: true),
+        UserSubscription(tier: _opusTier, active: true),
       );
       paramsNotifier.updateAction(ImageGenerationAction.img2img);
       paramsNotifier.setSourceImage(_buildPng(width: 832, height: 1216));
@@ -364,20 +348,14 @@ void main() {
 
         expect(focusedRequest, isNotNull);
 
-        final expected = AnlasCalculator.calculateRequestCost(
-          width: focusedRequest!.targetWidth,
-          height: focusedRequest.targetHeight,
-          steps: params.steps,
-          batchCount: params.nSamples,
+        final expected = AnlasCalculator.calculate(
+          params,
+          requestSize: (
+            width: focusedRequest!.targetWidth,
+            height: focusedRequest.targetHeight,
+          ),
           batchSize: 1,
-          model: params.model,
-          subscriptionTier:
-              container.read(subscriptionNotifierProvider).subscription?.tier ??
-              0,
-          smea: params.effectiveSmea,
-          smeaDyn: params.effectiveSmeaDyn,
-          strength: params.inpaintStrength,
-          extraPerSampleCost: 0,
+          isOpus: container.read(subscriptionBillingViewProvider).isOpus,
         );
 
         expect(container.read(estimatedCostProvider), equals(expected));
@@ -426,20 +404,14 @@ void main() {
         const AsyncData<FocusedInpaintGeometry?>(null),
       );
 
-      final expected = AnlasCalculator.calculateRequestCost(
-        width: geometry.requestWidth,
-        height: geometry.requestHeight,
-        steps: params.steps,
-        batchCount: params.nSamples,
+      final expected = AnlasCalculator.calculate(
+        params,
+        requestSize: (
+          width: geometry.requestWidth,
+          height: geometry.requestHeight,
+        ),
         batchSize: 1,
-        model: params.model,
-        subscriptionTier:
-            container.read(subscriptionNotifierProvider).subscription?.tier ??
-            0,
-        smea: params.effectiveSmea,
-        smeaDyn: params.effectiveSmeaDyn,
-        strength: params.inpaintStrength,
-        extraPerSampleCost: 0,
+        isOpus: container.read(subscriptionBillingViewProvider).isOpus,
       );
       expect(container.read(estimatedCostProvider), equals(expected));
     });
@@ -476,7 +448,10 @@ void main() {
         workflow.setMinimumContextMegaPixels(1.0);
         container.listen(estimatedCostProvider, (_, __) {});
         workflow.onMaskChanged(mask);
-        final settledCost = await readSettledEstimatedCost(container);
+        final settledCost = await readSettledEstimatedCost(
+          container,
+          readGenerationPageRequest(container),
+        );
 
         final params = container.read(generationParamsNotifierProvider);
         final focusedRequest = FocusedInpaintUtils.prepareRequest(
@@ -493,20 +468,14 @@ void main() {
         expect(maskGeometry!.requestWidth, focusedRequest!.targetWidth);
         expect(maskGeometry.requestHeight, focusedRequest.targetHeight);
 
-        final expected = AnlasCalculator.calculateRequestCost(
-          width: focusedRequest.targetWidth,
-          height: focusedRequest.targetHeight,
-          steps: params.steps,
-          batchCount: params.nSamples,
+        final expected = AnlasCalculator.calculate(
+          params,
+          requestSize: (
+            width: focusedRequest.targetWidth,
+            height: focusedRequest.targetHeight,
+          ),
           batchSize: 1,
-          model: params.model,
-          subscriptionTier:
-              container.read(subscriptionNotifierProvider).subscription?.tier ??
-              0,
-          smea: params.effectiveSmea,
-          smeaDyn: params.effectiveSmeaDyn,
-          strength: 1.0,
-          extraPerSampleCost: 0,
+          isOpus: container.read(subscriptionBillingViewProvider).isOpus,
         );
 
         expect(settledCost, equals(expected));
@@ -529,7 +498,10 @@ void main() {
             .onMaskChanged(mask);
         expect(container.read(estimatedCostProvider), isNull);
         expect(container.read(isBalanceInsufficientProvider), isFalse);
-        return readSettledEstimatedCost(container);
+        return readSettledEstimatedCost(
+          container,
+          readGenerationPageRequest(container),
+        );
       });
 
       expect(settledCost, _maskOnlyCost(container, mask));
@@ -552,7 +524,11 @@ void main() {
         rect: const Rect.fromLTWH(40, 60, 1400, 1380),
       );
       workflow.onMaskChanged(first);
-      final firstCost = await readSettledEstimatedCost(container);
+      final firstCost = await readSettledEstimatedCost(
+        container,
+        readGenerationPageRequest(container),
+      );
+      expect(container.read(estimatedCostProvider), firstCost);
 
       final secondCost = await expectQueuedBehindSharedComputeGate(() {
         workflow.onMaskChanged(second);
@@ -561,7 +537,10 @@ void main() {
           isTrue,
         );
         expect(container.read(estimatedCostProvider), firstCost);
-        return readSettledEstimatedCost(container);
+        return readSettledEstimatedCost(
+          container,
+          readGenerationPageRequest(container),
+        );
       });
 
       expect(firstCost, _maskOnlyCost(container, first));
@@ -579,7 +558,10 @@ void main() {
         rect: const Rect.fromLTWH(300, 400, 160, 120),
       );
       workflow.onMaskChanged(mask);
-      await readSettledEstimatedCost(container);
+      await readSettledEstimatedCost(
+        container,
+        readGenerationPageRequest(container),
+      );
       final smallContext = container
           .read(focusedInpaintMaskRequestSizeProvider)
           .requireValue!;
@@ -611,7 +593,10 @@ void main() {
 
     test('settled cost does not wait when no mask bounds apply', () async {
       final cost = await expectRunsWithoutSharedComputeGate(
-        () => readSettledEstimatedCost(container),
+        () => readSettledEstimatedCost(
+          container,
+          readGenerationPageRequest(container),
+        ),
       );
 
       expect(cost, container.read(estimatedCostProvider));
@@ -763,20 +748,14 @@ void main() {
           selectionRect: const Rect.fromLTWH(2500, 200, 400, 400),
           minContextMegaPixels: state.minimumContextMegaPixels,
         )!;
-        final expected = AnlasCalculator.calculateRequestCost(
-          width: geometry.requestWidth,
-          height: geometry.requestHeight,
-          steps: params.steps,
-          batchCount: params.nSamples,
+        final expected = AnlasCalculator.calculate(
+          params,
+          requestSize: (
+            width: geometry.requestWidth,
+            height: geometry.requestHeight,
+          ),
           batchSize: 1,
-          model: params.model,
-          subscriptionTier:
-              container.read(subscriptionNotifierProvider).subscription?.tier ??
-              0,
-          smea: params.effectiveSmea,
-          smeaDyn: params.effectiveSmeaDyn,
-          strength: 1.0,
-          extraPerSampleCost: 0,
+          isOpus: container.read(subscriptionBillingViewProvider).isOpus,
         );
 
         expect(container.read(estimatedCostProvider), expected);
@@ -814,19 +793,11 @@ int _maskOnlyCost(ProviderContainer container, Uint8List mask) {
     maskImage: mask,
     minContextMegaPixels: workflow.minimumContextMegaPixels,
   )!;
-  return AnlasCalculator.calculateRequestCost(
-    width: geometry.requestWidth,
-    height: geometry.requestHeight,
-    steps: params.steps,
-    batchCount: params.nSamples,
+  return AnlasCalculator.calculate(
+    params,
+    requestSize: (width: geometry.requestWidth, height: geometry.requestHeight),
     batchSize: 1,
-    model: params.model,
-    subscriptionTier:
-        container.read(subscriptionNotifierProvider).subscription?.tier ?? 0,
-    smea: params.effectiveSmea,
-    smeaDyn: params.effectiveSmeaDyn,
-    strength: params.inpaintStrength,
-    extraPerSampleCost: 0,
+    isOpus: container.read(subscriptionBillingViewProvider).isOpus,
   );
 }
 

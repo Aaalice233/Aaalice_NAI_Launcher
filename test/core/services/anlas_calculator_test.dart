@@ -245,7 +245,7 @@ void main() {
             smea: false,
             smeaDyn: false,
             model: ImageModels.animeDiffusionV5Curated,
-            subscriptionTier: AnlasCalculator.opusTier,
+            isOpus: true,
             opusQuotaExhausted: exhausted,
           );
 
@@ -262,7 +262,7 @@ void main() {
         smea: false,
         smeaDyn: false,
         model: ImageModels.animeDiffusionV45Full,
-        subscriptionTier: AnlasCalculator.opusTier,
+        isOpus: true,
         opusQuotaExhausted: true,
       );
 
@@ -345,7 +345,7 @@ void main() {
         smea: false,
         smeaDyn: false,
         model: model,
-        subscriptionTier: AnlasCalculator.opusTier,
+        isOpus: true,
       );
 
       expect(cost, 80);
@@ -361,7 +361,7 @@ void main() {
         smea: false,
         smeaDyn: false,
         model: model,
-        subscriptionTier: AnlasCalculator.opusTier,
+        isOpus: true,
         strength: 0.5,
       );
 
@@ -404,7 +404,7 @@ void main() {
         smea: false,
         smeaDyn: false,
         model: model,
-        subscriptionTier: AnlasCalculator.opusTier,
+        isOpus: true,
         extraPerSampleCost: 5,
       );
 
@@ -421,13 +421,118 @@ void main() {
         smea: false,
         smeaDyn: false,
         model: model,
-        subscriptionTier: AnlasCalculator.opusTier,
+        isOpus: true,
         extraPerSampleCost: 5,
         extraPerRequestCost: 2,
         oneTimeCost: 4,
       );
 
       expect(cost, 118);
+    });
+  });
+
+  group('AnlasCalculator.calculate', () {
+    final maxEnhance = ImageParams(
+      model: ImageModels.animeDiffusionV5Curated,
+      action: ImageGenerationAction.img2img,
+      sourceImage: Uint8List.fromList([1, 2, 3]),
+      width: 832,
+      height: 1216,
+      steps: 23,
+      strength: 0.5,
+      upscaledEnhance: true,
+      isEnhanceRequest: true,
+    );
+
+    test('bills max enhance at the upscaled 3.14MP area', () {
+      final billed = AnlasCalculator.billingSize(maxEnhance);
+
+      expect(maxEnhance.effectiveUpscaledEnhance, isTrue);
+      expect(billed, E2eUpscale.resolveMaxEnhanceTargetSize(832, 1216));
+      expect(
+        billed.width * billed.height,
+        inInclusiveRange(3100000, ApiConstants.maxImagePixels),
+      );
+      final cost = AnlasCalculator.calculate(maxEnhance, isOpus: true);
+      expect(
+        cost,
+        AnlasCalculator.calculateRequestCost(
+          width: billed.width,
+          height: billed.height,
+          steps: 23,
+          batchCount: 1,
+          batchSize: 1,
+          smea: false,
+          smeaDyn: false,
+          model: ImageModels.animeDiffusionV5Curated,
+          isOpus: true,
+          strength: 0.5,
+        ),
+      );
+      expect(
+        cost,
+        greaterThan(
+          AnlasCalculator.calculate(
+            maxEnhance.copyWith(upscaledEnhance: false),
+            isOpus: true,
+          ),
+        ),
+      );
+    });
+
+    test('bills a request size override as given', () {
+      expect(
+        AnlasCalculator.calculate(
+          maxEnhance,
+          requestSize: (width: 832, height: 1216),
+        ),
+        AnlasCalculator.calculateRequestCost(
+          width: 832,
+          height: 1216,
+          steps: 23,
+          batchCount: 1,
+          batchSize: 1,
+          smea: false,
+          smeaDyn: false,
+          model: ImageModels.animeDiffusionV5Curated,
+          strength: 0.5,
+        ),
+      );
+    });
+
+    test('counts nSamples as independent requests unless overridden', () {
+      const params = ImageParams(
+        model: model,
+        width: 832,
+        height: 1216,
+        steps: 28,
+        nSamples: 3,
+      );
+      int expected(int batchCount) => AnlasCalculator.calculateRequestCost(
+        width: 832,
+        height: 1216,
+        steps: 28,
+        batchCount: batchCount,
+        batchSize: 2,
+        smea: false,
+        smeaDyn: false,
+        model: model,
+        isOpus: true,
+      );
+
+      expect(
+        AnlasCalculator.calculate(params, batchSize: 2, isOpus: true),
+        expected(3),
+      );
+      expect(
+        AnlasCalculator.calculate(
+          params,
+          batchCount: 6,
+          batchSize: 2,
+          isOpus: true,
+        ),
+        expected(6),
+      );
     });
   });
 
@@ -472,7 +577,7 @@ void main() {
           inputWidth: 640,
           inputHeight: 640,
           scale: 4,
-          subscriptionTier: AnlasCalculator.opusTier,
+          isOpus: true,
         ),
         0,
       );

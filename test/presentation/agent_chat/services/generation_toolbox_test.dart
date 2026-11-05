@@ -19,11 +19,7 @@ import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_entry.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
-    show
-        ImageGenerationAction,
-        ImageParams,
-        ImageParamsExtension,
-        PreciseReference;
+    show ImageGenerationAction, ImageParams, PreciseReference;
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
@@ -1400,16 +1396,10 @@ void main() {
       final params = container.read(generationParamsNotifierProvider);
       expect(
         payload['estimated_anlas'],
-        AnlasCalculator.calculateRequestCost(
-          width: 832,
-          height: 1216,
-          steps: params.steps,
+        AnlasCalculator.calculate(
+          params.copyWith(width: 832, height: 1216),
           batchCount: 1,
           batchSize: container.read(imagesPerRequestProvider),
-          smea: params.effectiveSmea,
-          smeaDyn: params.effectiveSmeaDyn,
-          model: params.model,
-          subscriptionTier: 0,
         ),
       );
       expect(payload['confirmation_required'], isTrue);

@@ -36,7 +36,13 @@ void main() {
     final container = await harness.loadedContainer();
     harness.now = harness.now.add(SubscriptionBillingFreshness.window);
 
-    expect(await readSettledEstimatedCost(container), 0);
+    expect(
+      await readSettledEstimatedCost(
+        container,
+        readGenerationPageRequest(container),
+      ),
+      0,
+    );
 
     expect(harness.requestCount(), 1);
   });
@@ -54,7 +60,7 @@ void main() {
     final checks = [
       notifier.ensureFreshForBilling(),
       notifier.ensureFreshForBilling(),
-      readSettledEstimatedCost(container),
+      readSettledEstimatedCost(container, readGenerationPageRequest(container)),
     ];
     await Future<void>.delayed(Duration.zero);
     response.complete(billingSubscriptionJson(quotaExhausted: true));
@@ -76,7 +82,10 @@ void main() {
     CriticalNetworkActivityCoordinator.instance
         .acquire(CriticalNetworkActivityType.imageGeneration)
         .release();
-    final cost = await readSettledEstimatedCost(container);
+    final cost = await readSettledEstimatedCost(
+      container,
+      readGenerationPageRequest(container),
+    );
 
     expect(cost, greaterThan(0));
     expect(harness.requestCount(), 2);

@@ -12,7 +12,7 @@ import 'package:nai_launcher/presentation/providers/generation/image_workflow_co
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
-import 'package:nai_launcher/presentation/utils/asset_protection_guard.dart';
+import 'package:nai_launcher/presentation/screens/generation/handlers/generation_action_handlers.dart';
 import 'package:nai_launcher/presentation/widgets/common/app_toast.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_number_input.dart';
 import 'package:nai_launcher/presentation/widgets/generation/auto_save_toggle_chip.dart';
@@ -131,16 +131,7 @@ class _GenerationControlsState extends ConsumerState<GenerationControls> {
       return;
     }
 
-    final confirmed = await AssetProtectionGuard.confirmHighAnlasCost(
-      context: context,
-      ref: ref,
-    );
-    if (!confirmed || !context.mounted) {
-      return;
-    }
-
-    // 生成（抽卡模式逻辑在 generate 方法内部处理）
-    ref.read(imageGenerationNotifierProvider.notifier).generate(params);
+    await submitGenerationWithProtection(context, ref);
   }
 }
 

@@ -4,6 +4,7 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/harness_types.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
+import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/enhance_request_plan.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
@@ -53,9 +54,12 @@ final class GenerationEnhanceSelection {
       : GenerationEnhanceScale.fromFactor(plan.factor);
 
   Map<String, dynamic> toJson() {
-    // max 档请求携带原图尺寸，服务端按放大到面积上限后的尺寸计费。
     final billed = plan.maxScale
-        ? E2eUpscale.resolveMaxEnhanceTargetSize(plan.width, plan.height)
+        ? AnlasCalculator.resolveBillingSize(
+            width: plan.width,
+            height: plan.height,
+            maxEnhance: true,
+          )
         : null;
     return {
       'level': level,

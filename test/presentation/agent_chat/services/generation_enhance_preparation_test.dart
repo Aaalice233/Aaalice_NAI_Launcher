@@ -20,7 +20,6 @@ import 'package:nai_launcher/presentation/agent_chat/services/generation_prepara
 import 'package:nai_launcher/presentation/agent_chat/services/generation_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
-import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
@@ -101,15 +100,12 @@ void main() {
         'width': billed.width,
         'height': billed.height,
       });
+      expect(prepared.estimatedAnlas, AnlasCalculator.calculate(params));
       expect(
         prepared.estimatedAnlas,
-        AnlasCalculator.calculate(
-          params.copyWith(width: billed.width, height: billed.height),
+        greaterThan(
+          AnlasCalculator.calculate(params.copyWith(upscaledEnhance: false)),
         ),
-      );
-      expect(
-        prepared.estimatedAnlas,
-        greaterThan(AnlasCalculator.calculate(params)),
       );
     },
   );
@@ -344,15 +340,14 @@ void main() {
 
       final result = await prepare.execute('queue-max', {'action': 'start'});
 
-      final billed = resolveGenerationBillingSize(
-        width: 832,
-        height: 1216,
-        maxEnhance: true,
+      expect(
+        _json(result)['estimated_anlas'],
+        AnlasCalculator.calculate(params),
       );
       expect(
         _json(result)['estimated_anlas'],
-        AnlasCalculator.calculate(
-          params.copyWith(width: billed.width, height: billed.height),
+        greaterThan(
+          AnlasCalculator.calculate(params.copyWith(upscaledEnhance: false)),
         ),
       );
     },

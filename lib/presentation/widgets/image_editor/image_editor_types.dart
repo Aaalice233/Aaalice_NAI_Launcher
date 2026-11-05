@@ -6,7 +6,9 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../../../data/models/image/image_params.dart';
 import '../../../data/services/efficient_vit_sam_service.dart';
+import '../../providers/subscription_billing.dart';
 
 enum ImageEditorMode { edit, inpaint }
 
@@ -96,37 +98,18 @@ class ImageEditorSessionConfig {
 }
 
 class ImageEditorFocusedInpaintCostConfig {
-  const ImageEditorFocusedInpaintCostConfig({
-    required this.model,
-    required this.steps,
-    required this.batchCount,
+  // 编辑器交回后按局部重绘发送：强度、SMEA 与附加费都按 infill 请求计
+  ImageEditorFocusedInpaintCostConfig({
+    required ImageParams params,
     required this.batchSize,
-    required this.smea,
-    required this.smeaDyn,
-    required this.subscriptionTier,
-    this.opusQuotaExhausted = false,
-    this.strength = 1.0,
-    this.extraPerSampleCost = 0,
-    this.currentWidth,
-    this.currentHeight,
-  });
+    required this.billing,
+  }) : requestParams = params.copyWith(action: ImageGenerationAction.infill);
 
-  final String model;
-  final int steps;
-  final int batchCount;
+  final ImageParams requestParams;
   final int batchSize;
-  final bool smea;
-  final bool smeaDyn;
-  final int subscriptionTier;
-  final bool opusQuotaExhausted;
-  final double strength;
-  final int extraPerSampleCost;
+  final SubscriptionBillingView billing;
 
-  /// 生成页当前的请求尺寸；未压缩的源图交回后按它决定实际请求尺寸
-  final int? currentWidth;
-  final int? currentHeight;
-
-  /// 与生成页导入源图时的尺寸推导一致
+  /// 与生成页导入源图时的尺寸推导一致；生成页当前的请求尺寸决定未压缩源图的实际请求尺寸
   ({int width, int height}) resolveImportRequestSize({
     required int sourceWidth,
     required int sourceHeight,
@@ -134,31 +117,23 @@ class ImageEditorFocusedInpaintCostConfig {
     final resolved = NaiResolutionAdapter.findImportResolution(
       sourceWidth,
       sourceHeight,
-      currentWidth: currentWidth,
-      currentHeight: currentHeight,
+      currentWidth: requestParams.width,
+      currentHeight: requestParams.height,
       isStableDiffusionFamily: ImageModels.usesStableDiffusionImportBounds(
-        model,
+        requestParams.model,
       ),
     );
     return (width: resolved.width, height: resolved.height);
   }
 
-  int estimate({required int width, required int height}) {
-    return AnlasCalculator.calculateRequestCost(
-      width: width,
-      height: height,
-      steps: steps,
-      batchCount: batchCount,
-      batchSize: batchSize,
-      smea: smea,
-      smeaDyn: smeaDyn,
-      model: model,
-      subscriptionTier: subscriptionTier,
-      opusQuotaExhausted: opusQuotaExhausted,
-      strength: strength,
-      extraPerSampleCost: extraPerSampleCost,
-    );
-  }
+  int estimate({required int width, required int height}) =>
+      AnlasCalculator.calculate(
+        requestParams,
+        requestSize: (width: width, height: height),
+        batchSize: batchSize,
+        isOpus: billing.isOpus,
+        opusQuotaExhausted: billing.opusQuotaExhausted,
+      );
 }
 
 class FocusedInpaintCostEstimate {
