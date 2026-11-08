@@ -1108,6 +1108,27 @@ class UcPresets {
     );
   }
 
+  /// 元数据没记录 ucPreset 时（别的渠道生成的图），按开头文字反推预设：
+  /// 逐档尝试，取命中标签最多的；都没命中则 preset 为空。
+  static UcPresetSplit splitLeadingPreset(String negativePrompt) {
+    final trimmed = negativePrompt.trim();
+    var best = (preset: '', body: trimmed);
+    var bestCount = 0;
+    for (final type in UcPresetType.values) {
+      final split = _splitByVariants(
+        trimmed,
+        type,
+        _allPresetVariantsLongestFirst(type),
+      );
+      final count = _splitPromptTags(split.preset).length;
+      if (count > bestCount) {
+        best = split;
+        bestCount = count;
+      }
+    }
+    return best;
+  }
+
   static UcPresetSplit _splitByVariants(
     String negativePrompt,
     UcPresetType type,
