@@ -239,4 +239,79 @@ void main() {
       {2},
     );
   });
+
+  test('infers the leading UC preset when metadata does not record it '
+      'so a negative fixed prefix still aligns', () {
+    final preset = UcPresets.getPresetContent(
+      ImageModels.animeDiffusionV45Full,
+      UcPresetType.heavy,
+    );
+    final negativeFixed = FixedTagEntry.create(
+      name: 'neg',
+      content: '1.3::outside_border, frame, border::, earrings',
+      promptType: FixedTagPromptType.negative,
+    );
+    final positiveFixed = FixedTagEntry.create(
+      name: 'style',
+      content: '1.4::artist:foo::, 2::detailed_background, high_contrast::',
+    );
+
+    final result = matchMetadataFixedTags(
+      metadata: NaiImageMetadata(
+        prompt:
+            '1.4::artist:foo::, 2::detailed_background, high_contrast::, '
+            'hot spring',
+        negativePrompt:
+            '$preset, 1.3::outside_border, frame, border::, '
+            'earrings, extra scene negative',
+      ),
+      positiveEntries: [positiveFixed],
+      negativeEntries: [negativeFixed],
+    );
+
+    expect(result.ucPreset, isNull);
+    expect(result.fixedPrefixTags, hasLength(1));
+    expect(result.fixedNegativePrefixTags, hasLength(1));
+    expect(result.mainPrompt, 'hot spring');
+    expect(result.mainNegativePrompt, 'extra scene negative');
+  });
+
+  test('a negative without a known leading preset is left untouched', () {
+    final result = const NaiImageMetadata(
+      negativePrompt: 'lowres, my own negative',
+    ).negativePresetSplit;
+
+    expect(result.preset, isEmpty);
+    expect(result.body, 'lowres, my own negative');
+  });
+
+  test('treats CRLF, underscores and spaces as the same separator', () {
+    // Windows 下保存的固定词带 CRLF 且用下划线；别的渠道的图是 LF，
+    // 并把加权组里的下划线改成空格。
+    final positive = FixedTagEntry.create(
+      name: 'p',
+      content:
+          'artist:foo, year:2025\r\n\r\nmasterpiece, 2::detailed_background',
+    );
+    final negative = FixedTagEntry.create(
+      name: 'n',
+      content: '1.2::protruding_muzzle, snout::\r\n1.05::beak-like_nose::',
+      promptType: FixedTagPromptType.negative,
+    );
+
+    final result = matchMetadataFixedTags(
+      metadata: const NaiImageMetadata(
+        prompt:
+            'artist:foo,year:2025\n\nmasterpiece, 2::detailed background, '
+            'solo, hot spring',
+        negativePrompt:
+            '1.2::protruding muzzle, snout::\n1.05::beak-like nose::, extra',
+      ),
+      positiveEntries: [positive],
+      negativeEntries: [negative],
+    );
+
+    expect(result.fixedPrefixTags, hasLength(1));
+    expect(result.fixedNegativePrefixTags, hasLength(1));
+  });
 }
