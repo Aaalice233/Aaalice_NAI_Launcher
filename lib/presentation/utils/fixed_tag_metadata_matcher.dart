@@ -249,8 +249,11 @@ Set<int> fixedPromptTagIndexes({
 List<String> _extractTags(String prompt) =>
     NaiPromptParser.splitSegments(prompt);
 
+/// 比较用的规范形：忽略大小写、权重语法、首尾括号，并把空白（含 Windows 换行）
+/// 与下划线视为同一种分隔。别的渠道生成的图常把加权组里的下划线改成空格，
+/// Windows 下保存的固定词又带回车换行，逐字比较会把本来相同的内容判成不同。
 String _normalizeTag(String tag) {
-  var result = tag.trim().toLowerCase();
+  var result = tag.trim().toLowerCase().replaceAll(RegExp(r'[\s_]+'), ' ');
   final numericWeight = RegExp(
     r'^-?\d+(?:\.\d+)?::(.+?)(?:::)?$',
   ).firstMatch(result);

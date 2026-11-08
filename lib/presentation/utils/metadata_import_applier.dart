@@ -167,7 +167,8 @@ class MetadataImportApplier {
     required bool importUcPreset,
   }) {
     final mainNegative = metadata.mainNegativePrompt;
-    if (importUcPreset) return mainNegative;
+    // 元数据没记录预设档位时预设不会被导入，文字必须留在负面框里。
+    if (importUcPreset && metadata.ucPreset != null) return mainNegative;
     return [
       metadata.negativePresetSplit.preset,
       mainNegative,
