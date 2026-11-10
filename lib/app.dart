@@ -216,7 +216,9 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
       _,
       next,
     ) {
-      if (!next.isPaused) _releaseQueueBackgroundPause(backgroundPause);
+      if (!next.isPaused || next.pausedForFailure) {
+        _releaseQueueBackgroundPause(backgroundPause);
+      }
     });
     _queueBackgroundPause = backgroundPause;
     await ref.read(queueExecutionNotifierProvider.notifier).pause();

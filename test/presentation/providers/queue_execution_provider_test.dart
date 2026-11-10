@@ -3,7 +3,9 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
@@ -1294,6 +1296,48 @@ void main() {
         },
       );
     });
+
+    test('提交后进入生成前被暂停，完成后停在暂停且任务已结算，恢复后跑下一条', () {
+      driveQueueRun(
+        (async) {
+          final run = QueueRun(
+            async,
+            prompts: ['first', 'second'],
+            localStorage: queueRetries(0),
+            autoStart: false,
+          );
+          run.generation.preparationGate = Completer<void>();
+          run.execution.startQueue();
+          run.flush();
+          return run;
+        },
+        (run) {
+          expect(run.started, isEmpty);
+          run.execution.pause();
+          run.flush();
+
+          run.generation.preparationGate!.complete();
+          run.flush();
+          expect(run.started, ['first']);
+          expect(
+            taskStatus(run, run.tasks[0].id),
+            ReplicationTaskStatus.running,
+          );
+
+          run.completeAndSettle(0);
+          run.elapse(const Duration(seconds: 2));
+          expect(run.state.status, QueueExecutionStatus.paused);
+          expect(run.state.completedCount, 1);
+          expect(taskStatus(run, run.tasks[0].id), isNull);
+          expect(
+            taskStatus(run, run.tasks[1].id),
+            ReplicationTaskStatus.pending,
+          );
+
+          resumeOnce(run, ['first', 'second']);
+        },
+      );
+    });
   });
 
   group('上一次生成留下的终态', () {
@@ -1429,6 +1473,204 @@ void main() {
     generation.settle(0);
     await generation.waitForStart(1).timeout(const Duration(seconds: 5));
     expect(generation.startedPrompts, ['manual', 'snapshot']);
+  });
+
+  group('生成在准备阶段就结束的队列提交', () {
+    QueueRun startWith(
+      FakeAsync async, {
+      required void Function(QueueRun run) endPreparation,
+      int retries = 3,
+      List<Override> extraOverrides = const [],
+    }) {
+      final run = QueueRun(
+        async,
+        prompts: ['first', 'second'],
+        localStorage: queueRetries(retries),
+        autoStart: false,
+        extraOverrides: extraOverrides,
+      );
+      run.generation.endNextPreparation = () => endPreparation(run);
+      run.execution.startQueue();
+      run.flush();
+      return run;
+    }
+
+    test('可重试的准备错误计入重试，之后重新提交', () {
+      driveQueueRun(
+        (async) => startWith(
+          async,
+          endPreparation: (run) =>
+              run.generation.failPreparation('Invalid resolution'),
+        ),
+        (run) {
+          expect(run.state.retryCount, 1);
+          expect(run.started, isEmpty);
+
+          run.elapse(const Duration(seconds: 2));
+          expect(run.started, ['first']);
+          expect(run.state.status, QueueExecutionStatus.running);
+        },
+      );
+    });
+
+    test('确定性的准备错误直接进失败池并跑下一条', () {
+      driveQueueRun(
+        (async) => startWith(
+          async,
+          endPreparation: (run) => run.generation.failPreparation(
+            const EmptyInpaintMaskException().toString(),
+          ),
+        ),
+        (run) {
+          expect(
+            run.container
+                .read(replicationQueueNotifierProvider)
+                .failedTasks
+                .single
+                .id,
+            run.tasks[0].id,
+          );
+          expect(run.started, ['second']);
+        },
+      );
+    });
+
+    test('准备错误重试用尽时按失败策略处理', () {
+      driveQueueRun(
+        (async) => startWith(
+          async,
+          retries: 0,
+          endPreparation: (run) =>
+              run.generation.failPreparation('Invalid resolution'),
+        ),
+        (run) {
+          expect(run.state.failedCount, 1);
+          expect(run.started, ['second']);
+        },
+      );
+    });
+
+    for (final thrown in <Object>[
+      StateError('preparation crashed'),
+      const FormatException('preparation could not parse'),
+    ]) {
+      test('准备阶段抛出 ${thrown.runtimeType} 按可重试错误处理', () {
+        driveQueueRun(
+          (async) => startWith(async, endPreparation: (run) => throw thrown),
+          (run) {
+            expect(run.state.retryCount, 1);
+            expect(
+              run.container.read(replicationQueueNotifierProvider).failedTasks,
+              isEmpty,
+            );
+
+            run.elapse(const Duration(seconds: 2));
+            expect(run.started, ['first']);
+          },
+        );
+      });
+    }
+
+    test('准备阶段认证失败时暂停队列并提示登录', () {
+      driveQueueRun(
+        (async) => startWith(
+          async,
+          endPreparation: (run) =>
+              (run.container.read(authNotifierProvider.notifier)
+                      as QueueTestAuthNotifier)
+                  .signOutForTest(),
+        ),
+        (run) {
+          expect(run.state.status, QueueExecutionStatus.paused);
+          expect(run.state.retryCount, 0);
+          expect(
+            run.container.read(authPromptRequestProvider)?.reason,
+            AuthPromptReason.queueExecution,
+          );
+          expect(
+            run.container
+                .read(replicationQueueNotifierProvider)
+                .tasks
+                .first
+                .status,
+            ReplicationTaskStatus.pending,
+          );
+        },
+      );
+    });
+
+    test('准备阶段冷却未过时等冷却结束再提交', () {
+      driveQueueRun(
+        (async) => startWith(
+          async,
+          extraOverrides: [
+            generationCooldownProvider.overrideWith(
+              ScriptedCooldownNotifier.new,
+            ),
+          ],
+          endPreparation: (run) =>
+              (run.container.read(generationCooldownProvider.notifier)
+                      as ScriptedCooldownNotifier)
+                  .hold(),
+        ),
+        (run) {
+          run.elapse(const Duration(seconds: 1));
+          expect(run.started, isEmpty);
+          expect(run.state.status, QueueExecutionStatus.ready);
+
+          (run.container.read(generationCooldownProvider.notifier)
+                  as ScriptedCooldownNotifier)
+              .release();
+          run.elapse(const Duration(seconds: 1));
+          expect(run.started, ['first']);
+          expect(run.state.retryCount, 0);
+        },
+      );
+    });
+
+    for (final stale in ['取消', '成功']) {
+      test('上一次以$stale结束后在准备阶段被取消，与运行中被取消一样停止队列', () {
+        driveQueueRun(
+          (async) {
+            final run = QueueRun(
+              async,
+              prompts: ['first', 'second'],
+              localStorage: queueRetries(3),
+              autoStart: false,
+            );
+            unawaited(
+              run.generation.generate(const ImageParams(prompt: 'manual')),
+            );
+            run.flush();
+            if (stale == '取消') {
+              run.generation.emitCancelled(0);
+            } else {
+              run.generation.complete(0);
+            }
+            run.generation.settle(0);
+            run.flush();
+            run.generation.endNextPreparation =
+                run.generation.cancelPreparation;
+            run.execution.startQueue();
+            run.flush();
+            return run;
+          },
+          (run) {
+            expect(run.state.status, QueueExecutionStatus.idle);
+            expect(
+              run.container
+                  .read(replicationQueueNotifierProvider)
+                  .tasks
+                  .first
+                  .status,
+              ReplicationTaskStatus.pending,
+            );
+            run.elapse(const Duration(seconds: 2));
+            expect(run.started, ['manual']);
+          },
+        );
+      });
+    }
   });
 }
 
