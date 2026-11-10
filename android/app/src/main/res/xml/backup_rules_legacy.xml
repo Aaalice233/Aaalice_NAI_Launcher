@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+    <!-- Android 11 及以下云备份与设备迁移共用此规则，云备份有 25 MB 配额 -->
+    <exclude domain="file" path="hive/replication_queue_blobs" />
 </full-backup-content>
