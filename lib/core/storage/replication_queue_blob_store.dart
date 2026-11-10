@@ -305,6 +305,21 @@ class ReplicationQueueBlobStore {
     return removed;
   });
 
+  /// 在本存储的后台 worker 上对图片目录执行 [task]；[task] 须为顶层或静态函数，
+  /// [argument] 与返回值须可跨 isolate 传递。
+  Future<R> runOnWorker<A, R>(
+    String debugName,
+    A argument,
+    Future<R> Function(StorageFileSystem, String, A) task,
+  ) async => _offload(
+    _worker,
+    debugName,
+    _fileSystem,
+    await directory(),
+    argument,
+    task,
+  );
+
   /// 在调用方所在 isolate 内写入一个以 [digest] 命名的文件；目标已存在且长度一致时跳过。
   static Future<void> storeBlob(
     StorageFileSystem fileSystem,

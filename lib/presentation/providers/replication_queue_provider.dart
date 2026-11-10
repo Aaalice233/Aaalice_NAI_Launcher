@@ -152,6 +152,8 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
         failedTasks: failedTasks,
         isLoading: false,
       );
+    } on AssertionError {
+      rethrow;
     } catch (e) {
       return const ReplicationQueueState(isLoading: false);
     }

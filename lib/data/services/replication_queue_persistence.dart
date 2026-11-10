@@ -5,6 +5,7 @@ import 'package:hive_ce/hive_ce.dart';
 
 import '../../core/storage/queue_state_storage.dart';
 import '../../core/storage/replication_queue_blob_store.dart';
+import '../../core/storage/replication_queue_startup_gate.dart';
 import '../../core/storage/replication_queue_storage.dart';
 import '../../core/utils/app_logger.dart';
 import '../models/queue/replication_task.dart';
@@ -52,7 +53,8 @@ typedef ReplicationQueueLiveState = ({
 ///
 /// 根集合 = 当前状态 ∪ 最近一次保存成功的索引 ∪ 已发出未落地的保存 ∪ 落盘租约，
 /// 队列与失败池同理。保存成功后索引不再引用某张图片、或释放落盘租约时其中有图片不在根集合里，
-/// 都会触发清扫。索引读不出来、或有本版本不认识的快照版本时，根集合无法确定，放弃清扫。
+/// 都会触发清扫。索引读不出来、有本版本不认识的快照版本、或本进程内有人在启动迁移结束前
+/// 读过索引时，根集合无法确定，放弃清扫。
 ///
 /// 写入方法遇到存储层失败时抛出 [ReplicationQueueWriteException]；状态里混进待落盘快照
 /// 这类编程错误原样抛出 [StateError]。
@@ -192,7 +194,12 @@ class ReplicationQueuePersistence {
   void dispose() => _disposed = true;
 
   Set<String>? _liveDigests() {
-    if (_disposed || _queue.unreadable || _failed.unreadable) return null;
+    if (_disposed ||
+        _queue.unreadable ||
+        _failed.unreadable ||
+        ReplicationQueueStartupGate.readWhileClosed) {
+      return null;
+    }
     final live = _liveState();
     final digests = <String>{};
     for (final tasks in [
