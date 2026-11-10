@@ -71,7 +71,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
   ProviderSubscription<dynamic>? _kritaBridgeSubscription;
   ProviderSubscription<dynamic>? _mcpServerSubscription;
   ProviderSubscription<dynamic>? _cooccurrenceDataPackSubscription;
-  bool _queuePausedForBackground = false;
+  ProviderSubscription<QueueExecutionState>? _queueBackgroundPause;
   bool _cloudSyncLifecycleRunning = false;
   final AppBackgroundReturnTracker _backgroundReturn =
       AppBackgroundReturnTracker();
@@ -106,8 +106,8 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     ref.read(subscriptionNotifierProvider.notifier).setAppVisible(visible);
     LocalGalleryThumbnailProvider.setAppLifecycleState(state);
 
-    if (returnedToView) unawaited(_restoreCloudBackupConnection());
-    if (state == AppLifecycleState.resumed) {
+    if (returnedToView) {
+      unawaited(_restoreCloudBackupConnection());
       unawaited(_resumeQueueAfterBackground());
     } else if (!visible) {
       unawaited(_persistAndPauseForBackground());
@@ -191,28 +191,51 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     }
   }
 
+  // 等待期间根组件可能已卸载，之后不能再读 ref，句柄要在第一个 await 之前取好
   Future<void> _persistAndPauseForBackground() async {
-    final queueState = ref.read(queueExecutionNotifierProvider);
-    if (!_queuePausedForBackground &&
-        (queueState.isRunning || queueState.isReady)) {
-      _queuePausedForBackground = true;
-      await ref.read(queueExecutionNotifierProvider.notifier).pause();
-    }
+    final generationParams = ref.read(
+      generationParamsNotifierProvider.notifier,
+    );
+    final imageGeneration = ref.read(imageGenerationNotifierProvider.exists)
+        ? ref.read(imageGenerationNotifierProvider.notifier)
+        : null;
 
-    await ref
-        .read(generationParamsNotifierProvider.notifier)
-        .saveGenerationState();
-    if (ref.read(imageGenerationNotifierProvider.exists)) {
-      await ref
-          .read(imageGenerationNotifierProvider.notifier)
-          .flushGenerationHistory();
-    }
+    await _pauseQueueForBackground();
+    await generationParams.saveGenerationState();
+    await imageGeneration?.flushGenerationHistory();
+  }
+
+  Future<void> _pauseQueueForBackground() async {
+    if (_queueBackgroundPause != null) return;
+    final queueState = ref.read(queueExecutionNotifierProvider);
+    if (!queueState.isRunning && !queueState.isReady) return;
+
+    // 根层在面板静音时仍跟踪恢复和停止，避免回来时接管其他入口的暂停。
+    late final ProviderSubscription<QueueExecutionState> backgroundPause;
+    backgroundPause = ref.listenManual(queueExecutionNotifierProvider, (
+      _,
+      next,
+    ) {
+      if (!next.isPaused) _releaseQueueBackgroundPause(backgroundPause);
+    });
+    _queueBackgroundPause = backgroundPause;
+    await ref.read(queueExecutionNotifierProvider.notifier).pause();
   }
 
   Future<void> _resumeQueueAfterBackground() async {
-    if (!_queuePausedForBackground) return;
-    _queuePausedForBackground = false;
+    final backgroundPause = _queueBackgroundPause;
+    if (backgroundPause == null) return;
+    _releaseQueueBackgroundPause(backgroundPause);
     await ref.read(queueExecutionNotifierProvider.notifier).resume();
+  }
+
+  void _releaseQueueBackgroundPause(
+    ProviderSubscription<QueueExecutionState> backgroundPause,
+  ) {
+    backgroundPause.close();
+    if (identical(_queueBackgroundPause, backgroundPause)) {
+      _queueBackgroundPause = null;
+    }
   }
 
   Future<void> _restoreCloudBackupConnection() async {
@@ -259,6 +282,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     _kritaBridgeSubscription?.close();
     _mcpServerSubscription?.close();
     _cooccurrenceDataPackSubscription?.close();
+    _queueBackgroundPause?.close();
     super.dispose();
   }
 
