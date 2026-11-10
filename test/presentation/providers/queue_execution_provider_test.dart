@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
@@ -10,10 +11,11 @@ import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
+import 'package:nai_launcher/core/storage/replication_queue_blob_store.dart';
+import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
 import 'package:nai_launcher/core/storage/replication_queue_storage.dart';
 import 'package:nai_launcher/core/utils/focused_inpaint_input_exception.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
-import 'package:nai_launcher/core/utils/isolate_pool.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
@@ -29,6 +31,8 @@ import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+
+import '../../helpers/memory_queue_blob_store.dart';
 
 void main() {
   const existingCharacter = CharacterPrompt(
@@ -47,6 +51,7 @@ void main() {
           _MemoryReplicationQueueStorage(),
         ),
         queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
+        replicationQueueBlobStoreProvider.overrideWithValue(_blobStore),
         notificationSettingsNotifierProvider.overrideWith(
           _DisabledNotificationSettingsNotifier.new,
         ),
@@ -377,7 +382,7 @@ void main() {
       steps: 23,
       cfgScale: 4.5,
       seed: 123,
-      generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+      generationSnapshot: await _stored(
         const ImageParams(
           prompt: 'queued prompt',
           negativePrompt: 'queued negative',
@@ -426,7 +431,7 @@ void main() {
       prompt: 'edited prompt',
       negativePrompt: 'snapshot negative',
       applyNegativePrompt: false,
-      generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+      generationSnapshot: await _stored(
         const ImageParams(
           prompt: 'old prompt',
           negativePrompt: 'snapshot negative',
@@ -456,13 +461,13 @@ void main() {
     expect(capture.generated?.strength, 0.42);
   });
 
-  test('大载荷快照在后台解码后照常提交生成', () async {
+  test('引用的图片在后台读取校验后照常提交生成', () async {
     final sourceImage = Uint8List.fromList(
       List.generate(128 * 1024, (index) => index & 0xff),
     );
     final task = ReplicationTask.create(
       prompt: 'large',
-      generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+      generationSnapshot: await _stored(
         ImageParams(prompt: 'large', strength: 0.42, sourceImage: sourceImage),
       ),
     );
@@ -487,10 +492,10 @@ void main() {
     expect(generated.sourceImage, sourceImage);
   });
 
-  test('后台解码期间编辑当前任务时按最新快照生成', () async {
+  test('后台读取图片期间编辑当前任务时按最新快照生成', () async {
     final original = ReplicationTask.create(
       prompt: 'original',
-      generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+      generationSnapshot: await _stored(
         ImageParams(
           prompt: 'original',
           strength: 0.3,
@@ -500,7 +505,7 @@ void main() {
     );
     final edited = original.copyWith(
       prompt: 'edited',
-      generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+      generationSnapshot: await _stored(
         ImageParams(
           prompt: 'edited',
           strength: 0.6,
@@ -515,8 +520,11 @@ void main() {
       generationNotifier: capture,
     );
     addTearDown(container.dispose);
-    final releaseGate = _occupyComputeGate();
-    addTearDown(releaseGate);
+    final readGate = _readGate = Completer<void>();
+    addTearDown(() {
+      if (!readGate.isCompleted) readGate.complete();
+      _readGate = null;
+    });
 
     expect(
       await container
@@ -528,7 +536,7 @@ void main() {
     (container.read(replicationQueueNotifierProvider.notifier)
             as _TestReplicationQueueNotifier)
         .replaceTaskForTest(edited);
-    await releaseGate();
+    readGate.complete();
     final generated = await capture.firstGeneration.future;
 
     expect(generated.prompt, 'edited');
@@ -537,7 +545,7 @@ void main() {
 
   for (final strategy in FailureHandlingStrategy.values) {
     test('损坏的完整快照按 $strategy 结算且保留错误', () async {
-      final snapshot = await ReplicationTaskGenerationSnapshot.encode(
+      final snapshot = await _stored(
         const ImageParams(prompt: 'invalid snapshot'),
       );
       (snapshot['transient']
@@ -582,6 +590,158 @@ void main() {
       expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
     });
   }
+
+  for (final (label, damage, expected) in [
+    ('缺失', (String path) => _blobFiles.files.remove(path), 'missing'),
+    (
+      '损坏',
+      (String path) =>
+          _blobFiles.files[path] = Uint8List(_blobFiles.files[path]!.length),
+      'corrupt',
+    ),
+  ]) {
+    test('引用的图片$label时进失败池并提交下一项', () async {
+      final sourceImage = Uint8List.fromList(
+        List.generate(4096, (index) => (index * 7 + label.length) & 0xff),
+      );
+      final task = ReplicationTask.create(
+        prompt: 'dangling',
+        generationSnapshot: await _stored(
+          ImageParams(prompt: 'dangling', sourceImage: sourceImage),
+        ),
+      );
+      final digest =
+          (task.generationSnapshot!['sourceImage'] as Map)['sha256'] as String;
+      damage(
+        _blobFiles.files.keys.singleWhere((path) => path.endsWith(digest)),
+      );
+      final next = ReplicationTask.create(prompt: 'next');
+      final capture = _CapturingImageGenerationNotifier();
+      final container = _buildControlledQueueContainer(
+        [task, next],
+        capture,
+        localStorage: _RetryingLocalStorageService(),
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        await container
+            .read(queueExecutionNotifierProvider.notifier)
+            .startQueue(),
+        QueueStartResult.started,
+      );
+      await pumpEventQueue(times: 1);
+
+      final queue = container.read(replicationQueueNotifierProvider);
+      expect(queue.failedTasks.single.id, task.id);
+      expect(
+        queue.failedTasks.single.errorMessage,
+        allOf(contains('Invalid generation snapshot'), contains(expected)),
+      );
+      expect(queue.tasks.single.id, next.id);
+      expect(capture.firstGeneration.isCompleted, isTrue);
+      expect((await capture.firstGeneration.future).prompt, next.prompt);
+    });
+  }
+
+  group('暂时读不出图片', () {
+    late ReplicationTask task;
+    late Uint8List sourceImage;
+
+    setUp(() async {
+      sourceImage = Uint8List.fromList(
+        List.generate(2048, (index) => (index * 5 + 3) & 0xff),
+      );
+      task = ReplicationTask.create(
+        prompt: 'locked',
+        generationSnapshot: await _stored(
+          ImageParams(prompt: 'locked', sourceImage: sourceImage),
+        ),
+      );
+      _failedReads = 1;
+      addTearDown(() => _failedReads = 0);
+    });
+
+    test('按重试处理，之后照常提交生成', () async {
+      final capture = _CapturingImageGenerationNotifier();
+      final container = _buildStartContainer(
+        task,
+        AuthStatus.authenticated,
+        generationNotifier: capture,
+        localStorage: _RetryingLocalStorageService(),
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        await container
+            .read(queueExecutionNotifierProvider.notifier)
+            .startQueue(),
+        QueueStartResult.started,
+      );
+      final generated = await capture.firstGeneration.future;
+
+      expect(generated.sourceImage, sourceImage);
+      expect(_failedReads, 0);
+      expect(
+        container.read(replicationQueueNotifierProvider).failedTasks,
+        isEmpty,
+      );
+    });
+
+    test('重试用尽后按失败策略结算，不当作无效快照', () async {
+      final capture = _CapturingImageGenerationNotifier();
+      final container = _buildStartContainer(
+        task,
+        AuthStatus.authenticated,
+        generationNotifier: capture,
+        localStorage: _NoRetryLocalStorageService(),
+      );
+      addTearDown(container.dispose);
+      final execution = container.read(queueExecutionNotifierProvider.notifier);
+      (execution as _TestQueueExecutionNotifier).setStrategyForTest(
+        FailureHandlingStrategy.skip,
+      );
+
+      expect(await execution.startQueue(), QueueStartResult.started);
+      await _waitForExecutionStatus(container, QueueExecutionStatus.completed);
+
+      final queue = container.read(replicationQueueNotifierProvider);
+      expect(capture.generated, isNull);
+      expect(queue.tasks, isEmpty);
+      expect(queue.failedTasks.single.id, task.id);
+      expect(
+        queue.failedTasks.single.errorMessage,
+        QueueBlobReadFailedException.errorCode,
+      );
+      expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
+    });
+
+    test('暂停策略下停在失败任务上，并附带同一原因', () async {
+      final capture = _CapturingImageGenerationNotifier();
+      final container = _buildStartContainer(
+        task,
+        AuthStatus.authenticated,
+        generationNotifier: capture,
+        localStorage: _NoRetryLocalStorageService(),
+      );
+      addTearDown(container.dispose);
+      final execution = container.read(queueExecutionNotifierProvider.notifier);
+      (execution as _TestQueueExecutionNotifier).setStrategyForTest(
+        FailureHandlingStrategy.pauseAndWait,
+      );
+
+      expect(await execution.startQueue(), QueueStartResult.started);
+      await _waitForExecutionStatus(container, QueueExecutionStatus.paused);
+
+      final paused = container
+          .read(replicationQueueNotifierProvider)
+          .tasks
+          .single;
+      expect(capture.generated, isNull);
+      expect(paused.status, ReplicationTaskStatus.failed);
+      expect(paused.errorMessage, QueueBlobReadFailedException.errorCode);
+    });
+  });
 
   test('旧任务没有角色快照时保留当前角色', () {
     final task = ReplicationTask.create(prompt: 'queued prompt');
@@ -681,6 +841,7 @@ ProviderContainer _buildControlledQueueContainer(
         _MemoryReplicationQueueStorage(),
       ),
       queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
+      replicationQueueBlobStoreProvider.overrideWithValue(_blobStore),
       if (localStorage != null)
         localStorageServiceProvider.overrideWithValue(localStorage),
       notificationSettingsNotifierProvider.overrideWith(
@@ -714,7 +875,7 @@ Future<ReplicationTask> _taskWithEmptyFixedFrame() async {
     ..setPixelRgb(100, 100, 255, 255, 255);
   return ReplicationTask.create(
     prompt: 'empty fixed frame',
-    generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+    generationSnapshot: await _stored(
       ImageParams(
         width: 128,
         height: 128,
@@ -794,6 +955,7 @@ ProviderContainer _buildStartContainer(
   AuthStatus authStatus, {
   _TestImageGenerationNotifier? generationNotifier,
   GenerationParamsNotifier Function()? generationParamsNotifier,
+  LocalStorageService? localStorage,
 }) {
   return ProviderContainer(
     overrides: [
@@ -801,6 +963,9 @@ ProviderContainer _buildStartContainer(
         _MemoryReplicationQueueStorage(),
       ),
       queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
+      replicationQueueBlobStoreProvider.overrideWithValue(_blobStore),
+      if (localStorage != null)
+        localStorageServiceProvider.overrideWithValue(localStorage),
       notificationSettingsNotifierProvider.overrideWith(
         _DisabledNotificationSettingsNotifier.new,
       ),
@@ -1068,18 +1233,43 @@ class _CapturingImageGenerationNotifier extends _TestImageGenerationNotifier {
   }
 }
 
-// 占满全局闸门，后台解码只能排队，测试得以在解码期间改动队列
-Future<void> Function() _occupyComputeGate() {
-  final gate = ComputeGate();
-  final blocker = Completer<void>();
-  final holders = [
-    for (var index = 0; index < gate.maxConcurrentTasks; index++)
-      gate.run(() => blocker.future),
-  ];
-  return () async {
-    if (!blocker.isCompleted) blocker.complete();
-    await Future.wait(holders);
-  };
+final _blobFiles = MemoryStorageFileSystem();
+
+// 置为未完成时图片读取停在后台，测试得以在读取期间改动队列
+Completer<void>? _readGate;
+
+// 大于 0 时接下来这么多次读取按文件被占用失败
+int _failedReads = 0;
+
+final _blobStore = ReplicationQueueBlobStore(
+  resolveDirectory: () async => memoryQueueBlobDirectory,
+  fileSystem: _blobFiles,
+  worker: <T>(FutureOr<T> Function() task, {String? debugName}) async {
+    if (debugName == 'QueueBlobStore.read') {
+      await _readGate?.future;
+      if (_failedReads > 0) {
+        _failedReads--;
+        throw const FileSystemException(
+          'injected sharing violation',
+          null,
+          OSError('locked', 32),
+        );
+      }
+    }
+    return task();
+  },
+);
+
+/// 与入队后状态里的形态一致：图片已落盘，快照只存引用。
+Future<Map<String, dynamic>> _stored(
+  ImageParams params, {
+  QueuedFocusedInpaint? focused,
+}) async {
+  final interned = await ReplicationTaskGenerationSnapshot.intern([
+    await ReplicationTaskGenerationSnapshot.encode(params, focused: focused),
+  ], _blobStore);
+  interned.release();
+  return interned.snapshots.single!;
 }
 
 class _BatchGenerationParamsNotifier extends _TestGenerationParamsNotifier {

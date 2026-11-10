@@ -15199,6 +15199,66 @@ abstract class AppLocalizations {
   /// **'Added to queue'**
   String get queue_taskAdded;
 
+  /// No description provided for @queue_imagesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued images can\'t be read right now'**
+  String get queue_imagesUnavailable;
+
+  /// No description provided for @queue_imagesUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The image files may be in use by another program, such as antivirus software. Try again later'**
+  String get queue_imagesUnavailableHint;
+
+  /// No description provided for @queue_enqueueStartedUnsaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the queue, but {count} task(s) already started running. Don\'t add them again'**
+  String queue_enqueueStartedUnsaved(Object count);
+
+  /// No description provided for @queue_enqueueStartedAndWithdrawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the queue: {started} task(s) already started, so don\'t add them again; {withdrawn} other task(s) were withdrawn before execution'**
+  String queue_enqueueStartedAndWithdrawn(Object started, Object withdrawn);
+
+  /// No description provided for @queue_enqueueQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} task(s) were saved in the queue'**
+  String queue_enqueueQueued(Object count);
+
+  /// No description provided for @queue_enqueueWithdrawn.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the queue; {count} task(s) were withdrawn before execution'**
+  String queue_enqueueWithdrawn(Object count);
+
+  /// No description provided for @queue_enqueueRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} task(s) were removed before the save finished and are not counted as added'**
+  String queue_enqueueRemoved(Object count);
+
+  /// No description provided for @queue_enqueueFailedBeforeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} task(s) failed before the save finished and are not counted as successfully added. Check the queue or Failed tab'**
+  String queue_enqueueFailedBeforeSaved(Object count);
+
+  /// No description provided for @queue_enqueueIndexUnsaved.
+  ///
+  /// In en, this message translates to:
+  /// **'The queue index still isn\'t saved. Withdrawn or removed tasks may reappear after a restart. Check the queue before adding tasks again'**
+  String get queue_enqueueIndexUnsaved;
+
+  /// No description provided for @queue_enqueueUnexpectedError.
+  ///
+  /// In en, this message translates to:
+  /// **'An unexpected enqueue error occurred. Check the queue before trying again'**
+  String get queue_enqueueUnexpectedError;
+
   /// No description provided for @queue_negativePromptFromMain.
   ///
   /// In en, this message translates to:

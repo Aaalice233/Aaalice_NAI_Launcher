@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../providers/queue_execution_provider.dart';
@@ -53,7 +54,7 @@ class GenerationQueueTaskService {
       batchSize: prepared.batchSize,
       focused: const QueuedFocusedInpaint.disabled(),
     );
-    // 编码期间队列可能被其他入口填充；此处到 addAll 不能再有 await，否则会部分入队
+    // 先按当前容量整批拒绝；addAll 落盘图片期间队列仍可能被填满，结果里如实报告部分入队
     final remaining = _ref
         .read(replicationQueueNotifierProvider)
         .remainingCapacity;
@@ -88,9 +89,11 @@ class GenerationQueueTaskService {
       );
     });
     try {
-      final added = await _ref
+      final result = await _ref
           .read(replicationQueueNotifierProvider.notifier)
           .addAll(tasks);
+      if (result.outcome != EnqueueOutcome.saved) return _unsaved(result);
+      final added = result.queuedTaskIds.length;
       if (added == 0) {
         return agentToolError(
           'queue_full',
@@ -113,13 +116,82 @@ class GenerationQueueTaskService {
       return agentToolJsonResult({
         'ok': true,
         'added': added,
-        if (added < requestedCount) 'requested': requestedCount,
+        if (added < requestedCount) ...{
+          'requested': requestedCount,
+          'partial': true,
+          'note':
+              'The queue filled up while this request was being stored; '
+              'only $added of $requestedCount task(s) were queued.',
+        },
         'queue_pending': queue.count,
         'queue_started': started,
       });
-    } catch (e) {
-      return agentToolError('queue_enqueue_failed', 'Failed to enqueue: $e');
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to enqueue a generation task',
+        '${error.runtimeType}',
+        stackTrace,
+        'GenerationQueueTaskService',
+      );
+      return agentToolError(
+        'queue_enqueue_failed',
+        'Failed to enqueue (${error.runtimeType}).',
+      );
     }
+  }
+
+  // 已开始的任务没有撤回，再次提交就是重复生成；没发出请求的任务不能说会扣点
+  AgentToolResult _unsaved(EnqueueResult result) {
+    final started = result.startedTaskIds;
+    final failed = result.failedTaskIds;
+    final queued = result.queuedTaskIds.length;
+    final withdrawn = result.withdrawnTaskIds.length;
+    final removed = result.removedTaskIds.length;
+    final nothingKept = started.isEmpty && failed.isEmpty && queued == 0;
+    final message = [
+      if (result.failure case final failure?)
+        'Saving the queue failed (${failure.causeType}).',
+      if (nothingKept) 'No task was queued.',
+      if (started.isNotEmpty)
+        '${started.length} task(s) had already started executing or finished '
+            'and were not withdrawn: ${started.join(', ')}. '
+            'Do not submit them again.',
+      if (failed.isNotEmpty)
+        '${failed.length} task(s) failed before the queue was saved; inspect '
+            'the queue or failed pool: ${failed.join(', ')}.',
+      if (queued > 0) '$queued task(s) were saved in the queue.',
+      if (withdrawn > 0) '$withdrawn task(s) were withdrawn and will not run.',
+      if (removed > 0)
+        '$removed task(s) were removed from the queue before the save '
+            'finished.',
+      if (!result.indexSaved)
+        'The queue index is still not saved: after a restart, withdrawn or '
+            'removed tasks may reappear and started tasks may be missing. '
+            'Inspect the queue before submitting again.'
+      else if (nothingKept)
+        'Submitting again is safe.'
+      else if (withdrawn > 0)
+        'Only the withdrawn task(s) can be submitted again.',
+    ].join(' ');
+    return agentToolError(
+      started.isEmpty
+          ? 'queue_enqueue_failed'
+          : 'queue_enqueue_started_unsaved',
+      message,
+      details: {
+        'started_task_ids': started,
+        'failed_task_ids': failed,
+        'started_count': started.length,
+        'failed_count': failed.length,
+        'queued_task_ids': result.queuedTaskIds,
+        'withdrawn_task_ids': result.withdrawnTaskIds,
+        'removed_task_ids': result.removedTaskIds,
+        'queued_count': queued,
+        'withdrawn_count': withdrawn,
+        'removed_count': removed,
+        'index_saved': result.indexSaved,
+      },
+    );
   }
 
   // -------------------------------------------------------------------------

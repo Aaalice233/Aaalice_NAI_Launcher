@@ -28,6 +28,7 @@ import '../../providers/watermark_settings_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../services/generation_prompt_transfer_service.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/queue/enqueue_result_toast.dart';
 import '../../widgets/online_gallery/gallery_detail_dialog.dart';
 import '../../widgets/online_gallery/gallery_generation_transfer_dialog.dart';
 import '../../widgets/online_gallery/gallery_prompt_copy_dialog.dart';
@@ -558,7 +559,7 @@ class OnlineGalleryDetailLauncher {
     if (prompt.isEmpty && negativePrompt.isEmpty && !hasCharacterPrompt) return;
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
     try {
-      final success = await queueNotifier.add(
+      final result = await queueNotifier.add(
         ReplicationTask.create(
           prompt: prompt,
           negativePrompt: negativePrompt,
@@ -578,33 +579,24 @@ class OnlineGalleryDetailLauncher {
       );
       // 对话框挂在根导航器上，可能比持有 ref 的组件存活更久
       if (!dialogContext.mounted || !context.mounted) return;
-      if (success) {
-        final count = ref.read(
-          replicationQueueNotifierProvider.select((state) => state.count),
-        );
-        AppToast.success(
-          dialogContext,
-          dialogContext.l10n.onlineGallery_addedToQueueWithCount(count),
-        );
-      } else {
-        AppToast.warning(
-          dialogContext,
-          dialogContext.l10n.onlineGallery_queueFullMax,
-        );
-      }
+      final count = ref.read(
+        replicationQueueNotifierProvider.select((state) => state.count),
+      );
+      showEnqueueResultToast(
+        dialogContext,
+        result,
+        successMessage: dialogContext.l10n.onlineGallery_addedToQueueWithCount(
+          count,
+        ),
+      );
     } catch (error, stack) {
       AppLogger.e(
         'Failed to add QuickTagCloud entry to queue',
-        error,
+        '${error.runtimeType}',
         stack,
         'OnlineGallery',
       );
-      if (dialogContext.mounted) {
-        AppToast.error(
-          dialogContext,
-          dialogContext.l10n.onlineGallery_actionFailed('$error'),
-        );
-      }
+      if (dialogContext.mounted) showEnqueueErrorToast(dialogContext);
     }
   }
 

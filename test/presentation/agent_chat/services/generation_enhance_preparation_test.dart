@@ -25,6 +25,9 @@ import 'package:nai_launcher/presentation/providers/generation/image_workflow_co
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
+import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
+
+import '../../../helpers/memory_queue_blob_store.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 
@@ -311,17 +314,21 @@ void main() {
         upscaledEnhance: true,
         isEnhanceRequest: true,
       );
+      final store = memoryQueueBlobStore();
+      final interned = await ReplicationTaskGenerationSnapshot.intern([
+        await ReplicationTaskGenerationSnapshot.encode(params),
+      ], store);
+      interned.release();
       final task = ReplicationTask.create(
         prompt: '1girl',
-        generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
-          params,
-        ),
+        generationSnapshot: interned.snapshots.single,
       );
       final container = ProviderContainer(
         overrides: [
           replicationQueueNotifierProvider.overrideWith(
             () => _SeededQueue(task),
           ),
+          replicationQueueBlobStoreProvider.overrideWithValue(store),
           subscriptionNotifierProvider.overrideWith(_TestSubscription.new),
           imagesPerRequestProvider.overrideWith(_SingleImagePerRequest.new),
         ],

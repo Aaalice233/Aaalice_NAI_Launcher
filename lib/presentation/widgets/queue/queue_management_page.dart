@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -12,6 +13,7 @@ import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
 import '../common/app_toast.dart';
 import '../common/themed_confirm_dialog.dart';
+import 'enqueue_result_toast.dart';
 import 'execution_stats_panel.dart';
 import 'task_list_item.dart';
 import 'task_edit_dialog.dart';
@@ -615,17 +617,30 @@ class _QueueManagementPageState extends ConsumerState<QueueManagementPage>
       return;
     }
 
-    final added = await ref
-        .read(replicationQueueNotifierProvider.notifier)
-        .add(ReplicationTask.create(prompt: prompt));
-    if (!mounted) return;
-    if (!added) {
-      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+    final EnqueueResult result;
+    try {
+      result = await ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .add(ReplicationTask.create(prompt: prompt));
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to add the current prompt to the queue',
+        '${error.runtimeType}',
+        stackTrace,
+        'Queue',
+      );
+      if (mounted) showEnqueueErrorToast(context);
       return;
     }
-
-    _tabController.animateTo(0);
-    AppToast.success(context, context.l10n.queue_taskAdded);
+    if (!mounted) return;
+    if (result.queuedTaskIds.isNotEmpty || result.startedTaskIds.isNotEmpty) {
+      _tabController.animateTo(0);
+    }
+    showEnqueueResultToast(
+      context,
+      result,
+      successMessage: context.l10n.queue_taskAdded,
+    );
   }
 
   void _showTaskDetails(ReplicationTask task) {

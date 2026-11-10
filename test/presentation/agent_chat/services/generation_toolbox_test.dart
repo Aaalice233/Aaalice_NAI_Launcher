@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -6,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:image/image.dart' as image_lib;
+import 'package:logger/logger.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
@@ -25,6 +27,7 @@ import 'package:nai_launcher/data/models/image/image_params.dart'
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/defined_agent_tool.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/execution_toolbox.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_queue_task_service.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/generation_toolbox.dart';
@@ -38,6 +41,9 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
+import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
+
+import '../../../helpers/memory_queue_blob_store.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 
@@ -445,6 +451,300 @@ void main() {
   );
 
   test(
+    'queue_image_task reports a partial enqueue when the queue fills while storing',
+    () async {
+      final queue = _SlowStoringQueueNotifier();
+      final container = ProviderContainer(
+        overrides: [
+          replicationQueueNotifierProvider.overrideWith(() => queue),
+          queueExecutionNotifierProvider.overrideWith(
+            _CountingQueueExecutionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(replicationQueueNotifierProvider);
+      final service = GenerationQueueTaskService(_makeRef(container));
+
+      final pending = service.queueTask(
+        const {},
+        prepared: GenerationPreparation(
+          kind: GenerationPreparationKind.queue,
+          baseParams: const ImageParams(prompt: '1girl'),
+          params: const ImageParams(prompt: '1girl'),
+          batchSize: 1,
+          count: 2,
+          autoStart: false,
+          estimatedAnlas: 0,
+          arguments: const {'prompt': '1girl'},
+        ),
+      );
+      await queue.storing.future;
+      queue.state = queue.state.copyWith(
+        tasks: [
+          for (var i = 0; i < kMaxQueueCapacity - 1; i++)
+            ReplicationTask.create(prompt: 'filler $i'),
+        ],
+      );
+      queue.release.complete();
+      final result = await pending;
+
+      expect(result.isError, isFalse);
+      expect(
+        _json(result),
+        allOf(
+          containsPair('added', 1),
+          containsPair('requested', 2),
+          containsPair('partial', true),
+        ),
+      );
+      expect(_json(result)['note'], contains('1 of 2'));
+    },
+  );
+
+  GenerationPreparation queuePreparation(int count, {bool autoStart = false}) =>
+      GenerationPreparation(
+        kind: GenerationPreparationKind.queue,
+        baseParams: const ImageParams(prompt: '1girl'),
+        params: const ImageParams(prompt: '1girl'),
+        batchSize: 1,
+        count: count,
+        autoStart: autoStart,
+        estimatedAnlas: 0,
+        arguments: const {'prompt': '1girl'},
+      );
+
+  ReplicationQueueWriteException injectedWriteFailure() =>
+      ReplicationQueueWriteException(
+        'Failed to save the queue index',
+        const FileSystemException('injected'),
+      );
+
+  for (final indexSaved in [true, false]) {
+    test('queue_image_task names started tasks when saving fails '
+        '(index saved afterwards: $indexSaved)', () async {
+      final queue = _FixedResultQueueNotifier(
+        (tasks) => EnqueueResult.settled(
+          queuedTaskIds: const [],
+          startedTaskIds: [tasks[0].id],
+          failedTaskIds: [tasks[1].id],
+          withdrawnTaskIds: [tasks[2].id],
+          removedTaskIds: const [],
+          indexSaved: indexSaved,
+          failure: injectedWriteFailure(),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [
+          replicationQueueNotifierProvider.overrideWith(() => queue),
+          queueExecutionNotifierProvider.overrideWith(
+            _CountingQueueExecutionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final execution =
+          container.read(queueExecutionNotifierProvider.notifier)
+              as _CountingQueueExecutionNotifier;
+      final service = GenerationQueueTaskService(_makeRef(container));
+
+      final result = await service.queueTask(
+        const {},
+        prepared: queuePreparation(3, autoStart: true),
+      );
+
+      final json = _json(result);
+      final [started, failed, _] = queue.received;
+      expect(result.isError, isTrue);
+      expect(json['ok'], isFalse);
+      expect(json['code'], 'queue_enqueue_started_unsaved');
+      expect(json['started_task_ids'], [started.id]);
+      expect(json['failed_task_ids'], [failed.id]);
+      expect(json['withdrawn_count'], 1);
+      expect(json['queued_count'], 0);
+      expect(json['removed_count'], 0);
+      expect(json['index_saved'], indexSaved);
+      expect(
+        json['message'],
+        allOf(
+          contains(started.id),
+          contains(failed.id),
+          contains('Do not submit them again'),
+          isNot(contains('Anlas')),
+          isNot(contains('injected')),
+          indexSaved
+              ? isNot(contains('still not saved'))
+              : contains('still not saved'),
+        ),
+      );
+      expect(execution.startCalls, 0);
+    });
+  }
+
+  test(
+    'queue_image_task reports a withdrawn enqueue as safe to retry',
+    () async {
+      final queue = _FixedResultQueueNotifier(
+        (tasks) => EnqueueResult.withdrawn([
+          for (final task in tasks) task.id,
+        ], injectedWriteFailure()),
+      );
+      final container = ProviderContainer(
+        overrides: [replicationQueueNotifierProvider.overrideWith(() => queue)],
+      );
+      addTearDown(container.dispose);
+      final service = GenerationQueueTaskService(_makeRef(container));
+
+      final result = await service.queueTask(
+        const {},
+        prepared: queuePreparation(1),
+      );
+
+      expect(result.isError, isTrue);
+      expect(_json(result)['code'], 'queue_enqueue_failed');
+      expect(
+        _json(result)['message'],
+        allOf(contains('No task was queued'), contains('safe')),
+      );
+    },
+  );
+
+  test(
+    'queue_image_task does not call a withdrawal safe while the index is unsaved',
+    () async {
+      final queue = _FixedResultQueueNotifier(
+        (tasks) => EnqueueResult.settled(
+          queuedTaskIds: const [],
+          startedTaskIds: const [],
+          failedTaskIds: const [],
+          withdrawnTaskIds: [tasks[0].id],
+          removedTaskIds: [tasks[1].id],
+          indexSaved: false,
+          failure: injectedWriteFailure(),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [replicationQueueNotifierProvider.overrideWith(() => queue)],
+      );
+      addTearDown(container.dispose);
+      final service = GenerationQueueTaskService(_makeRef(container));
+
+      final result = await service.queueTask(
+        const {},
+        prepared: queuePreparation(2),
+      );
+
+      final json = _json(result);
+      expect(json['code'], 'queue_enqueue_failed');
+      expect(json['withdrawn_count'], 1);
+      expect(json['removed_count'], 1);
+      expect(json['index_saved'], isFalse);
+      expect(
+        json['message'],
+        allOf(
+          contains('still not saved'),
+          contains('may reappear'),
+          isNot(contains('safe')),
+        ),
+      );
+    },
+  );
+
+  test(
+    'queue_image_task reports an unexpected enqueue error without its text',
+    () async {
+      final queue = _FixedResultQueueNotifier(
+        (_) => Error.throwWithStackTrace(
+          StateError('prompt text that must not leak'),
+          StackTrace.fromString('original enqueue stack'),
+        ),
+      );
+      final container = ProviderContainer(
+        overrides: [replicationQueueNotifierProvider.overrideWith(() => queue)],
+      );
+      addTearDown(container.dispose);
+      final service = GenerationQueueTaskService(_makeRef(container));
+
+      final events = <LogEvent>[];
+      final listener = events.add;
+      Logger.addLogListener(listener);
+      addTearDown(() => Logger.removeLogListener(listener));
+      final json = _json(
+        await service.queueTask(const {}, prepared: queuePreparation(1)),
+      );
+
+      expect(json['code'], 'queue_enqueue_failed');
+      expect(json['message'], contains('StateError'));
+      expect(json['message'], isNot(contains('must not leak')));
+      final event = events.singleWhere(
+        (event) => '${event.message}'.contains('GenerationQueueTaskService'),
+      );
+      expect(event.error, 'StateError');
+      expect(event.stackTrace.toString(), 'original enqueue stack');
+      expect('${event.message} ${event.error}', isNot(contains('must not leak')));
+    },
+  );
+
+  test('error details cannot replace the fixed result keys', () {
+    final json = _json(
+      agentToolError(
+        'real_code',
+        'real message',
+        details: const {
+          'ok': true,
+          'code': 'forged',
+          'message': 'forged',
+          'extra': 1,
+        },
+      ),
+    );
+
+    expect(json['ok'], isFalse);
+    expect(json['code'], 'real_code');
+    expect(json['message'], 'real message');
+    expect(json['extra'], 1);
+  });
+
+  for (final failed in [false, true]) {
+    test(
+      'queue_image_task separates ${failed ? 'failed' : 'removed'} tasks from successful additions',
+      () async {
+        final queue = _FixedResultQueueNotifier(
+          (tasks) => EnqueueResult.settled(
+            queuedTaskIds: [tasks[0].id],
+            startedTaskIds: const [],
+            failedTaskIds: failed ? [tasks[1].id] : const [],
+            removedTaskIds: failed ? const [] : [tasks[1].id],
+            withdrawnTaskIds: const [],
+            indexSaved: true,
+            failure: injectedWriteFailure(),
+          ),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            replicationQueueNotifierProvider.overrideWith(() => queue),
+          ],
+        );
+        addTearDown(container.dispose);
+        final json = _json(
+          await GenerationQueueTaskService(
+            _makeRef(container),
+          ).queueTask(const {}, prepared: queuePreparation(2)),
+        );
+        expect(json['ok'], isFalse);
+        expect(json['queued_count'], 1);
+        expect(json['started_count'], 0);
+        expect(json['failed_count'], failed ? 1 : 0);
+        expect(json['removed_count'], failed ? 0 : 1);
+        expect(json[failed ? 'failed_task_ids' : 'removed_task_ids'], [
+          queue.received[1].id,
+        ]);
+        expect(json['message'], isNot(contains('Anlas')));
+      },
+    );
+  }
+
+  test(
     'queue_image_task persists a structured source reference snapshot',
     () async {
       final container = ProviderContainer(
@@ -494,9 +794,7 @@ void main() {
           .read(replicationQueueNotifierProvider)
           .tasks
           .single;
-      final restored = await ReplicationTaskGenerationSnapshot.decode(
-        task.generationSnapshot!,
-      );
+      final restored = await _decodeQueued(task.generationSnapshot!);
       expect(restored.action, ImageGenerationAction.img2img);
       expect(restored.sourceImage, [1, 2, 3, 4]);
     },
@@ -566,7 +864,7 @@ void main() {
     });
 
     expect(submitted.isError, isFalse);
-    final restored = await ReplicationTaskGenerationSnapshot.decode(
+    final restored = await _decodeQueued(
       container
           .read(replicationQueueNotifierProvider)
           .tasks
@@ -663,9 +961,7 @@ void main() {
         '{{{masterpiece, best_quality, year_2024}}}',
       );
       expect(task.negativePrompt, 'lowres, bad anatomy');
-      final restored = await ReplicationTaskGenerationSnapshot.decode(
-        task.generationSnapshot!,
-      );
+      final restored = await _decodeQueued(task.generationSnapshot!);
       expect(restored.prompt, task.prompt);
       expect(restored.negativePrompt, task.negativePrompt);
     },
@@ -1476,17 +1772,21 @@ void main() {
           ),
         ],
       );
+      final store = memoryQueueBlobStore();
+      final interned = await ReplicationTaskGenerationSnapshot.intern([
+        await ReplicationTaskGenerationSnapshot.encode(params),
+      ], store);
+      interned.release();
       final task = ReplicationTask.create(
         prompt: 'snapshot prompt',
-        generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
-          params,
-        ),
+        generationSnapshot: interned.snapshots.single,
       );
       final container = ProviderContainer(
         overrides: [
           replicationQueueNotifierProvider.overrideWith(
             () => _SeededReplicationQueueNotifier(task),
           ),
+          replicationQueueBlobStoreProvider.overrideWithValue(store),
           subscriptionNotifierProvider.overrideWith(
             _TestSubscriptionNotifier.new,
           ),
@@ -1902,10 +2202,36 @@ class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
   ReplicationQueueState build() => const ReplicationQueueState();
 
   @override
-  Future<int> addAll(List<ReplicationTask> tasks) async {
+  Future<EnqueueResult> addAll(List<ReplicationTask> tasks) async {
     final toAdd = tasks.take(state.remainingCapacity).toList();
     state = state.copyWith(tasks: [...state.tasks, ...toAdd]);
-    return toAdd.length;
+    return EnqueueResult.saved([for (final task in toAdd) task.id]);
+  }
+}
+
+// 模拟入队时落盘图片的等待：等待期间其他入口可以继续占用容量
+class _SlowStoringQueueNotifier extends _TestReplicationQueueNotifier {
+  final Completer<void> storing = Completer<void>();
+  final Completer<void> release = Completer<void>();
+
+  @override
+  Future<EnqueueResult> addAll(List<ReplicationTask> tasks) async {
+    storing.complete();
+    await release.future;
+    return super.addAll(tasks);
+  }
+}
+
+class _FixedResultQueueNotifier extends _TestReplicationQueueNotifier {
+  _FixedResultQueueNotifier(this.resultFor);
+
+  final EnqueueResult Function(List<ReplicationTask> tasks) resultFor;
+  List<ReplicationTask> received = const [];
+
+  @override
+  Future<EnqueueResult> addAll(List<ReplicationTask> tasks) async {
+    received = tasks;
+    return resultFor(tasks);
   }
 }
 
@@ -2067,3 +2393,7 @@ class _TestResourceResolver extends AgentResourceResolver {
     text: textByResourceId[requested.resourceId],
   );
 }
+
+// 测试里的队列直接保存待落盘快照，解码不会读取图片文件
+Future<ImageParams> _decodeQueued(Map<String, dynamic> snapshot) =>
+    ReplicationTaskGenerationSnapshot.decode(snapshot, memoryQueueBlobStore());

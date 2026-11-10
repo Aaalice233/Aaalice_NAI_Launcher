@@ -8428,6 +8428,51 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_taskAdded => 'キューに追加されました';
 
   @override
+  String get queue_imagesUnavailable => 'キューの画像を現在読み込めません';
+
+  @override
+  String get queue_imagesUnavailableHint =>
+      '画像ファイルが他のプログラム（ウイルス対策ソフトなど）に使用されている可能性があります。しばらくしてから再試行してください';
+
+  @override
+  String queue_enqueueStartedUnsaved(Object count) {
+    return 'キューを保存できませんでしたが、$count 件のタスクはすでに実行を開始しています。再度追加しないでください';
+  }
+
+  @override
+  String queue_enqueueStartedAndWithdrawn(Object started, Object withdrawn) {
+    return 'キューを保存できませんでした。$started 件はすでに実行を開始しているため、再度追加しないでください。ほかの $withdrawn 件は実行前に取り消されました';
+  }
+
+  @override
+  String queue_enqueueQueued(Object count) {
+    return '$count 件のタスクはキューに保存されました';
+  }
+
+  @override
+  String queue_enqueueWithdrawn(Object count) {
+    return 'キューを保存できず、$count 件のタスクは実行前に取り消されました';
+  }
+
+  @override
+  String queue_enqueueRemoved(Object count) {
+    return '$count 件のタスクは保存完了前に削除されたため、追加成功には数えられません';
+  }
+
+  @override
+  String queue_enqueueFailedBeforeSaved(Object count) {
+    return '$count 件のタスクは保存完了前に失敗したため、追加成功には数えられません。キューまたは失敗タブを確認してください';
+  }
+
+  @override
+  String get queue_enqueueIndexUnsaved =>
+      'キューのインデックスはまだ保存されていません。取り消し済みまたは削除済みのタスクが再起動後に再表示される可能性があります。確認してから再度追加してください';
+
+  @override
+  String get queue_enqueueUnexpectedError =>
+      'キューへの追加中に予期しないエラーが発生しました。キューを確認してから再試行してください';
+
+  @override
   String get queue_negativePromptFromMain => '除外したい要素にはメインページの設定が使用されます';
 
   @override

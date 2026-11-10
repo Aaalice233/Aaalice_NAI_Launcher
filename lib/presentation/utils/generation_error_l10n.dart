@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/storage/replication_queue_blob_store.dart';
 import '../../core/utils/focused_inpaint_input_exception.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/utils/localization_extension.dart';
@@ -46,6 +47,10 @@ String detailGenerationError(BuildContext context, String message) {
 
   if (message == 'Cancelled') {
     return (l10n.generation_cancelGeneration, null);
+  }
+
+  if (message == QueueBlobReadFailedException.errorCode) {
+    return (l10n.queue_imagesUnavailable, l10n.queue_imagesUnavailableHint);
   }
 
   if (EmptyInpaintMaskException.matches(message)) {

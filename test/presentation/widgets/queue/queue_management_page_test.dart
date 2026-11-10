@@ -12,8 +12,72 @@ import 'package:nai_launcher/presentation/widgets/common/adaptive_dialog_frame.d
 import 'package:nai_launcher/presentation/widgets/queue/queue_management_page.dart';
 import 'package:nai_launcher/presentation/widgets/queue/task_edit_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/queue/task_list_item.dart';
+import 'package:nai_launcher/presentation/widgets/queue/enqueue_result_toast.dart';
+
+import '../../../helpers/enqueue_result_fixture.dart';
 
 void main() {
+  for (final fixture in EnqueueFixture.values) {
+    for (final duplicate in [false, true]) {
+      testWidgets('${duplicate ? '复制对话框' : '队列页'}报告 ${fixture.name}', (
+        tester,
+      ) async {
+        final queue = ResultQueueNotifier(fixture);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              replicationQueueNotifierProvider.overrideWith(() => queue),
+              queueExecutionNotifierProvider.overrideWith(
+                _IdleExecutionNotifier.new,
+              ),
+              generationParamsNotifierProvider.overrideWith(
+                _QueuePromptNotifier.new,
+              ),
+            ],
+            child: MaterialApp(
+              locale: const Locale('zh'),
+              supportedLocales: AppLocalizations.supportedLocales,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              home: duplicate
+                  ? Scaffold(
+                      body: TaskEditDialog(
+                        task: ReplicationTask.create(prompt: 'copy'),
+                      ),
+                    )
+                  : const QueueManagementPage(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final action = find.byKey(
+          Key(duplicate ? 'task-edit-duplicate' : 'queue-add-current-task'),
+        );
+        await tester.ensureVisible(action);
+        await tester.tap(action);
+        await tester.pump();
+        final l10n = lookupAppLocalizations(const Locale('zh'));
+        final expected = switch (fixture) {
+          EnqueueFixture.saved =>
+            duplicate ? l10n.queue_taskDuplicated : l10n.queue_taskAdded,
+          EnqueueFixture.full =>
+            duplicate ? l10n.queue_queueFull : l10n.onlineGallery_queueFullMax,
+          EnqueueFixture.unexpected =>
+            duplicate
+                ? l10n.onlineGallery_actionFailed(l10n.queue_duplicateTask)
+                : l10n.queue_enqueueUnexpectedError,
+          _ => enqueueFailureMessage(
+            l10n,
+            fixture.resolve([ReplicationTask.create(prompt: 'test')]),
+          )!,
+        };
+        expect(find.text(expected), findsOneWidget);
+        expect(find.textContaining('private'), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pump(const Duration(seconds: 4));
+      });
+    }
+  }
+
   Widget buildApp({double textScale = 1}) {
     return ProviderScope(
       overrides: [
@@ -331,4 +395,9 @@ class _IdleExecutionNotifier extends QueueExecutionNotifier {
 class _EmptyGenerationParamsNotifier extends GenerationParamsNotifier {
   @override
   ImageParams build() => const ImageParams();
+}
+
+class _QueuePromptNotifier extends GenerationParamsNotifier {
+  @override
+  ImageParams build() => const ImageParams(prompt: 'queued');
 }

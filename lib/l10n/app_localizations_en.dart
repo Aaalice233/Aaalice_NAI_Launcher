@@ -8636,6 +8636,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_taskAdded => 'Added to queue';
 
   @override
+  String get queue_imagesUnavailable =>
+      'Queued images can\'t be read right now';
+
+  @override
+  String get queue_imagesUnavailableHint =>
+      'The image files may be in use by another program, such as antivirus software. Try again later';
+
+  @override
+  String queue_enqueueStartedUnsaved(Object count) {
+    return 'Couldn\'t save the queue, but $count task(s) already started running. Don\'t add them again';
+  }
+
+  @override
+  String queue_enqueueStartedAndWithdrawn(Object started, Object withdrawn) {
+    return 'Couldn\'t save the queue: $started task(s) already started, so don\'t add them again; $withdrawn other task(s) were withdrawn before execution';
+  }
+
+  @override
+  String queue_enqueueQueued(Object count) {
+    return '$count task(s) were saved in the queue';
+  }
+
+  @override
+  String queue_enqueueWithdrawn(Object count) {
+    return 'Couldn\'t save the queue; $count task(s) were withdrawn before execution';
+  }
+
+  @override
+  String queue_enqueueRemoved(Object count) {
+    return '$count task(s) were removed before the save finished and are not counted as added';
+  }
+
+  @override
+  String queue_enqueueFailedBeforeSaved(Object count) {
+    return '$count task(s) failed before the save finished and are not counted as successfully added. Check the queue or Failed tab';
+  }
+
+  @override
+  String get queue_enqueueIndexUnsaved =>
+      'The queue index still isn\'t saved. Withdrawn or removed tasks may reappear after a restart. Check the queue before adding tasks again';
+
+  @override
+  String get queue_enqueueUnexpectedError =>
+      'An unexpected enqueue error occurred. Check the queue before trying again';
+
+  @override
   String get queue_negativePromptFromMain =>
       'Undesired Content will use main page settings';
 

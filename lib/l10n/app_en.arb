@@ -4048,6 +4048,47 @@
   "queue_size": "Size",
   "queue_addCurrentTask": "Add Current Task",
   "queue_taskAdded": "Added to queue",
+  "queue_imagesUnavailable": "Queued images can't be read right now",
+  "queue_imagesUnavailableHint": "The image files may be in use by another program, such as antivirus software. Try again later",
+  "queue_enqueueStartedUnsaved": "Couldn't save the queue, but {count} task(s) already started running. Don't add them again",
+  "@queue_enqueueStartedUnsaved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueStartedAndWithdrawn": "Couldn't save the queue: {started} task(s) already started, so don't add them again; {withdrawn} other task(s) were withdrawn before execution",
+  "@queue_enqueueStartedAndWithdrawn": {
+    "placeholders": {
+      "started": {},
+      "withdrawn": {}
+    }
+  },
+  "queue_enqueueQueued": "{count} task(s) were saved in the queue",
+  "@queue_enqueueQueued": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueWithdrawn": "Couldn't save the queue; {count} task(s) were withdrawn before execution",
+  "@queue_enqueueWithdrawn": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueRemoved": "{count} task(s) were removed before the save finished and are not counted as added",
+  "@queue_enqueueRemoved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueFailedBeforeSaved": "{count} task(s) failed before the save finished and are not counted as successfully added. Check the queue or Failed tab",
+  "@queue_enqueueFailedBeforeSaved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueIndexUnsaved": "The queue index still isn't saved. Withdrawn or removed tasks may reappear after a restart. Check the queue before adding tasks again",
+  "queue_enqueueUnexpectedError": "An unexpected enqueue error occurred. Check the queue before trying again",
   "queue_negativePromptFromMain": "Undesired Content will use main page settings",
 
   "queue_pinToTop": "Pin to Top",

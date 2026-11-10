@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../../core/services/file_export_service.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/media_mime_type.dart';
 import '../../../data/models/online_gallery/danbooru_post.dart';
@@ -17,6 +18,7 @@ import '../../providers/replication_queue_provider.dart';
 import '../../providers/selection_mode_provider.dart';
 import '../../services/gallery_prompt_projection_service.dart';
 import '../../widgets/common/app_toast.dart';
+import '../../widgets/queue/enqueue_result_toast.dart';
 import '../../widgets/common/image_card_action.dart';
 import 'online_gallery_download_plan.dart';
 import 'online_gallery_utils.dart';
@@ -92,7 +94,10 @@ class OnlineGallerySelectionActions {
       );
       return file.path;
     } catch (error) {
-      debugPrint('Failed to cache queue thumbnail $previewUrl: $error');
+      AppLogger.w(
+        'Failed to cache queue thumbnail (${error.runtimeType})',
+        'OnlineGallery',
+      );
       return null;
     }
   }
@@ -161,7 +166,10 @@ class OnlineGallerySelectionActions {
         failed: false,
       );
     } catch (error) {
-      debugPrint('Failed to resolve ${post.stableKey} for queue: $error');
+      AppLogger.w(
+        'Failed to prepare gallery task (${error.runtimeType})',
+        'OnlineGallery',
+      );
       return (task: null, failed: true);
     }
   }
@@ -186,6 +194,7 @@ class OnlineGallerySelectionActions {
     if (selectedPosts.isEmpty) return;
 
     final tasks = <ReplicationTask>[];
+    final postKeyByTaskId = <String, String>{};
     var preparationFailureCount = 0;
     const concurrency = 4;
     for (var start = 0; start < selectedPosts.length; start += concurrency) {
@@ -203,7 +212,12 @@ class OnlineGallerySelectionActions {
           ),
         ),
       );
-      tasks.addAll(resolved.map((result) => result.task).whereType());
+      for (var index = 0; index < batch.length; index++) {
+        final task = resolved[index].task;
+        if (task == null) continue;
+        tasks.add(task);
+        postKeyByTaskId[task.id] = batch[index].stableKey;
+      }
       preparationFailureCount += resolved
           .where((result) => result.failed)
           .length;
@@ -223,10 +237,46 @@ class OnlineGallerySelectionActions {
       return;
     }
 
-    final addedCount = await queueNotifier.addAll(tasks);
+    final EnqueueResult result;
+    try {
+      result = await queueNotifier.addAll(tasks);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to add selected posts to the queue',
+        '${error.runtimeType}',
+        stackTrace,
+        'OnlineGallery',
+      );
+      if (context.mounted) showEnqueueErrorToast(context);
+      return;
+    }
 
     if (context.mounted) {
+      final addedCount = result.accepted;
       final queueSkippedCount = tasks.length - addedCount;
+      if (showEnqueueFailureToast(
+        context,
+        result,
+        extraLines: [
+          if (preparationFailureCount > 0 || queueSkippedCount > 0)
+            context.l10n.onlineGallery_queueBatchCompleted(
+              result.queuedTaskIds.length,
+              preparationFailureCount,
+              queueSkippedCount,
+            ),
+        ],
+      )) {
+        // 只留下被撤回的帖子，直接重试不会重复加入已入队或已开始的任务
+        if (result.withdrawnTaskIds.isNotEmpty) {
+          selectionNotifier.replaceSelection([
+            for (final taskId in result.withdrawnTaskIds)
+              postKeyByTaskId[taskId]!,
+          ]);
+        } else {
+          selectionNotifier.exit();
+        }
+        return;
+      }
       if (preparationFailureCount > 0 || queueSkippedCount > 0) {
         AppToast.warning(
           context,

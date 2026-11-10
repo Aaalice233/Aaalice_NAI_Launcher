@@ -4054,6 +4054,47 @@
   "queue_size": "尺寸",
   "queue_addCurrentTask": "加入当前任务",
   "queue_taskAdded": "已加入队列",
+  "queue_imagesUnavailable": "队列图片暂时无法读取",
+  "queue_imagesUnavailableHint": "图片文件可能正被其他程序占用（例如杀毒软件），请稍后重试",
+  "queue_enqueueStartedUnsaved": "队列保存失败，但已有 {count} 个任务开始执行，请勿重复添加",
+  "@queue_enqueueStartedUnsaved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueStartedAndWithdrawn": "队列保存失败：{started} 个任务已开始执行，请勿重复添加；另有 {withdrawn} 个任务已撤回，未开始执行",
+  "@queue_enqueueStartedAndWithdrawn": {
+    "placeholders": {
+      "started": {},
+      "withdrawn": {}
+    }
+  },
+  "queue_enqueueQueued": "{count} 个任务已保存到队列",
+  "@queue_enqueueQueued": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueWithdrawn": "队列保存失败，{count} 个任务已撤回，未开始执行",
+  "@queue_enqueueWithdrawn": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueRemoved": "{count} 个任务在保存完成前已被移出，未计为成功加入",
+  "@queue_enqueueRemoved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueFailedBeforeSaved": "{count} 个任务在保存完成前已失败，未计为成功加入，请检查队列或「失败」列表",
+  "@queue_enqueueFailedBeforeSaved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueIndexUnsaved": "队列索引仍未保存成功，重启后已撤回或已移出的任务可能仍在队列里，请检查后再重新添加",
+  "queue_enqueueUnexpectedError": "入队时发生意外错误，请检查队列状态后再重试",
   "queue_negativePromptFromMain": "负向提示词将使用主界面设置",
 
   "queue_pinToTop": "置顶",

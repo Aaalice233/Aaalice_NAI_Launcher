@@ -4061,6 +4061,47 @@
   "queue_size": "尺寸",
   "queue_addCurrentTask": "加入目前任務",
   "queue_taskAdded": "已加入佇列",
+  "queue_imagesUnavailable": "佇列圖片暫時無法讀取",
+  "queue_imagesUnavailableHint": "圖片檔案可能正被其他程式佔用（例如防毒軟體），請稍後重試",
+  "queue_enqueueStartedUnsaved": "佇列儲存失敗，但已有 {count} 個任務開始執行，請勿重複加入",
+  "@queue_enqueueStartedUnsaved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueStartedAndWithdrawn": "佇列儲存失敗：{started} 個任務已開始執行，請勿重複加入；另有 {withdrawn} 個任務已撤回，未開始執行",
+  "@queue_enqueueStartedAndWithdrawn": {
+    "placeholders": {
+      "started": {},
+      "withdrawn": {}
+    }
+  },
+  "queue_enqueueQueued": "{count} 個任務已儲存至佇列",
+  "@queue_enqueueQueued": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueWithdrawn": "佇列儲存失敗，{count} 個任務已撤回，未開始執行",
+  "@queue_enqueueWithdrawn": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueRemoved": "{count} 個任務在儲存完成前已被移出，未計為成功加入",
+  "@queue_enqueueRemoved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueFailedBeforeSaved": "{count} 個任務在儲存完成前已失敗，未計為成功加入，請檢查佇列或「失敗」列表",
+  "@queue_enqueueFailedBeforeSaved": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "queue_enqueueIndexUnsaved": "佇列索引仍未儲存成功，重新啟動後已撤回或已移出的任務可能仍在佇列裡，請檢查後再重新加入",
+  "queue_enqueueUnexpectedError": "入列時發生非預期錯誤，請檢查佇列狀態後再重試",
   "queue_negativePromptFromMain": "負向提示詞將使用主介面設定",
   "queue_pinToTop": "置頂",
   "queue_delete": "刪除",

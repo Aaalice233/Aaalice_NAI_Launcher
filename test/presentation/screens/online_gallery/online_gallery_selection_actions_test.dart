@@ -10,14 +10,95 @@ import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/selection_mode_provider.dart';
+import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/widgets/queue/enqueue_result_toast.dart';
 import 'package:nai_launcher/presentation/screens/online_gallery/online_gallery_selection_actions.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_action.dart';
 
 import '../../../helpers/empty_gallery_source_adapter.dart';
 import '../../../helpers/fake_save_file_picker.dart';
 import '../../../helpers/memory_local_storage.dart';
+import '../../../helpers/enqueue_result_fixture.dart';
 
 void main() {
+  for (final fixture in EnqueueFixture.values) {
+    testWidgets('批量入队 ${fixture.name} 保留真实计数与可重试选择', (tester) async {
+      final posts = [
+        const GalleryItem(id: 1, tagString: 'one'),
+        const GalleryItem(id: 2, tagString: 'two'),
+        const GalleryItem(id: 3),
+      ];
+      final queue = ResultQueueNotifier(fixture);
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
+          onlineGalleryNotifierProvider.overrideWith(
+            () => _QueueGallery(posts),
+          ),
+          replicationQueueNotifierProvider.overrideWith(() => queue),
+        ],
+      );
+      addTearDown(container.dispose);
+      late OnlineGallerySelectionActions actions;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Consumer(
+              builder: (context, ref, _) {
+                ref.watch(onlineGallerySelectionNotifierProvider);
+                ref.watch(onlineGalleryNotifierProvider);
+                actions = OnlineGallerySelectionActions(
+                  context: context,
+                  ref: ref,
+                );
+                return const Scaffold();
+              },
+            ),
+          ),
+        ),
+      );
+      final selection = container.read(
+        onlineGallerySelectionNotifierProvider.notifier,
+      );
+      selection.replaceSelection(posts.map((post) => post.stableKey).toList());
+      await actions.addSelectedToQueue(posts);
+      await tester.pump();
+
+      final l10n = lookupAppLocalizations(const Locale('zh'));
+      final batchMessage = l10n.onlineGallery_queueBatchCompleted(
+        fixture == EnqueueFixture.saved ? 2 : 0,
+        1,
+        fixture == EnqueueFixture.full ? 2 : 0,
+      );
+      final expected = switch (fixture) {
+        EnqueueFixture.saved || EnqueueFixture.full => batchMessage,
+        EnqueueFixture.unexpected => l10n.queue_enqueueUnexpectedError,
+        _ =>
+          '${enqueueFailureMessage(l10n, fixture.resolve(queue.received))}\n$batchMessage',
+      };
+      expect(find.text(expected), findsOneWidget);
+      final remaining = container
+          .read(onlineGallerySelectionNotifierProvider)
+          .selectedIds;
+      expect(remaining, switch (fixture) {
+        EnqueueFixture.started => {posts[1].stableKey},
+        EnqueueFixture.withdrawn ||
+        EnqueueFixture.unsaved => {posts[0].stableKey, posts[1].stableKey},
+        EnqueueFixture.unexpected =>
+          posts.map((post) => post.stableKey).toSet(),
+        _ => isEmpty,
+      });
+      expect(find.textContaining('private'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(seconds: 4));
+    });
+  }
+
   Future<List<ImageCardActionId>> actionIds(
     WidgetTester tester,
     OnlineGalleryState state,
@@ -161,6 +242,14 @@ void main() {
       expect(adapter.detailRequests, 1);
     },
   );
+}
+
+class _QueueGallery extends OnlineGalleryNotifier {
+  _QueueGallery(this.posts);
+  final List<GalleryItem> posts;
+  @override
+  OnlineGalleryState build() =>
+      OnlineGalleryState(searchCache: ModeCache(posts: posts));
 }
 
 class _PendingDirectoryPicker extends FakeSaveFilePicker {

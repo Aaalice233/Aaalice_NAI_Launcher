@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/storage/replication_queue_blob_store.dart';
+import '../../../core/storage/replication_queue_blob_store_provider.dart';
 import '../../../core/services/anlas_calculator.dart';
 import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/json_utf8_stream.dart';
@@ -77,7 +79,9 @@ class QueueToolbox {
     name: 'inspect_generation_queue',
     label: 'Inspect Generation Queue',
     description:
-        'Inspect queue execution state and safe summaries of pending, failed, and completed tasks.',
+        'Inspect queue execution state and safe summaries of pending, failed, and completed tasks. '
+        'Snapshot summaries are read from the stored index only: index_valid reports its structure, '
+        'and referenced images are not checked until the queue is estimated or executed.',
     parameters: toolboxObject(
       properties: {
         'include_completed': {'type': 'boolean'},
@@ -93,19 +97,17 @@ class QueueToolbox {
         'execution': queueExecutionJson(execution),
         'capacity': kMaxQueueCapacity,
         'remaining_capacity': queue.remainingCapacity,
-        // 逐个等待：同一时刻只持有一份解码后的快照
         'pending': [
-          for (final task in queue.tasks.take(limit))
-            await replicationTaskJson(task),
+          for (final task in queue.tasks.take(limit)) replicationTaskJson(task),
         ],
         'failed': [
           for (final task in queue.failedTasks.take(limit))
-            await replicationTaskJson(task),
+            replicationTaskJson(task),
         ],
         if (params['include_completed'] == true)
           'completed': [
             for (final task in queue.completedTasks.reversed.take(limit))
-              await replicationTaskJson(task),
+              replicationTaskJson(task),
           ],
       });
     },
@@ -115,7 +117,8 @@ class QueueToolbox {
     name: 'inspect_generation_queue_task',
     label: 'Inspect Generation Queue Task',
     description:
-        'Inspect one pending, running, failed, or completed queue task.',
+        'Inspect one pending, running, failed, or completed queue task. '
+        'The snapshot summary does not check referenced images; see inspect_generation_queue.',
     parameters: _taskIdSchema,
     executeFn: (_, params) async {
       final task = _findTask(params['task_id'] as String);
@@ -123,7 +126,7 @@ class QueueToolbox {
           ? agentToolError('not_found', 'Queue task not found.')
           : agentToolJsonResult({
               'ok': true,
-              'task': await replicationTaskJson(task, full: true),
+              'task': replicationTaskJson(task, full: true),
             });
     },
   );
@@ -206,10 +209,30 @@ class QueueToolbox {
       late final int estimate;
       try {
         estimate = await _estimate(tasks);
+      } on QueueBlobReadFailedException catch (error) {
+        // Windows 上读到正在删除的文件会报拒绝访问，同样可能只是并发变更的结果
+        if (!_samePendingTasks(tasks)) {
+          return agentToolError(
+            'queue_changed',
+            'Queue changed during estimation; prepare it again.',
+          );
+        }
+        return agentToolError(
+          'queue_images_unavailable',
+          'Queued images could not be read right now (${error.message}); '
+              'prepare the queue again shortly.',
+        );
       } on FormatException catch (error) {
+        // 估价期间任务被删或被改时，缺图只是并发变更的结果
+        if (!_samePendingTasks(tasks)) {
+          return agentToolError(
+            'queue_changed',
+            'Queue changed during estimation; prepare it again.',
+          );
+        }
         return agentToolError(
           'invalid_queue_snapshot',
-          'A queued generation snapshot is invalid: $error',
+          'A queued generation snapshot is invalid: ${error.message}',
         );
       }
       if (estimate == AnlasCalculator.invalidCost) {
@@ -461,13 +484,19 @@ class QueueToolbox {
         .read(imageWorkflowControllerProvider)
         .focusedSnapshot;
     final estimator = GenerationAnlasEstimator(_ref);
+    final blobStore = _ref.read(replicationQueueBlobStoreProvider);
     var total = 0;
-    // 逐个解码：同一时刻只持有一份解码后的快照
+    // 逐个解码：同一时刻只持有一份任务的图片
     for (final task in tasks) {
       final snapshot = task.generationSnapshot;
       final snapshotParams = snapshot == null
           ? null
-          : await ReplicationTaskGenerationSnapshot.decode(snapshot);
+          : await ReplicationTaskGenerationSnapshot.decode(
+              snapshot,
+              blobStore,
+              // 估价只需参数与图片尺寸，完整摘要校验留给执行前
+              verify: QueueBlobVerification.lengthOnly,
+            );
       final focused = snapshot == null
           ? null
           : queuedFocusedOverride(
