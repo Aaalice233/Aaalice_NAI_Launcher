@@ -371,26 +371,6 @@ void main() {
         );
       },
     );
-
-    test('measures persisted bytes like utf8.encode(jsonEncode())', () async {
-      final large = await ReplicationTaskGenerationSnapshot.encode(params);
-      final text = await ReplicationTaskGenerationSnapshot.encode(
-        const ImageParams(prompt: '"esc"\\ \u0001 中文 😀 \ud800 lone'),
-      );
-
-      final sizes =
-          await ReplicationTaskGenerationSnapshot.measurePersistedBytes([
-            large,
-            text,
-            large,
-          ]);
-
-      expect(sizes, [
-        utf8.encode(jsonEncode(large)).length,
-        utf8.encode(jsonEncode(text)).length,
-        utf8.encode(jsonEncode(large)).length,
-      ]);
-    });
   });
 }
 

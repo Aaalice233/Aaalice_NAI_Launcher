@@ -8,15 +8,8 @@ import 'defined_agent_tool.dart';
 import 'generation_preparation_runtime.dart';
 
 class GenerationQueueTaskService {
-  GenerationQueueTaskService(
-    this._ref, {
-    required int maxQueueSnapshotBytes,
-    required int maxPersistedQueueSnapshotBytes,
-  }) : _maxQueueSnapshotBytes = maxQueueSnapshotBytes,
-       _maxPersistedQueueSnapshotBytes = maxPersistedQueueSnapshotBytes;
+  GenerationQueueTaskService(this._ref);
   final Ref _ref;
-  final int _maxQueueSnapshotBytes;
-  final int _maxPersistedQueueSnapshotBytes;
   Future<AgentToolResult> queueTask(
     Map<String, dynamic> _, {
     required GenerationPreparation prepared,
@@ -60,23 +53,7 @@ class GenerationQueueTaskService {
       batchSize: prepared.batchSize,
       focused: const QueuedFocusedInpaint.disabled(),
     );
-    final existingSnapshots = _ref
-        .read(replicationQueueNotifierProvider)
-        .tasks
-        .map((task) => task.generationSnapshot)
-        .whereType<Map<String, dynamic>>();
-    final [
-      snapshotBytes,
-      ...existingSizes,
-    ] = await ReplicationTaskGenerationSnapshot.measurePersistedBytes([
-      generationSnapshot,
-      ...existingSnapshots,
-    ]);
-    final existingSnapshotBytes = existingSizes.fold<int>(
-      0,
-      (total, size) => total + size,
-    );
-    // 编码与计量期间队列可能被其他入口填充；此处到 addAll 不能再有 await，否则会部分入队
+    // 编码期间队列可能被其他入口填充；此处到 addAll 不能再有 await，否则会部分入队
     final remaining = _ref
         .read(replicationQueueNotifierProvider)
         .remainingCapacity;
@@ -91,15 +68,6 @@ class GenerationQueueTaskService {
         'queue_capacity_insufficient',
         'Queue has room for $remaining task(s), but this confirmed preparation '
             'requires $requestedCount. Prepare again for the current capacity.',
-      );
-    }
-    if (snapshotBytes > _maxQueueSnapshotBytes ||
-        existingSnapshotBytes + snapshotBytes * count >
-            _maxPersistedQueueSnapshotBytes) {
-      return agentToolError(
-        'queue_snapshot_too_large',
-        'The complete generation snapshot is too large to persist safely. '
-            'Reduce the task count or the number and size of image references.',
       );
     }
     final tasks = List.generate(count, (_) {
