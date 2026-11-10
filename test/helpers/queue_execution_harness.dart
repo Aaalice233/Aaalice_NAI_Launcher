@@ -322,27 +322,70 @@ class TestReplicationQueueNotifier extends ReplicationQueueNotifier {
   }
 }
 
-// 闸门打开前，失败结算卡在对应的队列写入上
+// 与真实实现一致先改内存，闸门与错误作用在随后的保存上：闸门打开前写入卡住，设了错误就在保存时抛出
 class GatedReplicationQueueNotifier extends TestReplicationQueueNotifier {
   GatedReplicationQueueNotifier(super.tasks);
 
   Completer<void>? moveGate;
   Completer<void>? failGate;
 
-  @override
-  Future<void> moveToFailedPool(String taskId) async {
-    await moveGate?.future;
-    return super.moveToFailedPool(taskId);
+  /// 确定性错误结算先把原因写到运行中的任务上，这次写入受它控制
+  Completer<void>? unretryableGate;
+  Object? unretryableError;
+
+  Object? markCompletedError;
+  Object? moveToFailedPoolError;
+
+  /// 任务被标为运行中时的写入
+  Object? runningStatusError;
+
+  MemoryReplicationQueueStorage get _storage =>
+      ref.read(replicationQueueStorageProvider)
+          as MemoryReplicationQueueStorage;
+
+  Future<T> _write<T>(
+    Future<T> Function() write, {
+    Completer<void>? gate,
+    Object? error,
+  }) {
+    if (gate != null || error != null) {
+      _storage.armNextSave(gate: gate, error: error);
+    }
+    return write();
   }
+
+  @override
+  Future<bool> markCompleted(String taskId) =>
+      _write(() => super.markCompleted(taskId), error: markCompletedError);
+
+  @override
+  Future<void> moveToFailedPool(String taskId) => _write(
+    () => super.moveToFailedPool(taskId),
+    gate: moveGate,
+    error: moveToFailedPoolError,
+  );
 
   @override
   Future<bool> updateTaskStatus(
     String taskId,
     ReplicationTaskStatus status, {
     String? errorMessage,
-  }) async {
-    if (status == ReplicationTaskStatus.failed) await failGate?.future;
-    return super.updateTaskStatus(taskId, status, errorMessage: errorMessage);
+  }) {
+    final unretryable =
+        status == ReplicationTaskStatus.running && errorMessage != null;
+    return _write(
+      () => super.updateTaskStatus(taskId, status, errorMessage: errorMessage),
+      gate: status == ReplicationTaskStatus.failed
+          ? failGate
+          : unretryable
+          ? unretryableGate
+          : null,
+      error: unretryable
+          ? unretryableError
+          : status == ReplicationTaskStatus.running
+          ? runningStatusError
+          : null,
+    );
   }
 }
 
@@ -622,11 +665,27 @@ class TestCharacterPromptNotifier extends CharacterPromptNotifier {
 }
 
 class MemoryReplicationQueueStorage extends ReplicationQueueStorage {
+  Completer<void>? _nextSaveGate;
+  Object? _nextSaveError;
+
+  /// 下一次保存先等 [gate] 打开，再抛出 [error]
+  void armNextSave({Completer<void>? gate, Object? error}) {
+    _nextSaveGate = gate;
+    _nextSaveError = error;
+  }
+
   @override
   List<ReplicationTask> load() => const [];
 
   @override
-  Future<void> save(List<ReplicationTask> tasks) async {}
+  Future<void> save(List<ReplicationTask> tasks) async {
+    final gate = _nextSaveGate;
+    final error = _nextSaveError;
+    _nextSaveGate = null;
+    _nextSaveError = null;
+    await gate?.future;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> clear() async {}

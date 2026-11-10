@@ -7,6 +7,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_ce/hive.dart' show HiveError;
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
@@ -1671,6 +1672,192 @@ void main() {
         );
       });
     }
+  });
+
+  group('结算时队列写入失败', () {
+    List<ReplicationTask> queued(QueueRun run) =>
+        run.container.read(replicationQueueNotifierProvider).tasks;
+
+    test('完成结算写入失败时停止队列，不再推进', () {
+      driveQueueRun(
+        (async) => QueueRun(
+          async,
+          prompts: ['first', 'second'],
+          localStorage: queueRetries(0),
+        ),
+        (run) {
+          run.queue.markCompletedError = HiveError('queue save failed');
+          run.completeAndSettle(0);
+          run.elapse(const Duration(seconds: 2));
+
+          expect(run.state.status, QueueExecutionStatus.idle);
+          expect(run.started, ['first']);
+          // 内存里已结算为完成，只是没能落盘
+          expect(queued(run).map((task) => task.id), [run.tasks[1].id]);
+          expect(
+            run.container
+                .read(replicationQueueNotifierProvider)
+                .completedTasks
+                .single
+                .id,
+            run.tasks[0].id,
+          );
+        },
+      );
+    });
+
+    test('失败结算写入失败时停止队列，不再推进', () {
+      driveQueueRun(
+        (async) => QueueRun(
+          async,
+          prompts: ['first', 'second'],
+          localStorage: queueRetries(0),
+        ),
+        (run) {
+          run.queue.moveToFailedPoolError = const FileSystemException('full');
+          run.generation.fail(0);
+          run.generation.settle(0);
+          run.elapse(const Duration(seconds: 2));
+
+          expect(run.state.status, QueueExecutionStatus.idle);
+          expect(run.started, ['first']);
+        },
+      );
+    });
+
+    test('结算里的编程错误停止队列后照常上报', () {
+      driveQueueRun(
+        (async) => QueueRun(
+          async,
+          prompts: ['first', 'second'],
+          localStorage: queueRetries(0),
+        ),
+        (run) {
+          final reported = <Object>[];
+          run.queue.markCompletedError = StateError('settlement bug');
+          runZonedGuarded(() {
+            run.completeAndSettle(0);
+            run.elapse(const Duration(seconds: 2));
+          }, (error, _) => reported.add(error));
+
+          expect(run.state.status, QueueExecutionStatus.idle);
+          expect(run.started, ['first']);
+          expect(reported, [isA<StateError>()]);
+        },
+      );
+    });
+
+    test('任务标为运行中的写入失败时停止队列，不成为未处理异常', () {
+      driveQueueRun(
+        (async) => QueueRun(
+          async,
+          prompts: ['first', 'second'],
+          localStorage: queueRetries(0),
+          autoStart: false,
+        ),
+        (run) {
+          final reported = <Object>[];
+          run.queue.runningStatusError = HiveError('queue save failed');
+          runZonedGuarded(() {
+            run.execution.startQueue();
+            run.flush();
+            run.elapse(const Duration(seconds: 2));
+          }, (error, _) => reported.add(error));
+
+          expect(run.started, ['first']);
+          expect(run.state.status, QueueExecutionStatus.idle);
+          expect(reported, isEmpty);
+        },
+      );
+    });
+  });
+
+  group('确定性错误结算中途被停止', () {
+    String emptyMask() => const EmptyInpaintMaskException().toString();
+
+    QueueRun failDeterministically(FakeAsync async, {Object? writeError}) {
+      final run = QueueRun(
+        async,
+        prompts: ['thin mask', 'next'],
+        localStorage: queueRetries(3),
+      );
+      run.queue
+        ..unretryableGate = Completer<void>()
+        ..unretryableError = writeError;
+      run.generation.fail(0, message: emptyMask());
+      run.flush();
+      return run;
+    }
+
+    test('写入期间停止后队列保持空闲，不再提交', () {
+      driveQueueRun(failDeterministically, (run) {
+        run.execution.stopExecution();
+        run.flush();
+        run.queue.unretryableGate!.complete();
+        run.generation.settle(0);
+        run.elapse(const Duration(seconds: 3));
+
+        expect(run.started, ['thin mask']);
+        expect(run.state.status, QueueExecutionStatus.idle);
+        expect(run.state.currentTaskId, isNull);
+        expect(
+          run.container.read(replicationQueueNotifierProvider).failedTasks,
+          isEmpty,
+        );
+      });
+    });
+
+    test('停止后立刻重新开始，旧结算不动新会话正在跑的任务', () {
+      driveQueueRun(failDeterministically, (run) {
+        run.generation.settle(0);
+        run.flush();
+        run.execution.stopExecution();
+        run.flush();
+        run.execution.startQueue();
+        run.flush();
+        expect(run.started, ['thin mask', 'thin mask']);
+
+        run.queue.unretryableGate!.complete();
+        run.elapse(const Duration(seconds: 3));
+
+        final queue = run.container.read(replicationQueueNotifierProvider);
+        expect(queue.failedTasks, isEmpty);
+        expect(queue.tasks.first.id, run.tasks[0].id);
+        expect(queue.tasks.first.status, ReplicationTaskStatus.running);
+        expect(run.state.status, QueueExecutionStatus.running);
+        expect(run.state.currentTaskId, run.tasks[0].id);
+        expect(run.state.failedCount, 0);
+
+        run.completeAndSettle(1);
+        expect(run.state.completedCount, 1);
+        expect(run.started, ['thin mask', 'thin mask', 'next']);
+      });
+    });
+
+    test('旧结算的写入失败不停止重新开始的新会话', () {
+      driveQueueRun(
+        (async) => failDeterministically(
+          async,
+          writeError: HiveError('queue save failed'),
+        ),
+        (run) {
+          run.generation.settle(0);
+          run.flush();
+          run.execution.stopExecution();
+          run.flush();
+          run.execution.startQueue();
+          run.flush();
+
+          run.queue.unretryableGate!.complete();
+          run.elapse(const Duration(seconds: 3));
+
+          expect(run.state.status, QueueExecutionStatus.running);
+          expect(run.state.currentTaskId, run.tasks[0].id);
+          run.completeAndSettle(1);
+          expect(run.state.completedCount, 1);
+        },
+      );
+    });
   });
 }
 
