@@ -38,6 +38,7 @@ import 'generation/generation_command.dart';
 import 'generation/generation_cooldown_provider.dart';
 import 'generation/generation_error_classifier.dart';
 import 'generation/generation_models.dart';
+import 'generation/generation_outcome.dart';
 import 'generation/generation_params_notifier.dart';
 import 'generation/generation_request_preparation_service.dart';
 import 'generation/generation_request_resolution.dart';
@@ -59,6 +60,7 @@ import 'subscription_provider.dart';
 import 'uc_preset_provider.dart';
 
 export 'generation/generation_models.dart';
+export 'generation/generation_outcome.dart';
 export 'generation/generation_cooldown_provider.dart';
 export 'generation/generation_params_notifier.dart';
 export 'generation/generation_auxiliary_notifiers.dart';
@@ -79,9 +81,8 @@ part 'image_generation_provider.g.dart';
 class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void>? _historyRestoreInFlight;
   bool _hasRestoredHistory = false;
-  Completer<void>? _generationInvocationSettled;
-  int _invocationCounter = 0;
-  int _activeInvocationId = 0;
+  Completer<GenerationRunEnded?>? _generationInvocationSettled;
+  _GenerationInvocation? _activeInvocation;
   int _runCounter = 0;
   int _activeRunId = 0;
   GenerationRunHandle? _activeRun;
@@ -300,33 +301,32 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
   }
 
-  Future<void> waitUntilGenerationInvocationSettled() =>
-      _generationInvocationSettled?.future ?? Future<void>.value();
+  Future<GenerationRunEnded?> waitUntilGenerationInvocationSettled() =>
+      _generationInvocationSettled?.future ?? Future.value();
 
-  /// 返回本次请求预检拒绝的错误码，供队列结算。
-  ///
   /// [bypassRandomPrompt]：智能体、MCP 等外部提交方显式给出的提示词不被随机模式替换。
-  Future<String?> generate(
+  ///
+  /// 返回这次调用自己的结局；准备阶段抛出的异常照常抛出，此时没有进入生成。
+  Future<GenerationOutcome> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
     bool bypassRandomPrompt = false,
   }) async {
-    if (_isDisposed || state.isBusy) {
-      return null;
-    }
+    if (_isDisposed) return const GenerationDisposed();
+    if (state.isBusy) return const GenerationBusy();
     // 必须在第一个 await 之前置忙：队列靠这段同步窗口判定生成归属
     _setSubmitting(true);
     _previewPublication.clear();
-    final invocationSettled = Completer<void>();
+    final invocationSettled = Completer<GenerationRunEnded?>();
     _generationInvocationSettled = invocationSettled;
-    final epoch = _lifecycleEpoch;
-    final invocationId = ++_invocationCounter;
-    _activeInvocationId = invocationId;
+    final invocation = _GenerationInvocation(_lifecycleEpoch);
+    _activeInvocation = invocation;
     GenerationResultLifecycleService? lifecycle;
     SubscriptionNotifier? subscription;
     Future<void> Function()? releaseForeground;
+    GenerationRunEnded? runOutcome;
 
     try {
       lifecycle = _lifecycle();
@@ -334,33 +334,26 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           ? ref.read(subscriptionNotifierProvider.notifier)
           : null;
       if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
-        return null;
+        return const GenerationAuthRequired();
       }
-      final request = await _validatedRequest(
+      final result = await _validatedRequest(
         params,
         focusedOverride,
-        epoch,
-        invocationId,
+        invocation,
       );
-      if (request == null ||
-          !_isCurrentLifecycle(epoch) ||
-          _activeInvocationId != invocationId) {
-        return null;
-      }
-      if (request.error != null) return request.error;
+      if (_interruption(invocation) case final interrupted?) return interrupted;
+      final request = result!;
+      if (request.error case final error?) return _rejectLocally(error);
       if (!ref.read(generationCooldownProvider.notifier).tryStartGeneration()) {
-        return null;
+        return const GenerationCooldownActive();
       }
 
       releaseForeground = await _acquireGenerationForeground();
-      if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
-        return null;
-      }
+      if (_interruption(invocation) case final interrupted?) return interrupted;
 
-      await _runGeneration(
+      final outcome = await _runGeneration(
         request.params,
-        epoch: epoch,
-        invocationId: invocationId,
+        invocation: invocation,
         batchSizeOverride: batchSizeOverride,
         preparation: _preparationService(
           preserveCharacterSnapshot: preserveCharacterSnapshot,
@@ -368,16 +361,19 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           bypassRandomPrompt: bypassRandomPrompt,
         ),
       );
+      if (outcome is GenerationRunEnded) runOutcome = outcome;
+      return outcome;
     } finally {
       // 归属判断不可省：被取消后新一次提交已经接管标志，这里不能替它复位。
-      if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
-        _activeInvocationId = 0;
+      if (_isCurrentLifecycle(invocation.epoch) &&
+          identical(_activeInvocation, invocation)) {
+        _activeInvocation = null;
         _setSubmitting(false);
         _activeComparisonSource = null;
         _activeFixedTagUsageSnapshot = null;
       }
       if (!invocationSettled.isCompleted) {
-        invocationSettled.complete();
+        invocationSettled.complete(runOutcome);
       }
       if (identical(_generationInvocationSettled, invocationSettled)) {
         _generationInvocationSettled = null;
@@ -402,11 +398,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           stackTrace,
         );
       }
-      if (_isCurrentLifecycle(epoch)) {
+      if (_isCurrentLifecycle(invocation.epoch)) {
         subscription?.schedulePostBillingRefresh();
       }
     }
-    return null;
   }
 
   Future<Future<void> Function()?> _acquireGenerationForeground() async {
@@ -428,8 +423,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   _validatedRequest(
     ImageParams params,
     GenerationFocusedSnapshot? focusedOverride,
-    int epoch,
-    int invocationId,
+    _GenerationInvocation invocation,
   ) async {
     final liveParams = ref.read(generationParamsNotifierProvider);
     final useRestoredLiveParams = identical(params, liveParams);
@@ -440,9 +434,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             .read(generationParamsNotifierProvider.notifier)
             .restoreGenerationState(),
       ]);
-      if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
-        return null;
-      }
+      if (_interruption(invocation) != null) return null;
     }
     final effectiveParams = useRestoredLiveParams
         ? ref.read(generationParamsNotifierProvider)
@@ -451,47 +443,68 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         focusedOverride ??
         ref.read(imageWorkflowControllerProvider).focusedSnapshot;
     final error = await _requestResolutionError(effectiveParams, focused);
-    if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
-      return null;
-    }
-    if (error != null) {
-      state = state.copyWith(
-        status: GenerationStatus.error,
-        errorMessage: error,
-        progress: 0,
-      );
-    }
     return (params: effectiveParams, focused: focused, error: error);
   }
 
-  Future<void> _runGeneration(
+  Future<String?> _requestResolutionError(
+    ImageParams params,
+    GenerationFocusedSnapshot focused,
+  ) async {
+    final input = focused.inputFor(params);
+    try {
+      final geometry = input == null
+          ? null
+          : await ref.read(focusedRequestGeometryProvider(input));
+      return validateRequestResolution(
+        params.width,
+        params.height,
+        geometry,
+      )?.errorCode;
+    } on FocusedInpaintInputException catch (error) {
+      AppLogger.w(error.logMessage, 'ImgGen');
+      return error.code;
+    }
+  }
+
+  /// 准备阶段每次 await 之后核对这次调用是否仍然有效。
+  GenerationOutcome? _interruption(_GenerationInvocation invocation) {
+    if (!_isCurrentLifecycle(invocation.epoch)) {
+      return const GenerationDisposed();
+    }
+    if (identical(_activeInvocation, invocation)) return null;
+    return _activeInvocation == null
+        ? const GenerationCancelledBeforeStart()
+        : const GenerationSuperseded();
+  }
+
+  GenerationRejected _rejectLocally(String errorCode) {
+    state = state.copyWith(
+      status: GenerationStatus.error,
+      errorMessage: errorCode,
+      progress: 0,
+    );
+    return GenerationRejected(errorCode);
+  }
+
+  Future<GenerationOutcome> _runGeneration(
     ImageParams effectiveParams, {
-    required int epoch,
-    required int invocationId,
+    required _GenerationInvocation invocation,
     required int? batchSizeOverride,
     required GenerationRequestPreparationService preparation,
   }) async {
-    late final GenerationPreparationResult prepared;
+    final GenerationPreparationResult prepared;
     try {
       prepared = await preparation.prepareInitial(effectiveParams);
     } on UnsupportedRandomPromptModelException catch (error, stackTrace) {
       AppLogger.e(
         'Generation preparation rejected an unsupported random model',
-        error,
+        error.runtimeType,
         stackTrace,
       );
-      if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
-        state = state.copyWith(
-          status: GenerationStatus.error,
-          errorMessage: error.encodedMessage,
-          progress: 0,
-        );
-      }
-      return;
+      return _interruption(invocation) ?? _rejectLocally(error.encodedMessage);
     }
-    if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
-      return;
-    }
+    if (_interruption(invocation) case final interrupted?) return interrupted;
+
     final runId = ++_runCounter;
     _activeRunId = runId;
     _activeFixedTagUsageSnapshot = prepared.fixedTagUsageSnapshot;
@@ -525,41 +538,35 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     _activeRun = handle;
     try {
       await for (final event in coordinator.execute(command, handle)) {
-        await _reduce(event, epoch);
+        await _reduce(event, invocation);
       }
     } catch (error, stackTrace) {
+      if (!invocation.entered) rethrow;
       AppLogger.e(
         'Generation run failed with ${error.runtimeType}',
         null,
         stackTrace,
       );
     }
-    _failStalledRun(runId, epoch);
-  }
-
-  Future<String?> _requestResolutionError(
-    ImageParams params,
-    GenerationFocusedSnapshot focused,
-  ) async {
-    final input = focused.inputFor(params);
-    try {
-      final geometry = input == null
-          ? null
-          : await ref.read(focusedRequestGeometryProvider(input));
-      return validateRequestResolution(
-        params.width,
-        params.height,
-        geometry,
-      )?.errorCode;
-    } on FocusedInpaintInputException catch (error) {
-      AppLogger.w(error.logMessage, 'ImgGen');
-      return error.code;
+    _failStalledRun(runId, invocation);
+    if (!_isCurrentLifecycle(invocation.epoch)) {
+      return const GenerationDisposed();
     }
+    if (invocation.cancelled) {
+      return invocation.entered
+          ? const GenerationRunCancelled()
+          : const GenerationCancelledBeforeStart();
+    }
+    if (!invocation.entered) {
+      throw StateError('Generation run ended without starting');
+    }
+    return invocation.ended ??
+        const GenerationRunFailed(generationInternalErrorCode);
   }
 
   // 处理事件时抛出或事件流没给出终态，状态会停在 generating，忙碌永远不解除
-  void _failStalledRun(int runId, int epoch) {
-    if (!_isCurrentLifecycle(epoch) ||
+  void _failStalledRun(int runId, _GenerationInvocation invocation) {
+    if (!_isCurrentLifecycle(invocation.epoch) ||
         _activeRunId != runId ||
         !state.isGenerating) {
       return;
@@ -567,6 +574,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     _streamPreviews.clear();
     _previewPublication.clear();
     _activeComparisonSource = null;
+    invocation.ended = const GenerationRunFailed(generationInternalErrorCode);
     state = state.copyWith(
       status: GenerationStatus.error,
       errorMessage: generationInternalErrorCode,
@@ -624,10 +632,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
   }
 
-  Future<void> _reduce(GenerationEvent event, int epoch) async {
+  Future<void> _reduce(
+    GenerationEvent event,
+    _GenerationInvocation invocation,
+  ) async {
+    final epoch = invocation.epoch;
     if (!_isCurrentLifecycle(epoch) || event.runId != _activeRunId) return;
     switch (event) {
       case GenerationStarted(:final params, :final totalImages):
+        invocation.entered = true;
         final sourceImage = params.sourceImage;
         // Generate may still carry canvas data, but only image transformations
         // have a source that represents the visual input to the result.
@@ -770,6 +783,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         _previewPublication.clear();
         _appendFailedSnapshots(event.runId);
         if (isTerminal) {
+          invocation.ended = GenerationRunFailed(error.toString());
           _activeComparisonSource = null;
           state = state.copyWith(
             status: GenerationStatus.error,
@@ -782,6 +796,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
       case GenerationCompleted(:final params):
         _previewPublication.clear();
+        invocation.ended = const GenerationRunCompleted();
         final images = List<GeneratedImage>.from(state.currentImages);
         _activeComparisonSource = null;
         _streamPreviews.clear();
@@ -803,6 +818,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
       case GenerationCancelled():
         _previewPublication.clear();
+        invocation.ended = const GenerationRunCancelled();
         _appendFailedSnapshots(event.runId);
         _streamPreviews.clear();
         _activeComparisonSource = null;
@@ -815,6 +831,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         );
       case GenerationFailed(:final error):
         _previewPublication.clear();
+        invocation.ended = GenerationRunFailed(error.toString());
         _appendFailedSnapshots(event.runId);
         _streamPreviews.clear();
         _activeComparisonSource = null;
@@ -1101,8 +1118,15 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       processingCoordinator.cancel(processingRun);
       return;
     }
+    // 状态里的终态可能是上一次运行留下的；只有这次运行确实已经结束（只剩落盘收尾）
+    // 或根本没有运行时才保留它，仍在提交、准备或生成中的一律改为已取消
+    final invocation = _activeInvocation;
+    final settled = invocation == null
+        ? !state.isGenerating
+        : invocation.ended != null;
+    if (!settled) invocation?.cancelled = true;
     final runId = _activeRunId;
-    _activeInvocationId = 0;
+    _activeInvocation = null;
     _activeComparisonSource = null;
     final coordinator = _coordinator;
     final handle = _activeRun;
@@ -1110,8 +1134,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     _appendFailedSnapshots(runId);
     _streamPreviews.clear();
     _activeRunId = ++_runCounter;
-    // 图已出完、只剩落盘收尾时点取消，不该把已有结果改标成已取消。
-    final settled = state.status == GenerationStatus.completed;
     state = state.copyWith(
       status: settled ? state.status : GenerationStatus.cancelled,
       progress: settled ? state.progress : 0,
@@ -1119,6 +1141,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       totalImages: 0,
       clearStreamPreview: true,
       isSubmitting: false,
+      preparationCancelled: !settled && state.isPreparing,
+      errorMessage: settled ? state.errorMessage : null,
     );
   }
 
@@ -1530,4 +1554,20 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         ? metadata
         : metadata.withFixedTagUsageData(fixedTagUsageSnapshot.toJson());
   }
+}
+
+// 一次 generate() 调用的运行记录，结局只从这里得出，不读可能属于上一次运行的状态
+class _GenerationInvocation {
+  _GenerationInvocation(this.epoch);
+
+  final int epoch;
+
+  /// 本次运行的 GenerationStarted 已归约，状态进入过 generating。
+  bool entered = false;
+
+  /// 本次运行最后一个终态事件。
+  GenerationRunEnded? ended;
+
+  /// cancel() 在本次运行结束前到达。
+  bool cancelled = false;
 }

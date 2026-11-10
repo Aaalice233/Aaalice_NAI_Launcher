@@ -140,8 +140,12 @@ void main() {
     await generation.waitForStart(0);
 
     generation.complete(0);
-    await waitForCurrentTask(container, tasks[1].id);
+    await container.pump();
     expect(generation.startedPrompts, ['first']);
+    expect(
+      container.read(queueExecutionNotifierProvider).currentTaskId,
+      tasks[0].id,
+    );
 
     generation.settle(0);
     await generation.waitForStart(1);
@@ -153,8 +157,8 @@ void main() {
     expect(generation.startedPrompts, ['first', 'second', 'third']);
 
     generation.complete(2);
-    await waitForExecutionStatus(container, QueueExecutionStatus.completed);
     generation.settle(2);
+    await waitForExecutionStatus(container, QueueExecutionStatus.completed);
     for (var index = 0; index < tasks.length; index++) {
       generation.finishCleanup(index);
       await generation.waitForCleanup(index);
@@ -361,7 +365,6 @@ void main() {
           .startQueue();
       await generation.waitForStart(0);
       generation.complete(0);
-      await waitForCurrentTask(container, tasks[1].id);
       generation.settle(0);
       await generation.waitForStart(1);
 
@@ -1479,7 +1482,7 @@ void main() {
   group('生成在准备阶段就结束的队列提交', () {
     QueueRun startWith(
       FakeAsync async, {
-      required void Function(QueueRun run) endPreparation,
+      required GenerationOutcome? Function(QueueRun run) endPreparation,
       int retries = 3,
       List<Override> extraOverrides = const [],
     }) {
@@ -1496,12 +1499,12 @@ void main() {
       return run;
     }
 
-    test('可重试的准备错误计入重试，之后重新提交', () {
+    test('可重试的本地拒绝计入重试，之后重新提交', () {
       driveQueueRun(
         (async) => startWith(
           async,
           endPreparation: (run) =>
-              run.generation.failPreparation('Invalid resolution'),
+              run.generation.rejectPreparation('Invalid resolution'),
         ),
         (run) {
           expect(run.state.retryCount, 1);
@@ -1514,11 +1517,11 @@ void main() {
       );
     });
 
-    test('确定性的准备错误直接进失败池并跑下一条', () {
+    test('确定性的本地拒绝直接进失败池并跑下一条', () {
       driveQueueRun(
         (async) => startWith(
           async,
-          endPreparation: (run) => run.generation.failPreparation(
+          endPreparation: (run) => run.generation.rejectPreparation(
             const EmptyInpaintMaskException().toString(),
           ),
         ),
@@ -1536,13 +1539,13 @@ void main() {
       );
     });
 
-    test('准备错误重试用尽时按失败策略处理', () {
+    test('本地拒绝重试用尽时按失败策略处理', () {
       driveQueueRun(
         (async) => startWith(
           async,
           retries: 0,
           endPreparation: (run) =>
-              run.generation.failPreparation('Invalid resolution'),
+              run.generation.rejectPreparation('Invalid resolution'),
         ),
         (run) {
           expect(run.state.failedCount, 1);
@@ -1576,10 +1579,12 @@ void main() {
       driveQueueRun(
         (async) => startWith(
           async,
-          endPreparation: (run) =>
-              (run.container.read(authNotifierProvider.notifier)
-                      as QueueTestAuthNotifier)
-                  .signOutForTest(),
+          endPreparation: (run) {
+            (run.container.read(authNotifierProvider.notifier)
+                    as QueueTestAuthNotifier)
+                .signOutForTest();
+            return const GenerationAuthRequired();
+          },
         ),
         (run) {
           expect(run.state.status, QueueExecutionStatus.paused);
@@ -1609,10 +1614,12 @@ void main() {
               ScriptedCooldownNotifier.new,
             ),
           ],
-          endPreparation: (run) =>
-              (run.container.read(generationCooldownProvider.notifier)
-                      as ScriptedCooldownNotifier)
-                  .hold(),
+          endPreparation: (run) {
+            (run.container.read(generationCooldownProvider.notifier)
+                    as ScriptedCooldownNotifier)
+                .hold();
+            return const GenerationCooldownActive();
+          },
         ),
         (run) {
           run.elapse(const Duration(seconds: 1));
@@ -1650,8 +1657,10 @@ void main() {
             }
             run.generation.settle(0);
             run.flush();
-            run.generation.endNextPreparation =
-                run.generation.cancelPreparation;
+            run.generation.endNextPreparation = () {
+              run.generation.cancel();
+              return null;
+            };
             run.execution.startQueue();
             run.flush();
             return run;
@@ -1672,6 +1681,140 @@ void main() {
         );
       });
     }
+  });
+
+  group('开了生成间隔时准备阶段的结局', () {
+    // 这次提交的冷却在准备开始前就已计时，结局不能从冷却是否在计时倒推
+    QueueRun afterManualRun(
+      FakeAsync async,
+      String previous, {
+      int retries = 3,
+    }) {
+      final run = QueueRun(
+        async,
+        prompts: ['first', 'second'],
+        localStorage: queueRetries(retries),
+        autoStart: false,
+        extraOverrides: protectedGenerationInterval(async),
+      );
+      unawaited(run.generation.generate(const ImageParams(prompt: 'manual')));
+      run.flush();
+      if (previous == '取消') {
+        run.generation.emitCancelled(0);
+      } else {
+        run.generation.complete(0);
+      }
+      run.generation.settle(0);
+      run.generation.finishCleanup(0);
+      run.elapse(const Duration(seconds: 6));
+      return run;
+    }
+
+    for (final previous in ['成功', '取消']) {
+      test('上一次以$previous结束，准备阶段取消后队列停止，冷却结束也不再提交', () {
+        driveQueueRun(
+          (async) {
+            final run = afterManualRun(async, previous);
+            run.generation.preparationGate = Completer<void>();
+            run.execution.startQueue();
+            run.flush();
+            return run;
+          },
+          (run) {
+            expect(
+              run.container.read(generationCooldownProvider).isActive,
+              isTrue,
+            );
+            run.generation.cancel();
+            run.generation.preparationGate!.complete();
+            run.flush();
+
+            expect(
+              run.generation.outcomes.last,
+              isA<GenerationCancelledBeforeStart>(),
+            );
+            expect(run.state.status, QueueExecutionStatus.idle);
+            run.elapse(const Duration(seconds: 10));
+            expect(run.started, ['manual']);
+            expect(
+              run.container
+                  .read(replicationQueueNotifierProvider)
+                  .tasks
+                  .first
+                  .status,
+              ReplicationTaskStatus.pending,
+            );
+          },
+        );
+      });
+    }
+
+    test('冷却计时中被本地拒绝时按失败结算，不再每隔一个间隔空转', () {
+      driveQueueRun(
+        (async) {
+          final run = afterManualRun(async, '成功', retries: 0);
+          run.generation.endNextPreparation = () => run.generation
+              .rejectPreparation('GENERATION_ERROR_UNSUPPORTED_RANDOM_MODEL|x');
+          run.execution.startQueue();
+          run.flush();
+          return run;
+        },
+        (run) {
+          expect(
+            run.container
+                .read(replicationQueueNotifierProvider)
+                .failedTasks
+                .single
+                .id,
+            run.tasks[0].id,
+          );
+          run.elapse(const Duration(seconds: 6));
+          expect(run.started, ['manual', 'second']);
+        },
+      );
+    });
+  });
+
+  test('准备阶段取消后手动生成，退忙时不会补交被取消的队列任务', () {
+    driveQueueRun(
+      (async) => QueueRun(
+        async,
+        prompts: ['queued'],
+        autoStart: false,
+        localStorage: NoRetryLocalStorageService(),
+        extraOverrides: [_blobStoreOverride],
+      ),
+      (run) {
+        final queuePreparation = Completer<void>();
+        run.generation.preparationGate = queuePreparation;
+        run.execution.startQueue();
+        run.flush();
+        expect(
+          run.container.read(imageGenerationNotifierProvider).isPreparing,
+          isTrue,
+        );
+
+        run.generation.cancel();
+        final statusAtCancel = run.state.status;
+        run.generation.preparationGate = null;
+        unawaited(run.generation.generate(const ImageParams(prompt: 'manual')));
+        run.flush();
+        queuePreparation.complete();
+        run.flush();
+        expect(run.generation.outcomes.single, isA<GenerationSuperseded>());
+
+        run.completeAndSettle(1);
+        run.generation.finishCleanup(1);
+        run.flush();
+        expect(run.started, ['manual']);
+        expect(statusAtCancel, QueueExecutionStatus.idle);
+        expect(run.state.status, QueueExecutionStatus.idle);
+        expect(
+          run.container.read(replicationQueueNotifierProvider).tasks,
+          run.tasks,
+        );
+      },
+    );
   });
 
   group('结算时队列写入失败', () {
@@ -1895,7 +2038,7 @@ class _PreflightImageGenerationNotifier extends ImageGenerationNotifier {
   final startedPrompts = <String>[];
 
   @override
-  Future<String?> generate(
+  Future<GenerationOutcome> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
@@ -1910,15 +2053,19 @@ class _PreflightImageGenerationNotifier extends ImageGenerationNotifier {
         focusedOverride: focusedOverride,
         bypassRandomPrompt: bypassRandomPrompt,
       );
-      preflightResult.complete(result);
-      final error = await result;
+      preflightResult.complete(
+        result.then(
+          (outcome) => outcome is GenerationRejected ? outcome.errorCode : null,
+        ),
+      );
+      final outcome = await result;
       await beforeReturn;
-      return error;
+      return outcome;
     }
 
     startedPrompts.add(params.prompt);
     state = state.copyWith(status: GenerationStatus.generating);
-    return null;
+    return const GenerationRunCompleted();
   }
 }
 

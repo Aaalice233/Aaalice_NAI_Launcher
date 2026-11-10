@@ -1,5 +1,6 @@
 import '../../../core/utils/focused_inpaint_input_exception.dart';
 import '../../../core/utils/inpaint_mask/empty_inpaint_mask_exception.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 
 /// Written instead of the exception text when a run fails inside the launcher.
 const generationInternalErrorCode = 'GENERATION_ERROR_INTERNAL';
@@ -8,7 +9,8 @@ const generationInternalErrorCode = 'GENERATION_ERROR_INTERNAL';
 bool isDeterministicGenerationError(Object? error) =>
     EmptyInpaintMaskException.matches(error) ||
     error.toString().contains(FocusedInpaintInputException.invalidCropCode) ||
-    error.toString().contains(FocusedInpaintInputException.decodeFailedCode);
+    error.toString().contains(FocusedInpaintInputException.decodeFailedCode) ||
+    error.toString().contains(NaiGenerationResolutionIssue.errorCodePrefix);
 
 /// Whether a generation error says the endpoint cannot serve streaming output.
 bool isStreamingGenerationUnsupportedError(Object? error) {

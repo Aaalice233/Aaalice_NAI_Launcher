@@ -594,8 +594,10 @@ class NaiGenerationResolutionIssue {
   final int suggestedWidth;
   final int suggestedHeight;
 
+  static const errorCodePrefix = 'GENERATION_ERROR_INVALID_RESOLUTION';
+
   String get errorCode =>
-      'GENERATION_ERROR_INVALID_RESOLUTION|$width|$height|$suggestedWidth|$suggestedHeight';
+      '$errorCodePrefix|$width|$height|$suggestedWidth|$suggestedHeight';
 }
 
 /// 适配后的图像数据
