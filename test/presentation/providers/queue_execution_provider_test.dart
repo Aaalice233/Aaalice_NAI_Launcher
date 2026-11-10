@@ -1,18 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' show Rect;
 
-import 'package:fake_async/fake_async.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
-import 'package:nai_launcher/app.dart';
-import 'package:nai_launcher/core/cache/local_gallery_thumbnail_provider.dart';
-import 'package:nai_launcher/core/constants/storage_keys.dart';
-import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
 import 'package:nai_launcher/core/storage/replication_queue_blob_store.dart';
 import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
@@ -27,17 +21,15 @@ import 'package:nai_launcher/data/models/queue/failure_handling_strategy.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_status.dart';
-import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
-import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
-import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 import '../../helpers/memory_queue_blob_store.dart';
+import '../../helpers/queue_execution_harness.dart';
 
 void main() {
   const existingCharacter = CharacterPrompt(
@@ -53,24 +45,24 @@ void main() {
     return ProviderContainer(
       overrides: [
         replicationQueueStorageProvider.overrideWithValue(
-          _MemoryReplicationQueueStorage(),
+          MemoryReplicationQueueStorage(),
         ),
-        queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
-        replicationQueueBlobStoreProvider.overrideWithValue(_blobStore),
+        queueStateStorageProvider.overrideWithValue(MemoryQueueStateStorage()),
+        _blobStoreOverride,
         notificationSettingsNotifierProvider.overrideWith(
-          _DisabledNotificationSettingsNotifier.new,
+          DisabledNotificationSettingsNotifier.new,
         ),
         replicationQueueNotifierProvider.overrideWith(
-          () => _TestReplicationQueueNotifier([task]),
+          () => TestReplicationQueueNotifier([task]),
         ),
         queueExecutionNotifierProvider.overrideWith(
-          _TestQueueExecutionNotifier.new,
+          TestQueueExecutionNotifier.new,
         ),
         generationParamsNotifierProvider.overrideWith(
-          _TestGenerationParamsNotifier.new,
+          QueueTestGenerationParamsNotifier.new,
         ),
         characterPromptNotifierProvider.overrideWith(
-          () => _TestCharacterPromptNotifier(initialCharacters),
+          () => TestCharacterPromptNotifier(initialCharacters),
         ),
       ],
     );
@@ -79,7 +71,7 @@ void main() {
   for (final status in [AuthStatus.unauthenticated, AuthStatus.loading]) {
     test('队列在 $status 时保持任务和执行状态不变', () async {
       final task = ReplicationTask.create(prompt: 'keep queued prompt');
-      final container = _buildStartContainer(task, status);
+      final container = buildQueueStartContainer(task, status);
       addTearDown(container.dispose);
       final beforeQueue = container.read(replicationQueueNotifierProvider);
       final beforeExecution = container.read(queueExecutionNotifierProvider);
@@ -110,7 +102,7 @@ void main() {
 
   test('登录后队列保留启动路径', () async {
     final task = ReplicationTask.create(prompt: 'queued prompt');
-    final container = _buildStartContainer(task, AuthStatus.authenticated);
+    final container = buildQueueStartContainer(task, AuthStatus.authenticated);
     addTearDown(container.dispose);
 
     final result = await container
@@ -132,8 +124,8 @@ void main() {
       ReplicationTask.create(prompt: 'second'),
       ReplicationTask.create(prompt: 'third'),
     ];
-    final generation = _ControlledImageGenerationNotifier();
-    final container = _buildControlledQueueContainer(tasks, generation);
+    final generation = ControlledImageGenerationNotifier();
+    final container = buildControlledQueueContainer(tasks, generation);
     addTearDown(container.dispose);
 
     expect(
@@ -145,7 +137,7 @@ void main() {
     await generation.waitForStart(0);
 
     generation.complete(0);
-    await _waitForCurrentTask(container, tasks[1].id);
+    await waitForCurrentTask(container, tasks[1].id);
     expect(generation.startedPrompts, ['first']);
 
     generation.settle(0);
@@ -158,7 +150,7 @@ void main() {
     expect(generation.startedPrompts, ['first', 'second', 'third']);
 
     generation.complete(2);
-    await _waitForExecutionStatus(container, QueueExecutionStatus.completed);
+    await waitForExecutionStatus(container, QueueExecutionStatus.completed);
     generation.settle(2);
     for (var index = 0; index < tasks.length; index++) {
       generation.finishCleanup(index);
@@ -176,18 +168,18 @@ void main() {
       ReplicationTask.create(prompt: 'next'),
       ReplicationTask.create(prompt: 'last'),
     ];
-    final generation = _ControlledImageGenerationNotifier();
-    final container = _buildControlledQueueContainer(
+    final generation = ControlledImageGenerationNotifier();
+    final container = buildControlledQueueContainer(
       tasks,
       generation,
-      localStorage: _NoRetryLocalStorageService(),
+      localStorage: NoRetryLocalStorageService(),
     );
     addTearDown(container.dispose);
 
     await container.read(queueExecutionNotifierProvider.notifier).startQueue();
     await generation.waitForStart(0);
     generation.fail(0);
-    await _waitForCurrentTask(container, tasks[1].id);
+    await waitForCurrentTask(container, tasks[1].id);
     expect(generation.startedPrompts, ['failed']);
 
     generation.settle(0);
@@ -201,21 +193,18 @@ void main() {
       ReplicationTask.create(prompt: 'thin mask'),
       ReplicationTask.create(prompt: 'next'),
     ];
-    final generation = _ControlledImageGenerationNotifier();
-    final container = _buildControlledQueueContainer(
+    final generation = ControlledImageGenerationNotifier();
+    final container = buildControlledQueueContainer(
       tasks,
       generation,
-      localStorage: _RetryingLocalStorageService(),
+      localStorage: RetryingLocalStorageService(),
     );
     addTearDown(container.dispose);
 
     await container.read(queueExecutionNotifierProvider.notifier).startQueue();
     await generation.waitForStart(0);
-    generation.fail(
-      0,
-      message: const EmptyInpaintMaskException().toString(),
-    );
-    await _waitForCurrentTask(container, tasks[1].id);
+    generation.fail(0, message: const EmptyInpaintMaskException().toString());
+    await waitForCurrentTask(container, tasks[1].id);
     generation.settle(0);
     await generation.waitForStart(1);
 
@@ -245,18 +234,19 @@ void main() {
       final next = ReplicationTask.create(prompt: 'next');
       final api = _MockGenerationApi();
       final generation = _PreflightImageGenerationNotifier(first.prompt);
-      final container = _buildControlledQueueContainer(
+      final container = buildControlledQueueContainer(
         [first, next],
         generation,
-        localStorage: _RetryingLocalStorageService(),
+        localStorage: RetryingLocalStorageService(),
         extraOverrides: [
+          _blobStoreOverride,
           naiImageGenerationApiServiceProvider.overrideWithValue(api),
         ],
       );
       addTearDown(container.dispose);
       final execution =
           container.read(queueExecutionNotifierProvider.notifier)
-              as _TestQueueExecutionNotifier;
+              as TestQueueExecutionNotifier;
       execution.setStrategyForTest(FailureHandlingStrategy.autoRetry);
 
       expect(await execution.startQueue(), QueueStartResult.started);
@@ -292,7 +282,7 @@ void main() {
       first.prompt,
       beforeReturn: releaseResult.future,
     );
-    final container = _buildControlledQueueContainer(
+    final container = buildControlledQueueContainer(
       [first, next],
       generation,
       extraOverrides: [
@@ -319,7 +309,10 @@ void main() {
     expect(queued.failedTasks, isEmpty);
     expect(queued.tasks.single.id, next.id);
     expect(queued.tasks.single.status, ReplicationTaskStatus.pending);
-    expect(container.read(queueExecutionNotifierProvider).currentTaskId, next.id);
+    expect(
+      container.read(queueExecutionNotifierProvider).currentTaskId,
+      next.id,
+    );
   });
 
   test('取消会释放运行任务但不会启动下一任务', () async {
@@ -328,15 +321,15 @@ void main() {
       ReplicationTask.create(prompt: 'untouched'),
       ReplicationTask.create(prompt: 'also untouched'),
     ];
-    final generation = _ControlledImageGenerationNotifier();
-    final container = _buildControlledQueueContainer(tasks, generation);
+    final generation = ControlledImageGenerationNotifier();
+    final container = buildControlledQueueContainer(tasks, generation);
     addTearDown(container.dispose);
 
     await container.read(queueExecutionNotifierProvider.notifier).startQueue();
     await generation.waitForStart(0);
     generation.emitCancelled(0);
-    await _waitForExecutionStatus(container, QueueExecutionStatus.idle);
-    await _waitForQueueTaskStatus(
+    await waitForExecutionStatus(container, QueueExecutionStatus.idle);
+    await waitForQueueTaskStatus(
       container,
       tasks.first.id,
       ReplicationTaskStatus.pending,
@@ -357,15 +350,15 @@ void main() {
         ReplicationTask.create(prompt: 'next-$cleanupError'),
         ReplicationTask.create(prompt: 'last-$cleanupError'),
       ];
-      final generation = _ControlledImageGenerationNotifier();
-      final container = _buildControlledQueueContainer(tasks, generation);
+      final generation = ControlledImageGenerationNotifier();
+      final container = buildControlledQueueContainer(tasks, generation);
 
       await container
           .read(queueExecutionNotifierProvider.notifier)
           .startQueue();
       await generation.waitForStart(0);
       generation.complete(0);
-      await _waitForCurrentTask(container, tasks[1].id);
+      await waitForCurrentTask(container, tasks[1].id);
       generation.settle(0);
       await generation.waitForStart(1);
 
@@ -402,12 +395,13 @@ void main() {
         ),
       ),
     );
-    final capture = _CapturingImageGenerationNotifier();
-    final container = _buildStartContainer(
+    final capture = CapturingImageGenerationNotifier();
+    final container = buildQueueStartContainer(
       task,
       AuthStatus.authenticated,
       generationNotifier: capture,
-      generationParamsNotifier: _BatchGenerationParamsNotifier.new,
+      generationParamsNotifier: BatchGenerationParamsNotifier.new,
+      extraOverrides: [_blobStoreOverride],
     );
     addTearDown(container.dispose);
 
@@ -444,12 +438,13 @@ void main() {
         ),
       ),
     );
-    final capture = _CapturingImageGenerationNotifier();
-    final container = _buildStartContainer(
+    final capture = CapturingImageGenerationNotifier();
+    final container = buildQueueStartContainer(
       task,
       AuthStatus.authenticated,
       generationNotifier: capture,
-      generationParamsNotifier: _BatchGenerationParamsNotifier.new,
+      generationParamsNotifier: BatchGenerationParamsNotifier.new,
+      extraOverrides: [_blobStoreOverride],
     );
     addTearDown(container.dispose);
 
@@ -476,11 +471,12 @@ void main() {
         ImageParams(prompt: 'large', strength: 0.42, sourceImage: sourceImage),
       ),
     );
-    final capture = _CapturingImageGenerationNotifier();
-    final container = _buildStartContainer(
+    final capture = CapturingImageGenerationNotifier();
+    final container = buildQueueStartContainer(
       task,
       AuthStatus.authenticated,
       generationNotifier: capture,
+      extraOverrides: [_blobStoreOverride],
     );
     addTearDown(container.dispose);
 
@@ -518,11 +514,12 @@ void main() {
         ),
       ),
     );
-    final capture = _CapturingImageGenerationNotifier();
-    final container = _buildStartContainer(
+    final capture = CapturingImageGenerationNotifier();
+    final container = buildQueueStartContainer(
       original,
       AuthStatus.authenticated,
       generationNotifier: capture,
+      extraOverrides: [_blobStoreOverride],
     );
     addTearDown(container.dispose);
     final readGate = _readGate = Completer<void>();
@@ -539,7 +536,7 @@ void main() {
     );
     await pumpEventQueue();
     (container.read(replicationQueueNotifierProvider.notifier)
-            as _TestReplicationQueueNotifier)
+            as TestReplicationQueueNotifier)
         .replaceTaskForTest(edited);
     readGate.complete();
     final generated = await capture.firstGeneration.future;
@@ -560,10 +557,14 @@ void main() {
         prompt: 'invalid snapshot',
         generationSnapshot: snapshot,
       );
-      final container = _buildStartContainer(task, AuthStatus.authenticated);
+      final container = buildQueueStartContainer(
+        task,
+        AuthStatus.authenticated,
+        extraOverrides: [_blobStoreOverride],
+      );
       addTearDown(container.dispose);
       final execution = container.read(queueExecutionNotifierProvider.notifier);
-      (execution as _TestQueueExecutionNotifier).setStrategyForTest(strategy);
+      (execution as TestQueueExecutionNotifier).setStrategyForTest(strategy);
 
       expect(await execution.startQueue(), QueueStartResult.started);
       await Future<void>.delayed(const Duration(milliseconds: 30));
@@ -621,11 +622,12 @@ void main() {
         _blobFiles.files.keys.singleWhere((path) => path.endsWith(digest)),
       );
       final next = ReplicationTask.create(prompt: 'next');
-      final capture = _CapturingImageGenerationNotifier();
-      final container = _buildControlledQueueContainer(
+      final capture = CapturingImageGenerationNotifier();
+      final container = buildControlledQueueContainer(
         [task, next],
         capture,
-        localStorage: _RetryingLocalStorageService(),
+        localStorage: RetryingLocalStorageService(),
+        extraOverrides: [_blobStoreOverride],
       );
       addTearDown(container.dispose);
 
@@ -668,12 +670,13 @@ void main() {
     });
 
     test('按重试处理，之后照常提交生成', () async {
-      final capture = _CapturingImageGenerationNotifier();
-      final container = _buildStartContainer(
+      final capture = CapturingImageGenerationNotifier();
+      final container = buildQueueStartContainer(
         task,
         AuthStatus.authenticated,
         generationNotifier: capture,
-        localStorage: _RetryingLocalStorageService(),
+        localStorage: RetryingLocalStorageService(),
+        extraOverrides: [_blobStoreOverride],
       );
       addTearDown(container.dispose);
 
@@ -694,21 +697,22 @@ void main() {
     });
 
     test('重试用尽后按失败策略结算，不当作无效快照', () async {
-      final capture = _CapturingImageGenerationNotifier();
-      final container = _buildStartContainer(
+      final capture = CapturingImageGenerationNotifier();
+      final container = buildQueueStartContainer(
         task,
         AuthStatus.authenticated,
         generationNotifier: capture,
-        localStorage: _NoRetryLocalStorageService(),
+        localStorage: NoRetryLocalStorageService(),
+        extraOverrides: [_blobStoreOverride],
       );
       addTearDown(container.dispose);
       final execution = container.read(queueExecutionNotifierProvider.notifier);
-      (execution as _TestQueueExecutionNotifier).setStrategyForTest(
+      (execution as TestQueueExecutionNotifier).setStrategyForTest(
         FailureHandlingStrategy.skip,
       );
 
       expect(await execution.startQueue(), QueueStartResult.started);
-      await _waitForExecutionStatus(container, QueueExecutionStatus.completed);
+      await waitForExecutionStatus(container, QueueExecutionStatus.completed);
 
       final queue = container.read(replicationQueueNotifierProvider);
       expect(capture.generated, isNull);
@@ -722,21 +726,22 @@ void main() {
     });
 
     test('暂停策略下停在失败任务上，并附带同一原因', () async {
-      final capture = _CapturingImageGenerationNotifier();
-      final container = _buildStartContainer(
+      final capture = CapturingImageGenerationNotifier();
+      final container = buildQueueStartContainer(
         task,
         AuthStatus.authenticated,
         generationNotifier: capture,
-        localStorage: _NoRetryLocalStorageService(),
+        localStorage: NoRetryLocalStorageService(),
+        extraOverrides: [_blobStoreOverride],
       );
       addTearDown(container.dispose);
       final execution = container.read(queueExecutionNotifierProvider.notifier);
-      (execution as _TestQueueExecutionNotifier).setStrategyForTest(
+      (execution as TestQueueExecutionNotifier).setStrategyForTest(
         FailureHandlingStrategy.pauseAndWait,
       );
 
       expect(await execution.startQueue(), QueueStartResult.started);
-      await _waitForExecutionStatus(container, QueueExecutionStatus.paused);
+      await waitForExecutionStatus(container, QueueExecutionStatus.paused);
 
       final paused = container
           .read(replicationQueueNotifierProvider)
@@ -834,20 +839,20 @@ void main() {
   });
 
   group('等待结束后复查暂停与停止', () {
-    final noRetry = _ConfiguredLocalStorageService(
+    final noRetry = ConfiguredLocalStorageService(
       retryCount: 0,
       retryIntervalSeconds: 0,
     );
 
     test('任务间隔内暂停后不再推进，恢复后接着跑下一条', () {
-      fakeAsync((async) {
-        final run = _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['first', 'second', 'third'],
           taskIntervalSeconds: 2,
           localStorage: noRetry,
-        );
-        try {
+        ),
+        (run) {
           run.completeAndSettle(0);
 
           run.execution.pause();
@@ -862,21 +867,19 @@ void main() {
 
           run.elapse(const Duration(seconds: 3));
           expect(run.started, ['first', 'second']);
-        } finally {
-          run.dispose();
-        }
-      });
+        },
+      );
     });
 
     test('任务间隔内暂停又恢复只推进一次', () {
-      fakeAsync((async) {
-        final run = _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['first', 'second', 'third'],
           taskIntervalSeconds: 2,
           localStorage: noRetry,
-        );
-        try {
+        ),
+        (run) {
           run.completeAndSettle(0);
 
           run.execution.pause();
@@ -888,41 +891,37 @@ void main() {
           expect(run.started, ['first', 'second']);
           expect(run.state.status, QueueExecutionStatus.running);
           expect(run.state.currentTaskId, run.tasks[1].id);
-        } finally {
-          run.dispose();
-        }
-      });
+        },
+      );
     });
 
     test('任务间隔内停止不再推进', () {
-      fakeAsync((async) {
-        final run = _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['first', 'second'],
           taskIntervalSeconds: 2,
           localStorage: noRetry,
-        );
-        try {
+        ),
+        (run) {
           run.completeAndSettle(0);
 
           run.execution.stopExecution();
           run.elapse(const Duration(seconds: 3));
           expect(run.started, ['first']);
           expect(run.state.status, QueueExecutionStatus.idle);
-        } finally {
-          run.dispose();
-        }
-      });
+        },
+      );
     });
 
     test('失败结算期间暂停不推进下一条，恢复后继续', () {
-      fakeAsync((async) {
-        final run = _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['failed', 'next', 'last'],
           localStorage: noRetry,
-        );
-        try {
+        ),
+        (run) {
           final moveGate = run.queue.moveGate = Completer<void>();
           run.generation.fail(0);
           run.flush();
@@ -939,20 +938,15 @@ void main() {
           run.flush();
           expect(run.started, ['failed', 'next']);
           expect(run.state.status, QueueExecutionStatus.running);
-        } finally {
-          run.dispose();
-        }
-      });
+        },
+      );
     });
 
     test('失败结算期间停止不推进下一条', () {
-      fakeAsync((async) {
-        final run = _QueueRun(
-          async,
-          prompts: ['failed', 'next'],
-          localStorage: noRetry,
-        );
-        try {
+      driveQueueRun(
+        (async) =>
+            QueueRun(async, prompts: ['failed', 'next'], localStorage: noRetry),
+        (run) {
           final moveGate = run.queue.moveGate = Completer<void>();
           run.generation.fail(0);
           run.flush();
@@ -963,21 +957,19 @@ void main() {
           run.flush();
           expect(run.started, ['failed']);
           expect(run.state.status, QueueExecutionStatus.idle);
-        } finally {
-          run.dispose();
-        }
-      });
+        },
+      );
     });
 
     test('失败后暂停等待策略在期间被停止时不把队列改回暂停', () {
-      fakeAsync((async) {
-        final run = _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['failed', 'next'],
           strategy: FailureHandlingStrategy.pauseAndWait,
           localStorage: noRetry,
-        );
-        try {
+        ),
+        (run) {
           final failGate = run.queue.failGate = Completer<void>();
           run.generation.fail(0);
           run.flush();
@@ -988,23 +980,21 @@ void main() {
           run.flush();
           expect(run.started, ['failed']);
           expect(run.state.status, QueueExecutionStatus.idle);
-        } finally {
-          run.dispose();
-        }
-      });
+        },
+      );
     });
 
     test('重试等待中暂停后恢复会重新提交当前任务', () {
-      fakeAsync((async) {
-        final run = _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['flaky', 'next'],
-          localStorage: _ConfiguredLocalStorageService(
+          localStorage: ConfiguredLocalStorageService(
             retryCount: 3,
             retryIntervalSeconds: 1,
           ),
-        );
-        try {
+        ),
+        (run) {
           run.generation.fail(0);
           run.generation.settle(0);
           run.flush();
@@ -1018,15 +1008,13 @@ void main() {
           run.flush();
           expect(run.started, ['flaky', 'flaky']);
           expect(run.state.status, QueueExecutionStatus.running);
-        } finally {
-          run.dispose();
-        }
-      });
+        },
+      );
     });
   });
 
   group('暂停期间的生成事件', () {
-    ReplicationTaskStatus? taskStatus(_QueueRun run, String taskId) {
+    ReplicationTaskStatus? taskStatus(QueueRun run, String taskId) {
       for (final task
           in run.container.read(replicationQueueNotifierProvider).tasks) {
         if (task.id == taskId) return task.status;
@@ -1034,7 +1022,7 @@ void main() {
       return null;
     }
 
-    void pauseThenFail(_QueueRun run, {String? message}) {
+    void pauseThenFail(QueueRun run, {String? message}) {
       run.execution.pause();
       run.flush();
       if (message == null) {
@@ -1047,7 +1035,7 @@ void main() {
       expect(run.state.status, QueueExecutionStatus.paused);
     }
 
-    void resumeOnce(_QueueRun run, List<String> expectedStarted) {
+    void resumeOnce(QueueRun run, List<String> expectedStarted) {
       run.execution.resume();
       run.flush();
       expect(run.started, expectedStarted);
@@ -1057,11 +1045,11 @@ void main() {
     }
 
     test('可重试的失败计入重试次数，恢复后重新提交一次', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['flaky', 'next'],
-          localStorage: _retries(3),
+          localStorage: queueRetries(3),
         ),
         (run) {
           pauseThenFail(run);
@@ -1077,11 +1065,11 @@ void main() {
     });
 
     test('重试用尽且跳过时进失败池，恢复后跑下一条', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['flaky', 'next'],
-          localStorage: _retries(0),
+          localStorage: queueRetries(0),
         ),
         (run) {
           pauseThenFail(run);
@@ -1101,12 +1089,12 @@ void main() {
     });
 
     test('重试用尽且自动重试时回到队尾，恢复后跑下一条', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['flaky', 'next'],
           strategy: FailureHandlingStrategy.autoRetry,
-          localStorage: _retries(0),
+          localStorage: queueRetries(0),
         ),
         (run) {
           pauseThenFail(run);
@@ -1124,12 +1112,12 @@ void main() {
     });
 
     test('重试用尽且失败后暂停等待时标记失败，恢复后重跑该条', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['flaky', 'next'],
           strategy: FailureHandlingStrategy.pauseAndWait,
-          localStorage: _retries(0),
+          localStorage: queueRetries(0),
         ),
         (run) {
           pauseThenFail(run);
@@ -1145,11 +1133,11 @@ void main() {
     });
 
     test('确定性错误不重试直接进失败池，恢复后跑下一条', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['thin mask', 'next'],
-          localStorage: _retries(3),
+          localStorage: queueRetries(3),
         ),
         (run) {
           pauseThenFail(
@@ -1172,11 +1160,11 @@ void main() {
     });
 
     test('暂停中请求被取消时停止队列，任务改回待执行且不再恢复', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['cancelled', 'next'],
-          localStorage: _retries(3),
+          localStorage: queueRetries(3),
         ),
         (run) {
           run.execution.pause();
@@ -1201,7 +1189,7 @@ void main() {
     });
 
     // 两种停下后没有队列请求在跑、但 currentTaskId 仍指着任务的状态
-    final idlePauses = <String, void Function(_QueueRun run)>{
+    final idlePauses = <String, void Function(QueueRun run)>{
       '失败后暂停等待': (run) {
         run.execution.setStrategyForTest(FailureHandlingStrategy.pauseAndWait);
         run.generation.fail(0);
@@ -1222,11 +1210,11 @@ void main() {
     for (final pauseKind in idlePauses.entries) {
       for (final outcome in ['成功', '失败', '取消']) {
         test('${pauseKind.key}后手动生成$outcome不影响队列', () {
-          _drive(
-            (async) => _QueueRun(
+          driveQueueRun(
+            (async) => QueueRun(
               async,
               prompts: ['queued', 'next'],
-              localStorage: _retries(pauseKind.key == '失败后暂停等待' ? 0 : 3),
+              localStorage: queueRetries(pauseKind.key == '失败后暂停等待' ? 0 : 3),
             ),
             (run) {
               pauseKind.value(run);
@@ -1275,12 +1263,12 @@ void main() {
       }
     }
     test('恢复时被手动生成占用的队列在手动生成结束后接着提交', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['queued', 'next'],
           strategy: FailureHandlingStrategy.pauseAndWait,
-          localStorage: _retries(0),
+          localStorage: queueRetries(0),
         ),
         (run) {
           run.generation.fail(0);
@@ -1309,7 +1297,7 @@ void main() {
   });
 
   group('上一次生成留下的终态', () {
-    void finish(_QueueRun run, int index, String outcome) {
+    void finish(QueueRun run, int index, String outcome) {
       switch (outcome) {
         case '成功':
           run.generation.complete(index);
@@ -1324,11 +1312,11 @@ void main() {
 
     for (final outcome in ['取消', '失败', '成功']) {
       test('手动生成$outcome后开始队列，队列正常提交并结算且只生成一次', () {
-        _drive(
-          (async) => _QueueRun(
+        driveQueueRun(
+          (async) => QueueRun(
             async,
             prompts: ['first', 'second'],
-            localStorage: _retries(0),
+            localStorage: queueRetries(0),
             autoStart: false,
           ),
           (run) {
@@ -1353,11 +1341,11 @@ void main() {
     }
 
     test('队列自己的生成被取消后重新开始，队列正常提交并结算', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['first', 'second'],
-          localStorage: _retries(0),
+          localStorage: queueRetries(0),
         ),
         (run) {
           finish(run, 0, '取消');
@@ -1376,12 +1364,12 @@ void main() {
     });
 
     test('失败后暂停等待的队列恢复时带着上一次的失败提交，只生成一次', () {
-      _drive(
-        (async) => _QueueRun(
+      driveQueueRun(
+        (async) => QueueRun(
           async,
           prompts: ['first', 'second'],
           strategy: FailureHandlingStrategy.pauseAndWait,
-          localStorage: _retries(0),
+          localStorage: queueRetries(0),
         ),
         (run) {
           finish(run, 0, '失败');
@@ -1407,8 +1395,12 @@ void main() {
         ImageParams(prompt: 'snapshot', sourceImage: Uint8List(128 * 1024)),
       ),
     );
-    final generation = _ControlledImageGenerationNotifier();
-    final container = _buildControlledQueueContainer([task], generation);
+    final generation = ControlledImageGenerationNotifier();
+    final container = buildControlledQueueContainer(
+      [task],
+      generation,
+      extraOverrides: [_blobStoreOverride],
+    );
     addTearDown(container.dispose);
     final readGate = _readGate = Completer<void>();
     addTearDown(() {
@@ -1438,206 +1430,6 @@ void main() {
     await generation.waitForStart(1).timeout(const Duration(seconds: 5));
     expect(generation.startedPrompts, ['manual', 'snapshot']);
   });
-
-  testWidgets('窗口进后台自动暂停后在途请求失败，回到窗口后队列照常继续', (tester) async {
-    final generation = _ControlledImageGenerationNotifier();
-    final tasks = [
-      ReplicationTask.create(prompt: 'flaky'),
-      ReplicationTask.create(prompt: 'next'),
-    ];
-    final container = _buildControlledQueueContainer(
-      tasks,
-      generation,
-      localStorage: _ConfiguredLocalStorageService(
-        retryCount: 3,
-        retryIntervalSeconds: 1,
-      ),
-      extraOverrides: [
-        subscriptionNotifierProvider.overrideWith(_IdleSubscription.new),
-      ],
-    );
-    addTearDown(
-      () => LocalGalleryThumbnailProvider.setAppLifecycleState(
-        AppLifecycleState.resumed,
-      ),
-    );
-    addTearDown(
-      () => tester.binding.handleAppLifecycleStateChanged(
-        AppLifecycleState.resumed,
-      ),
-    );
-    final inert = Provider<int>((ref) => 0);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: AppBootstrapEffects(
-            anlasWatcher: inert,
-            kritaBridge: inert,
-            mcpServer: inert,
-            cooccurrenceDataPack: inert,
-            cloudSyncLifecycle: () async {},
-            child: const SizedBox.shrink(),
-          ),
-        ),
-      ),
-    );
-    try {
-      Future<void> enter(List<AppLifecycleState> states) async {
-        for (final state in states) {
-          tester.binding.handleAppLifecycleStateChanged(state);
-          await tester.pump(Duration.zero);
-        }
-      }
-
-      await container
-          .read(queueExecutionNotifierProvider.notifier)
-          .startQueue();
-      await tester.pump(Duration.zero);
-      expect(generation.startedPrompts, ['flaky']);
-
-      await enter(const [AppLifecycleState.inactive, AppLifecycleState.hidden]);
-      expect(
-        container.read(queueExecutionNotifierProvider).status,
-        QueueExecutionStatus.paused,
-      );
-      generation.fail(0);
-      generation.settle(0);
-      await tester.pump(const Duration(seconds: 2));
-
-      await enter(const [AppLifecycleState.inactive]);
-      expect(generation.startedPrompts, ['flaky', 'flaky']);
-      expect(
-        container.read(queueExecutionNotifierProvider).status,
-        QueueExecutionStatus.running,
-      );
-    } finally {
-      await tester.pumpWidget(const SizedBox.shrink());
-      container.dispose();
-    }
-  });
-}
-
-// 用例体失败时也释放容器，免得计时器残留
-void _drive(
-  _QueueRun Function(FakeAsync async) start,
-  void Function(_QueueRun run) body,
-) {
-  fakeAsync((async) {
-    final run = start(async);
-    try {
-      body(run);
-    } finally {
-      run.dispose();
-    }
-  });
-}
-
-_ConfiguredLocalStorageService _retries(int count) =>
-    _ConfiguredLocalStorageService(retryCount: count, retryIntervalSeconds: 1);
-
-// 在 fakeAsync 中驱动受控生成的一轮队列执行
-class _QueueRun {
-  _QueueRun(
-    this.async, {
-    required List<String> prompts,
-    double taskIntervalSeconds = 0,
-    FailureHandlingStrategy strategy = FailureHandlingStrategy.skip,
-    LocalStorageService? localStorage,
-    bool autoStart = true,
-  }) : tasks = [
-         for (final prompt in prompts) ReplicationTask.create(prompt: prompt),
-       ] {
-    container = _buildControlledQueueContainer(
-      tasks,
-      generation,
-      localStorage: localStorage,
-      replicationQueue: () => _GatedReplicationQueueNotifier(tasks),
-    );
-    execution.setStrategyForTest(strategy);
-    if (taskIntervalSeconds > 0) execution.setTaskInterval(taskIntervalSeconds);
-    if (!autoStart) return;
-    execution.startQueue();
-    flush();
-    expect(started, [prompts.first]);
-  }
-
-  final FakeAsync async;
-  final List<ReplicationTask> tasks;
-  final generation = _ControlledImageGenerationNotifier();
-  late final ProviderContainer container;
-
-  _TestQueueExecutionNotifier get execution =>
-      container.read(queueExecutionNotifierProvider.notifier)
-          as _TestQueueExecutionNotifier;
-
-  _GatedReplicationQueueNotifier get queue =>
-      container.read(replicationQueueNotifierProvider.notifier)
-          as _GatedReplicationQueueNotifier;
-
-  QueueExecutionState get state =>
-      container.read(queueExecutionNotifierProvider);
-
-  List<String> get started => generation.startedPrompts;
-
-  void flush() => async.flushMicrotasks();
-
-  void elapse(Duration duration) {
-    async.elapse(duration);
-    flush();
-  }
-
-  void completeAndSettle(int index) {
-    generation.complete(index);
-    generation.settle(index);
-    flush();
-  }
-
-  void dispose() {
-    container.dispose();
-    flush();
-  }
-}
-
-ProviderContainer _buildControlledQueueContainer(
-  List<ReplicationTask> tasks,
-  ImageGenerationNotifier generation, {
-  LocalStorageService? localStorage,
-  ReplicationQueueNotifier Function()? replicationQueue,
-  List<Override> extraOverrides = const [],
-}) {
-  return ProviderContainer(
-    overrides: [
-      replicationQueueStorageProvider.overrideWithValue(
-        _MemoryReplicationQueueStorage(),
-      ),
-      queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
-      replicationQueueBlobStoreProvider.overrideWithValue(_blobStore),
-      if (localStorage != null)
-        localStorageServiceProvider.overrideWithValue(localStorage),
-      notificationSettingsNotifierProvider.overrideWith(
-        _DisabledNotificationSettingsNotifier.new,
-      ),
-      authNotifierProvider.overrideWith(
-        () => _TestAuthNotifier(AuthStatus.authenticated),
-      ),
-      replicationQueueNotifierProvider.overrideWith(
-        replicationQueue ?? () => _TestReplicationQueueNotifier(tasks),
-      ),
-      queueExecutionNotifierProvider.overrideWith(
-        _TestQueueExecutionNotifier.new,
-      ),
-      generationParamsNotifierProvider.overrideWith(
-        _TestGenerationParamsNotifier.new,
-      ),
-      characterPromptNotifierProvider.overrideWith(
-        () => _TestCharacterPromptNotifier(const []),
-      ),
-      imageGenerationNotifierProvider.overrideWith(() => generation),
-      kritaBridgeNotifierProvider.overrideWith(KritaBridgeNotifier.new),
-      ...extraOverrides,
-    ],
-  );
 }
 
 Future<ReplicationTask> _taskWithEmptyFixedFrame() async {
@@ -1661,113 +1453,6 @@ Future<ReplicationTask> _taskWithEmptyFixedFrame() async {
       ),
     ),
   );
-}
-
-Future<void> _waitForCurrentTask(
-  ProviderContainer container,
-  String taskId,
-) async {
-  if (container.read(queueExecutionNotifierProvider).currentTaskId == taskId) {
-    return;
-  }
-  final completer = Completer<void>();
-  late final ProviderSubscription<QueueExecutionState> subscription;
-  subscription = container.listen(queueExecutionNotifierProvider, (_, next) {
-    if (next.currentTaskId == taskId && !completer.isCompleted) {
-      completer.complete();
-    }
-  });
-  try {
-    await completer.future;
-  } finally {
-    subscription.close();
-  }
-}
-
-Future<void> _waitForExecutionStatus(
-  ProviderContainer container,
-  QueueExecutionStatus status,
-) async {
-  if (container.read(queueExecutionNotifierProvider).status == status) return;
-  final completer = Completer<void>();
-  late final ProviderSubscription<QueueExecutionState> subscription;
-  subscription = container.listen(queueExecutionNotifierProvider, (_, next) {
-    if (next.status == status && !completer.isCompleted) completer.complete();
-  });
-  try {
-    await completer.future;
-  } finally {
-    subscription.close();
-  }
-}
-
-Future<void> _waitForQueueTaskStatus(
-  ProviderContainer container,
-  String taskId,
-  ReplicationTaskStatus status,
-) async {
-  bool hasStatus(ReplicationQueueState queue) =>
-      queue.tasks.any((task) => task.id == taskId && task.status == status);
-  if (hasStatus(container.read(replicationQueueNotifierProvider))) return;
-  final completer = Completer<void>();
-  late final ProviderSubscription<ReplicationQueueState> subscription;
-  subscription = container.listen(replicationQueueNotifierProvider, (_, next) {
-    if (hasStatus(next) && !completer.isCompleted) completer.complete();
-  });
-  try {
-    await completer.future;
-  } finally {
-    subscription.close();
-  }
-}
-
-ProviderContainer _buildStartContainer(
-  ReplicationTask task,
-  AuthStatus authStatus, {
-  _TestImageGenerationNotifier? generationNotifier,
-  GenerationParamsNotifier Function()? generationParamsNotifier,
-  LocalStorageService? localStorage,
-}) {
-  return ProviderContainer(
-    overrides: [
-      replicationQueueStorageProvider.overrideWithValue(
-        _MemoryReplicationQueueStorage(),
-      ),
-      queueStateStorageProvider.overrideWithValue(_MemoryQueueStateStorage()),
-      replicationQueueBlobStoreProvider.overrideWithValue(_blobStore),
-      if (localStorage != null)
-        localStorageServiceProvider.overrideWithValue(localStorage),
-      notificationSettingsNotifierProvider.overrideWith(
-        _DisabledNotificationSettingsNotifier.new,
-      ),
-      authNotifierProvider.overrideWith(() => _TestAuthNotifier(authStatus)),
-      replicationQueueNotifierProvider.overrideWith(
-        () => _TestReplicationQueueNotifier([task]),
-      ),
-      queueExecutionNotifierProvider.overrideWith(
-        _TestQueueExecutionNotifier.new,
-      ),
-      generationParamsNotifierProvider.overrideWith(
-        generationParamsNotifier ?? _TestGenerationParamsNotifier.new,
-      ),
-      characterPromptNotifierProvider.overrideWith(
-        () => _TestCharacterPromptNotifier(const []),
-      ),
-      imageGenerationNotifierProvider.overrideWith(
-        () => generationNotifier ?? _TestImageGenerationNotifier(),
-      ),
-      kritaBridgeNotifierProvider.overrideWith(KritaBridgeNotifier.new),
-    ],
-  );
-}
-
-class _TestAuthNotifier extends AuthNotifier {
-  _TestAuthNotifier(this.authStatus);
-
-  final AuthStatus authStatus;
-
-  @override
-  AuthState build() => AuthState(status: authStatus);
 }
 
 class _MockGenerationApi extends Mock implements NAIImageGenerationApiService {}
@@ -1808,274 +1493,6 @@ class _PreflightImageGenerationNotifier extends ImageGenerationNotifier {
   }
 }
 
-class _DisabledNotificationSettingsNotifier
-    extends NotificationSettingsNotifier {
-  @override
-  NotificationSettings build() =>
-      const NotificationSettings(soundEnabled: false);
-}
-
-class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
-  _TestReplicationQueueNotifier(this.tasks);
-
-  final List<ReplicationTask> tasks;
-
-  @override
-  ReplicationQueueState build() {
-    super.build();
-    return ReplicationQueueState(tasks: tasks);
-  }
-
-  void replaceTaskForTest(ReplicationTask task) {
-    state = state.copyWith(
-      tasks: [
-        for (final queued in state.tasks) queued.id == task.id ? task : queued,
-      ],
-    );
-  }
-}
-
-// 闸门打开前，失败结算卡在对应的队列写入上
-class _GatedReplicationQueueNotifier extends _TestReplicationQueueNotifier {
-  _GatedReplicationQueueNotifier(super.tasks);
-
-  Completer<void>? moveGate;
-  Completer<void>? failGate;
-
-  @override
-  Future<void> moveToFailedPool(String taskId) async {
-    await moveGate?.future;
-    return super.moveToFailedPool(taskId);
-  }
-
-  @override
-  Future<bool> updateTaskStatus(
-    String taskId,
-    ReplicationTaskStatus status, {
-    String? errorMessage,
-  }) async {
-    if (status == ReplicationTaskStatus.failed) await failGate?.future;
-    return super.updateTaskStatus(taskId, status, errorMessage: errorMessage);
-  }
-}
-
-final class _IdleSubscription extends SubscriptionNotifier {
-  @override
-  SubscriptionState build() => const SubscriptionState.initial();
-
-  @override
-  void setAppVisible(bool isVisible) {}
-}
-
-class _TestQueueExecutionNotifier extends QueueExecutionNotifier {
-  @override
-  QueueExecutionState build() {
-    super.build();
-    return const QueueExecutionState();
-  }
-
-  void setStrategyForTest(FailureHandlingStrategy strategy) {
-    state = state.copyWith(failureStrategy: strategy);
-  }
-}
-
-class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
-  @override
-  ImageParams build() => const ImageParams();
-
-  @override
-  void updatePrompt(String prompt) {
-    state = state.copyWith(prompt: prompt);
-  }
-
-  @override
-  void updateNegativePrompt(String negativePrompt) {
-    state = state.copyWith(negativePrompt: negativePrompt);
-  }
-
-  @override
-  Future<void> saveGenerationState() async {}
-}
-
-class _ControlledImageGenerationNotifier extends ImageGenerationNotifier {
-  final List<String> startedPrompts = [];
-  final List<_ControlledGenerationInvocation> _invocations = [];
-  final List<Completer<void>> _startSignals = List.generate(
-    10,
-    (_) => Completer<void>(),
-  );
-  _ControlledGenerationInvocation? _activeInvocation;
-
-  @override
-  ImageGenerationState build() => const ImageGenerationState();
-
-  @override
-  Future<void> flushGenerationHistory() async {}
-
-  @override
-  Future<void> waitUntilGenerationInvocationSettled() =>
-      _activeInvocation?.settled.future ?? Future<void>.value();
-
-  @override
-  Future<String?> generate(
-    ImageParams params, {
-    int? batchSizeOverride,
-    bool preserveCharacterSnapshot = false,
-    GenerationFocusedSnapshot? focusedOverride,
-    bool bypassRandomPrompt = false,
-  }) async {
-    if (state.isBusy || _activeInvocation != null) return null;
-    final invocation = _ControlledGenerationInvocation();
-    _activeInvocation = invocation;
-    _invocations.add(invocation);
-    final index = _invocations.length - 1;
-    // 与真实生成层一致：先带着上一次的终态同步置为提交中，准备完才进入 generating
-    state = state.copyWith(
-      isSubmitting: true,
-      errorMessage: state.errorMessage,
-    );
-    await Future<void>.value();
-    startedPrompts.add(params.prompt);
-    state = state.copyWith(status: GenerationStatus.generating);
-    _startSignals[index].complete();
-
-    await invocation.settled.future;
-    if (identical(_activeInvocation, invocation)) {
-      _activeInvocation = null;
-      state = state.copyWith(
-        isSubmitting: false,
-        errorMessage: state.errorMessage,
-      );
-    }
-    await invocation.cleanup.future;
-    invocation.cleanupFinished.complete();
-    return null;
-  }
-
-  Future<void> waitForStart(int index) => _startSignals[index].future;
-
-  void complete(int index) {
-    expect(_invocations[index], same(_activeInvocation));
-    state = state.copyWith(status: GenerationStatus.completed);
-  }
-
-  void fail(int index, {String message = 'controlled failure'}) {
-    expect(_invocations[index], same(_activeInvocation));
-    state = state.copyWith(
-      status: GenerationStatus.error,
-      errorMessage: message,
-    );
-  }
-
-  void emitCancelled(int index) {
-    expect(_invocations[index], same(_activeInvocation));
-    state = state.copyWith(
-      status: GenerationStatus.cancelled,
-      isSubmitting: false,
-    );
-  }
-
-  void settle(int index) {
-    final invocation = _invocations[index];
-    if (identical(_activeInvocation, invocation)) {
-      _activeInvocation = null;
-      state = state.copyWith(
-        isSubmitting: false,
-        errorMessage: state.errorMessage,
-      );
-    }
-    if (!invocation.settled.isCompleted) invocation.settled.complete();
-  }
-
-  void finishCleanup(int index, {bool fail = false}) {
-    final invocation = _invocations[index];
-    invocation.cleanupFailed = fail;
-    if (!invocation.cleanup.isCompleted) invocation.cleanup.complete();
-  }
-
-  bool cleanupFinished(int index) =>
-      _invocations[index].cleanupFinished.isCompleted;
-
-  bool cleanupFailed(int index) => _invocations[index].cleanupFailed;
-
-  Future<void> waitForCleanup(int index) =>
-      _invocations[index].cleanupFinished.future;
-}
-
-class _ControlledGenerationInvocation {
-  final Completer<void> settled = Completer<void>();
-  final Completer<void> cleanup = Completer<void>();
-  final Completer<void> cleanupFinished = Completer<void>();
-  bool cleanupFailed = false;
-}
-
-class _NoRetryLocalStorageService extends LocalStorageService {
-  @override
-  T? getSetting<T>(String key, {T? defaultValue}) {
-    if (key == StorageKeys.queueRetryCount) return 0 as T;
-    if (key == StorageKeys.queueRetryInterval) return 0.0 as T;
-    return defaultValue;
-  }
-}
-
-class _ConfiguredLocalStorageService extends LocalStorageService {
-  _ConfiguredLocalStorageService({
-    required this.retryCount,
-    required this.retryIntervalSeconds,
-  });
-
-  final int retryCount;
-  final double retryIntervalSeconds;
-
-  @override
-  T? getSetting<T>(String key, {T? defaultValue}) {
-    if (key == StorageKeys.queueRetryCount) return retryCount as T;
-    if (key == StorageKeys.queueRetryInterval) return retryIntervalSeconds as T;
-    return defaultValue;
-  }
-}
-
-class _RetryingLocalStorageService extends LocalStorageService {
-  @override
-  T? getSetting<T>(String key, {T? defaultValue}) {
-    if (key == StorageKeys.queueRetryCount) return 3 as T;
-    if (key == StorageKeys.queueRetryInterval) return 0.0 as T;
-    return defaultValue;
-  }
-}
-
-class _TestImageGenerationNotifier extends ImageGenerationNotifier {
-  @override
-  ImageGenerationState build() => const ImageGenerationState();
-
-  @override
-  Future<String?> generate(
-    ImageParams params, {
-    int? batchSizeOverride,
-    bool preserveCharacterSnapshot = false,
-    GenerationFocusedSnapshot? focusedOverride,
-    bool bypassRandomPrompt = false,
-  }) async => null;
-}
-
-class _CapturingImageGenerationNotifier extends _TestImageGenerationNotifier {
-  ImageParams? generated;
-  final firstGeneration = Completer<ImageParams>();
-
-  @override
-  Future<String?> generate(
-    ImageParams params, {
-    int? batchSizeOverride,
-    bool preserveCharacterSnapshot = false,
-    GenerationFocusedSnapshot? focusedOverride,
-    bool bypassRandomPrompt = false,
-  }) async {
-    generated = params;
-    if (!firstGeneration.isCompleted) firstGeneration.complete(params);
-    return null;
-  }
-}
-
 final _blobFiles = MemoryStorageFileSystem();
 
 // 置为未完成时图片读取停在后台，测试得以在读取期间改动队列
@@ -2103,6 +1520,10 @@ final _blobStore = ReplicationQueueBlobStore(
   },
 );
 
+final _blobStoreOverride = replicationQueueBlobStoreProvider.overrideWithValue(
+  _blobStore,
+);
+
 /// 与入队后状态里的形态一致：图片已落盘，快照只存引用。
 Future<Map<String, dynamic>> _stored(
   ImageParams params, {
@@ -2113,56 +1534,4 @@ Future<Map<String, dynamic>> _stored(
   ], _blobStore);
   interned.release();
   return interned.snapshots.single!;
-}
-
-class _BatchGenerationParamsNotifier extends _TestGenerationParamsNotifier {
-  @override
-  ImageParams build() =>
-      const ImageParams(negativePrompt: 'main negative', nSamples: 4);
-}
-
-class _TestCharacterPromptNotifier extends CharacterPromptNotifier {
-  _TestCharacterPromptNotifier(this.initialCharacters);
-
-  final List<CharacterPrompt> initialCharacters;
-
-  @override
-  CharacterPromptConfig build() =>
-      CharacterPromptConfig(characters: initialCharacters);
-
-  @override
-  void replaceAll(List<CharacterPrompt> characters) {
-    state = state.copyWith(characters: characters);
-  }
-
-  @override
-  void setGlobalAiChoice(bool value) {
-    state = state.copyWith(globalAiChoice: value);
-  }
-}
-
-class _MemoryReplicationQueueStorage extends ReplicationQueueStorage {
-  @override
-  List<ReplicationTask> load() => const [];
-
-  @override
-  Future<void> save(List<ReplicationTask> tasks) async {}
-
-  @override
-  Future<void> clear() async {}
-}
-
-class _MemoryQueueStateStorage extends QueueStateStorage {
-  @override
-  QueueExecutionStateData loadExecutionState() =>
-      const QueueExecutionStateData();
-
-  @override
-  Future<void> saveExecutionState(QueueExecutionStateData state) async {}
-
-  @override
-  List<ReplicationTask> loadFailedTasks() => const [];
-
-  @override
-  Future<void> saveFailedTasks(List<ReplicationTask> tasks) async {}
 }

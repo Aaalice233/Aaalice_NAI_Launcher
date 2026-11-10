@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/app.dart';
 import 'package:nai_launcher/core/cache/local_gallery_thumbnail_provider.dart';
+import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 import 'helpers/app_bootstrap_effects_harness.dart';
+import 'helpers/queue_execution_harness.dart';
 
 final class _ScriptedQueue extends QueueExecutionNotifier {
   _ScriptedQueue(
@@ -269,5 +271,55 @@ void main() {
 
     expect(calls, ['pause']);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a queue request that fails while the window is hidden is '
+      'settled, and the queue carries on once the window returns', (
+    tester,
+  ) async {
+    final generation = ControlledImageGenerationNotifier();
+    final tasks = [
+      ReplicationTask.create(prompt: 'flaky'),
+      ReplicationTask.create(prompt: 'next'),
+    ];
+    container = await pumpAppBootstrapEffects(
+      tester,
+      queue: TestQueueExecutionNotifier.new,
+      generationParams: QueueTestGenerationParamsNotifier.new,
+      overrides: [
+        ...queueEngineOverrides(
+          tasks,
+          generation,
+          localStorage: ConfiguredLocalStorageService(
+            retryCount: 3,
+            retryIntervalSeconds: 1,
+          ),
+        ),
+        subscriptionNotifierProvider.overrideWith(_IdleSubscription.new),
+      ],
+    );
+    addTearDown(
+      () => LocalGalleryThumbnailProvider.setAppLifecycleState(
+        AppLifecycleState.resumed,
+      ),
+    );
+
+    await container.read(queueExecutionNotifierProvider.notifier).startQueue();
+    await tester.pump(Duration.zero);
+    expect(generation.startedPrompts, ['flaky']);
+
+    await enter(tester, const [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+    ]);
+    expect(queueStatus(), QueueExecutionStatus.paused);
+    generation.fail(0);
+    generation.settle(0);
+    await tester.pump(const Duration(seconds: 2));
+
+    await enter(tester, const [AppLifecycleState.inactive]);
+    await tester.pump(Duration.zero);
+    expect(generation.startedPrompts, ['flaky', 'flaky']);
+    expect(queueStatus(), QueueExecutionStatus.running);
   });
 }
