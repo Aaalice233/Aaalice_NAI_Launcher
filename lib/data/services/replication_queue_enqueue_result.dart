@@ -7,7 +7,7 @@ enum EnqueueOutcome {
   /// 未保存的任务均未开始执行，已撤回、移出队列或进入失败池；已保存的照常保留。
   withdrawn,
 
-  /// 有没写进索引的任务已离开过待执行状态或已完成，这些任务没有撤回。
+  /// 有没写进索引的任务已被执行引擎持有、离开过待执行状态或已完成，这些任务没有撤回。
   startedBeforeSaved,
 }
 
@@ -44,13 +44,13 @@ final class EnqueueResult {
   /// 至少一次被成功写进索引。
   final List<String> queuedTaskIds;
 
-  /// 没写进索引但结算期间离开过待执行状态，不撤回；不等于已发出请求或已扣点。
+  /// 没写进索引但已被执行引擎持有或离开过待执行状态，不撤回；不等于已发出请求或已扣点。
   final List<String> startedTaskIds;
 
   /// 没写进索引，已进入失败池或被标为失败。
   final List<String> failedTaskIds;
 
-  /// 没写进索引且始终待执行，已撤回，不会执行。
+  /// 没写进索引且始终待执行，执行引擎未持有，已撤回。
   final List<String> withdrawnTaskIds;
 
   /// 没写进索引，保存出结果之前已被其他操作移出队列。

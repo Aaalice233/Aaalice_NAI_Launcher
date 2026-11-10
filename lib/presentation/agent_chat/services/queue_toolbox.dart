@@ -174,10 +174,22 @@ class QueueToolbox {
   DefinedAgentTool _deleteTask() => DefinedAgentTool(
     name: 'delete_generation_queue_task',
     label: 'Delete Generation Queue Task',
-    description: 'Delete one pending task. Running tasks cannot be deleted.',
+    description:
+        'Delete one queued task. The task the queue is currently executing '
+        'cannot be deleted.',
     parameters: _taskIdSchema,
     executeFn: (_, params) async {
       final id = params['task_id'] as String;
+      final queue = _ref.read(replicationQueueNotifierProvider);
+      final locked = queue.tasks.any(
+        (task) => task.id == id && queue.isExecutionLocked(task),
+      );
+      if (locked) {
+        return agentToolError(
+          'task_locked',
+          'The queue is executing this task; it cannot be deleted.',
+        );
+      }
       final removed = await _ref
           .read(replicationQueueNotifierProvider.notifier)
           .remove(id);

@@ -47,6 +47,9 @@ class ReplicationQueueState {
   final bool isSelectionMode;
   final Set<String> selectedTaskIds;
 
+  /// 执行引擎当前持有的任务：从就绪起到结算完不可删、不可编辑、不可移动，不持久化。
+  final String? executionLockedTaskId;
+
   const ReplicationQueueState({
     this.tasks = const [],
     this.failedTasks = const [],
@@ -54,6 +57,7 @@ class ReplicationQueueState {
     this.isLoading = false,
     this.isSelectionMode = false,
     this.selectedTaskIds = const {},
+    this.executionLockedTaskId,
   });
 
   ReplicationQueueState copyWith({
@@ -63,6 +67,8 @@ class ReplicationQueueState {
     bool? isLoading,
     bool? isSelectionMode,
     Set<String>? selectedTaskIds,
+    String? executionLockedTaskId,
+    bool clearExecutionLock = false,
   }) {
     return ReplicationQueueState(
       tasks: tasks ?? this.tasks,
@@ -71,6 +77,9 @@ class ReplicationQueueState {
       isLoading: isLoading ?? this.isLoading,
       isSelectionMode: isSelectionMode ?? this.isSelectionMode,
       selectedTaskIds: selectedTaskIds ?? this.selectedTaskIds,
+      executionLockedTaskId: clearExecutionLock
+          ? null
+          : (executionLockedTaskId ?? this.executionLockedTaskId),
     );
   }
 
@@ -98,8 +107,19 @@ class ReplicationQueueState {
   /// 选中的任务数量
   int get selectedCount => selectedTaskIds.length;
 
-  Iterable<ReplicationTask> get selectableTasks =>
-      tasks.where((task) => task.status == ReplicationTaskStatus.pending);
+  /// 执行引擎持有的任务与运行中的任务都不可删、不可编辑、不可移动。
+  bool isExecutionLocked(ReplicationTask task) =>
+      task.id == executionLockedTaskId ||
+      task.status == ReplicationTaskStatus.running;
+
+  /// 待执行且未被执行引擎持有，可编辑、选择、移动。
+  bool isEditable(ReplicationTask task) =>
+      task.status == ReplicationTaskStatus.pending && !isExecutionLocked(task);
+
+  /// 队首被执行引擎持有的任务个数，重排与置顶都插在它们之后。
+  int get lockedPrefixLength => tasks.takeWhile(isExecutionLocked).length;
+
+  Iterable<ReplicationTask> get selectableTasks => tasks.where(isEditable);
 
   /// 是否全选
   bool get isAllSelected {
@@ -137,6 +157,10 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
   ReplicationQueueState _loadFromStorageSync() {
     try {
       final (:tasks, :failedTasks) = _persistence.load();
+      final lockedTaskId = ref
+          .read(queueStateStorageProvider)
+          .loadExecutionState()
+          .currentTaskId;
 
       // 加载时将所有 running 状态的任务重置为 pending
       // （因为应用重启后实际上没有任务在运行）
@@ -151,6 +175,11 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
         tasks: restoredTasks,
         failedTasks: failedTasks,
         isLoading: false,
+        // 与执行引擎恢复当前任务的条件一致：任务仍在队列里才算被持有
+        executionLockedTaskId:
+            restoredTasks.any((task) => task.id == lockedTaskId)
+            ? lockedTaskId
+            : null,
       );
     } on AssertionError {
       rethrow;
@@ -297,7 +326,8 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       } else if (inFailedPool.contains(id) ||
           status == ReplicationTaskStatus.failed) {
         groups.failed.add(id);
-      } else if (leftPending.contains(id)) {
+      } else if (leftPending.contains(id) ||
+          (status != null && state.executionLockedTaskId == id)) {
         groups.started.add(id);
       } else if (status != null) {
         groups.withdrawn.add(id);
@@ -333,11 +363,22 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     }
   }
 
-  /// 移除指定的待执行任务。运行中的任务只能由执行引擎结算。
+  /// 执行引擎持有的任务变化时由引擎同步。
+  void setExecutionLock(String? taskId) {
+    if (state.executionLockedTaskId == taskId) return;
+    state = state.copyWith(
+      executionLockedTaskId: taskId,
+      clearExecutionLock: taskId == null,
+      selectedTaskIds: taskId == null
+          ? null
+          : state.selectedTaskIds.difference({taskId}),
+    );
+  }
+
+  /// 移除指定任务。执行引擎持有的任务只能由引擎结算。
   Future<bool> remove(String taskId) async {
     final index = state.tasks.indexWhere((task) => task.id == taskId);
-    if (index < 0 ||
-        state.tasks[index].status == ReplicationTaskStatus.running) {
+    if (index < 0 || state.isExecutionLocked(state.tasks[index])) {
       return false;
     }
 
@@ -383,16 +424,14 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
         oldIndex >= state.tasks.length ||
         newIndex < 0 ||
         newIndex > state.tasks.length ||
-        state.tasks[oldIndex].status != ReplicationTaskStatus.pending) {
+        !state.isEditable(state.tasks[oldIndex])) {
       return false;
     }
 
     final tasks = List<ReplicationTask>.from(state.tasks);
     final task = tasks.removeAt(oldIndex);
-    final runningPrefixLength = tasks
-        .takeWhile((item) => item.status == ReplicationTaskStatus.running)
-        .length;
-    final insertionIndex = newIndex.clamp(runningPrefixLength, tasks.length);
+    final lockedPrefixLength = tasks.takeWhile(state.isExecutionLocked).length;
+    final insertionIndex = newIndex.clamp(lockedPrefixLength, tasks.length);
     tasks.insert(insertionIndex, task);
 
     state = state.copyWith(tasks: tasks);
@@ -510,8 +549,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     final taskIndex = state.tasks.indexWhere(
       (task) => task.id == updatedTask.id,
     );
-    if (taskIndex < 0 ||
-        state.tasks[taskIndex].status != ReplicationTaskStatus.pending) {
+    if (taskIndex < 0 || !state.isEditable(state.tasks[taskIndex])) {
       return false;
     }
 
@@ -551,16 +589,13 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
   /// 将待执行任务移到运行任务之后的首位。
   Future<void> pinToTop(String taskId) async {
     final taskIndex = state.tasks.indexWhere((task) => task.id == taskId);
-    if (taskIndex < 0 ||
-        state.tasks[taskIndex].status != ReplicationTaskStatus.pending) {
+    if (taskIndex < 0 || !state.isEditable(state.tasks[taskIndex])) {
       return;
     }
 
     final tasks = List<ReplicationTask>.from(state.tasks);
     final task = tasks.removeAt(taskIndex);
-    final insertionIndex = tasks
-        .takeWhile((item) => item.status == ReplicationTaskStatus.running)
-        .length;
+    final insertionIndex = tasks.takeWhile(state.isExecutionLocked).length;
     if (taskIndex == insertionIndex) return;
     tasks.insert(insertionIndex, task);
 
@@ -607,10 +642,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
     if (!_hasGeneratableContent(retriedTask)) return false;
 
     final tasks = List<ReplicationTask>.from(state.tasks);
-    final insertionIndex = tasks
-        .takeWhile((item) => item.status == ReplicationTaskStatus.running)
-        .length;
-    tasks.insert(insertionIndex, retriedTask);
+    tasks.insert(state.lockedPrefixLength, retriedTask);
     state = state.copyWith(
       tasks: tasks,
       failedTasks: state.failedTasks
@@ -684,7 +716,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       (item) => item?.id == taskId,
       orElse: () => null,
     );
-    if (task?.status != ReplicationTaskStatus.pending) return;
+    if (task == null || !state.isEditable(task)) return;
 
     final newSelected = Set<String>.from(state.selectedTaskIds);
     if (newSelected.contains(taskId)) {
@@ -723,7 +755,7 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
       tasks: state.tasks
           .where(
             (task) =>
-                task.status != ReplicationTaskStatus.pending ||
+                !state.isEditable(task) ||
                 !state.selectedTaskIds.contains(task.id),
           )
           .toList(),
@@ -737,26 +769,23 @@ class ReplicationQueueNotifier extends _$ReplicationQueueNotifier {
   Future<void> pinSelectedToTop() async {
     if (state.selectedTaskIds.isEmpty) return;
 
-    final runningTasks = state.tasks
-        .where((task) => task.status == ReplicationTaskStatus.running)
-        .toList();
+    final lockedTasks = state.tasks.where(state.isExecutionLocked).toList();
     final selectedTasks = state.tasks
         .where(
           (task) =>
-              task.status == ReplicationTaskStatus.pending &&
-              state.selectedTaskIds.contains(task.id),
+              state.isEditable(task) && state.selectedTaskIds.contains(task.id),
         )
         .toList();
     final otherTasks = state.tasks
         .where(
           (task) =>
-              task.status != ReplicationTaskStatus.running &&
+              !state.isExecutionLocked(task) &&
               !selectedTasks.any((selected) => selected.id == task.id),
         )
         .toList();
 
     state = state.copyWith(
-      tasks: [...runningTasks, ...selectedTasks, ...otherTasks],
+      tasks: [...lockedTasks, ...selectedTasks, ...otherTasks],
       selectedTaskIds: {},
       isSelectionMode: false,
     );
