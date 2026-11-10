@@ -25,24 +25,29 @@ class InertGenerationParamsNotifier extends GenerationParamsNotifier {
 
 List<Override> appBackgroundLifecycleOverrides({
   QueueExecutionNotifier Function() queue = IdleQueueExecutionNotifier.new,
+  GenerationParamsNotifier Function() generationParams =
+      InertGenerationParamsNotifier.new,
 }) => [
   queueExecutionNotifierProvider.overrideWith(queue),
-  generationParamsNotifierProvider.overrideWith(
-    InertGenerationParamsNotifier.new,
-  ),
+  generationParamsNotifierProvider.overrideWith(generationParams),
 ];
 
 /// 挂上只带生命周期副作用的 [AppBootstrapEffects]，测试结束后把绑定的生命周期还原为 resumed。
 Future<ProviderContainer> pumpAppBootstrapEffects(
   WidgetTester tester, {
   QueueExecutionNotifier Function() queue = IdleQueueExecutionNotifier.new,
+  GenerationParamsNotifier Function() generationParams =
+      InertGenerationParamsNotifier.new,
   List<Override> overrides = const [],
 }) async {
   final inert = Provider<int>((ref) => 0);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        ...appBackgroundLifecycleOverrides(queue: queue),
+        ...appBackgroundLifecycleOverrides(
+          queue: queue,
+          generationParams: generationParams,
+        ),
         ...overrides,
       ],
       child: MaterialApp(
