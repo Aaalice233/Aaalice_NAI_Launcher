@@ -51,6 +51,7 @@ class QueueRun {
     FailureHandlingStrategy strategy = FailureHandlingStrategy.skip,
     LocalStorageService? localStorage,
     bool autoStart = true,
+    List<Override> extraOverrides = const [],
   }) : tasks = [
          for (final prompt in prompts) ReplicationTask.create(prompt: prompt),
        ] {
@@ -59,6 +60,7 @@ class QueueRun {
       generation,
       localStorage: localStorage,
       replicationQueue: () => GatedReplicationQueueNotifier(tasks),
+      extraOverrides: extraOverrides,
     );
     execution.setStrategyForTest(strategy);
     if (taskIntervalSeconds > 0) execution.setTaskInterval(taskIntervalSeconds);
@@ -268,6 +270,29 @@ class QueueTestAuthNotifier extends AuthNotifier {
 
   @override
   AuthState build() => AuthState(status: authStatus);
+
+  void signOutForTest() =>
+      state = const AuthState(status: AuthStatus.unauthenticated);
+}
+
+/// 冷却由用例直接开关，等待按真实实现的节拍轮询。
+class ScriptedCooldownNotifier extends GenerationCooldownNotifier {
+  @override
+  GenerationCooldownState build() => const GenerationCooldownState();
+
+  void hold() => state = const GenerationCooldownState(remainingSeconds: 1);
+
+  void release() => state = const GenerationCooldownState();
+
+  @override
+  bool tryStartGeneration() => !state.isActive;
+
+  @override
+  Future<void> waitUntilAvailable() async {
+    while (state.isActive) {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+  }
 }
 
 class DisabledNotificationSettingsNotifier
@@ -389,6 +414,24 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
       errorMessage: state.errorMessage,
     );
     await Future<void>.value();
+    await preparationGate?.future;
+    final endPreparation = endNextPreparation;
+    if (endPreparation != null) {
+      endNextPreparation = null;
+      try {
+        endPreparation();
+      } finally {
+        if (identical(_activeInvocation, invocation)) {
+          _activeInvocation = null;
+          state = state.copyWith(
+            isSubmitting: false,
+            errorMessage: state.errorMessage,
+          );
+        }
+        invocation.settled.complete();
+      }
+      return null;
+    }
     startedPrompts.add(params.prompt);
     state = state.copyWith(status: GenerationStatus.generating);
     _startSignals[index].complete();
@@ -407,6 +450,28 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
   }
 
   Future<void> waitForStart(int index) => _startSignals[index].future;
+
+  /// 下一次 generate() 在准备阶段如何结束、不进入 generating；为 null 时照常生成
+  void Function()? endNextPreparation;
+
+  /// 设置后 generate() 停在准备阶段，闸门打开才继续
+  Completer<void>? preparationGate;
+
+  void failPreparation(String message) => state = state.copyWith(
+    status: GenerationStatus.error,
+    errorMessage: message,
+  );
+
+  // 与真实 cancel() 一致：上一次已完成的结果不改标成已取消
+  void cancelPreparation() {
+    _activeInvocation = null;
+    state = state.copyWith(
+      status: state.status == GenerationStatus.completed
+          ? state.status
+          : GenerationStatus.cancelled,
+      isSubmitting: false,
+    );
+  }
 
   void complete(int index) {
     expect(_invocations[index], same(_activeInvocation));

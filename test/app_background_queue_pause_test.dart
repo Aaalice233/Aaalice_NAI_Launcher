@@ -5,12 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/app.dart';
 import 'package:nai_launcher/core/cache/local_gallery_thumbnail_provider.dart';
+import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
+import 'package:nai_launcher/data/models/queue/failure_handling_strategy.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
+import 'package:nai_launcher/data/models/queue/replication_task_status.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
+import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
 import 'helpers/app_bootstrap_effects_harness.dart';
+import 'helpers/memory_queue_blob_store.dart';
 import 'helpers/queue_execution_harness.dart';
 
 final class _ScriptedQueue extends QueueExecutionNotifier {
@@ -320,6 +325,134 @@ void main() {
     await enter(tester, const [AppLifecycleState.inactive]);
     await tester.pump(Duration.zero);
     expect(generation.startedPrompts, ['flaky', 'flaky']);
+    expect(queueStatus(), QueueExecutionStatus.running);
+  });
+
+  for (final failsWhileHidden in [true, false]) {
+    testWidgets(
+      failsWhileHidden
+          ? 'the final retry fails while hidden and stays paused on return'
+          : 'a background pause resumes when the final retry has no failure',
+      (tester) async {
+        final generation = ControlledImageGenerationNotifier();
+        final tasks = [
+          ReplicationTask.create(prompt: 'first'),
+          ReplicationTask.create(prompt: 'next'),
+        ];
+        container = await pumpAppBootstrapEffects(
+          tester,
+          queue: TestQueueExecutionNotifier.new,
+          generationParams: QueueTestGenerationParamsNotifier.new,
+          overrides: [
+            ...queueEngineOverrides(
+              tasks,
+              generation,
+              localStorage: ConfiguredLocalStorageService(
+                retryCount: 1,
+                retryIntervalSeconds: 0,
+              ),
+            ),
+            replicationQueueBlobStoreProvider.overrideWithValue(
+              memoryQueueBlobStore(),
+            ),
+            subscriptionNotifierProvider.overrideWith(_IdleSubscription.new),
+          ],
+        );
+        addTearDown(
+          () => LocalGalleryThumbnailProvider.setAppLifecycleState(
+            AppLifecycleState.resumed,
+          ),
+        );
+        final queue = container.read(queueExecutionNotifierProvider.notifier);
+        await queue.setFailureStrategy(FailureHandlingStrategy.pauseAndWait);
+        await queue.startQueue();
+        await tester.pump();
+        generation.fail(0);
+        generation.settle(0);
+        await tester.pump(Duration.zero);
+        expect(generation.startedPrompts, ['first', 'first']);
+
+        await enter(tester, const [
+          AppLifecycleState.inactive,
+          AppLifecycleState.hidden,
+        ]);
+        expect(queueStatus(), QueueExecutionStatus.paused);
+        if (failsWhileHidden) {
+          generation.fail(1);
+        } else {
+          generation.complete(1);
+        }
+        generation.settle(1);
+        await tester.pump();
+        expect(queueStatus(), QueueExecutionStatus.paused);
+
+        await enter(tester, const [
+          AppLifecycleState.inactive,
+          AppLifecycleState.resumed,
+        ]);
+        if (failsWhileHidden) {
+          expect(generation.startedPrompts, ['first', 'first']);
+          expect(queueStatus(), QueueExecutionStatus.paused);
+          final task = container
+              .read(replicationQueueNotifierProvider)
+              .tasks
+              .first;
+          expect(task.id, tasks.first.id);
+          expect(task.status, ReplicationTaskStatus.failed);
+        } else {
+          expect(generation.startedPrompts, ['first', 'first', 'next']);
+          expect(queueStatus(), QueueExecutionStatus.running);
+        }
+      },
+    );
+  }
+
+  testWidgets('a queue request still preparing when the window is hidden is '
+      'settled as completed, and the next task runs once the window returns', (
+    tester,
+  ) async {
+    final generation = ControlledImageGenerationNotifier()
+      ..preparationGate = Completer<void>();
+    final tasks = [
+      ReplicationTask.create(prompt: 'first'),
+      ReplicationTask.create(prompt: 'second'),
+    ];
+    container = await pumpAppBootstrapEffects(
+      tester,
+      queue: TestQueueExecutionNotifier.new,
+      generationParams: QueueTestGenerationParamsNotifier.new,
+      overrides: [
+        ...queueEngineOverrides(tasks, generation),
+        subscriptionNotifierProvider.overrideWith(_IdleSubscription.new),
+      ],
+    );
+    addTearDown(
+      () => LocalGalleryThumbnailProvider.setAppLifecycleState(
+        AppLifecycleState.resumed,
+      ),
+    );
+
+    await container.read(queueExecutionNotifierProvider.notifier).startQueue();
+    await tester.pump(Duration.zero);
+    expect(generation.startedPrompts, isEmpty);
+
+    await enter(tester, const [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+    ]);
+    expect(queueStatus(), QueueExecutionStatus.paused);
+    generation.preparationGate!.complete();
+    await tester.pump(Duration.zero);
+    expect(generation.startedPrompts, ['first']);
+    generation.complete(0);
+    generation.settle(0);
+    await tester.pump(const Duration(seconds: 2));
+    expect(queueStatus(), QueueExecutionStatus.paused);
+    expect(container.read(queueExecutionNotifierProvider).completedCount, 1);
+
+    await enter(tester, const [AppLifecycleState.inactive]);
+    await tester.pump(Duration.zero);
+    expect(generation.startedPrompts, ['first', 'second']);
     expect(queueStatus(), QueueExecutionStatus.running);
   });
 }
