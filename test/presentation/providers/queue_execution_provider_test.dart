@@ -1499,24 +1499,6 @@ void main() {
       return run;
     }
 
-    test('可重试的本地拒绝计入重试，之后重新提交', () {
-      driveQueueRun(
-        (async) => startWith(
-          async,
-          endPreparation: (run) =>
-              run.generation.rejectPreparation('Invalid resolution'),
-        ),
-        (run) {
-          expect(run.state.retryCount, 1);
-          expect(run.started, isEmpty);
-
-          run.elapse(const Duration(seconds: 2));
-          expect(run.started, ['first']);
-          expect(run.state.status, QueueExecutionStatus.running);
-        },
-      );
-    });
-
     test('确定性的本地拒绝直接进失败池并跑下一条', () {
       driveQueueRun(
         (async) => startWith(
@@ -1539,20 +1521,55 @@ void main() {
       );
     });
 
-    test('本地拒绝重试用尽时按失败策略处理', () {
-      driveQueueRun(
-        (async) => startWith(
-          async,
-          retries: 0,
-          endPreparation: (run) =>
-              run.generation.rejectPreparation('Invalid resolution'),
-        ),
-        (run) {
-          expect(run.state.failedCount, 1);
-          expect(run.started, ['second']);
-        },
-      );
-    });
+    const localRejections = {
+      '分辨率不合规': 'GENERATION_ERROR_INVALID_RESOLUTION|513|768|512|768',
+      '不支持的随机模型': 'GENERATION_ERROR_UNSUPPORTED_RANDOM_MODEL|future-model',
+    };
+    for (final rejection in localRejections.entries) {
+      for (final strategy in FailureHandlingStrategy.values) {
+        test('${rejection.key}按确定性错误结算，$strategy 下不重试', () {
+          driveQueueRun(
+            (async) {
+              final run = QueueRun(
+                async,
+                prompts: ['first', 'second'],
+                strategy: strategy,
+                localStorage: queueRetries(3),
+                autoStart: false,
+              );
+              run.generation.endNextPreparation = () =>
+                  run.generation.rejectPreparation(rejection.value);
+              run.execution.startQueue();
+              run.flush();
+              return run;
+            },
+            (run) {
+              final queue = run.container.read(
+                replicationQueueNotifierProvider,
+              );
+              expect(run.state.retryCount, 0);
+              expect(run.state.failedCount, 1);
+              switch (strategy) {
+                case FailureHandlingStrategy.skip:
+                case FailureHandlingStrategy.autoRetry:
+                  expect(queue.failedTasks.single.id, run.tasks[0].id);
+                  expect(queue.tasks.map((task) => task.id), [run.tasks[1].id]);
+                  expect(run.started, ['second']);
+                case FailureHandlingStrategy.pauseAndWait:
+                  expect(queue.failedTasks, isEmpty);
+                  expect(
+                    queue.tasks.first.status,
+                    ReplicationTaskStatus.failed,
+                  );
+                  expect(queue.tasks.first.errorMessage, rejection.value);
+                  expect(run.state.status, QueueExecutionStatus.paused);
+                  expect(run.started, isEmpty);
+              }
+            },
+          );
+        });
+      }
+    }
 
     for (final thrown in <Object>[
       StateError('preparation crashed'),
@@ -1752,7 +1769,7 @@ void main() {
     test('冷却计时中被本地拒绝时按失败结算，不再每隔一个间隔空转', () {
       driveQueueRun(
         (async) {
-          final run = afterManualRun(async, '成功', retries: 0);
+          final run = afterManualRun(async, '成功');
           run.generation.endNextPreparation = () => run.generation
               .rejectPreparation('GENERATION_ERROR_UNSUPPORTED_RANDOM_MODEL|x');
           run.execution.startQueue();

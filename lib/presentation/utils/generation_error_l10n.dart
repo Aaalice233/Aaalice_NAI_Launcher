@@ -4,6 +4,7 @@ import '../../core/storage/replication_queue_blob_store.dart';
 import '../../core/utils/focused_inpaint_input_exception.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/utils/localization_extension.dart';
+import '../../core/utils/nai_resolution_adapter.dart';
 import '../providers/generation/generation_error_classifier.dart';
 import '../providers/prompt_config_provider.dart';
 
@@ -84,7 +85,7 @@ String detailGenerationError(BuildContext context, String message) {
         l10n.generation_generationFailed,
         l10n.generation_unreadableInpaintImageHint,
       );
-    case 'GENERATION_ERROR_INVALID_RESOLUTION':
+    case NaiGenerationResolutionIssue.errorCodePrefix:
       if (parts.length >= 5) {
         final width = int.tryParse(parts[1]);
         final height = int.tryParse(parts[2]);

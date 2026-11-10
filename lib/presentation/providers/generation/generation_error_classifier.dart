@@ -1,16 +1,21 @@
 import '../../../core/utils/focused_inpaint_input_exception.dart';
 import '../../../core/utils/inpaint_mask/empty_inpaint_mask_exception.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
+import '../prompt_config_provider.dart';
 
 /// Written instead of the exception text when a run fails inside the launcher.
 const generationInternalErrorCode = 'GENERATION_ERROR_INTERNAL';
 
 /// Rejected locally from the same inputs, so retrying only delays the error.
-bool isDeterministicGenerationError(Object? error) =>
-    EmptyInpaintMaskException.matches(error) ||
-    error.toString().contains(FocusedInpaintInputException.invalidCropCode) ||
-    error.toString().contains(FocusedInpaintInputException.decodeFailedCode) ||
-    error.toString().contains(NaiGenerationResolutionIssue.errorCodePrefix);
+bool isDeterministicGenerationError(Object? error) {
+  if (error == null) return false;
+  if (EmptyInpaintMaskException.matches(error)) return true;
+  final message = error.toString();
+  return message.contains(FocusedInpaintInputException.invalidCropCode) ||
+      message.contains(FocusedInpaintInputException.decodeFailedCode) ||
+      message.contains(NaiGenerationResolutionIssue.errorCodePrefix) ||
+      message.contains(UnsupportedRandomPromptModelException.errorCode);
+}
 
 /// Whether a generation error says the endpoint cannot serve streaming output.
 bool isStreamingGenerationUnsupportedError(Object? error) {
