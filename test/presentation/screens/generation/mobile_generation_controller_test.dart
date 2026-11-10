@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -19,7 +18,10 @@ import 'package:nai_launcher/presentation/providers/prompt_maximize_provider.dar
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_controller.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_gestures.dart';
 import 'package:nai_launcher/presentation/widgets/common/drag_claim_notification.dart';
+import 'package:nai_launcher/presentation/widgets/queue/enqueue_result_toast.dart';
 
+import '../../../helpers/memory_queue_blob_store.dart';
+import '../../../helpers/enqueue_result_fixture.dart';
 import '../../../helpers/real_async_pump.dart';
 
 void main() {
@@ -192,7 +194,7 @@ void main() {
       ReplicationTaskGenerationSnapshot.decodeBatchSize(snapshot),
       expectedBatchSize,
     );
-    final decoded = await ReplicationTaskGenerationSnapshot.decode(snapshot);
+    final decoded = await _decodeQueued(snapshot);
     expect(decoded, expected.copyWith(nSamples: 1));
     expect(decoded.prompt, expected.prompt);
     expect(decoded.negativePrompt, expected.negativePrompt);
@@ -217,7 +219,58 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
   });
 
-  testWidgets('大图参数在后台编码后入队，期间控制器卸载也不丢任务', (tester) async {
+  for (final fixture in EnqueueFixture.values) {
+    testWidgets('${fixture.name} 显示对应入队结果，不带错误原文', (tester) async {
+      final storage = _MemoryLocalStorageService({
+        StorageKeys.mobileGenerationGestureHintCompleted: true,
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith((ref) => storage),
+            replicationQueueNotifierProvider.overrideWith(
+              () => _TestReplicationQueueNotifier(
+                resultFor: (task) => fixture.resolve([task]),
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            locale: Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: _ControllerHarness(showQueueAction: true),
+          ),
+        ),
+      );
+      await tester.pump();
+      ProviderScope.containerOf(
+        tester.element(find.byType(_ControllerHarness)),
+      ).read(generationParamsNotifierProvider.notifier).updatePrompt('queued');
+      await tester.pump();
+
+      await tester.tap(find.text('MOBILE_QUEUE'));
+      await tester.pump();
+
+      final l10n = lookupAppLocalizations(const Locale('zh'));
+      final expected = switch (fixture) {
+        EnqueueFixture.saved => l10n.queue_taskAdded,
+        EnqueueFixture.full => l10n.onlineGallery_queueFullMax,
+        EnqueueFixture.unexpected => l10n.queue_enqueueUnexpectedError,
+        _ => enqueueFailureMessage(
+          l10n,
+          fixture.resolve([ReplicationTask.create(prompt: 'test')]),
+        )!,
+      };
+      expect(find.text(expected), findsOneWidget);
+      expect(find.textContaining('private'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await tester.pump(const Duration(seconds: 4));
+    });
+  }
+
+  testWidgets('大图参数交给队列落盘，入队后控制器卸载也不丢任务', (tester) async {
     final storage = _MemoryLocalStorageService({
       StorageKeys.mobileGenerationGestureHintCompleted: true,
     });
@@ -250,17 +303,22 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('MOBILE_QUEUE'));
-    await tester.pump();
-    expect(queueNotifier.addCallCount, 0);
     await pumpHome(const SizedBox());
     await pumpUntilRealAsync(
       tester,
       () => queueNotifier.addCallCount == 1,
-      reason: 'background snapshot encoding should finish and enqueue',
+      reason: 'the task should reach the queue after the controller unmounts',
     );
 
     final snapshot = queueNotifier.addedTask!.generationSnapshot!;
-    expect(snapshot['sourceImage'], base64Encode(sourceImage));
+    expect(
+      snapshot['sourceImage'],
+      isA<PendingSnapshotBlob>().having(
+        (blob) => blob.bytes,
+        'bytes',
+        sourceImage,
+      ),
+    );
     expect(snapshot['params'], containsPair('prompt', 'large prompt'));
     expect(tester.takeException(), isNull);
   });
@@ -414,6 +472,9 @@ class _ControllerHarnessState extends ConsumerState<_ControllerHarness> {
 }
 
 class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
+  _TestReplicationQueueNotifier({this.resultFor});
+
+  final EnqueueResult Function(ReplicationTask task)? resultFor;
   int addCallCount = 0;
   ReplicationTask? addedTask;
 
@@ -421,11 +482,12 @@ class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
   ReplicationQueueState build() => const ReplicationQueueState();
 
   @override
-  Future<bool> add(ReplicationTask task) async {
+  Future<EnqueueResult> add(ReplicationTask task) async {
     addCallCount++;
     addedTask = task;
+    if (resultFor case final resultFor?) return resultFor(task);
     state = state.copyWith(tasks: [...state.tasks, task]);
-    return true;
+    return EnqueueResult.saved([task.id]);
   }
 }
 
@@ -449,3 +511,7 @@ class _MemoryLocalStorageService extends LocalStorageService {
     values[key] = value;
   }
 }
+
+// 测试里的队列直接保存待落盘快照，解码不会读取图片文件
+Future<ImageParams> _decodeQueued(Map<String, dynamic> snapshot) =>
+    ReplicationTaskGenerationSnapshot.decode(snapshot, memoryQueueBlobStore());

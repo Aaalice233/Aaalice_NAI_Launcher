@@ -1080,8 +1080,8 @@ class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
       const ReplicationQueueState(isLoading: false);
 
   @override
-  Future<bool> add(ReplicationTask task) async {
+  Future<EnqueueResult> add(ReplicationTask task) async {
     state = state.copyWith(tasks: [...state.tasks, task]);
-    return true;
+    return EnqueueResult.saved([task.id]);
   }
 }

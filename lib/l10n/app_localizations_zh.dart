@@ -8293,6 +8293,49 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_taskAdded => '已加入队列';
 
   @override
+  String get queue_imagesUnavailable => '队列图片暂时无法读取';
+
+  @override
+  String get queue_imagesUnavailableHint => '图片文件可能正被其他程序占用（例如杀毒软件），请稍后重试';
+
+  @override
+  String queue_enqueueStartedUnsaved(Object count) {
+    return '队列保存失败，但已有 $count 个任务开始执行，请勿重复添加';
+  }
+
+  @override
+  String queue_enqueueStartedAndWithdrawn(Object started, Object withdrawn) {
+    return '队列保存失败：$started 个任务已开始执行，请勿重复添加；另有 $withdrawn 个任务已撤回，未开始执行';
+  }
+
+  @override
+  String queue_enqueueQueued(Object count) {
+    return '$count 个任务已保存到队列';
+  }
+
+  @override
+  String queue_enqueueWithdrawn(Object count) {
+    return '队列保存失败，$count 个任务已撤回，未开始执行';
+  }
+
+  @override
+  String queue_enqueueRemoved(Object count) {
+    return '$count 个任务在保存完成前已被移出，未计为成功加入';
+  }
+
+  @override
+  String queue_enqueueFailedBeforeSaved(Object count) {
+    return '$count 个任务在保存完成前已失败，未计为成功加入，请检查队列或「失败」列表';
+  }
+
+  @override
+  String get queue_enqueueIndexUnsaved =>
+      '队列索引仍未保存成功，重启后已撤回或已移出的任务可能仍在队列里，请检查后再重新添加';
+
+  @override
+  String get queue_enqueueUnexpectedError => '入队时发生意外错误，请检查队列状态后再重试';
+
+  @override
   String get queue_negativePromptFromMain => '负向提示词将使用主界面设置';
 
   @override
@@ -24030,6 +24073,49 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get queue_taskAdded => '已加入佇列';
+
+  @override
+  String get queue_imagesUnavailable => '佇列圖片暫時無法讀取';
+
+  @override
+  String get queue_imagesUnavailableHint => '圖片檔案可能正被其他程式佔用（例如防毒軟體），請稍後重試';
+
+  @override
+  String queue_enqueueStartedUnsaved(Object count) {
+    return '佇列儲存失敗，但已有 $count 個任務開始執行，請勿重複加入';
+  }
+
+  @override
+  String queue_enqueueStartedAndWithdrawn(Object started, Object withdrawn) {
+    return '佇列儲存失敗：$started 個任務已開始執行，請勿重複加入；另有 $withdrawn 個任務已撤回，未開始執行';
+  }
+
+  @override
+  String queue_enqueueQueued(Object count) {
+    return '$count 個任務已儲存至佇列';
+  }
+
+  @override
+  String queue_enqueueWithdrawn(Object count) {
+    return '佇列儲存失敗，$count 個任務已撤回，未開始執行';
+  }
+
+  @override
+  String queue_enqueueRemoved(Object count) {
+    return '$count 個任務在儲存完成前已被移出，未計為成功加入';
+  }
+
+  @override
+  String queue_enqueueFailedBeforeSaved(Object count) {
+    return '$count 個任務在儲存完成前已失敗，未計為成功加入，請檢查佇列或「失敗」列表';
+  }
+
+  @override
+  String get queue_enqueueIndexUnsaved =>
+      '佇列索引仍未儲存成功，重新啟動後已撤回或已移出的任務可能仍在佇列裡，請檢查後再重新加入';
+
+  @override
+  String get queue_enqueueUnexpectedError => '入列時發生非預期錯誤，請檢查佇列狀態後再重試';
 
   @override
   String get queue_negativePromptFromMain => '負向提示詞將使用主介面設定';

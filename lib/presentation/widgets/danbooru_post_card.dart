@@ -13,6 +13,7 @@ import 'package:path/path.dart' as path;
 import '../../core/cache/gallery_image_request.dart';
 import '../../core/cache/online_gallery_image_cache_manager.dart';
 import '../../core/cache/online_gallery_prefetch_coordinator.dart';
+import '../../core/utils/app_logger.dart';
 import '../../core/services/file_export_service.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/media_mime_type.dart';
@@ -37,6 +38,7 @@ import 'online_gallery/online_gallery_image_placeholder.dart';
 import 'online_gallery/progressive_gallery_image.dart';
 
 import 'common/app_toast.dart';
+import 'queue/enqueue_result_toast.dart';
 
 /// 图片卡片组件
 ///
@@ -460,24 +462,32 @@ class _DanbooruPostCardState extends ConsumerState<DanbooruPostCard> {
                   ]
                 : null,
           );
-          final success = await ref
-              .read(replicationQueueNotifierProvider.notifier)
-              .add(task);
+          final EnqueueResult result;
+          try {
+            result = await ref
+                .read(replicationQueueNotifierProvider.notifier)
+                .add(task);
+          } catch (error, stackTrace) {
+            AppLogger.e(
+              'Failed to add a gallery post to the queue',
+              '${error.runtimeType}',
+              stackTrace,
+              'OnlineGallery',
+            );
+            if (mounted) showEnqueueErrorToast(context);
+            return;
+          }
           if (mounted) {
-            if (success) {
-              final count = ref.read(
-                replicationQueueNotifierProvider.select((state) => state.count),
-              );
-              AppToast.success(
-                context,
-                context.l10n.onlineGallery_addedToQueueWithCount(count),
-              );
-            } else {
-              AppToast.warning(
-                context,
-                context.l10n.onlineGallery_queueFullMax,
-              );
-            }
+            final count = ref.read(
+              replicationQueueNotifierProvider.select((state) => state.count),
+            );
+            showEnqueueResultToast(
+              context,
+              result,
+              successMessage: context.l10n.onlineGallery_addedToQueueWithCount(
+                count,
+              ),
+            );
           }
         },
       ),

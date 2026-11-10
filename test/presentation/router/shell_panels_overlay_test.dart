@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
+import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
 import 'package:nai_launcher/core/storage/replication_queue_storage.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
@@ -18,6 +19,8 @@ import 'package:nai_launcher/presentation/providers/queue_execution_provider.dar
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
 import 'package:nai_launcher/presentation/router/shell_panels_overlay.dart';
 import 'package:nai_launcher/presentation/widgets/queue/queue_management_page.dart';
+
+import '../../helpers/memory_queue_blob_store.dart';
 
 final _queue = find.byType(QueueManagementPage, skipOffstage: false);
 final _agent = find.byType(AgentChatPanel, skipOffstage: false);
@@ -34,6 +37,9 @@ void main() {
       reduceMotion: true,
       queueOverrides: [
         queueStateStorageProvider.overrideWithValue(_CompletedQueueStorage()),
+        replicationQueueBlobStoreProvider.overrideWithValue(
+          memoryQueueBlobStore(),
+        ),
         replicationQueueStorageProvider.overrideWithValue(
           _MemoryQueueStorage(),
         ),
@@ -45,12 +51,10 @@ void main() {
       tester.element(find.byType(ShellPanelsOverlay)),
     );
     final pending = ReplicationTask.create(prompt: 'new pending task');
-    expect(
-      await container
-          .read(replicationQueueNotifierProvider.notifier)
-          .add(pending),
-      isTrue,
-    );
+    final result = await container
+        .read(replicationQueueNotifierProvider.notifier)
+        .add(pending);
+    expect(result.queuedTaskIds, [pending.id]);
     await tester.pump();
     expect(_queue, findsNothing);
 

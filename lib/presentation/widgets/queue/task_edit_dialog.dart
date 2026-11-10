@@ -5,6 +5,7 @@ import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../../core/autocomplete/autocomplete_settings.dart'
     show replaceUnderscoresPreferenceProvider;
+import '../../../core/utils/app_logger.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/window_size_class.dart';
@@ -17,6 +18,7 @@ import '../autocomplete/autocomplete_wrapper.dart';
 import '../prompt/prompt_formatter_wrapper.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
+import 'enqueue_result_toast.dart';
 import 'queue_task_thumbnail.dart';
 
 /// 任务编辑对话框
@@ -357,17 +359,44 @@ class _TaskEditDialogState extends ConsumerState<TaskEditDialog> {
   }
 
   Future<void> _duplicateTask() async {
-    final l10n = context.l10n;
-    final success = await ref
-        .read(replicationQueueNotifierProvider.notifier)
-        .duplicateTask(widget.task.id);
-
-    if (mounted) {
-      if (success) {
-        AppToast.success(context, l10n.queue_taskDuplicated);
-      } else {
-        AppToast.warning(context, l10n.queue_queueFull);
+    final queue = ref.read(replicationQueueNotifierProvider.notifier);
+    final DuplicateTaskResult outcome;
+    try {
+      outcome = await queue.duplicateTask(widget.task.id);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to duplicate queue task',
+        '${error.runtimeType}',
+        stackTrace,
+        'Queue',
+      );
+      if (mounted) {
+        AppToast.error(
+          context,
+          context.l10n.onlineGallery_actionFailed(
+            context.l10n.queue_duplicateTask,
+          ),
+        );
       }
+      return;
+    }
+    if (!mounted) return;
+    final l10n = context.l10n;
+    switch (outcome.result) {
+      case DuplicateTaskStatus.added:
+        AppToast.success(context, l10n.queue_taskDuplicated);
+      case DuplicateTaskStatus.queueFull:
+        AppToast.warning(context, l10n.queue_queueFull);
+      case DuplicateTaskStatus.saveFailed:
+      case DuplicateTaskStatus.startedBeforeSaved:
+        showEnqueueFailureToast(context, outcome.enqueue!);
+      case DuplicateTaskStatus.notFound:
+      case DuplicateTaskStatus.nothingToGenerate:
+      case DuplicateTaskStatus.invalidSnapshot:
+        AppToast.error(
+          context,
+          l10n.onlineGallery_actionFailed(l10n.queue_duplicateTask),
+        );
     }
   }
 }

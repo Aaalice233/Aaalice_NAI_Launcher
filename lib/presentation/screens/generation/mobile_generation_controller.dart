@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/storage/local_storage_service.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
@@ -24,6 +25,7 @@ import '../../providers/replication_queue_provider.dart';
 import '../../utils/asset_protection_guard.dart';
 import '../../widgets/common/app_toast.dart';
 import '../../widgets/common/drag_claim_notification.dart';
+import '../../widgets/queue/enqueue_result_toast.dart';
 import 'mobile_generation_view_data.dart';
 
 class MobileGenerationController extends ChangeNotifier
@@ -413,13 +415,25 @@ class MobileGenerationController extends ChangeNotifier
       width: params.width,
       height: params.height,
     );
-    final added = await queue.add(task);
-    if (_disposed || !context.mounted) return;
-    if (!added) {
-      AppToast.warning(context, context.l10n.onlineGallery_queueFullMax);
+    final EnqueueResult result;
+    try {
+      result = await queue.add(task);
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Failed to add the current prompt to the queue',
+        '${error.runtimeType}',
+        stackTrace,
+        'MobileGeneration',
+      );
+      if (!_disposed && context.mounted) showEnqueueErrorToast(context);
       return;
     }
-    AppToast.success(context, context.l10n.queue_taskAdded);
+    if (_disposed || !context.mounted) return;
+    showEnqueueResultToast(
+      context,
+      result,
+      successMessage: context.l10n.queue_taskAdded,
+    );
   }
 
   @override

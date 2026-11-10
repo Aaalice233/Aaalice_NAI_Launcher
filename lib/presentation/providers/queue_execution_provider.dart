@@ -6,6 +6,8 @@ import '../../core/constants/storage_keys.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../core/storage/queue_state_storage.dart';
+import '../../core/storage/replication_queue_blob_store.dart';
+import '../../core/storage/replication_queue_blob_store_provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/image/image_params.dart';
 import '../../data/models/queue/replication_task.dart';
@@ -488,17 +490,23 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
           identical(_currentQueueTask(), task)) {
         await _settleUnretryableTaskError(preflightError);
       }
+    } on QueueBlobReadFailedException catch (error) {
+      AppLogger.w(error.message, 'QueueExecution');
+      _retryAfterTransientSnapshotFailure();
     } on FormatException catch (error, stackTrace) {
       final taskId = state.currentTaskId;
       AppLogger.e(
-        'Queued generation snapshot is invalid',
-        error,
+        'Queued generation snapshot is invalid (${error.runtimeType})',
+        null,
         stackTrace,
         'QueueExecution',
       );
       if (taskId != null) {
-        await _settleUnretryableTaskError(
-          'Invalid generation snapshot: $error',
+        // 先释放触发锁，结算才能推进下一项。
+        unawaited(
+          _settleUnretryableTaskError(
+            'Invalid generation snapshot: ${error.message}',
+          ),
         );
       } else {
         state = state.copyWith(
@@ -512,17 +520,34 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
   }
 
+  /// 读图片的暂时性失败按一次失败的执行结算，沿用重试次数、重试间隔与失败策略。
+  void _retryAfterTransientSnapshotFailure() {
+    if (state.currentTaskId == null ||
+        state.status != QueueExecutionStatus.ready) {
+      return;
+    }
+    startExecution(errorMessage: QueueBlobReadFailedException.errorCode);
+    // 不等待：重试要在本次触发的 finally 释放触发锁之后才能再次触发生成
+    unawaited(
+      _onTaskError(errorMessage: QueueBlobReadFailedException.errorCode),
+    );
+  }
+
   /// 快照在后台解码，期间通知器可能被释放、队列可能暂停或被手动生成占用，
   /// 当前任务也可能被编辑；结算后重新核对，任务被替换时改用最新任务。
   Future<(ReplicationTask, ImageParams?)?> _decodeReadyTask(
     ReplicationTask task,
   ) async {
+    final blobStore = ref.read(replicationQueueBlobStoreProvider);
     var current = task;
     while (true) {
       final snapshot = current.generationSnapshot;
       if (snapshot == null) return (current, null);
-      final decoding = ReplicationTaskGenerationSnapshot.decode(snapshot);
-      // 先等结算再核对；FormatException 只在确认仍是当前任务后才抛出
+      final decoding = ReplicationTaskGenerationSnapshot.decode(
+        snapshot,
+        blobStore,
+      );
+      // 先等结算再核对，只抛出仍是当前任务的快照读取错误。
       await decoding.then<void>((_) {}, onError: (Object _) {});
       if (_isDisposed || !_canGenerateReadyTask()) return null;
       final latest = _currentQueueTask();
@@ -549,7 +574,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   /// 开始执行队列
   ///
   /// 当用户点击生成按钮后，由生成状态监听器自动触发
-  void startExecution() {
+  void startExecution({String? errorMessage}) {
     if (state.status != QueueExecutionStatus.ready) return;
 
     state = state.copyWith(status: QueueExecutionStatus.running);
@@ -561,6 +586,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
           .updateTaskStatus(
             state.currentTaskId!,
             ReplicationTaskStatus.running,
+            errorMessage: errorMessage,
           );
     }
   }
@@ -712,8 +738,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     _processNextTask();
   }
 
-  /// 任务错误处理
-  Future<void> _onTaskError() async {
+  Future<void> _onTaskError({String? errorMessage}) async {
     final settings = _getSettings();
 
     if (state.retryCount < settings.retryCount) {
@@ -732,7 +757,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       _triggerAutoGenerate();
     } else {
       // 超过重试次数，根据策略处理
-      await _handleFailedTask();
+      await _handleFailedTask(errorMessage: errorMessage);
     }
   }
 
@@ -769,13 +794,6 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
 
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
-    final task = ref
-        .read(replicationQueueNotifierProvider)
-        .tasks
-        .firstWhere(
-          (t) => t.id == currentTaskId,
-          orElse: () => ReplicationTask.create(prompt: ''),
-        );
 
     switch (state.failureStrategy) {
       case FailureHandlingStrategy.autoRetry:
@@ -783,11 +801,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
           await queueNotifier.moveToFailedPool(currentTaskId);
           break;
         }
-        // 重新入队到末尾。执行中的任务只能通过专用结算入口移除。
-        final removed = await queueNotifier.removeRunningTaskForRetry(
+        // 重新入队到末尾。执行中的任务只能通过专用结算入口移动。
+        final requeued = await queueNotifier.requeueRunningTaskForRetry(
           currentTaskId,
         );
-        if (!removed) {
+        if (!requeued) {
           AppLogger.e(
             'Queue retry target no longer exists: $currentTaskId',
             null,
@@ -797,13 +815,6 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
           await stopExecution();
           return;
         }
-        await queueNotifier.add(
-          task.copyWith(
-            status: ReplicationTaskStatus.pending,
-            retryCount: 0,
-            errorMessage: null,
-          ),
-        );
         break;
 
       case FailureHandlingStrategy.skip:

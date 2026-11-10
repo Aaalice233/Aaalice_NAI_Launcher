@@ -1,4 +1,3 @@
-import '../../../data/models/image/image_params.dart' show ImageParamsExtension;
 import '../../../data/models/queue/replication_task.dart';
 import '../../../data/models/queue/replication_task_generation_snapshot.dart';
 import '../../providers/queue_execution_provider.dart';
@@ -13,10 +12,11 @@ Map<String, dynamic> queueExecutionJson(QueueExecutionState state) => {
   'progress': state.progress,
 };
 
-Future<Map<String, dynamic>> replicationTaskJson(
+/// 快照部分只读索引里的引用，不读图片文件。
+Map<String, dynamic> replicationTaskJson(
   ReplicationTask task, {
   bool full = false,
-}) async => {
+}) => {
   'task_id': task.id,
   'status': task.status.name,
   'prompt': task.prompt,
@@ -33,7 +33,7 @@ Future<Map<String, dynamic>> replicationTaskJson(
   'retry_count': task.retryCount,
   'error': task.errorMessage,
   if (task.generationSnapshot != null)
-    'generation_snapshot': await _generationSnapshotSummary(
+    'generation_snapshot': ReplicationTaskGenerationSnapshot.describe(
       task.generationSnapshot!,
     ),
   'characters': [
@@ -47,34 +47,3 @@ Future<Map<String, dynamic>> replicationTaskJson(
       },
   ],
 };
-
-Future<Map<String, dynamic>> _generationSnapshotSummary(
-  Map<String, dynamic> snapshot,
-) async {
-  try {
-    final params = await ReplicationTaskGenerationSnapshot.decode(snapshot);
-    return {
-      'schema_version': snapshot['schemaVersion'],
-      'valid': true,
-      'action': params.action.name,
-      'model': params.model,
-      'width': params.width,
-      'height': params.height,
-      'steps': params.effectiveSteps,
-      'sampler': params.effectiveSampler,
-      'scale': params.scale,
-      'seed': params.seed,
-      'has_source_image': params.sourceImage != null,
-      'has_mask_image': params.maskImage != null,
-      'vibe_reference_count': params.vibeReferencesV4.length,
-      'precise_reference_count': params.preciseReferences.length,
-      'character_count': params.characters.length,
-    };
-  } on FormatException catch (error) {
-    return {
-      'schema_version': snapshot['schemaVersion'],
-      'valid': false,
-      'error': '$error',
-    };
-  }
-}
