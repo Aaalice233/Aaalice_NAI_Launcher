@@ -25,6 +25,7 @@ import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_status.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
+import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
@@ -305,6 +306,7 @@ void main() {
     expect(await execution.startQueue(), QueueStartResult.started);
     try {
       expect(await generation.preflightResult.future, isNotNull);
+      await execution.stopExecution();
       expect(await queue.remove(first.id), isTrue);
       execution.prepareNextTask();
     } finally {
@@ -2071,6 +2073,89 @@ void main() {
       );
     });
   });
+
+  group('执行引擎的当前任务锁定', () {
+    T? settled<T>(QueueRun run, Future<T> future) {
+      T? value;
+      future.then((result) => value = result);
+      run.flush();
+      return value;
+    }
+
+    QueueRun submittedButPreparing(FakeAsync async) {
+      final run = QueueRun(
+        async,
+        prompts: ['first', 'second', 'third'],
+        autoStart: false,
+      );
+      run.generation.preparationGate = Completer<void>();
+      run.execution.startQueue();
+      run.flush();
+      return run;
+    }
+
+    test('已提交、还没进入生成的当前任务不能删除、编辑或被插到前面', () {
+      driveQueueRun(submittedButPreparing, (run) {
+        final first = run.tasks[0];
+        expect(run.started, isEmpty);
+        expect(run.state.currentTaskId, first.id);
+
+        expect(settled(run, run.queue.remove(first.id)), isFalse);
+        expect(
+          settled(run, run.queue.updateTask(first.copyWith(prompt: 'edited'))),
+          isFalse,
+        );
+        expect(settled(run, run.queue.reorder(0, 3)), isFalse);
+        settled(run, run.queue.pinToTop(run.tasks[2].id));
+        run.queue.toggleTaskSelection(first.id);
+
+        final queue = run.container.read(replicationQueueNotifierProvider);
+        expect(queue.tasks.map((task) => task.prompt), [
+          'first',
+          'third',
+          'second',
+        ]);
+        expect(queue.selectedTaskIds, isEmpty);
+
+        run.generation.preparationGate!.complete();
+        run.flush();
+        expect(run.started, ['first']);
+      });
+    });
+
+    test('智能体与 MCP 的删除工具同样被拒绝', () {
+      driveQueueRun(submittedButPreparing, (run) {
+        final toolbox = QueueToolbox(
+          run.container.read(_refProvider),
+          QueueControlRuntime(),
+        );
+        final result = settled(
+          run,
+          toolbox
+              .tools()
+              .firstWhere((tool) => tool.name == 'delete_generation_queue_task')
+              .execute('delete', {'task_id': run.tasks[0].id}),
+        );
+
+        expect(result?.isError, isTrue);
+        expect(result?.details['code'], 'task_locked');
+        expect(
+          run.container.read(replicationQueueNotifierProvider).tasks.first.id,
+          run.tasks[0].id,
+        );
+      });
+    });
+
+    test('停止后当前任务解锁', () {
+      driveQueueRun(submittedButPreparing, (run) {
+        run.execution.stopExecution();
+        run.flush();
+        expect(settled(run, run.queue.remove(run.tasks[0].id)), isTrue);
+        run.generation.preparationGate!.complete();
+        run.flush();
+      });
+    });
+  });
 }
 
 Future<ReplicationTask> _taskWithEmptyFixedFrame() async {
@@ -2180,3 +2265,5 @@ Future<Map<String, dynamic>> _stored(
   interned.release();
   return interned.snapshots.single!;
 }
+
+final _refProvider = Provider<Ref>((ref) => ref);

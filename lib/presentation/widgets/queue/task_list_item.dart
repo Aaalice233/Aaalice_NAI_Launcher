@@ -99,11 +99,14 @@ class _TaskListItemState extends ConsumerState<TaskListItem>
     final isRunning = widget.task.status == ReplicationTaskStatus.running;
     final interactionPolicy = context.interactionPolicy;
 
-    // 获取当前执行任务ID和生成进度
-    final (currentTaskId, generationProgress) = _getExecutionProgress();
+    // 获取当前任务的生成进度
+    final (_, generationProgress) = _getExecutionProgress();
 
-    // currentTaskId 从 ready 阶段起即锁定任务，避免生成提交前的短暂窗口仍可编辑或删除。
-    final isExecutionLocked = currentTaskId == widget.task.id;
+    final isExecutionLocked = ref.watch(
+      replicationQueueNotifierProvider.select(
+        (queue) => queue.isExecutionLocked(widget.task),
+      ),
+    );
     final isCurrentRunningTask = isRunning && isExecutionLocked;
     final canSelect =
         widget.task.status == ReplicationTaskStatus.pending &&

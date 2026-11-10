@@ -211,6 +211,13 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     ) {
       _onGenerationStateChanged(previous, next);
     });
+    // 当前任务的锁放在队列里，界面、智能体与 MCP 的删改入口都经过同一处判断
+    listenSelf((previous, next) {
+      if (previous?.currentTaskId == next.currentTaskId) return;
+      ref
+          .read(replicationQueueNotifierProvider.notifier)
+          .setExecutionLock(next.currentTaskId);
+    });
 
     // 同步加载持久化状态（Hive Box 已在 main.dart 中预先打开）
     return _loadFromStorageSync();
