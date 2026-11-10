@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:hive_ce/hive.dart' show HiveError;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/constants/storage_keys.dart';
@@ -449,7 +451,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   void _triggerAutoGenerate() {
     if (_generationTriggerPending) return;
     _generationTriggerPending = true;
-    unawaited(_generateReadyTask());
+    _runSettlement(_generateReadyTask);
   }
 
   Future<void> _generateReadyTask() async {
@@ -474,7 +476,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       }
     } on QueueBlobReadFailedException catch (error) {
       AppLogger.w(error.message, 'QueueExecution');
-      _retryAfterTransientSnapshotFailure();
+      await _retryAfterTransientSnapshotFailure();
       return;
     } on FormatException catch (error, stackTrace) {
       await _settleInvalidSnapshot(error, stackTrace);
@@ -609,11 +611,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
     if (failure != null) {
       startExecution();
-      unawaited(_onTaskError());
+      _runSettlement(_onTaskError);
       return false;
     }
     if (!ref.read(authNotifierProvider).isAuthenticated) {
-      unawaited(pause());
+      _runSettlement(pause);
       publishAuthPrompt(ref, AuthPromptReason.queueExecution);
       return false;
     }
@@ -625,27 +627,25 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     if (generation.status == GenerationStatus.error && errorMessage != null) {
       startExecution();
       if (isDeterministicGenerationError(errorMessage)) {
-        unawaited(_settleUnretryableTaskError(errorMessage));
+        _runSettlement(() => _settleUnretryableTaskError(errorMessage));
       } else {
-        unawaited(_onTaskError());
+        _runSettlement(_onTaskError);
       }
       return false;
     }
     // 其余提前返回只来自取消或通知器释放，与运行中被取消一样停止队列
-    unawaited(stopExecution());
+    _runSettlement(stopExecution);
     return false;
   }
 
   /// 读图片的暂时性失败按一次失败的执行结算，沿用重试次数、重试间隔与失败策略。
-  void _retryAfterTransientSnapshotFailure() {
+  Future<void> _retryAfterTransientSnapshotFailure() async {
     if (state.currentTaskId == null ||
         state.status != QueueExecutionStatus.ready) {
       return;
     }
     startExecution(errorMessage: QueueBlobReadFailedException.errorCode);
-    unawaited(
-      _onTaskError(errorMessage: QueueBlobReadFailedException.errorCode),
-    );
+    await _onTaskError(errorMessage: QueueBlobReadFailedException.errorCode);
   }
 
   /// 快照在后台解码，期间通知器可能被释放、队列可能暂停或被手动生成占用，
@@ -695,14 +695,17 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     state = state.copyWith(status: QueueExecutionStatus.running);
 
     // 实际开始执行时，更新当前任务状态为 running
-    if (state.currentTaskId != null) {
-      ref
-          .read(replicationQueueNotifierProvider.notifier)
-          .updateTaskStatus(
-            state.currentTaskId!,
-            ReplicationTaskStatus.running,
-            errorMessage: errorMessage,
-          );
+    final taskId = state.currentTaskId;
+    if (taskId != null) {
+      _runSettlement(
+        () => ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .updateTaskStatus(
+              taskId,
+              ReplicationTaskStatus.running,
+              errorMessage: errorMessage,
+            ),
+      );
     }
   }
 
@@ -736,9 +739,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     if (state.isReady) {
       startExecution();
     } else if (state.isPaused) {
-      ref
-          .read(replicationQueueNotifierProvider.notifier)
-          .updateTaskStatus(taskId, ReplicationTaskStatus.running);
+      _runSettlement(
+        () => ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .updateTaskStatus(taskId, ReplicationTaskStatus.running),
+      );
     }
   }
 
@@ -793,17 +798,55 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     switch (outcome) {
       case GenerationStatus.completed:
         // 队列模式：不播放单张完成音效，等队列全部完成后播放
-        _onTaskCompleted();
+        _runSettlement(_onTaskCompleted);
       case GenerationStatus.error:
         final errorMessage = next.errorMessage;
         if (errorMessage != null &&
             isDeterministicGenerationError(errorMessage)) {
-          unawaited(_settleUnretryableTaskError(errorMessage));
+          _runSettlement(() => _settleUnretryableTaskError(errorMessage));
         } else {
-          _onTaskError();
+          _runSettlement(_onTaskError);
         }
       default:
-        unawaited(stopExecution());
+        _runSettlement(stopExecution);
+    }
+  }
+
+  // 结算里的队列写入失败时不能停在运行中；只记异常类型，异常文本可能带着任务内容
+  void _runSettlement(Future<void> Function() settlement) {
+    final revision = _executionRevision;
+    unawaited(
+      settlement().then<void>(
+        (_) {},
+        onError: (Object error, StackTrace stackTrace) async {
+          AppLogger.e(
+            'Queue settlement failed with ${error.runtimeType}',
+            null,
+            stackTrace,
+            'QueueExecution',
+          );
+          // 期间已被停止或重新开始时，旧结算的失败不能停掉用户的新会话
+          if (!_isDisposed && revision == _executionRevision) {
+            await _stopAfterSettlementFailure();
+          }
+          if (!_isQueueStorageWriteFailure(error)) {
+            Error.throwWithStackTrace(error, stackTrace);
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _stopAfterSettlementFailure() async {
+    try {
+      await stopExecution();
+    } catch (stopError, stopStackTrace) {
+      AppLogger.e(
+        'Stopping the queue failed with ${stopError.runtimeType}',
+        null,
+        stopStackTrace,
+        'QueueExecution',
+      );
     }
   }
 
@@ -884,9 +927,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   /// 任务错误处理
   Future<void> _onTaskError({String? errorMessage}) async {
     final settings = _getSettings();
+    final revision = _executionRevision;
 
     if (state.retryCount < settings.retryCount) {
-      final revision = _executionRevision;
       final taskId = state.currentTaskId;
       // 重试
       state = state.copyWith(retryCount: state.retryCount + 1);
@@ -910,7 +953,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       _triggerAutoGenerate();
     } else {
       // 超过重试次数，根据策略处理
-      await _handleFailedTask(errorMessage: errorMessage);
+      await _handleFailedTask(errorMessage: errorMessage, revision: revision);
     }
   }
 
@@ -932,21 +975,27 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         state.currentTaskId != taskId) {
       return;
     }
-    await _handleFailedTask(errorMessage: errorMessage, retryable: false);
+    await _handleFailedTask(
+      errorMessage: errorMessage,
+      retryable: false,
+      revision: revision,
+    );
   }
 
   /// 处理失败任务
   Future<void> _handleFailedTask({
     String? errorMessage,
     bool retryable = true,
+    required int revision,
   }) async {
+    // 结算前已被停止时任务已改回待执行，当前任务也可能属于重新开始的新会话
+    if (revision != _executionRevision) return;
     final currentTaskId = state.currentTaskId;
     if (currentTaskId == null) {
       _processNextTask();
       return;
     }
 
-    final revision = _executionRevision;
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
 
     switch (state.failureStrategy) {
@@ -959,6 +1008,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         final requeued = await queueNotifier.requeueRunningTaskForRetry(
           currentTaskId,
         );
+        if (revision != _executionRevision) return;
         if (!requeued) {
           AppLogger.e(
             'Queue retry target no longer exists: $currentTaskId',
@@ -984,11 +1034,9 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
           ReplicationTaskStatus.failed,
           errorMessage: errorMessage,
         );
-        // 暂停执行；期间已被停止的不再改回暂停
+        if (revision != _executionRevision) return;
         state = state.copyWith(
-          status: revision == _executionRevision
-              ? QueueExecutionStatus.paused
-              : null,
+          status: QueueExecutionStatus.paused,
           failedCount: state.failedCount + 1,
           failedTaskIds: [...state.failedTaskIds, currentTaskId],
           retryCount: 0,
@@ -996,6 +1044,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         await _saveToStorage();
         return;
     }
+    if (revision != _executionRevision) return;
 
     state = state.copyWith(
       failedCount: state.failedCount + 1,
@@ -1020,7 +1069,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         status: QueueExecutionStatus.completed,
         clearCurrentTaskId: true,
       );
-      _saveToStorage();
+      _runSettlement(_saveToStorage);
 
       // 触发队列完成通知
       _triggerGenerationNotification();
@@ -1133,3 +1182,9 @@ QueueSettings queueSettings(Ref ref) {
     failureStrategy: executionState.failureStrategy,
   );
 }
+
+// 队列索引写入失败由持久化层包装，执行状态仍由 Hive 直接写入。
+bool _isQueueStorageWriteFailure(Object error) =>
+    error is ReplicationQueueWriteException ||
+    error is HiveError ||
+    error is FileSystemException;
