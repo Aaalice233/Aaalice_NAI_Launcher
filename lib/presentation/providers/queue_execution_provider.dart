@@ -733,22 +733,38 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         Duration(milliseconds: (state.taskIntervalSeconds * 1000).toInt()),
       );
     }
-    if (revision != _executionRevision) return;
+    if (!_canAdvanceFrom(currentTaskId, revision)) return;
 
     _processNextTask();
   }
 
+  // 等待期间可能被暂停、停止，或已由 resume 推进到下一条，这些情况都不能再由原流程推进
+  bool _canAdvanceFrom(String settledTaskId, int revision) =>
+      revision == _executionRevision &&
+      (state.isRunning || state.isReady) &&
+      state.currentTaskId == settledTaskId;
+
+  /// 任务错误处理
   Future<void> _onTaskError({String? errorMessage}) async {
     final settings = _getSettings();
 
     if (state.retryCount < settings.retryCount) {
+      final revision = _executionRevision;
+      final taskId = state.currentTaskId;
       // 重试
       state = state.copyWith(retryCount: state.retryCount + 1);
 
       // 等待重试间隔
       await Future.delayed(settings.retryInterval);
+      if (revision != _executionRevision) return;
 
-      // 检查是否仍在运行或暂停
+      if (state.isPaused && taskId != null && state.currentTaskId == taskId) {
+        // 失败后已无在途请求，任务改回待执行，resume 才会重新提交而不是当作仍在生成
+        await ref
+            .read(replicationQueueNotifierProvider.notifier)
+            .resetRunningTask(taskId);
+        return;
+      }
       if (state.status != QueueExecutionStatus.running) return;
 
       // 重新设置为 ready 状态，等待用户再次点击或自动执行
@@ -793,6 +809,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       return;
     }
 
+    final revision = _executionRevision;
     final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
 
     switch (state.failureStrategy) {
@@ -829,9 +846,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
           ReplicationTaskStatus.failed,
           errorMessage: errorMessage,
         );
-        // 暂停执行
+        // 暂停执行；期间已被停止的不再改回暂停
         state = state.copyWith(
-          status: QueueExecutionStatus.paused,
+          status: revision == _executionRevision
+              ? QueueExecutionStatus.paused
+              : null,
           failedCount: state.failedCount + 1,
           failedTaskIds: [...state.failedTaskIds, currentTaskId],
           retryCount: 0,
@@ -847,6 +866,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     );
 
     await _saveToStorage();
+    if (!_canAdvanceFrom(currentTaskId, revision)) return;
 
     // 处理下一个任务
     _processNextTask();

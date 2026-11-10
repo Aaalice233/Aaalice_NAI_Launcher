@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -827,12 +828,266 @@ void main() {
     expect(restored.customPosition?.row, 0.2);
     expect(restored.customPosition?.column, 0.8);
   });
+
+  group('等待结束后复查暂停与停止', () {
+    final noRetry = _ConfiguredLocalStorageService(
+      retryCount: 0,
+      retryIntervalSeconds: 0,
+    );
+
+    test('任务间隔内暂停后不再推进，恢复后接着跑下一条', () {
+      fakeAsync((async) {
+        final run = _QueueRun(
+          async,
+          prompts: ['first', 'second', 'third'],
+          taskIntervalSeconds: 2,
+          localStorage: noRetry,
+        );
+        try {
+          run.completeAndSettle(0);
+
+          run.execution.pause();
+          run.elapse(const Duration(seconds: 3));
+          expect(run.started, ['first']);
+          expect(run.state.status, QueueExecutionStatus.paused);
+
+          run.execution.resume();
+          run.flush();
+          expect(run.started, ['first', 'second']);
+          expect(run.state.status, QueueExecutionStatus.running);
+
+          run.elapse(const Duration(seconds: 3));
+          expect(run.started, ['first', 'second']);
+        } finally {
+          run.dispose();
+        }
+      });
+    });
+
+    test('任务间隔内暂停又恢复只推进一次', () {
+      fakeAsync((async) {
+        final run = _QueueRun(
+          async,
+          prompts: ['first', 'second', 'third'],
+          taskIntervalSeconds: 2,
+          localStorage: noRetry,
+        );
+        try {
+          run.completeAndSettle(0);
+
+          run.execution.pause();
+          run.execution.resume();
+          run.flush();
+          expect(run.started, ['first', 'second']);
+
+          run.elapse(const Duration(seconds: 3));
+          expect(run.started, ['first', 'second']);
+          expect(run.state.status, QueueExecutionStatus.running);
+          expect(run.state.currentTaskId, run.tasks[1].id);
+        } finally {
+          run.dispose();
+        }
+      });
+    });
+
+    test('任务间隔内停止不再推进', () {
+      fakeAsync((async) {
+        final run = _QueueRun(
+          async,
+          prompts: ['first', 'second'],
+          taskIntervalSeconds: 2,
+          localStorage: noRetry,
+        );
+        try {
+          run.completeAndSettle(0);
+
+          run.execution.stopExecution();
+          run.elapse(const Duration(seconds: 3));
+          expect(run.started, ['first']);
+          expect(run.state.status, QueueExecutionStatus.idle);
+        } finally {
+          run.dispose();
+        }
+      });
+    });
+
+    test('失败结算期间暂停不推进下一条，恢复后继续', () {
+      fakeAsync((async) {
+        final run = _QueueRun(
+          async,
+          prompts: ['failed', 'next', 'last'],
+          localStorage: noRetry,
+        );
+        try {
+          final moveGate = run.queue.moveGate = Completer<void>();
+          run.generation.fail(0);
+          run.flush();
+
+          run.execution.pause();
+          moveGate.complete();
+          run.generation.settle(0);
+          run.flush();
+          expect(run.started, ['failed']);
+          expect(run.state.status, QueueExecutionStatus.paused);
+          expect(run.state.failedCount, 1);
+
+          run.execution.resume();
+          run.flush();
+          expect(run.started, ['failed', 'next']);
+          expect(run.state.status, QueueExecutionStatus.running);
+        } finally {
+          run.dispose();
+        }
+      });
+    });
+
+    test('失败结算期间停止不推进下一条', () {
+      fakeAsync((async) {
+        final run = _QueueRun(
+          async,
+          prompts: ['failed', 'next'],
+          localStorage: noRetry,
+        );
+        try {
+          final moveGate = run.queue.moveGate = Completer<void>();
+          run.generation.fail(0);
+          run.flush();
+
+          run.execution.stopExecution();
+          moveGate.complete();
+          run.generation.settle(0);
+          run.flush();
+          expect(run.started, ['failed']);
+          expect(run.state.status, QueueExecutionStatus.idle);
+        } finally {
+          run.dispose();
+        }
+      });
+    });
+
+    test('失败后暂停等待策略在期间被停止时不把队列改回暂停', () {
+      fakeAsync((async) {
+        final run = _QueueRun(
+          async,
+          prompts: ['failed', 'next'],
+          strategy: FailureHandlingStrategy.pauseAndWait,
+          localStorage: noRetry,
+        );
+        try {
+          final failGate = run.queue.failGate = Completer<void>();
+          run.generation.fail(0);
+          run.flush();
+
+          run.execution.stopExecution();
+          failGate.complete();
+          run.generation.settle(0);
+          run.flush();
+          expect(run.started, ['failed']);
+          expect(run.state.status, QueueExecutionStatus.idle);
+        } finally {
+          run.dispose();
+        }
+      });
+    });
+
+    test('重试等待中暂停后恢复会重新提交当前任务', () {
+      fakeAsync((async) {
+        final run = _QueueRun(
+          async,
+          prompts: ['flaky', 'next'],
+          localStorage: _ConfiguredLocalStorageService(
+            retryCount: 3,
+            retryIntervalSeconds: 1,
+          ),
+        );
+        try {
+          run.generation.fail(0);
+          run.generation.settle(0);
+          run.flush();
+
+          run.execution.pause();
+          run.elapse(const Duration(seconds: 2));
+          expect(run.started, ['flaky']);
+          expect(run.state.status, QueueExecutionStatus.paused);
+
+          run.execution.resume();
+          run.flush();
+          expect(run.started, ['flaky', 'flaky']);
+          expect(run.state.status, QueueExecutionStatus.running);
+        } finally {
+          run.dispose();
+        }
+      });
+    });
+  });
+}
+
+// 在 fakeAsync 中驱动受控生成的一轮队列执行
+class _QueueRun {
+  _QueueRun(
+    this.async, {
+    required List<String> prompts,
+    double taskIntervalSeconds = 0,
+    FailureHandlingStrategy strategy = FailureHandlingStrategy.skip,
+    LocalStorageService? localStorage,
+  }) : tasks = [
+         for (final prompt in prompts) ReplicationTask.create(prompt: prompt),
+       ] {
+    container = _buildControlledQueueContainer(
+      tasks,
+      generation,
+      localStorage: localStorage,
+      replicationQueue: () => _GatedReplicationQueueNotifier(tasks),
+    );
+    execution.setStrategyForTest(strategy);
+    if (taskIntervalSeconds > 0) execution.setTaskInterval(taskIntervalSeconds);
+    execution.startQueue();
+    flush();
+    expect(started, [prompts.first]);
+  }
+
+  final FakeAsync async;
+  final List<ReplicationTask> tasks;
+  final generation = _ControlledImageGenerationNotifier();
+  late final ProviderContainer container;
+
+  _TestQueueExecutionNotifier get execution =>
+      container.read(queueExecutionNotifierProvider.notifier)
+          as _TestQueueExecutionNotifier;
+
+  _GatedReplicationQueueNotifier get queue =>
+      container.read(replicationQueueNotifierProvider.notifier)
+          as _GatedReplicationQueueNotifier;
+
+  QueueExecutionState get state =>
+      container.read(queueExecutionNotifierProvider);
+
+  List<String> get started => generation.startedPrompts;
+
+  void flush() => async.flushMicrotasks();
+
+  void elapse(Duration duration) {
+    async.elapse(duration);
+    flush();
+  }
+
+  void completeAndSettle(int index) {
+    generation.complete(index);
+    generation.settle(index);
+    flush();
+  }
+
+  void dispose() {
+    container.dispose();
+    flush();
+  }
 }
 
 ProviderContainer _buildControlledQueueContainer(
   List<ReplicationTask> tasks,
   ImageGenerationNotifier generation, {
   LocalStorageService? localStorage,
+  ReplicationQueueNotifier Function()? replicationQueue,
   List<Override> overrides = const [],
 }) {
   return ProviderContainer(
@@ -851,7 +1106,7 @@ ProviderContainer _buildControlledQueueContainer(
         () => _TestAuthNotifier(AuthStatus.authenticated),
       ),
       replicationQueueNotifierProvider.overrideWith(
-        () => _TestReplicationQueueNotifier(tasks),
+        replicationQueue ?? () => _TestReplicationQueueNotifier(tasks),
       ),
       queueExecutionNotifierProvider.overrideWith(
         _TestQueueExecutionNotifier.new,
@@ -1064,6 +1319,30 @@ class _TestReplicationQueueNotifier extends ReplicationQueueNotifier {
   }
 }
 
+// 闸门打开前，失败结算卡在对应的队列写入上
+class _GatedReplicationQueueNotifier extends _TestReplicationQueueNotifier {
+  _GatedReplicationQueueNotifier(super.tasks);
+
+  Completer<void>? moveGate;
+  Completer<void>? failGate;
+
+  @override
+  Future<void> moveToFailedPool(String taskId) async {
+    await moveGate?.future;
+    return super.moveToFailedPool(taskId);
+  }
+
+  @override
+  Future<bool> updateTaskStatus(
+    String taskId,
+    ReplicationTaskStatus status, {
+    String? errorMessage,
+  }) async {
+    if (status == ReplicationTaskStatus.failed) await failGate?.future;
+    return super.updateTaskStatus(taskId, status, errorMessage: errorMessage);
+  }
+}
+
 class _TestQueueExecutionNotifier extends QueueExecutionNotifier {
   @override
   QueueExecutionState build() {
@@ -1188,6 +1467,23 @@ class _NoRetryLocalStorageService extends LocalStorageService {
   T? getSetting<T>(String key, {T? defaultValue}) {
     if (key == StorageKeys.queueRetryCount) return 0 as T;
     if (key == StorageKeys.queueRetryInterval) return 0.0 as T;
+    return defaultValue;
+  }
+}
+
+class _ConfiguredLocalStorageService extends LocalStorageService {
+  _ConfiguredLocalStorageService({
+    required this.retryCount,
+    required this.retryIntervalSeconds,
+  });
+
+  final int retryCount;
+  final double retryIntervalSeconds;
+
+  @override
+  T? getSetting<T>(String key, {T? defaultValue}) {
+    if (key == StorageKeys.queueRetryCount) return retryCount as T;
+    if (key == StorageKeys.queueRetryInterval) return retryIntervalSeconds as T;
     return defaultValue;
   }
 }
