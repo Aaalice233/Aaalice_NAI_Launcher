@@ -20,6 +20,7 @@ import 'l10n/app_localizations_ja.dart';
 import 'l10n/app_localizations_zh.dart';
 import 'core/services/desktop_app_shutdown_service.dart';
 import 'core/services/interactive_work_gate.dart';
+import 'core/storage/replication_queue_startup_gate.dart';
 import 'core/storage/windows/launcher_windows_secure_storage.dart';
 import 'core/utils/app_error_reporter.dart';
 import 'core/utils/app_locale.dart';
@@ -653,6 +654,8 @@ Future<void> _bootstrapApplication() async {
   DesktopAppShutdownService.addCleanupHandler(
     DragExportFileStore.instance.clear,
   );
+  // 队列索引要等 Splash 的迁移步骤结束后才能读取
+  ReplicationQueueStartupGate.close();
   AppLogger.i('Calling runApp; database warmup has not started', 'Main');
   runApp(
     UncontrolledProviderScope(

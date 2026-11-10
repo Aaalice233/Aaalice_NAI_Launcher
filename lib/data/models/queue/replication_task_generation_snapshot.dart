@@ -210,10 +210,10 @@ abstract final class ReplicationTaskGenerationSnapshot {
         'sampler': params.effectiveSampler,
         'scale': params.scale,
         'seed': params.seed,
-        'has_source_image': snapshot['sourceImage'] != null,
-        'has_mask_image': snapshot['maskImage'] != null,
-        'vibe_reference_count': count('vibeReferences'),
-        'precise_reference_count': count('preciseReferences'),
+        'has_source_image': snapshot[SnapshotBlobSlots.sourceImage] != null,
+        'has_mask_image': snapshot[SnapshotBlobSlots.maskImage] != null,
+        'vibe_reference_count': count(SnapshotBlobSlots.vibeReferences),
+        'precise_reference_count': count(SnapshotBlobSlots.preciseReferences),
         'character_count': count('characters'),
       };
     } catch (error) {
@@ -263,16 +263,16 @@ abstract final class ReplicationTaskGenerationSnapshot {
       'isOutpaint': params.isOutpaint,
     },
     if (params.sourceImage != null)
-      'sourceImage': PendingSnapshotBlob(params.sourceImage!),
+      SnapshotBlobSlots.sourceImage: PendingSnapshotBlob(params.sourceImage!),
     if (params.maskImage != null)
-      'maskImage': PendingSnapshotBlob(params.maskImage!),
-    'vibeReferences': [
+      SnapshotBlobSlots.maskImage: PendingSnapshotBlob(params.maskImage!),
+    SnapshotBlobSlots.vibeReferences: [
       for (final reference in params.vibeReferencesV4) _encodeVibe(reference),
     ],
-    'preciseReferences': [
+    SnapshotBlobSlots.preciseReferences: [
       for (final reference in params.preciseReferences)
         {
-          'image': PendingSnapshotBlob(reference.image),
+          SnapshotBlobSlots.preciseImage: PendingSnapshotBlob(reference.image),
           'type': reference.type.name,
           'strength': reference.strength,
           'fidelity': reference.fidelity,
@@ -295,11 +295,16 @@ abstract final class ReplicationTaskGenerationSnapshot {
   static Map<String, dynamic> _encodeVibe(VibeReference reference) {
     final external = reference.vibeEncoding.isNotEmpty;
     return {
-      'value': {...reference.toJson(), if (external) 'vibeEncoding': ''},
+      'value': {
+        ...reference.toJson(),
+        if (external) vibeReferenceEncodingField: '',
+      },
       if (reference.rawImageData != null)
-        'rawImageData': PendingSnapshotBlob(reference.rawImageData!),
+        SnapshotBlobSlots.vibeRawImage: PendingSnapshotBlob(
+          reference.rawImageData!,
+        ),
       if (external)
-        'vibeEncoding': PendingSnapshotBlob(
+        SnapshotBlobSlots.vibeEncoding: PendingSnapshotBlob(
           utf8.encode(reference.vibeEncoding),
         ),
     };
@@ -383,19 +388,22 @@ abstract final class ReplicationTaskGenerationSnapshot {
       omitUcPresetTagHint: transient['omitUcPresetTagHint'] == true,
       upscaledEnhance: transient['upscaledEnhance'] == true,
       isEnhanceRequest: transient['isEnhanceRequest'] == true,
-      sourceImage: _bytes(snapshot['sourceImage']),
-      maskImage: _bytes(snapshot['maskImage']),
+      sourceImage: _bytes(snapshot[SnapshotBlobSlots.sourceImage]),
+      maskImage: _bytes(snapshot[SnapshotBlobSlots.maskImage]),
       inpaintMaskClosingIterations:
           transient['inpaintMaskClosingIterations'] as int? ?? 0,
       inpaintMaskExpansionIterations:
           transient['inpaintMaskExpansionIterations'] as int? ?? 0,
       isOutpaint: transient['isOutpaint'] == true,
       vibeReferencesV4: [
-        for (final item in snapshot['vibeReferences'] as List? ?? const [])
+        for (final item
+            in snapshot[SnapshotBlobSlots.vibeReferences] as List? ?? const [])
           _decodeVibe(item),
       ],
       preciseReferences: [
-        for (final item in snapshot['preciseReferences'] as List? ?? const [])
+        for (final item
+            in snapshot[SnapshotBlobSlots.preciseReferences] as List? ??
+                const [])
           _decodePrecise(item),
       ],
       characters: [
@@ -410,20 +418,22 @@ abstract final class ReplicationTaskGenerationSnapshot {
       throw const FormatException('Invalid queued Vibe reference');
     }
     final value = Map<String, dynamic>.from(item['value'] as Map);
-    final encoding = _bytes(item['vibeEncoding']);
+    final encoding = _bytes(item[SnapshotBlobSlots.vibeEncoding]);
     if (encoding != null) {
-      if (value['vibeEncoding'] != '') {
+      if (value[vibeReferenceEncodingField] != '') {
         throw const FormatException('Invalid queued Vibe reference');
       }
-      value['vibeEncoding'] = utf8.decode(encoding);
+      value[vibeReferenceEncodingField] = utf8.decode(encoding);
     }
     return VibeReference.fromJson(
       value,
-    ).copyWith(rawImageData: _bytes(item['rawImageData']));
+    ).copyWith(rawImageData: _bytes(item[SnapshotBlobSlots.vibeRawImage]));
   }
 
   static PreciseReference _decodePrecise(Object? item) {
-    if (item is! Map || item['image'] == null || item['type'] is! String) {
+    if (item is! Map ||
+        item[SnapshotBlobSlots.preciseImage] == null ||
+        item['type'] is! String) {
       throw const FormatException('Invalid queued precise reference');
     }
     final type = PreciseRefType.values
@@ -433,7 +443,7 @@ abstract final class ReplicationTaskGenerationSnapshot {
       throw const FormatException('Invalid queued precise reference type');
     }
     return PreciseReference(
-      image: _bytes(item['image'])!,
+      image: _bytes(item[SnapshotBlobSlots.preciseImage])!,
       type: type,
       strength: (item['strength'] as num?)?.toDouble() ?? 1,
       fidelity: (item['fidelity'] as num?)?.toDouble() ?? 1,

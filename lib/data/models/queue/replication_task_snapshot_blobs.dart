@@ -7,22 +7,39 @@ final class PendingSnapshotBlob {
   final Uint8List bytes;
 }
 
+/// 快照 Vibe 条目 `value` 段（即 VibeReference.toJson）里编码文本的字段名。
+///
+/// 与 [SnapshotBlobSlots.vibeEncoding] 槽位恰好同名，但属于模型字段，不是图片槽位。
+const String vibeReferenceEncodingField = 'vibeEncoding';
+
 /// 快照中承载图片的槽位：源图、蒙版、Vibe 原图与编码、精准参考图。
 abstract final class SnapshotBlobSlots {
-  static const List<String> _topLevel = ['sourceImage', 'maskImage'];
-  static const String _vibes = 'vibeReferences';
-  static const List<String> _vibeSlots = ['rawImageData', 'vibeEncoding'];
-  static const String _precise = 'preciseReferences';
-  static const List<String> _preciseSlots = ['image'];
+  static const String sourceImage = 'sourceImage';
+  static const String maskImage = 'maskImage';
+  static const String vibeReferences = 'vibeReferences';
+  static const String vibeRawImage = 'rawImageData';
+  static const String vibeEncoding = 'vibeEncoding';
+  static const String preciseReferences = 'preciseReferences';
+  static const String preciseImage = 'image';
+
+  static const List<String> _topLevel = [sourceImage, maskImage];
+  static const List<String> _vibeSlots = [vibeRawImage, vibeEncoding];
+  static const List<String> _preciseSlots = [preciseImage];
 
   /// 按固定顺序给出所有非空槽位的值；结构非法的部分跳过，交给解码报错。
-  static Iterable<Object> values(Map<String, dynamic> snapshot) sync* {
+  static Iterable<Object> values(Map<String, dynamic> snapshot) =>
+      entries(snapshot).map((entry) => entry.$2);
+
+  /// 同 [values]，同时给出槽位名。
+  static Iterable<(String, Object)> entries(
+    Map<String, dynamic> snapshot,
+  ) sync* {
     for (final key in _topLevel) {
       final value = snapshot[key];
-      if (value != null) yield value;
+      if (value != null) yield (key, value);
     }
-    yield* _itemValues(snapshot[_vibes], _vibeSlots);
-    yield* _itemValues(snapshot[_precise], _preciseSlots);
+    yield* _itemEntries(snapshot[vibeReferences], _vibeSlots);
+    yield* _itemEntries(snapshot[preciseReferences], _preciseSlots);
   }
 
   /// 逐槽位替换后返回新快照，键序不变，非槽位字段与原快照共享；[convert] 同时收到槽位名。
@@ -35,18 +52,21 @@ abstract final class SnapshotBlobSlots {
       final value = result[key];
       if (value != null) result[key] = convert(value, key);
     }
-    _mapItems(result, _vibes, _vibeSlots, convert);
-    _mapItems(result, _precise, _preciseSlots, convert);
+    _mapItems(result, vibeReferences, _vibeSlots, convert);
+    _mapItems(result, preciseReferences, _preciseSlots, convert);
     return result;
   }
 
-  static Iterable<Object> _itemValues(Object? items, List<String> slots) sync* {
+  static Iterable<(String, Object)> _itemEntries(
+    Object? items,
+    List<String> slots,
+  ) sync* {
     if (items is! List) return;
     for (final item in items) {
       if (item is! Map) continue;
       for (final slot in slots) {
         final value = item[slot];
-        if (value != null) yield value;
+        if (value != null) yield (slot, value as Object);
       }
     }
   }

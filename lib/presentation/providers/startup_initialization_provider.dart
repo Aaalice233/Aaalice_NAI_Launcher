@@ -16,12 +16,14 @@ import '../../core/utils/hive_storage_helper.dart';
 import '../../core/utils/log_url_redaction.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/storage/local_storage_service.dart';
+import '../../core/storage/replication_queue_blob_store_provider.dart';
 import '../../data/datasources/local/random_tag_library_data_source.dart';
 import '../../data/datasources/local/tag_group_cache_service.dart';
 import '../../data/repositories/collection_repository.dart';
 import '../../data/services/gallery/gallery_album_import_coordinator.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/image_metadata_service.dart';
+import '../../data/services/replication_queue_snapshot_migration.dart';
 import '../../data/services/vibe_library_migration_service.dart';
 import '../../data/services/wordlist_service.dart';
 import '../../data/services/account_manager_provider.dart';
@@ -177,13 +179,9 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
             StorageKeys.collectionsBox,
             hivePath: hivePath,
           ),
-          HiveStartupBoxOpener.openBox<String>(
-            StorageKeys.replicationQueueBox,
+          prepareReplicationQueue(
             hivePath: hivePath,
-          ),
-          HiveStartupBoxOpener.openBox<String>(
-            StorageKeys.queueExecutionStateBox,
-            hivePath: hivePath,
+            blobStore: ref.read(replicationQueueBlobStoreProvider),
           ),
           ImageMetadataService().initialize(),
           ScanStateManager.instance.initialize(),

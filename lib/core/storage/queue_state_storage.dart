@@ -8,6 +8,7 @@ import '../../data/models/queue/replication_task.dart';
 
 import '../../data/models/queue/failure_handling_strategy.dart';
 import 'base_hive_storage.dart';
+import 'replication_queue_startup_gate.dart';
 
 part 'queue_state_storage.g.dart';
 
@@ -136,6 +137,9 @@ class QueueStateStorage extends BaseHiveStorage<void> {
 
   /// 加载失败任务列表（同步加载）
   List<ReplicationTask> loadFailedTasks() {
+    ReplicationQueueStartupGate.checkReadable(
+      'QueueStateStorage.loadFailedTasks',
+    );
     _lastFailedTasksLoadUnreadable = false;
     try {
       final jsonString = _queueStateBox.get(StorageKeys.queueFailedTasksData);

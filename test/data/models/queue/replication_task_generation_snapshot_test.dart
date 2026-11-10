@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/storage/replication_queue_blob_store.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
+import 'package:nai_launcher/data/models/queue/replication_task_snapshot_blobs.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 
 import '../../../helpers/memory_queue_blob_store.dart';
@@ -290,6 +291,15 @@ void main() {
       final snapshot = await persisted(params, batchSize: 2, focused: focused);
 
       expect(jsonEncode(snapshot), jsonEncode(_persistedFormat(params)));
+    });
+
+    test('names the Vibe value field after the model JSON key', () {
+      const reference = VibeReference(displayName: 'v', vibeEncoding: 'QUJD');
+
+      expect(
+        reference.toJson(),
+        containsPair(vibeReferenceEncodingField, 'QUJD'),
+      );
     });
 
     test('round-trips images byte-for-byte through the files', () async {
