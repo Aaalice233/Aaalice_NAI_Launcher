@@ -36,6 +36,7 @@ import 'character_prompt_provider.dart';
 import 'fixed_tags_provider.dart';
 import 'generation/generation_command.dart';
 import 'generation/generation_cooldown_provider.dart';
+import 'generation/generation_error_classifier.dart';
 import 'generation/generation_models.dart';
 import 'generation/generation_params_notifier.dart';
 import 'generation/generation_request_preparation_service.dart';
@@ -321,15 +322,17 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     final invocationSettled = Completer<void>();
     _generationInvocationSettled = invocationSettled;
     final epoch = _lifecycleEpoch;
-    final lifecycle = _lifecycle();
-    final subscription = ref.read(subscriptionNotifierProvider.exists)
-        ? ref.read(subscriptionNotifierProvider.notifier)
-        : null;
     final invocationId = ++_invocationCounter;
     _activeInvocationId = invocationId;
+    GenerationResultLifecycleService? lifecycle;
+    SubscriptionNotifier? subscription;
     Future<void> Function()? releaseForeground;
 
     try {
+      lifecycle = _lifecycle();
+      subscription = ref.read(subscriptionNotifierProvider.exists)
+          ? ref.read(subscriptionNotifierProvider.notifier)
+          : null;
       if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
         return null;
       }
@@ -391,7 +394,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         }
       }
       try {
-        await lifecycle.flushHistory();
+        await lifecycle?.flushHistory();
       } catch (error, stackTrace) {
         AppLogger.e(
           'Failed to flush generation history after generation',
@@ -520,9 +523,18 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     );
     final handle = coordinator.start(command);
     _activeRun = handle;
-    await for (final event in coordinator.execute(command, handle)) {
-      await _reduce(event, epoch);
+    try {
+      await for (final event in coordinator.execute(command, handle)) {
+        await _reduce(event, epoch);
+      }
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Generation run failed with ${error.runtimeType}',
+        null,
+        stackTrace,
+      );
     }
+    _failStalledRun(runId, epoch);
   }
 
   Future<String?> _requestResolutionError(
@@ -543,6 +555,26 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       AppLogger.w(error.logMessage, 'ImgGen');
       return error.code;
     }
+  }
+
+  // 处理事件时抛出或事件流没给出终态，状态会停在 generating，忙碌永远不解除
+  void _failStalledRun(int runId, int epoch) {
+    if (!_isCurrentLifecycle(epoch) ||
+        _activeRunId != runId ||
+        !state.isGenerating) {
+      return;
+    }
+    _streamPreviews.clear();
+    _previewPublication.clear();
+    _activeComparisonSource = null;
+    state = state.copyWith(
+      status: GenerationStatus.error,
+      errorMessage: generationInternalErrorCode,
+      progress: 0,
+      currentImage: 0,
+      totalImages: 0,
+      clearStreamPreview: true,
+    );
   }
 
   GenerationRequestPreparationService _preparationService({

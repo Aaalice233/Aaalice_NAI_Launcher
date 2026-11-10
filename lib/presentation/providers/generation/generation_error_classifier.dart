@@ -1,6 +1,9 @@
 import '../../../core/utils/focused_inpaint_input_exception.dart';
 import '../../../core/utils/inpaint_mask/empty_inpaint_mask_exception.dart';
 
+/// Written instead of the exception text when a run fails inside the launcher.
+const generationInternalErrorCode = 'GENERATION_ERROR_INTERNAL';
+
 /// Rejected locally from the same inputs, so retrying only delays the error.
 bool isDeterministicGenerationError(Object? error) =>
     EmptyInpaintMaskException.matches(error) ||
