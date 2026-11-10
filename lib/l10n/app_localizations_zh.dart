@@ -8163,6 +8163,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get queue_executionProgress => '执行进度';
 
   @override
+  String get queue_stoppedStorageWriteFailed =>
+      '队列写入本地存储失败，已停止。请检查磁盘空间或访问权限后重新开始。';
+
+  @override
   String get queue_totalTasks => '总数';
 
   @override
@@ -23943,6 +23947,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get queue_executionProgress => '執行進度';
+
+  @override
+  String get queue_stoppedStorageWriteFailed =>
+      '佇列寫入本機儲存失敗，已停止。請檢查磁碟空間或存取權限後重新開始。';
 
   @override
   String get queue_totalTasks => '總數';

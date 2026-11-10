@@ -8504,6 +8504,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get queue_executionProgress => 'Execution Progress';
 
   @override
+  String get queue_stoppedStorageWriteFailed =>
+      'The queue stopped because saving it to local storage failed. Check disk space or permissions, then start it again.';
+
+  @override
   String get queue_totalTasks => 'Total';
 
   @override

@@ -14959,6 +14959,12 @@ abstract class AppLocalizations {
   /// **'Execution Progress'**
   String get queue_executionProgress;
 
+  /// No description provided for @queue_stoppedStorageWriteFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The queue stopped because saving it to local storage failed. Check disk space or permissions, then start it again.'**
+  String get queue_stoppedStorageWriteFailed;
+
   /// No description provided for @queue_totalTasks.
   ///
   /// In en, this message translates to:

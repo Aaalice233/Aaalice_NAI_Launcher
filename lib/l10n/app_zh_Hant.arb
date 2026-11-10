@@ -3994,6 +3994,7 @@
   "queue_ready": "就緒",
   "queue_noTasksToStart": "佇列為空，無法開始",
   "queue_executionProgress": "執行進度",
+  "queue_stoppedStorageWriteFailed": "佇列寫入本機儲存失敗，已停止。請檢查磁碟空間或存取權限後重新開始。",
   "queue_totalTasks": "總數",
   "queue_completedTasks": "已完成",
   "queue_failedTasks": "失敗",

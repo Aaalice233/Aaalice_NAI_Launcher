@@ -48,6 +48,9 @@ enum QueueExecutionStatus {
 
 enum QueueStartResult { started, empty, busy, authRequired }
 
+/// 队列被引擎自己停下的原因，只在本次运行期间提示，不持久化。
+enum QueueStopNotice { storageWriteFailed }
+
 /// 队列执行状态
 class QueueExecutionState {
   final QueueExecutionStatus status;
@@ -60,9 +63,10 @@ class QueueExecutionState {
   final bool autoExecuteEnabled;
   final double taskIntervalSeconds;
   final FailureHandlingStrategy failureStrategy;
-  final bool pausedForFailure;
   final int totalTasksInSession;
   final DateTime? sessionStartTime;
+  final QueueStopNotice? stopNotice;
+  final bool pausedForFailure;
 
   const QueueExecutionState({
     this.status = QueueExecutionStatus.idle,
@@ -75,9 +79,10 @@ class QueueExecutionState {
     this.autoExecuteEnabled = false,
     this.taskIntervalSeconds = 0.0,
     this.failureStrategy = FailureHandlingStrategy.skip,
-    this.pausedForFailure = false,
     this.totalTasksInSession = 0,
     this.sessionStartTime,
+    this.stopNotice,
+    this.pausedForFailure = false,
   });
 
   QueueExecutionState copyWith({
@@ -92,9 +97,11 @@ class QueueExecutionState {
     bool? autoExecuteEnabled,
     double? taskIntervalSeconds,
     FailureHandlingStrategy? failureStrategy,
-    bool? pausedForFailure,
     int? totalTasksInSession,
     DateTime? sessionStartTime,
+    QueueStopNotice? stopNotice,
+    bool clearStopNotice = false,
+    bool? pausedForFailure,
   }) {
     return QueueExecutionState(
       status: status ?? this.status,
@@ -109,12 +116,13 @@ class QueueExecutionState {
       autoExecuteEnabled: autoExecuteEnabled ?? this.autoExecuteEnabled,
       taskIntervalSeconds: taskIntervalSeconds ?? this.taskIntervalSeconds,
       failureStrategy: failureStrategy ?? this.failureStrategy,
+      totalTasksInSession: totalTasksInSession ?? this.totalTasksInSession,
+      sessionStartTime: sessionStartTime ?? this.sessionStartTime,
+      stopNotice: clearStopNotice ? null : (stopNotice ?? this.stopNotice),
       pausedForFailure:
           pausedForFailure ??
           ((status == null || status == QueueExecutionStatus.paused) &&
               this.pausedForFailure),
-      totalTasksInSession: totalTasksInSession ?? this.totalTasksInSession,
-      sessionStartTime: sessionStartTime ?? this.sessionStartTime,
     );
   }
 
@@ -403,6 +411,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
           ? queueState.count
           : state.totalTasksInSession,
       sessionStartTime: isNewSession ? DateTime.now() : state.sessionStartTime,
+      clearStopNotice: true,
     );
 
     // 填充提示词（此时状态已是 ready，prompt_input 不会同步）
@@ -735,6 +744,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     await _saveToStorage();
   }
 
+  void dismissStopNotice() {
+    if (state.stopNotice == null) return;
+    state = state.copyWith(clearStopNotice: true);
+  }
+
   /// 原子停止执行状态后再清空待处理任务，避免运行中的回调复活旧队列。
   Future<void> clearQueue() async {
     await stopExecution();
@@ -824,19 +838,21 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
             stackTrace,
             'QueueExecution',
           );
+          final storageFailure = _isQueueStorageWriteFailure(error);
           // 期间已被停止或重新开始时，旧结算的失败不能停掉用户的新会话
           if (!_isDisposed && revision == _executionRevision) {
-            await _stopAfterSettlementFailure();
+            await _stopAfterSettlementFailure(
+              storageFailure ? QueueStopNotice.storageWriteFailed : null,
+            );
           }
-          if (!_isQueueStorageWriteFailure(error)) {
-            Error.throwWithStackTrace(error, stackTrace);
-          }
+          if (!storageFailure) Error.throwWithStackTrace(error, stackTrace);
         },
       ),
     );
   }
 
-  Future<void> _stopAfterSettlementFailure() async {
+  Future<void> _stopAfterSettlementFailure(QueueStopNotice? notice) async {
+    if (notice != null) state = state.copyWith(stopNotice: notice);
     try {
       await stopExecution();
     } catch (stopError, stopStackTrace) {
