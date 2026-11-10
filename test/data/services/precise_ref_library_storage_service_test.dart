@@ -7,6 +7,7 @@ import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:logger/logger.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/storage/storage_file_system.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/core/utils/display_thumbnail_utils.dart';
 import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
@@ -39,7 +40,7 @@ Uint8List _bmpBytes() {
   return Uint8List.fromList(img.encodeBmp(image));
 }
 
-class _FailingRenameFileSystem extends PreciseRefLibraryFileSystem {
+class _FailingRenameFileSystem extends StorageFileSystem {
   bool failImportCommit = false;
   bool failDeleteStaging = false;
   bool failDeleteRestore = false;
