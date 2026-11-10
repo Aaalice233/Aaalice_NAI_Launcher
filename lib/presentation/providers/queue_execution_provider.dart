@@ -486,6 +486,12 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       _triggerAutoGenerate();
       return;
     }
+    // 自己先查登录：交给生成层再失败会先后弹出生成与队列两个登录提示
+    if (!ref.read(authNotifierProvider).isAuthenticated) {
+      _runSettlement(pause);
+      publishAuthPrompt(ref, AuthPromptReason.queueExecution);
+      return;
+    }
 
     if (await _submitToGeneration(generationNotifier, submission)) {
       _triggerAutoGenerate();
@@ -599,8 +605,8 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       case GenerationDisposed():
         return false;
       case GenerationAuthRequired():
+        // 提交前查过登录，这里只剩两者之间失效的情况，生成层已经发布了登录提示
         _runSettlement(pause);
-        publishAuthPrompt(ref, AuthPromptReason.queueExecution);
         return false;
       case GenerationRejected(:final errorCode):
         _settleTaskFailure(errorCode);

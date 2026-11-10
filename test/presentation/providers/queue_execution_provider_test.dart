@@ -1592,36 +1592,6 @@ void main() {
       });
     }
 
-    test('准备阶段认证失败时暂停队列并提示登录', () {
-      driveQueueRun(
-        (async) => startWith(
-          async,
-          endPreparation: (run) {
-            (run.container.read(authNotifierProvider.notifier)
-                    as QueueTestAuthNotifier)
-                .signOutForTest();
-            return const GenerationAuthRequired();
-          },
-        ),
-        (run) {
-          expect(run.state.status, QueueExecutionStatus.paused);
-          expect(run.state.retryCount, 0);
-          expect(
-            run.container.read(authPromptRequestProvider)?.reason,
-            AuthPromptReason.queueExecution,
-          );
-          expect(
-            run.container
-                .read(replicationQueueNotifierProvider)
-                .tasks
-                .first
-                .status,
-            ReplicationTaskStatus.pending,
-          );
-        },
-      );
-    });
-
     test('准备阶段冷却未过时等冷却结束再提交', () {
       driveQueueRun(
         (async) => startWith(
@@ -1698,6 +1668,121 @@ void main() {
         );
       });
     }
+  });
+
+  group('未登录时只出现一个登录提示', () {
+    List<AuthPromptReason> recordPrompts(QueueRun run) {
+      final reasons = <AuthPromptReason>[];
+      run.container.listen<AuthPromptRequest?>(authPromptRequestProvider, (
+        _,
+        next,
+      ) {
+        if (next != null) reasons.add(next.reason);
+      });
+      return reasons;
+    }
+
+    void signOut(QueueRun run) =>
+        (run.container.read(authNotifierProvider.notifier)
+                as QueueTestAuthNotifier)
+            .signOutForTest();
+
+    test('下一条提交前已登出：队列自己暂停并提示，不调用生成', () {
+      driveQueueRun(
+        (async) => QueueRun(
+          async,
+          prompts: ['first', 'second'],
+          localStorage: queueRetries(3),
+        ),
+        (run) {
+          final prompts = recordPrompts(run);
+          signOut(run);
+          run.completeAndSettle(0);
+          run.elapse(const Duration(seconds: 2));
+
+          expect(prompts, [AuthPromptReason.queueExecution]);
+          expect(run.started, ['first']);
+          expect(run.generation.outcomes, isEmpty);
+          expect(run.state.status, QueueExecutionStatus.paused);
+          expect(run.state.currentTaskId, run.tasks[1].id);
+        },
+      );
+    });
+
+    test('查过登录后、生成调用里才发现登出：只有生成的登录提示，队列只暂停', () {
+      driveQueueRun(
+        (async) {
+          final run = QueueRun(
+            async,
+            prompts: ['first', 'second'],
+            localStorage: queueRetries(3),
+            autoStart: false,
+          );
+          run.generation.beforeNextAuthCheck = () => signOut(run);
+          return run;
+        },
+        (run) {
+          final prompts = recordPrompts(run);
+          run.execution.startQueue();
+          run.elapse(const Duration(seconds: 2));
+
+          expect(prompts, [AuthPromptReason.imageGeneration]);
+          expect(run.generation.outcomes.single, isA<GenerationAuthRequired>());
+          expect(run.state.status, QueueExecutionStatus.paused);
+          expect(run.state.retryCount, 0);
+          expect(
+            run.container
+                .read(replicationQueueNotifierProvider)
+                .tasks
+                .first
+                .status,
+            ReplicationTaskStatus.pending,
+          );
+        },
+      );
+    });
+  });
+
+  test('准备阶段取消后手动生成，退忙时不会补交被取消的队列任务', () {
+    driveQueueRun(
+      (async) => QueueRun(
+        async,
+        prompts: ['queued'],
+        autoStart: false,
+        localStorage: NoRetryLocalStorageService(),
+        extraOverrides: [_blobStoreOverride],
+      ),
+      (run) {
+        final queuePreparation = Completer<void>();
+        run.generation.preparationGate = queuePreparation;
+        run.execution.startQueue();
+        run.flush();
+        expect(
+          run.container.read(imageGenerationNotifierProvider).isPreparing,
+          isTrue,
+        );
+
+        run.generation.cancel();
+        final statusAtCancel = run.state.status;
+        run.generation.preparationGate = null;
+        unawaited(run.generation.generate(const ImageParams(prompt: 'manual')));
+        run.flush();
+        queuePreparation.complete();
+        run.flush();
+        expect(run.generation.outcomes.single, isA<GenerationSuperseded>());
+
+        run.completeAndSettle(1);
+        run.generation.finishCleanup(1);
+        run.flush();
+        expect(run.started, ['manual']);
+        expect(statusAtCancel, QueueExecutionStatus.idle);
+        expect(run.state.status, QueueExecutionStatus.idle);
+        expect(
+          run.container.read(replicationQueueNotifierProvider).tasks,
+          run.tasks,
+        );
+      },
+    );
   });
 
   group('开了生成间隔时准备阶段的结局', () {
@@ -1790,48 +1875,6 @@ void main() {
         },
       );
     });
-  });
-
-  test('准备阶段取消后手动生成，退忙时不会补交被取消的队列任务', () {
-    driveQueueRun(
-      (async) => QueueRun(
-        async,
-        prompts: ['queued'],
-        autoStart: false,
-        localStorage: NoRetryLocalStorageService(),
-        extraOverrides: [_blobStoreOverride],
-      ),
-      (run) {
-        final queuePreparation = Completer<void>();
-        run.generation.preparationGate = queuePreparation;
-        run.execution.startQueue();
-        run.flush();
-        expect(
-          run.container.read(imageGenerationNotifierProvider).isPreparing,
-          isTrue,
-        );
-
-        run.generation.cancel();
-        final statusAtCancel = run.state.status;
-        run.generation.preparationGate = null;
-        unawaited(run.generation.generate(const ImageParams(prompt: 'manual')));
-        run.flush();
-        queuePreparation.complete();
-        run.flush();
-        expect(run.generation.outcomes.single, isA<GenerationSuperseded>());
-
-        run.completeAndSettle(1);
-        run.generation.finishCleanup(1);
-        run.flush();
-        expect(run.started, ['manual']);
-        expect(statusAtCancel, QueueExecutionStatus.idle);
-        expect(run.state.status, QueueExecutionStatus.idle);
-        expect(
-          run.container.read(replicationQueueNotifierProvider).tasks,
-          run.tasks,
-        );
-      },
-    );
   });
 
   group('结算时队列写入失败', () {
