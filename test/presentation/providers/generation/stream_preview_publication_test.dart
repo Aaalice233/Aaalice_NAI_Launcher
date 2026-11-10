@@ -59,7 +59,7 @@ class _Harness {
   ImageGenerationState get state =>
       container.read(imageGenerationNotifierProvider);
 
-  Future<String?> start(StreamController<ImageStreamChunk> stream) {
+  Future<GenerationOutcome> start(StreamController<ImageStreamChunk> stream) {
     streams.add(stream);
     return notifier.generate(
       const ImageParams(prompt: 'preview', width: 512, height: 768),
@@ -458,7 +458,7 @@ void main() {
       }
       if (ending == 'dispose') harness.container.dispose();
       final nextStream = StreamController<ImageStreamChunk>();
-      Future<String?>? nextGeneration;
+      Future<GenerationOutcome>? nextGeneration;
       if (ending == 'restart') {
         nextGeneration = harness.start(nextStream);
       }

@@ -21,6 +21,7 @@ import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/providers/share_image_settings_provider.dart';
 
 // 队列执行引擎测试共用：受控生成、可插闸门的队列存储与 fakeAsync 驱动
 
@@ -275,6 +276,23 @@ class QueueTestAuthNotifier extends AuthNotifier {
       state = const AuthState(status: AuthStatus.unauthenticated);
 }
 
+/// 开启保护模式的生成间隔，冷却时钟随 fakeAsync 前进
+List<Override> protectedGenerationInterval(FakeAsync async) => [
+  shareImageSettingsProvider.overrideWith(_ProtectedIntervalSettings.new),
+  generationCooldownClockProvider.overrideWithValue(
+    () => DateTime.utc(2026).add(async.elapsed),
+  ),
+];
+
+class _ProtectedIntervalSettings extends ShareImageSettingsNotifier {
+  @override
+  ShareImageSettings build() => const ShareImageSettings(
+    protectionMode: true,
+    limitGenerationInterval: true,
+    generationIntervalSeconds: 5,
+  );
+}
+
 /// 冷却由用例直接开关，等待按真实实现的节拍轮询。
 class ScriptedCooldownNotifier extends GenerationCooldownNotifier {
   @override
@@ -419,6 +437,8 @@ class QueueTestGenerationParamsNotifier extends GenerationParamsNotifier {
   Future<void> saveGenerationState() async {}
 }
 
+// 与真实生成层同序：同步置忙 → 登录检查 → 冷却开始计时 → 准备（可挂起）→ 进入 generating，
+// 并像真实实现一样返回这次调用自己的结局
 class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
   final List<String> startedPrompts = [];
   final List<_ControlledGenerationInvocation> _invocations = [];
@@ -428,6 +448,18 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
   );
   _ControlledGenerationInvocation? _activeInvocation;
 
+  /// 每次 generate() 返回的结局，按返回顺序
+  final List<GenerationOutcome> outcomes = [];
+
+  /// 下一次 generate() 在准备阶段结束时调用；返回结局则不进入 generating，返回 null 照常生成
+  GenerationOutcome? Function()? endNextPreparation;
+
+  /// 设置后 generate() 停在准备阶段，闸门打开才继续
+  Completer<void>? preparationGate;
+
+  /// 下一次 generate() 置忙之后、登录检查之前调用，用来模拟两者之间状态的变化
+  void Function()? beforeNextAuthCheck;
+
   @override
   ImageGenerationState build() => const ImageGenerationState();
 
@@ -435,45 +467,44 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
   Future<void> flushGenerationHistory() async {}
 
   @override
-  Future<void> waitUntilGenerationInvocationSettled() =>
-      _activeInvocation?.settled.future ?? Future<void>.value();
+  Future<GenerationRunEnded?> waitUntilGenerationInvocationSettled() =>
+      _activeInvocation?.settled.future ?? Future.value();
 
   @override
-  Future<String?> generate(
+  Future<GenerationOutcome> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
     bool bypassRandomPrompt = false,
   }) async {
-    if (state.isBusy || _activeInvocation != null) return null;
+    final outcome = await _generate(params);
+    outcomes.add(outcome);
+    return outcome;
+  }
+
+  Future<GenerationOutcome> _generate(ImageParams params) async {
+    if (state.isBusy || _activeInvocation != null) {
+      return const GenerationBusy();
+    }
     final invocation = _ControlledGenerationInvocation();
     _activeInvocation = invocation;
     _invocations.add(invocation);
     final index = _invocations.length - 1;
-    // 与真实生成层一致：先带着上一次的终态同步置为提交中，准备完才进入 generating
     state = state.copyWith(
       isSubmitting: true,
       errorMessage: state.errorMessage,
     );
-    await Future<void>.value();
-    await preparationGate?.future;
-    final endPreparation = endNextPreparation;
-    if (endPreparation != null) {
-      endNextPreparation = null;
-      try {
-        endPreparation();
-      } finally {
-        if (identical(_activeInvocation, invocation)) {
-          _activeInvocation = null;
-          state = state.copyWith(
-            isSubmitting: false,
-            errorMessage: state.errorMessage,
-          );
-        }
-        invocation.settled.complete();
-      }
-      return null;
+    final GenerationOutcome? unentered;
+    try {
+      unentered = await _prepare(invocation);
+    } catch (_) {
+      _endPreparation(invocation);
+      rethrow;
+    }
+    if (unentered != null) {
+      _endPreparation(invocation);
+      return unentered;
     }
     startedPrompts.add(params.prompt);
     state = state.copyWith(status: GenerationStatus.generating);
@@ -489,40 +520,86 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
     }
     await invocation.cleanup.future;
     invocation.cleanupFinished.complete();
-    return null;
+    if (invocation.cancelled) return const GenerationRunCancelled();
+    return invocation.ended ?? const GenerationRunCancelled();
+  }
+
+  Future<GenerationOutcome?> _prepare(
+    _ControlledGenerationInvocation invocation,
+  ) async {
+    final beforeAuthCheck = beforeNextAuthCheck;
+    beforeNextAuthCheck = null;
+    beforeAuthCheck?.call();
+    if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
+      return const GenerationAuthRequired();
+    }
+    await Future<void>.value();
+    if (!ref.read(generationCooldownProvider.notifier).tryStartGeneration()) {
+      return const GenerationCooldownActive();
+    }
+    await preparationGate?.future;
+    if (_interruption(invocation) case final interrupted?) return interrupted;
+    final end = endNextPreparation;
+    endNextPreparation = null;
+    final ended = end?.call();
+    return _interruption(invocation) ?? ended;
+  }
+
+  GenerationOutcome? _interruption(_ControlledGenerationInvocation invocation) {
+    if (identical(_activeInvocation, invocation)) return null;
+    return _activeInvocation == null
+        ? const GenerationCancelledBeforeStart()
+        : const GenerationSuperseded();
+  }
+
+  void _endPreparation(_ControlledGenerationInvocation invocation) {
+    if (identical(_activeInvocation, invocation)) {
+      _activeInvocation = null;
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: state.errorMessage,
+      );
+    }
+    if (!invocation.settled.isCompleted) invocation.settled.complete();
   }
 
   Future<void> waitForStart(int index) => _startSignals[index].future;
 
-  /// 下一次 generate() 在准备阶段如何结束、不进入 generating；为 null 时照常生成
-  void Function()? endNextPreparation;
+  /// 与真实生成层的本地拒绝一致：写入失败状态并返回带错误码的结局
+  GenerationOutcome rejectPreparation(String errorCode) {
+    state = state.copyWith(
+      status: GenerationStatus.error,
+      errorMessage: errorCode,
+    );
+    return GenerationRejected(errorCode);
+  }
 
-  /// 设置后 generate() 停在准备阶段，闸门打开才继续
-  Completer<void>? preparationGate;
-
-  void failPreparation(String message) => state = state.copyWith(
-    status: GenerationStatus.error,
-    errorMessage: message,
-  );
-
-  // 与真实 cancel() 一致：上一次已完成的结果不改标成已取消
-  void cancelPreparation() {
+  // 与真实 cancel() 一致：这次运行还没结束时一律改为已取消，状态里上一次留下的终态不算数
+  @override
+  void cancel() {
+    final invocation = _activeInvocation;
+    final settled = invocation == null
+        ? !state.isGenerating
+        : invocation.ended != null;
+    if (!settled) invocation?.cancelled = true;
     _activeInvocation = null;
     state = state.copyWith(
-      status: state.status == GenerationStatus.completed
-          ? state.status
-          : GenerationStatus.cancelled,
+      status: settled ? state.status : GenerationStatus.cancelled,
       isSubmitting: false,
+      preparationCancelled: !settled && state.isPreparing,
+      errorMessage: settled ? state.errorMessage : null,
     );
   }
 
   void complete(int index) {
     expect(_invocations[index], same(_activeInvocation));
+    _invocations[index].ended = const GenerationRunCompleted();
     state = state.copyWith(status: GenerationStatus.completed);
   }
 
   void fail(int index, {String message = 'controlled failure'}) {
     expect(_invocations[index], same(_activeInvocation));
+    _invocations[index].ended = GenerationRunFailed(message);
     state = state.copyWith(
       status: GenerationStatus.error,
       errorMessage: message,
@@ -531,6 +608,7 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
 
   void emitCancelled(int index) {
     expect(_invocations[index], same(_activeInvocation));
+    _invocations[index].ended = const GenerationRunCancelled();
     state = state.copyWith(
       status: GenerationStatus.cancelled,
       isSubmitting: false,
@@ -546,7 +624,9 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
         errorMessage: state.errorMessage,
       );
     }
-    if (!invocation.settled.isCompleted) invocation.settled.complete();
+    if (!invocation.settled.isCompleted) {
+      invocation.settled.complete(invocation.ended);
+    }
   }
 
   void finishCleanup(int index, {bool fail = false}) {
@@ -565,10 +645,12 @@ class ControlledImageGenerationNotifier extends ImageGenerationNotifier {
 }
 
 class _ControlledGenerationInvocation {
-  final Completer<void> settled = Completer<void>();
+  final settled = Completer<GenerationRunEnded?>();
   final Completer<void> cleanup = Completer<void>();
   final Completer<void> cleanupFinished = Completer<void>();
   bool cleanupFailed = false;
+  bool cancelled = false;
+  GenerationRunEnded? ended;
 }
 
 class NoRetryLocalStorageService extends LocalStorageService {
@@ -611,13 +693,13 @@ class TestImageGenerationNotifier extends ImageGenerationNotifier {
   ImageGenerationState build() => const ImageGenerationState();
 
   @override
-  Future<String?> generate(
+  Future<GenerationOutcome> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
     bool bypassRandomPrompt = false,
-  }) async => null;
+  }) async => const GenerationRunCompleted();
 }
 
 class CapturingImageGenerationNotifier extends TestImageGenerationNotifier {
@@ -625,7 +707,7 @@ class CapturingImageGenerationNotifier extends TestImageGenerationNotifier {
   final firstGeneration = Completer<ImageParams>();
 
   @override
-  Future<String?> generate(
+  Future<GenerationOutcome> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
@@ -634,7 +716,7 @@ class CapturingImageGenerationNotifier extends TestImageGenerationNotifier {
   }) async {
     generated = params;
     if (!firstGeneration.isCompleted) firstGeneration.complete(params);
-    return null;
+    return const GenerationRunCompleted();
   }
 }
 

@@ -285,6 +285,7 @@ class ImageGenerationState {
 
   /// 一次生成调用是否仍在进行：从点击到整条调用结算（含读盘、编码、跑批与收尾）。
   final bool isSubmitting;
+  final bool preparationCancelled;
 
   const ImageGenerationState({
     this.status = GenerationStatus.idle,
@@ -304,6 +305,7 @@ class ImageGenerationState {
     this.displayWidth,
     this.displayHeight,
     this.isSubmitting = false,
+    this.preparationCancelled = false,
   });
 
   ImageGenerationState copyWith({
@@ -326,6 +328,7 @@ class ImageGenerationState {
     int? displayWidth,
     int? displayHeight,
     bool? isSubmitting,
+    bool preparationCancelled = false,
   }) {
     return ImageGenerationState(
       status: status ?? this.status,
@@ -352,6 +355,7 @@ class ImageGenerationState {
       displayWidth: displayWidth ?? this.displayWidth,
       displayHeight: displayHeight ?? this.displayHeight,
       isSubmitting: isSubmitting ?? this.isSubmitting,
+      preparationCancelled: preparationCancelled,
     );
   }
 
