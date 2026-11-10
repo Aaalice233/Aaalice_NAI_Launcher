@@ -3978,6 +3978,7 @@
   "queue_noTasksToStart": "Queue is empty, cannot start",
 
   "queue_executionProgress": "Execution Progress",
+  "queue_stoppedStorageWriteFailed": "The queue stopped because saving it to local storage failed. Check disk space or permissions, then start it again.",
   "queue_totalTasks": "Total",
   "queue_completedTasks": "Completed",
   "queue_failedTasks": "Failed",

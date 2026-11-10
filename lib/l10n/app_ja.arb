@@ -3922,6 +3922,7 @@
   "queue_ready": "準備完了",
   "queue_noTasksToStart": "キューが空のため開始できません",
   "queue_executionProgress": "実行の進行状況",
+  "queue_stoppedStorageWriteFailed": "キューをローカルに保存できなかったため停止しました。ディスクの空き容量やアクセス権限を確認してから再開してください。",
   "queue_totalTasks": "合計",
   "queue_completedTasks": "完了しました",
   "queue_failedTasks": "失敗しました",

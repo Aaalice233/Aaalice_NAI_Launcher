@@ -8297,6 +8297,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get queue_executionProgress => '実行の進行状況';
 
   @override
+  String get queue_stoppedStorageWriteFailed =>
+      'キューをローカルに保存できなかったため停止しました。ディスクの空き容量やアクセス権限を確認してから再開してください。';
+
+  @override
   String get queue_totalTasks => '合計';
 
   @override

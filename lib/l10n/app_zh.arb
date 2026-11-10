@@ -3984,6 +3984,7 @@
   "queue_noTasksToStart": "队列为空，无法开始",
 
   "queue_executionProgress": "执行进度",
+  "queue_stoppedStorageWriteFailed": "队列写入本地存储失败，已停止。请检查磁盘空间或访问权限后重新开始。",
   "queue_totalTasks": "总数",
   "queue_completedTasks": "已完成",
   "queue_failedTasks": "失败",

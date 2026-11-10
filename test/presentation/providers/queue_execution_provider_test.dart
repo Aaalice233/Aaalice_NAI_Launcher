@@ -1894,6 +1894,7 @@ void main() {
           run.elapse(const Duration(seconds: 2));
 
           expect(run.state.status, QueueExecutionStatus.idle);
+          expect(run.state.stopNotice, QueueStopNotice.storageWriteFailed);
           expect(run.started, ['first']);
           // 内存里已结算为完成，只是没能落盘
           expect(queued(run).map((task) => task.id), [run.tasks[1].id]);
@@ -1923,7 +1924,13 @@ void main() {
           run.elapse(const Duration(seconds: 2));
 
           expect(run.state.status, QueueExecutionStatus.idle);
+          expect(run.state.stopNotice, QueueStopNotice.storageWriteFailed);
           expect(run.started, ['first']);
+
+          run.execution.startQueue();
+          run.flush();
+          expect(run.state.stopNotice, isNull);
+          expect(run.started, ['first', 'second']);
         },
       );
     });
@@ -1944,6 +1951,7 @@ void main() {
           }, (error, _) => reported.add(error));
 
           expect(run.state.status, QueueExecutionStatus.idle);
+          expect(run.state.stopNotice, isNull);
           expect(run.started, ['first']);
           expect(reported, [isA<StateError>()]);
         },
@@ -2055,6 +2063,7 @@ void main() {
           run.elapse(const Duration(seconds: 3));
 
           expect(run.state.status, QueueExecutionStatus.running);
+          expect(run.state.stopNotice, isNull);
           expect(run.state.currentTaskId, run.tasks[0].id);
           run.completeAndSettle(1);
           expect(run.state.completedCount, 1);
