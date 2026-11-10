@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart' show Provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/network/critical_network_activity.dart';
@@ -22,12 +22,24 @@ final subscriptionBillingClockProvider = Provider<DateTime Function()>(
   (ref) => DateTime.now,
 );
 
+typedef _AuthSession = ({
+  bool authenticated,
+  String? accountId,
+  bool subscriptionUnsupported,
+});
+
+_AuthSession _authSessionOf(AuthState auth) => (
+  authenticated: auth.isAuthenticated,
+  accountId: auth.isAuthenticated ? auth.accountId : null,
+  subscriptionUnsupported: auth.isAuthenticated && auth.subscriptionUnsupported,
+);
+
 /// 订阅状态 Notifier
 ///
 /// 管理用户订阅信息和 Anlas 余额
 @riverpod
 class SubscriptionNotifier extends _$SubscriptionNotifier {
-  AuthState? _previousAuthState;
+  _AuthSession? _session;
   SubscriptionState? _lastKnownState;
   bool _hasInitiallyLoaded = false;
   Timer? _refreshTimer;
@@ -70,20 +82,19 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       _attachCriticalActivityListener();
     }
 
-    // Watch authentication state changes
-    final authState = ref.watch(authNotifierProvider);
-    final previousAuthState = _previousAuthState;
+    // 每次重建都会经 onDispose 停掉计时器、待办与在途请求，只能由会话本身的变化触发
+    final session = ref.watch(authNotifierProvider.select(_authSessionOf));
+    final previousSession = _session;
     final loggedIn =
-        authState.isAuthenticated &&
-        previousAuthState != null &&
-        !previousAuthState.isAuthenticated;
+        session.authenticated &&
+        previousSession != null &&
+        !previousSession.authenticated;
     final switchedAccount =
-        authState.isAuthenticated &&
-        previousAuthState?.isAuthenticated == true &&
-        authState.accountId != previousAuthState?.accountId;
+        session.authenticated &&
+        previousSession?.authenticated == true &&
+        session.accountId != previousSession?.accountId;
     final loggedOut =
-        !authState.isAuthenticated &&
-        previousAuthState?.isAuthenticated == true;
+        !session.authenticated && previousSession?.authenticated == true;
 
     if (switchedAccount || loggedOut) {
       _inflightFetchCancelToken?.cancel('Authentication session changed');
@@ -108,12 +119,11 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     }
 
     // 第三方站点不提供 /user/subscription：整条订阅链路静默，不拉取不轮询。
-    final subscriptionUnsupported =
-        authState.isAuthenticated && authState.subscriptionUnsupported;
+    final subscriptionUnsupported = session.subscriptionUnsupported;
 
     final hydratedState = subscriptionUnsupported
         ? null
-        : _hydrateFromAuthState(authState);
+        : _hydrateFromAuthState(ref.read(authNotifierProvider));
 
     // React to authentication state changes
     if (subscriptionUnsupported) {
@@ -125,8 +135,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       if (hydratedState == null) {
         Future.microtask(() => unawaited(fetchSubscription()));
       }
-    } else if (previousAuthState == null &&
-        authState.isAuthenticated &&
+    } else if (previousSession == null &&
+        session.authenticated &&
         !_hasInitiallyLoaded) {
       // First build and already authenticated - fetch subscription
       // 使用 _hasInitiallyLoaded 标记避免重复加载（预热阶段可能已加载）
@@ -135,8 +145,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       }
     }
 
-    // Store current auth state for next comparison
-    _previousAuthState = authState;
+    _session = session;
 
     // Cleanup on dispose
     ref.onDispose(() {
@@ -338,8 +347,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       return;
     }
 
-    if (_previousAuthState?.isAuthenticated == true &&
-        _previousAuthState?.subscriptionUnsupported != true) {
+    final session = _session;
+    if (session != null &&
+        session.authenticated &&
+        !session.subscriptionUnsupported) {
       _scheduleNextRefresh(Duration.zero);
     }
   }
@@ -672,9 +683,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   // 没有订阅数据时本来就不计任何 Opus 免费额度，不必为放行再请求
   bool get _needsBillingRefresh {
-    final session = _previousAuthState;
+    final session = _session;
     if (session == null ||
-        !session.isAuthenticated ||
+        !session.authenticated ||
         session.subscriptionUnsupported ||
         state.subscription == null) {
       return false;

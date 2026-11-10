@@ -41,20 +41,38 @@ class _AuthenticatedAuthNotifier extends AuthNotifier {
 }
 
 class _HydratedAuthNotifier extends AuthNotifier {
+  static const _subscriptionInfo = {
+    'tier': 3,
+    'active': true,
+    'trainingStepsLeft': {
+      'fixedTrainingStepsLeft': 100,
+      'purchasedTrainingSteps': 0,
+    },
+  };
+
   @override
   AuthState build() {
     return const AuthState(
       status: AuthStatus.authenticated,
       accountId: 'test-account',
-      subscriptionInfo: {
-        'tier': 3,
-        'active': true,
-        'trainingStepsLeft': {
-          'fixedTrainingStepsLeft': 100,
-          'purchasedTrainingSteps': 0,
-        },
-      },
+      subscriptionInfo: _subscriptionInfo,
     );
+  }
+
+  void updateSessionMetadataForTest() {
+    state = state.copyWith(displayName: 'Updated');
+  }
+
+  void switchAccountForTest() {
+    state = const AuthState(
+      status: AuthStatus.authenticated,
+      accountId: 'other-account',
+      subscriptionInfo: _subscriptionInfo,
+    );
+  }
+
+  void signOutForTest() {
+    state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
 
@@ -566,6 +584,163 @@ void main() {
 
     await tester.pump(delay * 3);
     expect(requestCount, 1);
+  });
+
+  group('auth session updates', () {
+    late _MockNAIUserInfoApiService apiService;
+    late List<CancelToken> requests;
+    late ProviderContainer container;
+    late _HydratedAuthNotifier auth;
+    late SubscriptionNotifier notifier;
+    Completer<Map<String, dynamic>>? heldResponse;
+
+    const refreshInterval = Duration(seconds: 30);
+    const gateSettle = Duration(milliseconds: 250);
+    const billingDelay = Duration(milliseconds: 10);
+
+    setUp(() {
+      apiService = _MockNAIUserInfoApiService();
+      requests = [];
+      heldResponse = null;
+      when(
+        () => apiService.getUserSubscription(
+          receiveTimeout: any(named: 'receiveTimeout'),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((invocation) {
+        final cancelToken =
+            invocation.namedArguments[#cancelToken] as CancelToken;
+        requests.add(cancelToken);
+        final held = heldResponse;
+        if (held == null) {
+          return Future.value(_subscriptionJson(balance: 90 - requests.length));
+        }
+        heldResponse = null;
+        cancelToken.whenCancel.then((error) {
+          if (!held.isCompleted) held.completeError(error);
+        });
+        return held.future;
+      });
+    });
+
+    Future<void> start(WidgetTester tester) async {
+      container = ProviderContainer(
+        overrides: [
+          authNotifierProvider.overrideWith(_HydratedAuthNotifier.new),
+          naiUserInfoApiServiceProvider.overrideWithValue(apiService),
+        ],
+      );
+      container.listen(subscriptionNotifierProvider, (_, __) {});
+      auth =
+          container.read(authNotifierProvider.notifier)
+              as _HydratedAuthNotifier;
+      notifier = container.read(subscriptionNotifierProvider.notifier);
+      await tester.pump();
+      expect(container.read(subscriptionNotifierProvider).balance, 100);
+    }
+
+    // 计时器检查早于 tearDown，容器必须在用例体内释放
+    void testSession(
+      String description,
+      Future<void> Function(WidgetTester tester) body,
+    ) {
+      testWidgets(description, (tester) async {
+        try {
+          await start(tester);
+          await body(tester);
+        } finally {
+          container.dispose();
+        }
+      });
+    }
+
+    Future<void> applyAuthChange(
+      WidgetTester tester,
+      void Function() change,
+    ) async {
+      change();
+      container.read(subscriptionNotifierProvider);
+      // 不带时长的 pump 不推进计时器，Riverpod 排的零延迟刷新任务要靠它跑掉
+      await tester.pump(Duration.zero);
+    }
+
+    Future<void> waitOneRefreshInterval(WidgetTester tester) async {
+      await tester.pump(refreshInterval);
+      await tester.pump(gateSettle);
+    }
+
+    testSession('a same-account update keeps a single periodic refresh', (
+      tester,
+    ) async {
+      await applyAuthChange(tester, () => auth.updateSessionMetadataForTest());
+
+      await waitOneRefreshInterval(tester);
+      expect(requests, hasLength(1));
+      await waitOneRefreshInterval(tester);
+      expect(requests, hasLength(2));
+      expect(container.read(subscriptionNotifierProvider).balance, 88);
+    });
+
+    testSession('a same-account update keeps a scheduled post-billing '
+        'refresh', (tester) async {
+      notifier.schedulePostBillingRefresh(delay: billingDelay);
+      await applyAuthChange(tester, () => auth.updateSessionMetadataForTest());
+
+      await tester.pump(billingDelay);
+      await tester.pump();
+      expect(requests, hasLength(1));
+      expect(container.read(subscriptionNotifierProvider).balance, 89);
+    });
+
+    testSession('a same-account update lets an in-flight refresh land and '
+        'keeps the cadence', (tester) async {
+      final held = heldResponse = Completer<Map<String, dynamic>>();
+      await waitOneRefreshInterval(tester);
+      expect(requests, hasLength(1));
+
+      await applyAuthChange(tester, () => auth.updateSessionMetadataForTest());
+      expect(requests.single.isCancelled, isFalse);
+      held.complete(_subscriptionJson(balance: 70));
+      await tester.pump();
+      expect(container.read(subscriptionNotifierProvider).balance, 70);
+
+      await waitOneRefreshInterval(tester);
+      expect(requests, hasLength(2));
+    });
+
+    testSession('switching accounts drops the old account post-billing '
+        'refresh and keeps one periodic refresh', (tester) async {
+      notifier.schedulePostBillingRefresh(delay: billingDelay);
+      await applyAuthChange(tester, () => auth.switchAccountForTest());
+
+      await tester.pump(billingDelay);
+      expect(requests, isEmpty);
+
+      await waitOneRefreshInterval(tester);
+      expect(requests, hasLength(1));
+      await waitOneRefreshInterval(tester);
+      expect(requests, hasLength(2));
+    });
+
+    testSession('switching accounts cancels the old account in-flight '
+        'refresh', (tester) async {
+      final held = heldResponse = Completer<Map<String, dynamic>>();
+      await waitOneRefreshInterval(tester);
+      expect(requests, hasLength(1));
+
+      await applyAuthChange(tester, () => auth.switchAccountForTest());
+      expect(requests.single.isCancelled, isTrue);
+      expect(held.isCompleted, isTrue);
+      expect(container.read(subscriptionNotifierProvider).balance, 100);
+    });
+
+    testSession('signing out stops every pending refresh', (tester) async {
+      notifier.schedulePostBillingRefresh(delay: billingDelay);
+      await applyAuthChange(tester, () => auth.signOutForTest());
+
+      await tester.pump(const Duration(minutes: 5));
+      expect(requests, isEmpty);
+    });
   });
 
   test('subscription-unsupported session never hits the endpoint', () async {
