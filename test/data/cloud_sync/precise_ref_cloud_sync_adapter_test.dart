@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as image;
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/storage/storage_file_system.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync.dart';
 import 'package:nai_launcher/data/services/precise_ref_library_storage_service.dart';
 import 'package:path/path.dart' as p;
@@ -21,7 +22,7 @@ Uint8List _bmpBytes() {
   return Uint8List.fromList(image.encodeBmp(value));
 }
 
-class _FailingPortableRenameFileSystem extends PreciseRefLibraryFileSystem {
+class _FailingPortableRenameFileSystem extends StorageFileSystem {
   @override
   Future<void> rename(String from, String to) async {
     if (from.contains('.importing-') && to.endsWith('.png')) {

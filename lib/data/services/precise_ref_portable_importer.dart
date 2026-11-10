@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:hive_ce/hive_ce.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/enums/precise_ref_type.dart';
+import '../../core/storage/storage_file_system.dart';
 import '../../core/utils/image_file_signature.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
 
@@ -23,37 +23,6 @@ class InvalidPreciseRefImageException implements Exception {
   String toString() => 'Unsupported or corrupt image data';
 }
 
-class PreciseRefLibraryFileSystem {
-  const PreciseRefLibraryFileSystem();
-
-  Future<void> writeBytes(String path, Uint8List bytes) async {
-    await File(path).writeAsBytes(bytes, flush: true);
-  }
-
-  Future<void> writeStream(String path, Stream<List<int>> bytes) async {
-    final sink = File(path).openWrite(mode: FileMode.writeOnly);
-    try {
-      await sink.addStream(bytes);
-      await sink.flush();
-    } finally {
-      await sink.close();
-    }
-  }
-
-  Future<Uint8List> readBytes(String path) => File(path).readAsBytes();
-  Stream<List<int>> openRead(String path) => File(path).openRead();
-  Future<int> length(String path) => File(path).length();
-  Future<bool> exists(String path) => File(path).exists();
-  Future<void> delete(String path) => File(path).delete();
-
-  Future<void> rename(String from, String to) async {
-    await File(from).rename(to);
-  }
-
-  Stream<FileSystemEntity> list(String directory) =>
-      Directory(directory).list();
-}
-
 class PreciseRefPortableImporter {
   const PreciseRefPortableImporter({
     required this.entries,
@@ -63,7 +32,7 @@ class PreciseRefPortableImporter {
 
   final Box<PreciseRefLibraryEntry> entries;
   final LazyBox<Uint8List> thumbnails;
-  final PreciseRefLibraryFileSystem fileSystem;
+  final StorageFileSystem fileSystem;
 
   Future<PreciseRefLibraryEntry> import({
     required Stream<List<int>> bytes,

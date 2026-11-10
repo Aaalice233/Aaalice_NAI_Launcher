@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/database/utils/lru_cache.dart';
 import '../../core/enums/precise_ref_type.dart';
+import '../../core/storage/storage_file_system.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/async_work_pool.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
@@ -16,8 +17,7 @@ import '../../core/utils/precise_ref_library_path_helper.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
 import 'precise_ref_portable_importer.dart';
 
-export 'precise_ref_portable_importer.dart'
-    show InvalidPreciseRefImageException, PreciseRefLibraryFileSystem;
+export 'precise_ref_portable_importer.dart' show InvalidPreciseRefImageException;
 
 part 'precise_ref_library_storage_service.g.dart';
 
@@ -27,8 +27,7 @@ part 'precise_ref_library_storage_service.g.dart';
 class PreciseRefLibraryStorageService {
   PreciseRefLibraryStorageService({
     String? overrideDirectory,
-    PreciseRefLibraryFileSystem fileSystem =
-        const PreciseRefLibraryFileSystem(),
+    StorageFileSystem fileSystem = const StorageFileSystem(),
   }) : _overrideDirectory = overrideDirectory,
        _fileSystem = fileSystem;
 
@@ -44,7 +43,7 @@ class PreciseRefLibraryStorageService {
   );
 
   final String? _overrideDirectory;
-  final PreciseRefLibraryFileSystem _fileSystem;
+  final StorageFileSystem _fileSystem;
   Box<PreciseRefLibraryEntry>? _entriesBox;
   LazyBox<Uint8List>? _thumbnailCacheBox;
   Future<void>? _initFuture;
