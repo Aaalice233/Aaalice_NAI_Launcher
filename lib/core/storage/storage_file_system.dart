@@ -25,6 +25,10 @@ class StorageFileSystem {
   Future<bool> exists(String path) => File(path).exists();
   Future<void> delete(String path) => File(path).delete();
 
+  Future<void> createDirectory(String path) async {
+    await Directory(path).create(recursive: true);
+  }
+
   Future<void> rename(String from, String to) async {
     await File(from).rename(to);
   }
