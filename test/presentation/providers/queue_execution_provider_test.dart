@@ -4,12 +4,14 @@ import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive.dart' show HiveError;
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
 import 'package:nai_launcher/core/storage/replication_queue_blob_store.dart';
 import 'package:nai_launcher/core/storage/replication_queue_blob_store_provider.dart';
@@ -28,6 +30,7 @@ import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/queue_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/krita/krita_bridge_notifier.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
@@ -1479,6 +1482,38 @@ void main() {
     generation.settle(0);
     await generation.waitForStart(1).timeout(const Duration(seconds: 5));
     expect(generation.startedPrompts, ['manual', 'snapshot']);
+  });
+
+  test('Krita 桥生成期间没能提交的就绪队列，桥空闲后补一次提交', () {
+    final previous = PlatformCapabilities.debugOverride;
+    PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+      TargetPlatform.windows,
+    );
+    addTearDown(() => PlatformCapabilities.debugOverride = previous);
+    driveQueueRun(
+      (async) => QueueRun(
+        async,
+        prompts: ['first', 'second'],
+        localStorage: queueRetries(0),
+      ),
+      (run) {
+        final bridge =
+            run.container.read(kritaBridgeNotifierProvider.notifier)
+                as TestKritaBridgeNotifier;
+        run.generation.complete(0);
+        run.flush();
+        bridge.setBridgeRequestForTest('krita-request');
+        run.generation.settle(0);
+        run.elapse(const Duration(seconds: 2));
+        expect(run.started, ['first']);
+        expect(run.state.status, QueueExecutionStatus.ready);
+
+        bridge.setBridgeRequestForTest(null);
+        run.flush();
+        expect(run.started, ['first', 'second']);
+        expect(run.state.status, QueueExecutionStatus.running);
+      },
+    );
   });
 
   group('生成在准备阶段就结束的队列提交', () {

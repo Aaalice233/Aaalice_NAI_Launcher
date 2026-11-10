@@ -134,7 +134,7 @@ List<Override> queueEngineOverrides(
     () => TestCharacterPromptNotifier(const []),
   ),
   imageGenerationNotifierProvider.overrideWith(() => generation),
-  kritaBridgeNotifierProvider.overrideWith(KritaBridgeNotifier.new),
+  kritaBridgeNotifierProvider.overrideWith(TestKritaBridgeNotifier.new),
 ];
 
 ProviderContainer buildControlledQueueContainer(
@@ -311,6 +311,14 @@ class ScriptedCooldownNotifier extends GenerationCooldownNotifier {
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
   }
+}
+
+/// Krita 桥的忙碌只看当前请求，用例直接开关
+class TestKritaBridgeNotifier extends KritaBridgeNotifier {
+  void setBridgeRequestForTest(String? requestId) => state = state.copyWith(
+    activeRequestId: requestId,
+    clearActiveRequest: requestId == null,
+  );
 }
 
 class DisabledNotificationSettingsNotifier

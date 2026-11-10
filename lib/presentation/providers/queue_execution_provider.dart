@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart' show HiveError;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -195,6 +196,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   late final QueueStateStorage _stateStorage;
   bool _generationTriggerPending = false;
   final _attribution = _QueueGenerationAttribution();
+  ProviderSubscription<bool>? _kritaBridgeIdleWatch;
   bool _isDisposed = false;
   Future<void> _pendingStateWrite = Future.value();
   int _executionRevision = 0;
@@ -689,11 +691,34 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     }
   }
 
-  bool _canGenerateReadyTask() =>
-      state.status == QueueExecutionStatus.ready &&
-      !ref.read(imageGenerationNotifierProvider).isBusy &&
-      !(PlatformCapabilities.current.supportsKritaBridge &&
-          ref.read(kritaBridgeNotifierProvider).isBridgeGenerating);
+  /// 就绪且没有别的生成占着时才能提交；被占用而放弃的提交在占用结束后补一次。
+  bool _canGenerateReadyTask() {
+    if (state.status != QueueExecutionStatus.ready ||
+        ref.read(imageGenerationNotifierProvider).isBusy) {
+      return false;
+    }
+    if (!_isKritaBridgeGenerating) return true;
+    _resubmitWhenKritaBridgeIdle();
+    return false;
+  }
+
+  bool get _isKritaBridgeGenerating =>
+      PlatformCapabilities.current.supportsKritaBridge &&
+      ref.read(kritaBridgeNotifierProvider).isBridgeGenerating;
+
+  // Krita 桥的生成不经过生成通知器的忙碌状态，生成监听收不到它结束
+  void _resubmitWhenKritaBridgeIdle() {
+    if (_kritaBridgeIdleWatch != null) return;
+    _kritaBridgeIdleWatch = ref.listen<bool>(
+      kritaBridgeNotifierProvider.select((bridge) => bridge.isBridgeGenerating),
+      (_, generating) {
+        if (generating) return;
+        _kritaBridgeIdleWatch?.close();
+        _kritaBridgeIdleWatch = null;
+        if (state.isReady) _triggerAutoGenerate();
+      },
+    );
+  }
 
   ReplicationTask? _currentQueueTask() {
     final currentTaskId = state.currentTaskId;
