@@ -35,7 +35,11 @@ void main() {
     final summary =
         '${l10n.generation_emptyInpaintMask}\n'
         '${l10n.generation_emptyInpaintMaskHint(8)}';
-    expect(find.text(summary), findsOneWidget, reason: 'failed list shows the summary');
+    expect(
+      find.text(summary),
+      findsOneWidget,
+      reason: 'failed list shows the summary',
+    );
     expect(
       find.text('$summary\n\n${failedTask.errorMessage}'),
       findsOneWidget,
@@ -43,6 +47,33 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  for (final (errorMessage, title) in [
+    (
+      'GENERATION_ERROR_INVALID_RESOLUTION|513|768|512|768',
+      l10n.generation_invalidResolution,
+    ),
+    (
+      'GENERATION_ERROR_UNSUPPORTED_RANDOM_MODEL|future-model',
+      l10n.randomPrompt_unsupportedModel,
+    ),
+  ]) {
+    testWidgets('failed queue items localize the local rejection $title', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          FailedTaskListItem(
+            task: failedTask.copyWith(errorMessage: errorMessage),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining(title), findsOneWidget);
+      expect(find.text(errorMessage), findsNothing);
+    });
+  }
 
   testWidgets('unrecognized queue errors keep their original text', (
     tester,
