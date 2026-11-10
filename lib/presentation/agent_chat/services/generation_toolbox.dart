@@ -60,11 +60,7 @@ class GenerationToolbox {
         prepareExport: prepareImageExport,
       ),
     );
-    final queue = GenerationQueueTaskService(
-      ref,
-      maxQueueSnapshotBytes: maxQueueSnapshotBytes,
-      maxPersistedQueueSnapshotBytes: maxPersistedQueueSnapshotBytes,
-    );
+    final queue = GenerationQueueTaskService(ref);
     final preparation = GenerationPreparationService(
       ref,
       runtime: preparationRuntime,
@@ -101,9 +97,6 @@ class GenerationToolbox {
 
   static const int maxGenerateCount = generationToolMaxGenerateCount;
   static const int maxRecentImageLimit = generationToolMaxRecentImageLimit;
-  static const int maxQueueSnapshotBytes = generationToolMaxQueueSnapshotBytes;
-  static const int maxPersistedQueueSnapshotBytes =
-      generationToolMaxPersistedQueueSnapshotBytes;
 
   static bool agentChatSupportsImage({
     required AgentSettings settings,

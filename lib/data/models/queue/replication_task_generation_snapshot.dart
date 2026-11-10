@@ -5,7 +5,6 @@ import 'dart:ui';
 import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/isolate_pool.dart';
-import '../../../core/utils/json_utf8_stream.dart';
 import '../image/image_params.dart';
 import '../vibe/vibe_reference.dart';
 
@@ -79,16 +78,6 @@ abstract final class ReplicationTaskGenerationSnapshot {
     _storedPayloadLength(snapshot),
     () => _decodeChecked(snapshot),
     debugName: 'ReplicationSnapshot.decode',
-  );
-
-  /// 每个快照按 `utf8.encode(jsonEncode(snapshot)).length` 计的持久化字节数，顺序与入参一致
-  static Future<List<int>> measurePersistedBytes(
-    List<Map<String, dynamic>> snapshots,
-  ) => ComputeGate().runIsolate(
-    () => [
-      for (final snapshot in snapshots) JsonUtf8Stream.byteLength(snapshot),
-    ],
-    debugName: 'ReplicationSnapshot.measure',
   );
 
   static Future<T> _convert<T>(

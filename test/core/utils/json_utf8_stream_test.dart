@@ -26,7 +26,6 @@ void main() {
     test('$name matches the materialized UTF-8 JSON', () {
       final bytes = utf8.encode(jsonEncode(value));
 
-      expect(JsonUtf8Stream.byteLength(value), bytes.length);
       expect(JsonUtf8Stream.sha256Digest(value), sha256.convert(bytes));
     });
   }
@@ -35,7 +34,6 @@ void main() {
     const value = [_Encodable('a'), _Encodable('中')];
     final bytes = utf8.encode(jsonEncode(value));
 
-    expect(JsonUtf8Stream.byteLength(value), bytes.length);
     expect(JsonUtf8Stream.sha256Digest(value), sha256.convert(bytes));
   });
 }

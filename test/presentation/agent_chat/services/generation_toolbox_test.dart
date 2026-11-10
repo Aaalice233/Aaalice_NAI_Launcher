@@ -413,12 +413,7 @@ void main() {
       );
       addTearDown(container.dispose);
       final queue = container.read(replicationQueueNotifierProvider.notifier);
-      final service = GenerationQueueTaskService(
-        _makeRef(container),
-        maxQueueSnapshotBytes: GenerationToolbox.maxQueueSnapshotBytes,
-        maxPersistedQueueSnapshotBytes:
-            GenerationToolbox.maxPersistedQueueSnapshotBytes,
-      );
+      final service = GenerationQueueTaskService(_makeRef(container));
 
       final pending = service.queueTask(
         const {},
