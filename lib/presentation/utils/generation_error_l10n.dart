@@ -65,6 +65,8 @@ String detailGenerationError(BuildContext context, String message) {
   final details = parts.length > 1 ? parts[1] : null;
 
   switch (errorCode) {
+    case generationInternalErrorCode:
+      return (l10n.generation_generationFailed, null);
     case 'AUTH_REQUIRED':
       return (l10n.settings_notLoggedIn, l10n.settings_goToLoginPage);
     case UnsupportedRandomPromptModelException.errorCode:
