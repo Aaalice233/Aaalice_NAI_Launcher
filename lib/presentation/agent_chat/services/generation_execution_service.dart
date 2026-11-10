@@ -75,11 +75,6 @@ class GenerationExecutionService {
 
     try {
       onUpdate?.call(agentToolTextResult('Generating $count image(s)...'));
-      final previousImageIds = _ref
-          .read(imageGenerationNotifierProvider)
-          .currentImages
-          .map((image) => image.id)
-          .toList(growable: false);
       var lastProgress = -1;
       final invocation = _ref
           .read(imageGenerationNotifierProvider.notifier)
@@ -90,7 +85,7 @@ class GenerationExecutionService {
             focusedOverride: _unfocused,
             bypassRandomPrompt: true,
           );
-      final finished = await _waitForCompletion(
+      final outcome = await _waitForCompletion(
         invocation: invocation,
         expectedImages: count,
         signal: signal,
@@ -113,35 +108,19 @@ class GenerationExecutionService {
           }
         },
       );
-      if (!finished) {
+      if (outcome == null) {
         return agentToolError(
           'generation_interrupted',
           'Generation timed out or was interrupted. Check '
               'get_generation_status for the latest state.',
         );
       }
-      final state = _ref.read(imageGenerationNotifierProvider);
-      if (state.status == GenerationStatus.error) {
+      if (_unsuccessfulResult(outcome) case final error?) return error;
+      if (_ref.read(imageGenerationNotifierProvider).currentImages.isEmpty) {
         return agentToolError(
-          'generation_failed',
-          'Generation failed: ${state.errorMessage ?? 'unknown error'}.',
-        );
-      }
-      if (state.status == GenerationStatus.cancelled) {
-        return agentToolError(
-          'generation_cancelled',
-          'Generation was cancelled.',
-        );
-      }
-      final currentImageIds = state.currentImages
-          .map((image) => image.id)
-          .toList(growable: false);
-      if (state.status != GenerationStatus.completed ||
-          currentImageIds.isEmpty ||
-          _sameIds(currentImageIds, previousImageIds)) {
-        return agentToolError(
-          'generation_not_started',
-          'Generation was not started (authentication may be required).',
+          'generation_interrupted',
+          'Another generation replaced the results before they were read. '
+              'Check get_recent_images.',
         );
       }
       onUpdate?.call(agentToolTextResult('Saving images...'));
@@ -168,6 +147,44 @@ class GenerationExecutionService {
       AppLogger.w('Agent generation failed: $error', 'AgentChat');
       return agentToolError('generation_failed', 'Generation failed to start.');
     }
+  }
+
+  /// 只按这次调用的结局判断，状态里可能还留着上一次生成的终态与结果。
+  AgentToolResult? _unsuccessfulResult(GenerationOutcome outcome) {
+    return switch (outcome) {
+      GenerationRunCompleted() => null,
+      GenerationBusy() => agentToolError(
+        'generation_page_busy',
+        'Another generation started first. Check get_generation_status.',
+      ),
+      GenerationAuthRequired() => agentToolError(
+        'generation_not_started',
+        'Generation was not started: authentication is required.',
+      ),
+      GenerationCooldownActive() => agentToolError(
+        'generation_not_started',
+        'Generation was not started: the generation interval has not '
+            'elapsed.',
+      ),
+      GenerationRejected(:final errorCode) => agentToolError(
+        'generation_failed',
+        'Generation failed: $errorCode.',
+      ),
+      GenerationRunFailed(:final errorMessage) => agentToolError(
+        'generation_failed',
+        'Generation failed: $errorMessage.',
+      ),
+      GenerationCancelledBeforeStart() ||
+      GenerationSuperseded() ||
+      GenerationRunCancelled() => agentToolError(
+        'generation_cancelled',
+        'Generation was cancelled.',
+      ),
+      GenerationDisposed() => agentToolError(
+        'generation_interrupted',
+        'Generation was interrupted. Check get_generation_status.',
+      ),
+    };
   }
 
   /// 按 preparation 选定的落盘来源逐张处理；失败只记在该图的结果里。
@@ -230,19 +247,23 @@ class GenerationExecutionService {
   ///
   /// 基础超时随 [expectedImages] 放宽；生成推进中（进度签名变化）自动
   /// 续期，因此大批量不会因固定时限被误判超时。
-  Future<bool> _waitForCompletion({
-    required Future<void> invocation,
+  Future<GenerationOutcome?> _waitForCompletion({
+    required Future<GenerationOutcome> invocation,
     required int expectedImages,
     required AbortSignal? signal,
     required void Function()? onAborted,
     required void Function()? onTick,
   }) async {
+    GenerationOutcome? outcome;
     var invocationCompleted = false;
     Object? invocationError;
     StackTrace? invocationStackTrace;
     unawaited(
       invocation.then<void>(
-        (_) => invocationCompleted = true,
+        (value) {
+          outcome = value;
+          invocationCompleted = true;
+        },
         onError: (Object error, StackTrace stackTrace) {
           invocationError = error;
           invocationStackTrace = stackTrace;
@@ -269,7 +290,7 @@ class GenerationExecutionService {
         if (invocationError != null) {
           Error.throwWithStackTrace(invocationError!, invocationStackTrace!);
         }
-        return true;
+        return outcome;
       }
       final state = _ref.read(imageGenerationNotifierProvider);
       final status = state.status;
@@ -285,15 +306,7 @@ class GenerationExecutionService {
         continue;
       }
     }
-    return false;
-  }
-
-  bool _sameIds(List<String> left, List<String> right) {
-    if (left.length != right.length) return false;
-    for (var index = 0; index < left.length; index++) {
-      if (left[index] != right[index]) return false;
-    }
-    return true;
+    return null;
   }
 
   // -------------------------------------------------------------------------
