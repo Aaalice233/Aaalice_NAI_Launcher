@@ -315,6 +315,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     if (_isDisposed || state.isBusy) {
       return null;
     }
+    // 必须在第一个 await 之前置忙：队列靠这段同步窗口判定生成归属
     _setSubmitting(true);
     _previewPublication.clear();
     final invocationSettled = Completer<void>();
