@@ -157,6 +157,33 @@ void main() {
     },
   );
 
+  test('a login from a signed-in session is a revalidation until it settles, '
+      'even after the new token is stored', () async {
+    final revalidating = <bool>[];
+    bool observe() =>
+        container.read(authNotifierProvider).isRevalidatingSession;
+    adapter.respond = (_) async {
+      revalidating.add(observe());
+      return _subscriptionResponse();
+    };
+    storage.afterSave = () => revalidating.add(observe());
+
+    expect(await login(), isTrue);
+    expect(revalidating, [true, true]);
+    expect(observe(), isFalse);
+  });
+
+  test('a failed login from a signed-in session ends the revalidation on the '
+      'previous account', () async {
+    adapter.respond = (_) async => ResponseBody.fromString('unauthorized', 401);
+
+    expect(await login(), isFalse);
+    final state = container.read(authNotifierProvider);
+    expect(state.isRevalidatingSession, isFalse);
+    expect(state.isAuthenticated, isTrue);
+    expect(state.accountId, _oldState.accountId);
+  });
+
   test('invalid token format does not touch stored credentials', () async {
     final success = await container
         .read(authNotifierProvider.notifier)

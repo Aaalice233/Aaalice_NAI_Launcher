@@ -148,6 +148,12 @@ class AuthState {
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
   bool get isLoading => status == AuthStatus.loading;
+
+  /// 已登录会话在切换账号或重新登录校验期间的过渡态，校验失败会恢复原会话。
+  ///
+  /// 只有从已登录状态 copyWith 出的 loading 会带着 accountId；启动与自动重登
+  /// 的 loading 从空状态构造，不带账号。
+  bool get isRevalidatingSession => isLoading && accountId != null;
   bool get hasError => errorCode != null;
 
   /// 从异常解析错误码

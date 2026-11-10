@@ -28,11 +28,15 @@ typedef _AuthSession = ({
   bool subscriptionUnsupported,
 });
 
-_AuthSession _authSessionOf(AuthState auth) => (
-  authenticated: auth.isAuthenticated,
-  accountId: auth.isAuthenticated ? auth.accountId : null,
-  subscriptionUnsupported: auth.isAuthenticated && auth.subscriptionUnsupported,
-);
+// 切换账号或重新登录校验期间仍算原会话：成功会换成新账号，失败恢复原会话时订阅侧无需变化
+_AuthSession _authSessionOf(AuthState auth) {
+  final signedIn = auth.isAuthenticated || auth.isRevalidatingSession;
+  return (
+    authenticated: signedIn,
+    accountId: signedIn ? auth.accountId : null,
+    subscriptionUnsupported: signedIn && auth.subscriptionUnsupported,
+  );
+}
 
 /// 订阅状态 Notifier
 ///
@@ -59,7 +63,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   bool _isAppVisible = true;
   bool _criticalActivityListenerAttached = false;
   int? _seenEndedActivityCount;
-  bool _refreshDeferredForCriticalActivity = false;
+  bool _refreshDeferred = false;
+  bool _refreshCycleDeferred = false;
   SubscriptionRefreshPriority _deferredRefreshPriority =
       SubscriptionRefreshPriority.background;
   final SubscriptionBillingFreshness _billingFreshness =
@@ -110,7 +115,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       _lastKnownState = null;
       _hasInitiallyLoaded = false;
       _networkFailureCount = 0;
-      _refreshDeferredForCriticalActivity = false;
+      _refreshDeferred = false;
+      _refreshCycleDeferred = false;
       _deferredRefreshPriority = SubscriptionRefreshPriority.background;
       _billingFreshness.reset();
       _billingRefresh = null;
@@ -146,6 +152,21 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     }
 
     _session = session;
+
+    ref.listen(
+      authNotifierProvider.select(
+        (auth) => (
+          revalidating: auth.isRevalidatingSession,
+          session: _authSessionOf(auth),
+        ),
+      ),
+      (previous, next) {
+        if (previous?.revalidating != true || next.revalidating) return;
+        // 换了账号或登出时由重建统一收尾，这里只处理恢复原会话
+        if (next.session != _session) return;
+        _resumeDeferredRefresh();
+      },
+    );
 
     // Cleanup on dispose
     ref.onDispose(() {
@@ -294,13 +315,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   }
 
   Future<void> _runRefreshCycle() async {
-    if (CriticalNetworkActivityCoordinator.instance.isActive) {
+    if (_requestsDeferred) {
       _deferRefresh(SubscriptionRefreshPriority.background);
+      _refreshCycleDeferred = true;
       _refreshTimer = null;
-      AppLogger.d(
-        'Subscription background refresh deferred for critical network activity',
-        'Subscription',
-      );
       return;
     }
     if (!state.isLoaded) {
@@ -375,25 +393,42 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     _seenEndedActivityCount =
         CriticalNetworkActivityCoordinator.instance.endedActivityCount;
     _billingFreshness.billingRequestEnded(postBillingRefreshDelay);
-    if (!_refreshDeferredForCriticalActivity || !_isAppVisible) {
-      return;
-    }
-    _refreshDeferredForCriticalActivity = false;
+    _resumeDeferredRefresh();
+  }
+
+  // 关键请求与会话校验都结束后才补一次被推迟的刷新
+  void _resumeDeferredRefresh() {
+    if (!_refreshDeferred || !_isAppVisible || _requestsDeferred) return;
+    _refreshDeferred = false;
     final priority = _deferredRefreshPriority;
     _deferredRefreshPriority = SubscriptionRefreshPriority.background;
+    final cycleDeferred = _refreshCycleDeferred;
+    _refreshCycleDeferred = false;
     AppLogger.d(
-      'Critical network activity ended; resuming one deferred subscription refresh',
+      'Resuming one deferred subscription refresh: priority=${priority.name}',
       'Subscription',
     );
     if (priority == SubscriptionRefreshPriority.background) {
       _scheduleNextRefresh(Duration.zero);
-    } else {
-      unawaited(refreshBalance(priority: priority));
+      return;
     }
+    unawaited(refreshBalance(priority: priority));
+    // 被推迟的定时刷新已并入这次刷新，但计时器在推迟时就停了，要从这里重新起表
+    if (cycleDeferred) _scheduleNextRefresh(_refreshInterval);
+  }
+
+  // 会话校验期间存储里的令牌可能已是新账号的，请求结果说不清归属，和关键请求一样推迟
+  bool get _requestsDeferred =>
+      CriticalNetworkActivityCoordinator.instance.isActive ||
+      ref.read(authNotifierProvider).isRevalidatingSession;
+
+  bool get _hasSubscriptionSession {
+    final session = _authSessionOf(ref.read(authNotifierProvider));
+    return session.authenticated && !session.subscriptionUnsupported;
   }
 
   void _deferRefresh(SubscriptionRefreshPriority priority) {
-    _refreshDeferredForCriticalActivity = true;
+    _refreshDeferred = true;
     if (priority.index > _deferredRefreshPriority.index) {
       _deferredRefreshPriority = priority;
     }
@@ -408,8 +443,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     if (ref.read(authNotifierProvider).subscriptionUnsupported) {
       return;
     }
-    if (CriticalNetworkActivityCoordinator.instance.isActive) {
+    if (_requestsDeferred) {
       _deferRefresh(SubscriptionRefreshPriority.background);
+      _refreshCycleDeferred = true;
       return;
     }
     if (_inflightFetch != null) {
@@ -516,20 +552,13 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   /// 延迟窗口与 NovelAI 网页端保持一致，并合并短时间内连续完成的编码、生成
   /// 等请求，避免在服务端余额尚未落库时读到旧值。
   void schedulePostBillingRefresh({Duration delay = postBillingRefreshDelay}) {
-    final authState = ref.read(authNotifierProvider);
-    if (!authState.isAuthenticated || authState.subscriptionUnsupported) {
-      return;
-    }
+    if (!_hasSubscriptionSession) return;
 
     _postBillingRefreshTimer?.cancel();
     _postBillingRefreshTimer = Timer(delay, () {
       _postBillingRefreshTimer = null;
-      if (CriticalNetworkActivityCoordinator.instance.isActive) {
+      if (_requestsDeferred) {
         _deferRefresh(SubscriptionRefreshPriority.postBilling);
-        AppLogger.d(
-          'Post-billing balance refresh deferred for critical network activity',
-          'Subscription',
-        );
         return;
       }
       unawaited(
@@ -551,11 +580,8 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     SubscriptionRefreshPriority priority =
         SubscriptionRefreshPriority.background,
   }) {
-    final authState = ref.read(authNotifierProvider);
-    if (!authState.isAuthenticated || authState.subscriptionUnsupported) {
-      return Future.value(false);
-    }
-    if (CriticalNetworkActivityCoordinator.instance.isActive) {
+    if (!_hasSubscriptionSession) return Future.value(false);
+    if (_requestsDeferred) {
       _deferRefresh(priority);
       return Future.value(false);
     }
@@ -591,7 +617,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     var latestRefreshSucceeded = false;
     var currentPriority = initialPriority;
     do {
-      if (CriticalNetworkActivityCoordinator.instance.isActive) {
+      if (_requestsDeferred) {
         _deferRefresh(currentPriority);
         _balanceRefreshQueued = false;
         _lastBalanceRefreshWasPreempted = true;
@@ -741,13 +767,13 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     }
   }
 
+  // 请求发出前已是这个会话的令牌，校验期间回来的结果仍属于原会话
   bool _isCurrentAuthSession(AuthState expected) {
     final current = ref.read(authNotifierProvider);
-    if (!current.isAuthenticated) return false;
+    final session = _authSessionOf(current);
+    if (!session.authenticated) return false;
     if (identical(current, expected)) return true;
-
-    final expectedAccountId = expected.accountId;
-    return expectedAccountId != null && current.accountId == expectedAccountId;
+    return expected.accountId != null && session == _authSessionOf(expected);
   }
 }
 
@@ -769,14 +795,20 @@ int? anlasBalance(Ref ref) {
 /// 监听余额减少，自动记录到统计数据
 @Riverpod(keepAlive: true)
 class AnlasBalanceWatcher extends _$AnlasBalanceWatcher {
+  String? _lastAccountId;
   int? _lastBalance;
 
   @override
   void build() {
+    final accountId = ref.watch(
+      authNotifierProvider.select((auth) => _authSessionOf(auth).accountId),
+    );
     final currentBalance = ref.watch(anlasBalanceProvider);
 
-    // 检测余额减少
-    if (_lastBalance != null && currentBalance != null) {
+    // 换账号时余额变化不是消耗，比较基准跟着换
+    if (accountId == _lastAccountId &&
+        _lastBalance != null &&
+        currentBalance != null) {
       final cost = _lastBalance! - currentBalance;
       if (cost > 0) {
         // 延迟一点记录，避免刷新时的瞬时状态
@@ -784,6 +816,7 @@ class AnlasBalanceWatcher extends _$AnlasBalanceWatcher {
       }
     }
 
+    _lastAccountId = accountId;
     _lastBalance = currentBalance;
   }
 
