@@ -1108,6 +1108,66 @@ void main() {
     },
   );
 
+  for (final scenario in <(String, ImageGenerationState, GenerationOutcome, String)>[
+    (
+      'busy after an earlier failure',
+      const ImageGenerationState(
+        status: GenerationStatus.error,
+        errorMessage: 'earlier failure',
+      ),
+      const GenerationBusy(),
+      'generation_page_busy',
+    ),
+    (
+      'login required after an earlier cancellation',
+      const ImageGenerationState(status: GenerationStatus.cancelled),
+      const GenerationAuthRequired(),
+      'generation_not_started',
+    ),
+  ]) {
+    test('submission reports its own outcome, not the state left by an '
+        'earlier generation: ${scenario.$1}', () async {
+      final fake = _FakeImageGenerationNotifier()
+        ..initial = scenario.$2
+        ..unstartedOutcome = scenario.$3;
+      final container = ProviderContainer(
+        overrides: [
+          imageGenerationNotifierProvider.overrideWith(() => fake),
+          generationParamsNotifierProvider.overrideWith(
+            _TestV5GenerationParamsNotifier.new,
+          ),
+          characterPromptNotifierProvider.overrideWith(
+            _TestCharacterPromptNotifier.new,
+          ),
+          subscriptionNotifierProvider.overrideWith(
+            _TestSubscriptionNotifier.new,
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final tools = GenerationToolbox(_makeRef(container)).tools();
+      final prepared = _json(
+        await tools
+            .firstWhere((tool) => tool.name == 'prepare_generation')
+            .execute('prepare', const {
+              'operation': 'generate',
+              'prompt': 'one friend',
+            }),
+      );
+
+      final submitted = await tools
+          .firstWhere((tool) => tool.name == 'submit_generation')
+          .execute('submit', {
+            'preparation_id': prepared['preparation_id'],
+            'confirmed': true,
+          });
+
+      expect(fake.generateCalls, 1);
+      expect(submitted.isError, isTrue);
+      expect(_json(submitted)['code'], scenario.$4);
+    });
+  }
+
   test(
     'positionless multi-character preparation stays AI through submission',
     () async {
@@ -2319,6 +2379,8 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   _FakeImageGenerationNotifier([this.savedPath = 'saved.png']);
 
   final String savedPath;
+  GenerationOutcome? unstartedOutcome;
+  ImageGenerationState initial = const ImageGenerationState();
   int generateCalls = 0;
   int? batchSize;
   ImageParams? params;
@@ -2327,7 +2389,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   bool? bypassRandomPrompt;
 
   @override
-  ImageGenerationState build() => const ImageGenerationState();
+  ImageGenerationState build() => initial;
 
   @override
   Future<GenerationOutcome> generate(
@@ -2343,6 +2405,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
     this.preserveCharacterSnapshot = preserveCharacterSnapshot;
     this.focusedOverride = focusedOverride;
     this.bypassRandomPrompt = bypassRandomPrompt;
+    if (unstartedOutcome case final outcome?) return outcome;
     state = ImageGenerationState(
       status: GenerationStatus.completed,
       currentImages: [

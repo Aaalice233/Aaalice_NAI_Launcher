@@ -859,7 +859,7 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
         error: 'Another generation is already running.',
       );
     }
-    await _ref
+    final outcome = await _ref
         .read(imageGenerationNotifierProvider.notifier)
         .generate(
           params,
@@ -867,22 +867,42 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
           focusedOverride: focused,
           bypassRandomPrompt: true,
         );
-    final after = _ref.read(imageGenerationNotifierProvider);
-    return switch (after.status) {
-      GenerationStatus.completed => const ManualInpaintSubmissionResult(
+    // 只按这次调用的结局判断，状态里可能还留着上一次生成的终态
+    return switch (outcome) {
+      GenerationRunCompleted() => const ManualInpaintSubmissionResult(
         accepted: true,
       ),
-      GenerationStatus.error => ManualInpaintSubmissionResult(
+      GenerationRunFailed(:final errorMessage) => ManualInpaintSubmissionResult(
         accepted: false,
-        error: after.errorMessage ?? 'Generation failed.',
+        error: errorMessage,
       ),
-      GenerationStatus.cancelled => const ManualInpaintSubmissionResult(
+      GenerationRejected(:final errorCode) => ManualInpaintSubmissionResult(
+        accepted: false,
+        error: errorCode,
+      ),
+      GenerationCancelledBeforeStart() ||
+      GenerationSuperseded() ||
+      GenerationRunCancelled() => const ManualInpaintSubmissionResult(
         accepted: false,
         error: 'Generation was cancelled.',
       ),
-      _ => const ManualInpaintSubmissionResult(
+      GenerationBusy() => const ManualInpaintSubmissionResult(
         accepted: false,
-        error: 'Generation was not started (authentication may be required).',
+        error: 'Another generation is already running.',
+      ),
+      GenerationAuthRequired() => const ManualInpaintSubmissionResult(
+        accepted: false,
+        error: 'Generation was not started: authentication is required.',
+      ),
+      GenerationCooldownActive() => const ManualInpaintSubmissionResult(
+        accepted: false,
+        error:
+            'Generation was not started: the generation interval has not '
+            'elapsed.',
+      ),
+      GenerationDisposed() => const ManualInpaintSubmissionResult(
+        accepted: false,
+        error: 'Generation was interrupted.',
       ),
     };
   }

@@ -247,6 +247,67 @@ void main() {
     expect(fake.bypassRandomPrompt, isTrue);
   });
 
+  test('a provider call that never started restores the draft even when the '
+      'previous generation completed', () async {
+    final sourceFile = File('${root.path}/source.png');
+    await sourceFile.writeAsBytes(_png(value: 30));
+    final fake = _RecordingImageGenerationNotifier(
+      outcome: const GenerationCooldownActive(),
+      initial: const ImageGenerationState(status: GenerationStatus.completed),
+    );
+    final providerContainer = ProviderContainer(
+      overrides: [
+        generationParamsNotifierProvider.overrideWith(
+          _TestGenerationParamsNotifier.new,
+        ),
+        imageGenerationNotifierProvider.overrideWith(() => fake),
+      ],
+    );
+    addTearDown(providerContainer.dispose);
+    final editorResult = Completer<ImageEditorResult?>();
+    final toolbox = ManualInpaintToolbox(
+      providerContainer.read(_refProvider),
+      supportDirectory: root,
+      anlasEstimator: (_, _) => 0,
+      workspaceDir: root.path,
+      repository: repository,
+      editorLauncher: (_, __, ___) => ManualInpaintEditorSession(
+        result: editorResult.future,
+        close: () {},
+      ),
+    );
+    final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+    final created = _json(
+      await tools['create_manual_inpaint_draft']!.execute('create', {
+        'source_image': sourceFile.path,
+        'prompt': 'repair face',
+      }),
+    );
+    final id = (created['draft'] as Map)['draftId'] as String;
+    editorResult.complete(
+      ImageEditorResult(
+        maskImage: _png(value: 255),
+        inpaintSourceImage: _png(value: 30),
+        hasMaskChanges: true,
+      ),
+    );
+    await _waitForStatus(repository, id, InpaintDraftStatus.ready);
+
+    await tools['submit_manual_inpaint_draft']!.execute('submit', {
+      'draft_id': id,
+    });
+
+    InpaintDraft? draft;
+    for (var attempt = 0; attempt < 50; attempt++) {
+      draft = await repository.get(id);
+      if (draft?.failureMessage != null) break;
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(fake.prompt, 'repair face');
+    expect(draft?.status, InpaintDraftStatus.ready);
+    expect(draft?.failureMessage, contains('generation interval'));
+  });
+
   test(
     'session switch stops resource-backed draft before editor launch',
     () async {
@@ -1300,11 +1361,18 @@ class _TestGenerationParamsNotifier extends GenerationParamsNotifier {
 }
 
 class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
+  _RecordingImageGenerationNotifier({
+    this.outcome = const GenerationRunCompleted(),
+    this.initial = const ImageGenerationState(),
+  });
+
+  final GenerationOutcome outcome;
+  final ImageGenerationState initial;
   String? prompt;
   bool? bypassRandomPrompt;
 
   @override
-  ImageGenerationState build() => const ImageGenerationState();
+  ImageGenerationState build() => initial;
 
   @override
   Future<GenerationOutcome> generate(
@@ -1316,7 +1384,9 @@ class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
   }) async {
     prompt = params.prompt;
     this.bypassRandomPrompt = bypassRandomPrompt;
-    state = const ImageGenerationState(status: GenerationStatus.completed);
-    return const GenerationRunCompleted();
+    if (outcome is GenerationRunCompleted) {
+      state = const ImageGenerationState(status: GenerationStatus.completed);
+    }
+    return outcome;
   }
 }
