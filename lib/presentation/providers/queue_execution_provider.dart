@@ -177,6 +177,9 @@ class QueueSettings {
 class QueueExecutionNotifier extends _$QueueExecutionNotifier {
   late final QueueStateStorage _stateStorage;
   bool _generationTriggerPending = false;
+  bool _submittingQueueGeneration = false;
+  bool _ownsActiveGeneration = false;
+  bool _queueOwnsBusySession = false;
   bool _isDisposed = false;
   Future<void> _pendingStateWrite = Future.value();
   int _executionRevision = 0;
@@ -475,14 +478,21 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
       );
 
       final revision = _executionRevision;
-      // generate() 同步标记提交中，触发锁无需覆盖整次生成。
+      // generate() 首次 await 前同步置忙，此后靠忙碌防重复提交；这段窗口内的忙碌转换属于队列
       _generationTriggerPending = false;
-      final preflightError = await generationNotifier.generate(
-        params,
-        batchSizeOverride: batchSizeOverride,
-        preserveCharacterSnapshot: snapshot != null,
-        focusedOverride: focusedOverride,
-      );
+      _submittingQueueGeneration = true;
+      final Future<String?> generation;
+      try {
+        generation = generationNotifier.generate(
+          params,
+          batchSizeOverride: batchSizeOverride,
+          preserveCharacterSnapshot: snapshot != null,
+          focusedOverride: focusedOverride,
+        );
+      } finally {
+        _submittingQueueGeneration = false;
+      }
+      final preflightError = await generation;
       if (preflightError != null &&
           !_isDisposed &&
           revision == _executionRevision &&
@@ -614,65 +624,72 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
     await ref.read(replicationQueueNotifierProvider.notifier).clear();
   }
 
-  /// 监听生成状态变化
+  /// 监听生成状态变化；完成、失败、取消只归属队列自己提交的那一次生成
   void _onGenerationStateChanged(
     ImageGenerationState? previous,
     ImageGenerationState next,
   ) {
-    // 检测生成完成（优先处理，无论队列模式还是普通模式）
-    if (previous?.status == GenerationStatus.generating &&
-        next.status == GenerationStatus.completed) {
-      // 判断是否为队列模式
-      final isQueueMode =
-          state.currentTaskId != null &&
-          (state.status == QueueExecutionStatus.running ||
-              state.status == QueueExecutionStatus.ready ||
-              state.status == QueueExecutionStatus.paused);
+    if (previous?.isBusy != true && next.isBusy) {
+      _ownsActiveGeneration = _submittingQueueGeneration;
+      _queueOwnsBusySession = _submittingQueueGeneration;
+    } else if (previous?.isBusy == true &&
+        !next.isBusy &&
+        !_queueOwnsBusySession &&
+        state.isReady) {
+      // 就绪的队列可能因这次别处发起的生成占用而没能提交，占用结束后补一次
+      _triggerAutoGenerate();
+    }
+    final wasGenerating = previous?.status == GenerationStatus.generating;
 
-      if (isQueueMode) {
-        // 队列模式：不播放单张完成音效，等队列全部完成后播放
-        _onTaskCompleted();
-      } else {
-        // 非队列模式：立即播放生成完成音效
+    if (!wasGenerating && next.status == GenerationStatus.generating) {
+      if (_ownsActiveGeneration && state.status == QueueExecutionStatus.ready) {
+        startExecution();
+      }
+      return;
+    }
+
+    final GenerationStatus outcome;
+    if (wasGenerating &&
+        (next.status == GenerationStatus.completed ||
+            next.status == GenerationStatus.error)) {
+      outcome = next.status;
+    } else if (previous?.status != GenerationStatus.cancelled &&
+        next.status == GenerationStatus.cancelled) {
+      // 取消后状态会一直停在 cancelled，下一次提交带着它进入忙碌，只认真正的转换
+      outcome = GenerationStatus.cancelled;
+    } else {
+      return;
+    }
+
+    final ownedByQueue = _ownsActiveGeneration && _hasQueueTask;
+    _ownsActiveGeneration = false;
+    if (!ownedByQueue) {
+      if (outcome == GenerationStatus.completed) {
         _triggerGenerationNotification();
       }
       return;
     }
 
-    // 以下逻辑仅在队列模式下执行
-    if (state.status != QueueExecutionStatus.running &&
-        state.status != QueueExecutionStatus.ready) {
-      return;
-    }
-
-    // 检测到开始生成，进入运行状态
-    if (previous?.status != GenerationStatus.generating &&
-        next.status == GenerationStatus.generating) {
-      if (state.status == QueueExecutionStatus.ready) {
-        startExecution(); // 调用 startExecution 来同时更新队列状态和任务状态
-      }
-      return;
-    }
-
-    // 生成错误
-    if (previous?.status == GenerationStatus.generating &&
-        next.status == GenerationStatus.error) {
-      final errorMessage = next.errorMessage;
-      if (errorMessage != null &&
-          isDeterministicGenerationError(errorMessage)) {
-        unawaited(_settleUnretryableTaskError(errorMessage));
-        return;
-      }
-      _onTaskError();
-      return;
-    }
-
-    // 生成取消
-    if (next.status == GenerationStatus.cancelled) {
-      unawaited(stopExecution());
-      return;
+    switch (outcome) {
+      case GenerationStatus.completed:
+        // 队列模式：不播放单张完成音效，等队列全部完成后播放
+        _onTaskCompleted();
+      case GenerationStatus.error:
+        final errorMessage = next.errorMessage;
+        if (errorMessage != null &&
+            isDeterministicGenerationError(errorMessage)) {
+          unawaited(_settleUnretryableTaskError(errorMessage));
+        } else {
+          _onTaskError();
+        }
+      default:
+        unawaited(stopExecution());
     }
   }
+
+  bool get _hasQueueTask =>
+      state.currentTaskId != null &&
+      (state.isRunning || state.isReady || state.isPaused);
 
   /// 触发生成完成音效
   void _triggerGenerationNotification() {

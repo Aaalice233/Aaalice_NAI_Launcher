@@ -161,6 +161,37 @@ void main() {
     },
   );
 
+  // 队列靠这段同步窗口判定生成归属，generate() 必须在第一个 await 之前就置忙
+  test('generate is busy before its first await returns', () async {
+    final container = _createAuthenticatedContainer(
+      overrides: [
+        naiImageGenerationApiServiceProvider.overrideWithValue(
+          MockNAIImageGenerationApiService(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(imageGenerationNotifierProvider.notifier);
+    final params = container
+        .read(generationParamsNotifierProvider)
+        .copyWith(prompt: '1girl', width: 512, height: 768);
+    expect(container.read(imageGenerationNotifierProvider).isBusy, isFalse);
+    final busyChanges = <bool>[];
+    final subscription = container.listen<bool>(
+      imageGenerationNotifierProvider.select((state) => state.isBusy),
+      (_, busy) => busyChanges.add(busy),
+    );
+    addTearDown(subscription.close);
+
+    final generation = notifier.generate(params);
+    expect(container.read(imageGenerationNotifierProvider).isBusy, isTrue);
+    expect(busyChanges, [true]);
+
+    notifier.cancel();
+    await generation;
+    expect(container.read(imageGenerationNotifierProvider).isBusy, isFalse);
+  });
+
   test(
     'immediate cancel before stream starts must not poison next generation',
     () async {
