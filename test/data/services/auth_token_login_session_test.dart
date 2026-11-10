@@ -184,6 +184,30 @@ void main() {
     expect(state.accountId, _oldState.accountId);
   });
 
+  test('a pending clearError leaves a login that started meanwhile alone, and '
+      'the login starts without the stale error', () async {
+    adapter.respond = (_) async => ResponseBody.fromString('unauthorized', 401);
+    expect(await login(), isFalse);
+    expect(container.read(authNotifierProvider).hasError, isTrue);
+
+    AuthState? duringValidation;
+    adapter.respond = (_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      duringValidation = container.read(authNotifierProvider);
+      return ResponseBody.fromString('unauthorized', 401);
+    };
+    container.read(authNotifierProvider.notifier).clearError(delayMs: 1);
+    expect(await login(), isFalse);
+
+    expect(duringValidation?.status, AuthStatus.loading);
+    expect(duringValidation?.errorCode, isNull);
+    expect(duringValidation?.isRevalidatingSession, isTrue);
+    final restored = container.read(authNotifierProvider);
+    expect(restored.isAuthenticated, isTrue);
+    expect(restored.accountId, _oldState.accountId);
+    expect(restored.hasError, isTrue);
+  });
+
   test('invalid token format does not touch stored credentials', () async {
     final success = await container
         .read(authNotifierProvider.notifier)

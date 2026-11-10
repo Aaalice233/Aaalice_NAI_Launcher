@@ -581,7 +581,7 @@ class AuthNotifier extends _$AuthNotifier {
     final endpointService = ref.read(naiApiEndpointServiceProvider);
     final previousEndpoint = endpointService.current;
 
-    state = state.copyWith(status: AuthStatus.loading);
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
 
     try {
       // 1. 验证 Token 格式
@@ -688,7 +688,7 @@ class AuthNotifier extends _$AuthNotifier {
     final endpointService = ref.read(naiApiEndpointServiceProvider);
     final previousEndpoint = endpointService.current;
 
-    state = state.copyWith(status: AuthStatus.loading);
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
 
     try {
       final normalizedToken = token.trim();
@@ -819,7 +819,7 @@ class AuthNotifier extends _$AuthNotifier {
     final endpointService = ref.read(naiApiEndpointServiceProvider);
     final previousEndpoint = endpointService.current;
 
-    state = state.copyWith(status: AuthStatus.loading);
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
 
     try {
       final apiService = ref.read(naiAuthApiServiceProvider);
@@ -892,7 +892,7 @@ class AuthNotifier extends _$AuthNotifier {
     final endpointService = ref.read(naiApiEndpointServiceProvider);
     final previousEndpoint = endpointService.current;
 
-    state = state.copyWith(status: AuthStatus.loading);
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
 
     try {
       final apiService = ref.read(naiAuthApiServiceProvider);
@@ -1133,6 +1133,11 @@ class AuthNotifier extends _$AuthNotifier {
         'AUTH',
       );
       await Future.delayed(Duration(milliseconds: delayMs));
+      // 等待期间可能已开始新的登录，不能把进行中的 loading 改成未登录
+      if (state.isLoading ||
+          !(state.hasError || state.status == AuthStatus.error)) {
+        return;
+      }
 
       // 如果当前是已登录状态，清除错误但不改变状态
       // 如果当前是错误/未登录状态，重置为未登录

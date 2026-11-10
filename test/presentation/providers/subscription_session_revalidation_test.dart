@@ -19,7 +19,7 @@ class _SessionAuthNotifier extends AuthNotifier {
 
   void beginRevalidation() {
     _beforeRevalidation = state;
-    state = state.copyWith(status: AuthStatus.loading);
+    state = state.copyWith(status: AuthStatus.loading, clearError: true);
   }
 
   void finishRevalidationAs(AuthState next) => state = next;
@@ -218,6 +218,29 @@ void main() {
 
     await waitOneRefreshInterval(tester);
     expect(requestCount, 3, reason: 'the cadence continues without backoff');
+  });
+
+  testSession('clearing a stale login error during the next validation keeps '
+      'the session and records no fake cost', (tester) async {
+    await refreshToRealBalance(tester);
+    await change(tester, auth.beginRevalidation);
+    await change(tester, auth.restoreAfterFailedRevalidation);
+    expect(container.read(authNotifierProvider).hasError, isTrue);
+
+    auth.clearError(delayMs: 100);
+    await change(tester, auth.beginRevalidation);
+    await tester.pump(const Duration(milliseconds: 150));
+    await settle(tester);
+    expect(container.read(authNotifierProvider).isRevalidatingSession, isTrue);
+    expect(balance(), 90);
+
+    await change(
+      tester,
+      () => auth.finishRevalidationAs(_account('account-b', balance: 500)),
+    );
+    expect(balance(), 500);
+    expect(balances.where((value) => value == null), isEmpty);
+    expect(costs, [10]);
   });
 
   testSession('a post-billing refresh scheduled during validation runs '
