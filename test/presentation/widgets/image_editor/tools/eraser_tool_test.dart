@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
@@ -12,6 +13,32 @@ import '../../../../helpers/text_layout_expectations.dart';
 import '../image_editor_workspace_harness.dart';
 
 void main() {
+  testWidgets('橡皮擦 Alt 取色在途时关闭编辑器不回写颜色', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = EditorState()..setCanvasSize(const Size(64, 64));
+    addTearDown(() {
+      if (!state.isDisposed) state.dispose();
+    });
+    await tester.runAsync(state.updateCanvasSnapshot);
+    expect(state.layerManager.getPixelColor(10, 10), Colors.white);
+    final originalColor = state.foregroundColor;
+    expect(originalColor, isNot(Colors.white));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    state.toolManager.enterTemporaryColorPicker();
+    final tool = state.toolManager.getToolById('eraser')! as EraserTool;
+    state.setTool(tool);
+    expect(state.isAltPressed, isTrue);
+    expect(state.currentTool, same(tool));
+    tool.onPointerUp(const PointerUpEvent(position: Offset(10, 10)), state);
+    state.dispose();
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+
+    expect(state.foregroundColor, originalColor);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final viewSize in editorPanelViewSizes) {
     for (final scale in const [1.0, 3.0]) {
       testWidgets('$viewSize ${scale}x 文字下橡皮擦设置行完整可达', (tester) async {

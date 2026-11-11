@@ -37,10 +37,7 @@ class EditorCanvasResizeController {
 
   bool get _isInpaintMode => config.mode == ImageEditorMode.inpaint;
 
-  Future<void> changeCanvasSize(
-    BuildContext context, {
-    required bool Function() isMounted,
-  }) async {
+  Future<void> changeCanvasSize(BuildContext context) async {
     final l10n = context.l10n;
     final compressionScale = compressionController.compressionLinearScale;
     final result = await CanvasSizeDialog.show(
@@ -51,8 +48,9 @@ class EditorCanvasResizeController {
           : l10n.editor_changeCanvasSize,
       allowStretch: !_isInpaintMode,
     );
+    if (result == null || !context.mounted) return;
 
-    if (result != null && result.size != editorState.canvasSize) {
+    if (result.size != editorState.canvasSize) {
       try {
         // 验证尺寸范围
         final newWidth = result.size.width.toInt();
@@ -61,29 +59,19 @@ class EditorCanvasResizeController {
         const maxSize = 4096;
 
         if (newWidth < minSize || newHeight < minSize) {
-          if (!context.mounted) return;
-          _showError(
-            context,
-            l10n.editor_canvasTooSmall(minSize, minSize),
-            isMounted: isMounted,
-          );
+          AppToast.error(context, l10n.editor_canvasTooSmall(minSize, minSize));
           return;
         }
 
         if (newWidth > maxSize || newHeight > maxSize) {
-          if (!context.mounted) return;
-          _showError(
-            context,
-            l10n.editor_canvasTooLarge(maxSize, maxSize),
-            isMounted: isMounted,
-          );
+          AppToast.error(context, l10n.editor_canvasTooLarge(maxSize, maxSize));
           return;
         }
 
         if (_isInpaintMode) {
           final outcome = _applyFrameResize(result.size);
-          if (!isMounted() || !context.mounted) return;
-          _presentFrameResizeOutcome(context, outcome, isMounted: isMounted);
+          if (!context.mounted) return;
+          _presentFrameResizeOutcome(context, outcome);
           return;
         }
 
@@ -98,7 +86,7 @@ class EditorCanvasResizeController {
         compressionController.refreshPlan();
 
         // 显示成功消息
-        if (isMounted() && context.mounted) {
+        if (context.mounted) {
           AppToast.success(
             context,
             l10n.editor_canvasResized(newWidth, newHeight),
@@ -107,11 +95,7 @@ class EditorCanvasResizeController {
       } catch (e) {
         // 显示错误信息
         if (context.mounted) {
-          _showError(
-            context,
-            l10n.editor_canvasResizeFailed(e),
-            isMounted: isMounted,
-          );
+          AppToast.error(context, l10n.editor_canvasResizeFailed(e));
         }
         AppLogger.e('Failed to resize canvas: $e', 'ImageEditor');
       }
@@ -133,11 +117,10 @@ class EditorCanvasResizeController {
 
   void _presentFrameResizeOutcome(
     BuildContext context,
-    FrameResizeOutcome outcome, {
-    required bool Function() isMounted,
-  }) {
+    FrameResizeOutcome outcome,
+  ) {
     if (outcome == FrameResizeOutcome.rejected) {
-      _showFrameResizeRejected(context, isMounted: isMounted);
+      _showFrameResizeRejected(context);
       return;
     }
     if (outcome != FrameResizeOutcome.applied) return;
@@ -217,7 +200,9 @@ class EditorCanvasResizeController {
       case FrameResizeOutcome.applied:
         editorState.canvasController.fitToViewport(editorState.frame);
       case FrameResizeOutcome.rejected:
-        _showFrameResizeRejected(context, isMounted: isMounted);
+        if (isMounted() && context.mounted) {
+          _showFrameResizeRejected(context);
+        }
       case FrameResizeOutcome.unchanged:
         break;
     }
@@ -244,21 +229,7 @@ class EditorCanvasResizeController {
     return true;
   }
 
-  void _showError(
-    BuildContext context,
-    String message, {
-    required bool Function() isMounted,
-  }) {
-    if (isMounted() && context.mounted) {
-      AppToast.error(context, message);
-    }
-  }
-
-  void _showFrameResizeRejected(
-    BuildContext context, {
-    required bool Function() isMounted,
-  }) {
-    if (!isMounted() || !context.mounted) return;
+  void _showFrameResizeRejected(BuildContext context) {
     AppToast.warning(
       context,
       context.l10n.editor_frameResizeRejected(
