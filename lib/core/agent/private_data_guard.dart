@@ -9,20 +9,20 @@ class PrivateDataGuard {
     caseSensitive: false,
   );
   static final RegExp _windowsPathPattern = RegExp(
-    r'(?:^|[^A-Za-z0-9])(?:[a-z]:[\\/])[^\s"\x27`<>]*',
+    r'(^|[^A-Za-z0-9])(?:[a-z]:[\\/])[^\s"\x27`<>]*',
     caseSensitive: false,
     multiLine: true,
   );
   static final RegExp _backslashUncPattern = RegExp(
-    r'(?:^|[^A-Za-z0-9])\\\\[^\\/\s]+[\\/][^\s"\x27`<>]+',
+    r'(^|[^A-Za-z0-9])\\\\[^\\/\s]+[\\/][^\s"\x27`<>]+',
     multiLine: true,
   );
   static final RegExp _slashUncPattern = RegExp(
-    r'(?:^|[\s"\x27`(=\[\]{},])//[^/\s:]+/[^\s"\x27`<>]+',
+    r'(^|[\s"\x27`(=\[\]{},])//[^/\s:]+/[^\s"\x27`<>]+',
     multiLine: true,
   );
   static final RegExp _unixPathPattern = RegExp(
-    r'(?:^|[^A-Za-z0-9])/(?:Users|home|root|srv|var|tmp|opt|etc|mnt|media|Volumes|workspace|workspaces|usr|bin|sbin|lib|lib64|dev|run|proc|sys|boot|data|storage|sdcard)(?:/[^\s"\x27`<>]*)?',
+    r'(^|[^A-Za-z0-9])/(?:Users|Applications|private|home|root|srv|var|tmp|opt|etc|mnt|media|Volumes|workspace|workspaces|usr|bin|sbin|lib|lib64|dev|run|proc|sys|boot|data|storage|sdcard)/[^\s"\x27`<>]*',
     caseSensitive: false,
     multiLine: true,
   );
@@ -67,9 +67,20 @@ class PrivateDataGuard {
     r'([A-Za-z0-9_+/.=-]{8,})',
     caseSensitive: false,
   );
+  static final RegExp _privateKeyPattern = RegExp(
+    r'-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----',
+    caseSensitive: false,
+  );
+  static final RegExp _knownTokenPattern = RegExp(
+    r'\b(?:pst-[A-Za-z0-9_-]{10,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|hf_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b',
+  );
+  static final RegExp _jwtPattern = RegExp(
+    r'\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b',
+  );
+  static final RegExp _identitySeparators = RegExp(r'[_-]');
 
   static String _identity(String value) =>
-      value.toLowerCase().replaceAll(RegExp(r'[_-]'), '');
+      value.toLowerCase().replaceAll(_identitySeparators, '');
 
   static bool _assignsLiteralSecret(String text, RegExp pattern) {
     for (final match in pattern.allMatches(text)) {
@@ -88,10 +99,7 @@ class PrivateDataGuard {
   }
 
   static String? detect(String value, {bool absolutePaths = true}) {
-    if (RegExp(
-      r'-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----',
-      caseSensitive: false,
-    ).hasMatch(value)) {
+    if (_privateKeyPattern.hasMatch(value)) {
       return 'private key';
     }
     if (_assignsLiteralSecret(value, _bearerPattern)) {
@@ -102,14 +110,10 @@ class PrivateDataGuard {
         _assignsLiteralSecret(value, _secretAssignmentPattern)) {
       return 'credential';
     }
-    if (RegExp(
-      r'\b(?:pst-[A-Za-z0-9_-]{10,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|hf_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b',
-    ).hasMatch(value)) {
+    if (_knownTokenPattern.hasMatch(value)) {
       return 'credential';
     }
-    if (RegExp(
-      r'\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b',
-    ).hasMatch(value)) {
+    if (_jwtPattern.hasMatch(value)) {
       return 'credential';
     }
     if (absolutePaths && _containsAbsolutePath(value)) {
@@ -136,6 +140,24 @@ class PrivateDataGuard {
       });
     }
     return redacted;
+  }
+
+  static List<int> absolutePathStarts(String line) {
+    final starts = <int>{};
+    for (final match in _fileUriPattern.allMatches(line)) {
+      starts.add(match.start);
+    }
+    for (final pattern in [
+      _backslashUncPattern,
+      _slashUncPattern,
+      _windowsPathPattern,
+      _unixPathPattern,
+    ]) {
+      for (final match in pattern.allMatches(line)) {
+        starts.add(match.start + match.group(1)!.length);
+      }
+    }
+    return List.unmodifiable(starts.toList()..sort());
   }
 
   static bool isSensitiveSkillPath(String relativePath) {

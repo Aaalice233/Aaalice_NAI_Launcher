@@ -27,15 +27,19 @@ const _nextUrl =
     r'(?:(?<![?=&#])(?:https?|wss?)|(?<=[,;])'
     '$_scheme)://';
 const _joinedField = r"""[')](?=[A-Za-z_][\w-]*[:=])""";
-final _legacyQueryValue = RegExp(r'= \[REDACTED\]', caseSensitive: false);
+const _legacyQueryValuePattern = r'= \[REDACTED\]';
+final _legacyQueryValue = RegExp(_legacyQueryValuePattern, caseSensitive: false);
+
+const logUrlPattern =
+    '($_scheme://)'
+    '((?:(?!$_nextUrl)[^/$_urlDelimiters?#])*)'
+    '((?:(?!$_nextUrl)[^$_urlDelimiters?#])*)'
+    '([?#](?:$_legacyQueryValuePattern'
+    r'|(?<=[=#])\p{Script=Han}+'
+    '|(?!$_nextUrl|$_joinedField)[^$_urlDelimiters\\p{Script=Han}])*)?';
 
 final _absoluteLogUrl = RegExp(
-  '($_scheme://)'
-  '((?:(?!$_nextUrl)[^/$_urlDelimiters?#])*)'
-  '((?:(?!$_nextUrl)[^$_urlDelimiters?#])*)'
-  '([?#](?:${_legacyQueryValue.pattern}'
-  r'|(?<=[=#])\p{Script=Han}+'
-  '|(?!$_nextUrl|$_joinedField)[^$_urlDelimiters\\p{Script=Han}])*)?',
+  logUrlPattern,
   caseSensitive: false,
   unicode: true,
 );
