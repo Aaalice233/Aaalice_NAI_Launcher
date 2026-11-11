@@ -7,11 +7,38 @@ import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/brush_tool.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/tool_setting_rows.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../helpers/text_layout_expectations.dart';
 import '../image_editor_workspace_harness.dart';
 
 void main() {
+  testWidgets('画笔 Alt 取色在途时关闭编辑器不回写颜色', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final state = EditorState()..setCanvasSize(const Size(64, 64));
+    addTearDown(() {
+      if (!state.isDisposed) state.dispose();
+    });
+    await tester.runAsync(state.updateCanvasSnapshot);
+    expect(state.layerManager.getPixelColor(10, 10), Colors.white);
+    final originalColor = state.foregroundColor;
+    expect(originalColor, isNot(Colors.white));
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+    state.toolManager.enterTemporaryColorPicker();
+    final tool = state.toolManager.getToolById('brush')! as BrushTool;
+    state.setTool(tool);
+    expect(state.isAltPressed, isTrue);
+    expect(state.currentTool, same(tool));
+    tool.onPointerUp(const PointerUpEvent(position: Offset(10, 10)), state);
+    state.dispose();
+    await tester.pump();
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+
+    expect(state.foregroundColor, originalColor);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('拖动画笔大小滑块时滑块值应实时更新', (tester) async {
     final tool = BrushTool();
     final state = EditorState();

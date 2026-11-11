@@ -121,6 +121,7 @@ class EraserTool extends EditorTool {
   /// Alt 模式下取色并应用
   Future<void> _pickColorAndApply(Offset canvasPoint, EditorState state) async {
     final color = await ColorPickerTool.pickColorAt(canvasPoint, state);
+    if (state.isDisposed) return;
     if (color != null) {
       state.setForegroundColor(color);
     }

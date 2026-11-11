@@ -11,9 +11,11 @@ import 'package:nai_launcher/presentation/widgets/image_editor/core/canvas_contr
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_view_action.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_workspace.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/widgets/panels/canvas_size_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/toolbar/desktop_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/widgets/toolbar/editor_view_menu.dart';
 
+import '../../../helpers/log_capture.dart';
 import 'image_editor_workspace_harness.dart';
 
 const _pointerPolicy = InteractionPolicy(
@@ -41,6 +43,48 @@ const _desktopFlyoutActions = [
 ];
 
 void main() {
+  testWidgets('宿主卸载后丢弃画布尺寸对话框返回的结果', (tester) async {
+    final (_, session) = await pumpEditorWorkspace(
+      tester,
+      viewSize: const Size(1180, 760),
+    );
+    final state = session.editorState;
+    final originalSize = state.canvasSize;
+    final logs = await captureLogs(() async {
+      await tester.tap(find.text('512 x 512'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CanvasSizeDialog), findsOneWidget);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SizedBox.shrink(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ImageEditorWorkspace), findsNothing);
+      expect(find.byType(CanvasSizeDialog), findsOneWidget);
+      session.dispose();
+
+      Navigator.of(tester.element(find.byType(CanvasSizeDialog))).pop(
+        const CanvasSizeResult(
+          size: Size(768, 768),
+          mode: ContentHandlingMode.crop,
+        ),
+      );
+      await tester.pumpAndSettle();
+    });
+
+    expect(state.canvasSize, originalSize);
+    expect(
+      logs.where((line) => line.contains('Failed to resize canvas')),
+      isEmpty,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   final scenarios = <({Size size, double textScale, InteractionPolicy policy})>[
     for (final size in const [
       Size(320, 720),

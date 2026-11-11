@@ -512,10 +512,8 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
   }
 
-  Future<void> _changeCanvasSize() => _canvasResizeController.changeCanvasSize(
-    context,
-    isMounted: () => mounted,
-  );
+  Future<void> _changeCanvasSize() =>
+      _canvasResizeController.changeCanvasSize(context);
 
   Future<void> _cropToFrame() =>
       cropToFrameWithFeedback(context, _frameController);
