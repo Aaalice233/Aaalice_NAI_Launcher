@@ -273,6 +273,9 @@ class ToolManager extends ChangeNotifier {
     if (_currentTool != null) {
       _saveToolSettings(_currentTool!);
     }
+    for (final tool in _tools) {
+      tool.dispose();
+    }
     toolNotifier.dispose();
     super.dispose();
   }

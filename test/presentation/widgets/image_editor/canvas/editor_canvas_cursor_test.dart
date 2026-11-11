@@ -26,6 +26,15 @@ Widget _wrapCanvas(EditorState state) {
 }
 
 void main() {
+  testWidgets('关闭编辑器会释放光标通知器', (tester) async {
+    final state = EditorState();
+    final cursor = state.cursorNotifier;
+
+    state.dispose();
+
+    expect(() => cursor.addListener(() {}), throwsFlutterError);
+  });
+
   testWidgets('悬停只驱动光标重绘，不重建画布子树', (tester) async {
     final state = EditorState()..setCanvasSize(const Size(200, 200));
     addTearDown(state.dispose);

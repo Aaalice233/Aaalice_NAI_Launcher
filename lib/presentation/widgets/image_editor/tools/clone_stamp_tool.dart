@@ -306,6 +306,16 @@ class CloneStampTool extends EditorTool {
   }
 
   @override
+  void dispose() {
+    _canvasSnapshot?.dispose();
+    _canvasSnapshot = null;
+    _sourcePoint.dispose();
+    _pickingSource.dispose();
+    _sourceMarker.dispose();
+    super.dispose();
+  }
+
+  @override
   double getCursorRadius(EditorState state) => _size / 2;
 
   @override

@@ -87,6 +87,8 @@ abstract class EditorTool {
   /// 用于实现即时工具切换
   void onDeactivateFast(EditorState state) {}
 
+  void dispose() {}
+
   /// 方向键微移；返回 true 表示工具已处理
   bool onArrowNudge(EditorState state, Offset delta) => false;
 

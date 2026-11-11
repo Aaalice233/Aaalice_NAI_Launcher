@@ -133,6 +133,32 @@ void main() {
       expect(tool.sourceOffset, isNull);
     });
 
+    for (final temporaryColorPicker in [false, true]) {
+      testWidgets('关闭编辑器释放仿制快照（临时拾色：$temporaryColorPicker）', (tester) async {
+        final state = EditorState()..setCanvasSize(const Size(64, 64));
+        addTearDown(() {
+          if (!state.isDisposed) state.dispose();
+        });
+        final tool =
+            state.toolManager.getToolById('clone_stamp')! as CloneStampTool;
+        state.setTool(tool);
+        _tap(tool, state, const Offset(10, 10));
+        final snapshot = tool.canvasSnapshot!;
+        expect(snapshot.debugDisposed, isFalse);
+
+        if (temporaryColorPicker) {
+          state.toolManager.enterTemporaryColorPicker();
+          expect(state.currentTool, isNot(same(tool)));
+        } else {
+          expect(state.currentTool, same(tool));
+        }
+        state.dispose();
+
+        expect(snapshot.debugDisposed, isTrue);
+        expect(tool.canvasSnapshot, isNull);
+      });
+    }
+
     testWidgets('面板监听只随源点与取源点状态通知，准星移动不触发', (tester) async {
       final state = _editorState();
       final tool = CloneStampTool();

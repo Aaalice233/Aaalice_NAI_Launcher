@@ -214,14 +214,21 @@ class ColorPickerTool extends EditorTool {
     Offset canvasPoint,
     EditorState state,
   ) async {
-    final color = await _sampleColorAt(canvasPoint, state);
-    if (color != null) {
-      state.setForegroundColor(color);
+    final version = _samplingVersion;
+    final sample = await _sampleColorAt(canvasPoint, state);
+    if (!_isSampleCurrent(state, version)) return;
+    if (sample != null) {
+      state.setForegroundColor(sample.color);
     }
     // 切回上一个工具
     state.switchToPreviousTool();
     _clearPreview(state);
   }
+
+  bool _isSampleCurrent(EditorState state, int version) =>
+      !state.isDisposed &&
+      _samplingVersion == version &&
+      identical(state.currentTool, this);
 
   @override
   void onPointerCancel(EditorState state) {
@@ -250,6 +257,16 @@ class ColorPickerTool extends EditorTool {
     // 不调用 requestUiUpdate()，由框架负责 UI 更新
   }
 
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _samplingVersion++;
+    _pendingPosition = null;
+    _pendingState = null;
+    super.dispose();
+  }
+
   /// 延迟激活（下一帧异步执行）
   /// 用于预热快照缓存，不阻塞工具切换
   @override
@@ -272,9 +289,12 @@ class ColorPickerTool extends EditorTool {
     }
 
     _isUpdatingSnapshot = true;
+    final samplingVersion = _samplingVersion;
     try {
-      await state.updateCanvasSnapshot();
-      _usedSnapshotVersion = state.canvasSnapshotVersion;
+      final updated = await state.updateCanvasSnapshot();
+      if (updated && _isSampleCurrent(state, samplingVersion)) {
+        _usedSnapshotVersion = currentVersion;
+      }
     } finally {
       _isUpdatingSnapshot = false;
     }
@@ -299,30 +319,7 @@ class ColorPickerTool extends EditorTool {
       );
       if (regionalPixels != null) {
         _magnifierPixels = regionalPixels;
-        const halfGrid = _magnifierGridSize ~/ 2;
-        final centerColor = regionalPixels[halfGrid][halfGrid];
-
-        if (_sampleMode == ColorPickerSampleMode.point) {
-          _previewColor = centerColor;
-        } else {
-          // 区域采样（3x3平均）
-          int totalR = 0, totalG = 0, totalB = 0, totalA = 0;
-          for (int dy = -1; dy <= 1; dy++) {
-            for (int dx = -1; dx <= 1; dx++) {
-              final color = regionalPixels[halfGrid + dy][halfGrid + dx];
-              totalR += _colorComponent8(color.r);
-              totalG += _colorComponent8(color.g);
-              totalB += _colorComponent8(color.b);
-              totalA += _colorComponent8(color.a);
-            }
-          }
-          _previewColor = Color.fromARGB(
-            (totalA / 9).round(),
-            (totalR / 9).round(),
-            (totalG / 9).round(),
-            (totalB / 9).round(),
-          );
-        }
+        _previewColor = _colorFromPixels(regionalPixels);
         state.requestUiUpdate();
         return;
       }
@@ -400,13 +397,14 @@ class ColorPickerTool extends EditorTool {
         currentState.frame,
       );
 
-      final color = await sampleFuture;
+      final sample = await sampleFuture;
       await cacheFuture; // 等待缓存更新完成
 
-      if (_samplingVersion != currentVersion) return;
+      if (!_isSampleCurrent(currentState, currentVersion)) return;
 
-      if (color != null) {
-        _previewColor = color;
+      _magnifierPixels = sample?.pixels;
+      if (sample != null) {
+        _previewColor = sample.color;
         _previewPosition = position;
         currentState.requestUiUpdate();
       }
@@ -415,7 +413,7 @@ class ColorPickerTool extends EditorTool {
 
   /// 同步采样（使用缓存快照）
   /// 返回采样结果，如果缓存不可用则返回 null
-  _SyncSampleResult? _sampleColorSync(Offset canvasPoint, EditorState state) {
+  _SampleResult? _sampleColorSync(Offset canvasPoint, EditorState state) {
     // 仅当取样来源是"所有图层"时才使用缓存
     // 因为缓存的是合成后的所有图层
     if (_source != ColorPickerSource.allLayers) return null;
@@ -431,34 +429,32 @@ class ColorPickerTool extends EditorTool {
     );
 
     if (pixels == null) return null;
+    return _SampleResult(color: _colorFromPixels(pixels), pixels: pixels);
+  }
 
+  Color _colorFromPixels(List<List<Color>> pixels) {
     const halfGrid = _magnifierGridSize ~/ 2;
-    final centerColor = pixels[halfGrid][halfGrid];
-
-    Color finalColor;
     if (_sampleMode == ColorPickerSampleMode.point) {
-      finalColor = centerColor;
-    } else {
-      // 区域采样（3x3平均）
-      int totalR = 0, totalG = 0, totalB = 0, totalA = 0;
-      for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-          final color = pixels[halfGrid + dy][halfGrid + dx];
-          totalR += _colorComponent8(color.r);
-          totalG += _colorComponent8(color.g);
-          totalB += _colorComponent8(color.b);
-          totalA += _colorComponent8(color.a);
-        }
-      }
-      finalColor = Color.fromARGB(
-        (totalA / 9).round(),
-        (totalR / 9).round(),
-        (totalG / 9).round(),
-        (totalB / 9).round(),
-      );
+      return pixels[halfGrid][halfGrid];
     }
 
-    return _SyncSampleResult(color: finalColor, pixels: pixels);
+    // 区域采样（3x3平均）
+    int totalR = 0, totalG = 0, totalB = 0, totalA = 0;
+    for (int dy = -1; dy <= 1; dy++) {
+      for (int dx = -1; dx <= 1; dx++) {
+        final color = pixels[halfGrid + dy][halfGrid + dx];
+        totalR += _colorComponent8(color.r);
+        totalG += _colorComponent8(color.g);
+        totalB += _colorComponent8(color.b);
+        totalA += _colorComponent8(color.a);
+      }
+    }
+    return Color.fromARGB(
+      (totalA / 9).round(),
+      (totalR / 9).round(),
+      (totalG / 9).round(),
+      (totalB / 9).round(),
+    );
   }
 
   /// 清理预览状态
@@ -489,12 +485,12 @@ class ColorPickerTool extends EditorTool {
 
   /// 在指定画布坐标位置采样颜色
   /// 所见即所得：采样所有可见图层合成后的实际显示颜色
-  Future<Color?> _sampleColorAt(Offset canvasPoint, EditorState state) async {
+  Future<_SampleResult?> _sampleColorAt(
+    Offset canvasPoint,
+    EditorState state,
+  ) async {
     // 检查是否在取景框范围内
-    if (!state.frame.contains(canvasPoint)) {
-      _magnifierPixels = null;
-      return null;
-    }
+    if (!state.frame.contains(canvasPoint)) return null;
 
     final centerX = canvasPoint.dx.floor();
     final centerY = canvasPoint.dy.floor();
@@ -505,50 +501,21 @@ class ColorPickerTool extends EditorTool {
       centerY,
       _sampleRegionSize ~/ 2,
     );
-    if (region == null) {
-      _magnifierPixels = null;
-      return null;
-    }
+    if (region == null) return null;
 
     const halfGrid = _magnifierGridSize ~/ 2;
 
     // 获取放大镜区域的像素
-    _magnifierPixels = List.generate(_magnifierGridSize, (row) {
+    final pixels = List.generate(_magnifierGridSize, (row) {
       return List.generate(_magnifierGridSize, (col) {
-        return region.colorAt(centerX + col - halfGrid, centerY + row - halfGrid);
+        return region.colorAt(
+          centerX + col - halfGrid,
+          centerY + row - halfGrid,
+        );
       });
     });
 
-    if (_sampleMode == ColorPickerSampleMode.point) {
-      // 单点采样 - 返回中心像素
-      return _magnifierPixels![halfGrid][halfGrid];
-    } else {
-      // 区域采样（3x3平均）
-      int totalR = 0, totalG = 0, totalB = 0, totalA = 0;
-      int count = 0;
-
-      for (int dy = -1; dy <= 1; dy++) {
-        for (int dx = -1; dx <= 1; dx++) {
-          final color = _magnifierPixels![halfGrid + dy][halfGrid + dx];
-          totalR += _colorComponent8(color.r);
-          totalG += _colorComponent8(color.g);
-          totalB += _colorComponent8(color.b);
-          totalA += _colorComponent8(color.a);
-          count++;
-        }
-      }
-
-      if (count > 0) {
-        return Color.fromARGB(
-          (totalA / count).round(),
-          (totalR / count).round(),
-          (totalG / count).round(),
-          (totalB / count).round(),
-        );
-      }
-    }
-
-    return null;
+    return _SampleResult(color: _colorFromPixels(pixels), pixels: pixels);
   }
 
   @override
@@ -958,12 +925,11 @@ class _MagnifierPainter extends CustomPainter {
   }
 }
 
-/// 同步采样结果
-class _SyncSampleResult {
+class _SampleResult {
   final Color color;
   final List<List<Color>> pixels;
 
-  _SyncSampleResult({required this.color, required this.pixels});
+  _SampleResult({required this.color, required this.pixels});
 }
 
 /// 异步渲染出的一小块 RGBA 像素，坐标为文档坐标
