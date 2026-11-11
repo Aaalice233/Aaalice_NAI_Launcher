@@ -92,7 +92,7 @@ Future<bool> importImageAsLayer(
     if (context.mounted) AppToast.error(context, l10n.editor_parseImageFailed);
     return false;
   }
-  if (!context.mounted) {
+  if (!context.mounted || state.isDisposed) {
     image.dispose();
     return false;
   }

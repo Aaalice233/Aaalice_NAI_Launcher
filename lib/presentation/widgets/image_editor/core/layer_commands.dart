@@ -52,6 +52,10 @@ class LayerCommands {
     } finally {
       codec?.dispose();
     }
+    if (_state.isDisposed) {
+      image.dispose();
+      return null;
+    }
     final data = LayerData(
       id: const Uuid().v4(),
       name: name,
