@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
+import '../../core/utils/file_system_error_summary.dart';
 import '../../core/utils/novelai_vibe_codec.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import '../../core/utils/vibe_library_path_helper.dart';
@@ -299,16 +300,26 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
   /// 删除 Vibe 文件
   @override
   Future<bool> deleteVibeFile(String filePath) async {
+    final extension = p.extension(filePath).toLowerCase();
+    final logExtension =
+        extension == _singleFileExtension || extension == _bundleFileExtension
+        ? extension
+        : 'unknown';
     try {
       final file = File(filePath);
       if (!await file.exists()) {
         return true;
       }
       await file.delete();
-      AppLogger.i('删除 Vibe 文件成功: $filePath', _tag);
+      AppLogger.i('删除 Vibe 文件成功 (extension: $logExtension)', _tag);
       return true;
     } catch (e, stackTrace) {
-      AppLogger.e('删除 Vibe 文件失败: $filePath', e, stackTrace, _tag);
+      AppLogger.e(
+        '删除 Vibe 文件失败 (extension: $logExtension)',
+        fileSystemErrorSummary(e),
+        stackTrace,
+        _tag,
+      );
       return false;
     }
   }

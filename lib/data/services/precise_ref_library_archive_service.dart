@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/enums/precise_ref_type.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/file_system_error_summary.dart';
 import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/zip_archive_entry.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
@@ -182,7 +183,7 @@ class PreciseRefLibraryArchiveService {
     } on FileSystemException catch (error) {
       // 暂存副本只是导入中转，清理失败不能改写已经确定的导入结果
       AppLogger.w(
-        'Failed to delete precise reference import staging: $error',
+        'Failed to delete precise reference import staging: ${fileSystemErrorSummary(error)}',
         'PreciseRefLibrary',
       );
     }
