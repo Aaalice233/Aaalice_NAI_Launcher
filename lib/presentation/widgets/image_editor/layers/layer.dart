@@ -356,17 +356,22 @@ class Layer {
 
   /// 设置基础图像（从导入的图片）
   ///
-  /// 如果解码失败会抛出异常，调用方需要处理
-  Future<void> setBaseImage(Uint8List bytes) async {
+  /// 解码失败时抛出异常，图层已释放时丢弃结果并返回 false
+  Future<bool> setBaseImage(Uint8List bytes) async {
     ui.Codec? codec;
     try {
       codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
+      if (_disposed) {
+        frame.image.dispose();
+        return false;
+      }
 
       // 成功解码后才更新状态
       _swapBase(LayerRaster(frame.image, bytes: bytes));
       _baseImageOffset = Offset.zero;
       _invalidateFlattened();
+      return true;
     } catch (e) {
       AppLogger.w('Failed to decode base image: $e', 'ImageEditor');
       rethrow;

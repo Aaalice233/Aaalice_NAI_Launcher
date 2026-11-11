@@ -17,6 +17,8 @@ import 'package:nai_launcher/presentation/widgets/model3d_editor/model3d_editor_
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'layers/layer_pixel_test_helpers.dart';
+
 /// 记录 push 事件的观察器(断言 3D 编辑器路由确实被推入)
 class _RecordingNavigatorObserver extends NavigatorObserver {
   final List<Route<dynamic>> pushed = [];
@@ -159,6 +161,36 @@ void main() {
 
     // 收尾:卸载整棵树,释放编辑器路由(其加载指示动画不会自然停止)
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('3D edit result leaves a deleted layer untouched', (
+    tester,
+  ) async {
+    final bytes = (await tester.runAsync(() => solidPng(4, 4, Colors.red)))!;
+    final (state, observer) = await pumpPanel(tester);
+    final manager = state.layerManager;
+    final layer = manager.layers.singleWhere((layer) => layer.hasModel3d);
+    final originalData = layer.model3d;
+    await tester.tap(find.text('Pose Layer'));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Pose Layer'));
+    await tester.idle();
+    expect(observer.pushed, hasLength(1));
+
+    expect(manager.removeLayer(layer.id), isTrue);
+    observer.navigator!.removeRoute(
+      observer.pushed.single,
+      Model3dEditResult(
+        pngBytes: bytes,
+        modelRef: 'builtin:mannequin',
+        sceneState: const {'version': 2},
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(layer.model3d, same(originalData));
+    expect(manager.layers, hasLength(1));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('double-tapping normal layer name still opens rename',

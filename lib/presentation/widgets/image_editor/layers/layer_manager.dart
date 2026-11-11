@@ -30,6 +30,8 @@ class LayerManager extends ChangeNotifier {
   /// 是否正在更新缩略图（防止并发）
   bool _isUpdatingThumbnails = false;
 
+  bool _disposed = false;
+
   // ===== 批量操作支持 =====
 
   /// 批量操作嵌套深度
@@ -224,6 +226,10 @@ class LayerManager extends ChangeNotifier {
     try {
       // 设置基础图像
       await layer.setBaseImage(imageBytes);
+      if (_disposed) {
+        layer.dispose();
+        return null;
+      }
       if (offset != Offset.zero) {
         layer.setBaseImageOffset(offset);
       }
@@ -246,14 +252,8 @@ class LayerManager extends ChangeNotifier {
     return layer;
   }
 
-  Future<bool> replaceLayerImage(String layerId, Uint8List imageBytes) async {
-    final layer = getLayerById(layerId);
-    if (layer == null) return false;
-
-    await layer.setBaseImage(imageBytes);
-    _markContentChanged();
-    return true;
-  }
+  Future<bool> replaceLayerImage(String layerId, Uint8List imageBytes) async =>
+      await replaceLayerBaseImage(layerId, imageBytes) != null;
 
   /// 从 ui.Image 创建图层
   ///
@@ -309,7 +309,7 @@ class LayerManager extends ChangeNotifier {
     _markContentChanged();
   }
 
-  /// 替换图层底图(3D 图层再编辑用),保留图层其余状态
+  /// 替换图层底图，保留图层其余状态
   Future<Layer?> replaceLayerBaseImage(
     String layerId,
     Uint8List imageBytes, {
@@ -317,7 +317,8 @@ class LayerManager extends ChangeNotifier {
   }) async {
     final layer = getLayerById(layerId);
     if (layer == null) return null;
-    await layer.setBaseImage(imageBytes);
+    final adopted = await layer.setBaseImage(imageBytes);
+    if (!adopted) return null;
     if (offset != Offset.zero) {
       layer.setBaseImageOffset(offset);
     }
@@ -779,6 +780,7 @@ class LayerManager extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _snapshotManager.dispose();
     activeLayerNotifier.dispose();
     uiUpdateNotifier.dispose();
