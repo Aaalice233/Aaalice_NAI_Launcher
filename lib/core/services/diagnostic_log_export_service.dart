@@ -11,6 +11,7 @@ import '../agent/private_data_guard.dart';
 import '../constants/app_version.dart';
 import '../utils/app_logger.dart';
 import '../utils/log_redaction.dart';
+import '../utils/log_url_redaction.dart';
 import 'diagnostic_agent_audit.dart';
 import 'file_export_service.dart';
 import 'update_installer_service.dart';
@@ -228,7 +229,7 @@ class DiagnosticLogExportService {
       final metadata = <String, Object>{
         'schemaVersion': 1,
         'createdAt': createdAt.toUtc().toIso8601String(),
-        'environment': _sanitize(diagnosticsMetadata),
+        'environment': _sanitize(diagnosticsMetadata, multiline: true),
         'fileLoggingEnabled': fileLoggingEnabled,
         'logs': includedNames,
         'truncatedLogs': truncatedNames,
@@ -262,10 +263,21 @@ class DiagnosticLogExportService {
     required bool wasTruncated,
     required bool isAgentAudit,
   }) async {
-    final sink = target.openWrite(encoding: utf8);
     final startOffset = snapshotLength > maxBytes
         ? snapshotLength - maxBytes
         : 0;
+    if (!isAgentAudit &&
+        p.extension(source.path) == '.json' &&
+        await _writeSanitizedJson(
+          source,
+          target,
+          startOffset,
+          snapshotLength,
+        )) {
+      return;
+    }
+
+    final sink = target.openWrite(encoding: utf8);
     var insidePrivateKey =
         !isAgentAudit &&
         await _privateKeyOpenNearOffset(source, startOffset, snapshotLength);
@@ -308,6 +320,26 @@ class DiagnosticLogExportService {
       await sink.flush();
       await sink.close();
     }
+  }
+
+  static Future<bool> _writeSanitizedJson(
+    File source,
+    File target,
+    int startOffset,
+    int snapshotLength,
+  ) async {
+    final Object? sanitized;
+    try {
+      final text = await source
+          .openRead(startOffset, snapshotLength)
+          .transform(utf8.decoder)
+          .join();
+      sanitized = jsonDecode(text, reviver: _sanitizeJsonValue);
+    } on FormatException {
+      return false;
+    }
+    await target.writeAsString(jsonEncode(sanitized), flush: true);
+    return true;
   }
 
   static Future<bool> _startsMidLine(File source, int offset) async {
@@ -375,15 +407,103 @@ class DiagnosticLogExportService {
     r'-----END (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----',
     caseSensitive: false,
   );
+  static final RegExp _linePattern = RegExp(r'[^\r\n]+');
+  static final RegExp _urlField = RegExp(
+    r'''([ \t]+(?:[\w.-]+[=:][ \t]*)?["'`(<]?)?'''
+    '$logUrlPattern',
+    caseSensitive: false,
+    unicode: true,
+  );
 
-  static String _sanitize(String value) {
-    final pathsRedacted = PrivateDataGuard.redactAbsolutePaths(
-      redactLogText(value),
+  // The updater embeds its app directory unquoted before this fixed reason.
+  static final RegExp _updaterProxyTimeout = RegExp(
+    r'^(Stdio proxy processes in )(.+)( did not exit within 15 seconds\.)$',
+  );
+
+  static Object? _sanitizeJsonValue(Object? key, Object? value) {
+    if (value is! String) return value;
+    if (key == 'message') {
+      final timeout = _updaterProxyTimeout.firstMatch(value);
+      if (timeout != null) {
+        return '${timeout[1]}${_sanitize(timeout[2]!)}${timeout[3]}';
+      }
+    }
+    return _sanitize(
+      value,
+      multiline: true,
+      jsonKey: key is String ? key : null,
     );
-    if (PrivateDataGuard.detect(pathsRedacted) != null) {
+  }
+
+  static String _sanitize(
+    String value, {
+    bool multiline = false,
+    String? jsonKey,
+  }) {
+    final credentialsRedacted = redactLogText(value);
+    final pathsRedacted = multiline
+        ? credentialsRedacted.replaceAllMapped(
+            _linePattern,
+            (match) => _redactLinePaths(match[0]!),
+          )
+        : _redactLinePaths(credentialsRedacted);
+    final guardedText = jsonKey == null
+        ? pathsRedacted
+        : '${jsonEncode(jsonKey)}: $pathsRedacted';
+    if (PrivateDataGuard.detect(guardedText, absolutePaths: false) != null) {
       return '[REDACTED SENSITIVE LOG LINE]';
     }
     return pathsRedacted;
+  }
+
+  static String _redactLinePaths(String line) {
+    final starts = PrivateDataGuard.absolutePathStarts(line);
+    final lastSingleQuote = line.lastIndexOf("'");
+    final urls = _remoteUrlFields(line).iterator;
+    RegExpMatch? nextUrl() => urls.moveNext() ? urls.current : null;
+    late var url = nextUrl();
+    final redacted = StringBuffer();
+    var cursor = 0;
+    for (final start in starts) {
+      if (start < cursor) continue;
+      while (url != null && url.end <= start) {
+        url = nextUrl();
+      }
+      if (url != null && url.start <= start) continue;
+      final quote = start > 0 ? line[start - 1] : '';
+      var end = line.length;
+      if (quote == "'") {
+        var closing = lastSingleQuote;
+        if (url != null && url[1] != null) {
+          final beforeUrl = line.lastIndexOf("'", url.start - 1);
+          if (beforeUrl >= start) closing = beforeUrl;
+        }
+        if (closing >= start) end = closing;
+      } else if (quote == '"' || quote == '`') {
+        final closing = line.indexOf(quote, start);
+        if (closing >= 0) end = closing;
+      } else {
+        while (url != null && url[1] == null) {
+          url = nextUrl();
+        }
+        if (url != null) end = url.start;
+      }
+      redacted.write(line.substring(cursor, start));
+      redacted.write('[absolute path]');
+      cursor = end;
+    }
+    redacted.write(line.substring(cursor));
+    return redacted.toString();
+  }
+
+  static Iterable<RegExpMatch> _remoteUrlFields(String line) sync* {
+    if (!line.contains('://')) return;
+    for (final match in _urlField.allMatches(line)) {
+      final scheme = match[2]!;
+      if (scheme.length > 'C://'.length && scheme.toLowerCase() != 'file://') {
+        yield match;
+      }
+    }
   }
 
   static String _uniqueFileName(String requested, Set<String> used) {
