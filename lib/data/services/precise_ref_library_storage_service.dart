@@ -517,7 +517,7 @@ class PreciseRefLibraryStorageService {
     }
   }
 
-  /// 关闭 box（测试用）。
+  /// 关闭 box（测试用）；调用方必须先等待所有进行中的操作结束。
   Future<void> close() async {
     await _entriesBox?.close();
     await _thumbnailCacheBox?.close();
