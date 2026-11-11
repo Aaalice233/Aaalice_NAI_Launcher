@@ -826,6 +826,7 @@ class EditorState extends ChangeNotifier {
     canvasSizeNotifier.dispose();
     frameNotifier.dispose();
     framePreviewNotifier.dispose();
+    cursorNotifier.dispose();
 
     super.dispose();
   }
