@@ -1,12 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/history_manager.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/core/layer_role_policy.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/widgets/editor_image_import.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../helpers/live_image_counter.dart';
 import '../layers/layer_pixel_test_helpers.dart';
 
 const _red = Color(0xFFFF0000);
@@ -16,6 +21,88 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // EditorState 构造时会异步读取工具设置
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  testWidgets('addImageLayer releases a late decode after editor disposal', (
+    tester,
+  ) async {
+    final live = LiveImageCounter()..install();
+    addTearDown(live.restore);
+    await tester.runAsync(() async {
+      final bytes = await solidPng(4, 4, _red);
+      final state = EditorState();
+      addTearDown(() {
+        if (!state.isDisposed) state.dispose();
+      });
+      final created = live.created;
+      final pending = state.layerCommands.addImageLayer(
+        bytes,
+        name: 'imported',
+      );
+      state.dispose();
+
+      expect(await pending, isNull);
+      expect(state.layerManager.layers, isEmpty);
+      expect(state.historyManager.undoStackSize, 0);
+      expect(live.created, greaterThan(created));
+      expect(live.count, 0);
+    });
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'importImageAsLayer releases a late decode while its dialog remains mounted',
+    (tester) async {
+      const host = SizedBox(key: ValueKey('host'));
+      await tester.pumpWidget(
+        const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: host,
+        ),
+      );
+      unawaited(
+        showDialog<void>(
+          context: tester.element(find.byWidget(host)),
+          builder: (_) => const AlertDialog(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final dialogContext = tester.element(find.byType(AlertDialog));
+
+      await tester.runAsync(() async {
+        final bytes = await solidPng(4, 4, _red);
+        final state = EditorState();
+        addTearDown(() {
+          if (!state.isDisposed) state.dispose();
+        });
+        final toolBefore = state.currentTool;
+        final live = LiveImageCounter()..install();
+        try {
+          final pending = importImageAsLayer(
+            dialogContext,
+            state,
+            bytes: bytes,
+            layerName: 'imported',
+          );
+          state.dispose();
+          final layersAtClose = state.layerManager.layers;
+          final undoSizeAtClose = state.historyManager.undoStackSize;
+          expect(dialogContext.mounted, isTrue);
+
+          expect(await pending, isFalse);
+          expect(live.created, 1);
+          expect(live.count, 0);
+          expect(state.currentTool, same(toolBefore));
+          expect(state.layerManager.layers, layersAtClose);
+          expect(state.historyManager.undoStackSize, undoSizeAtClose);
+        } finally {
+          live.restore();
+        }
+      });
+      expect(dialogContext.mounted, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   group('edit session', () {
     testWidgets('addLayer inserts right above the active layer', (
