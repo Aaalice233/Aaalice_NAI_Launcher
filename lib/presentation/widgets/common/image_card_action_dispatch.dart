@@ -1,7 +1,10 @@
-import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/localization_extension.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/file_system_error_summary.dart';
+import '../../../core/utils/localization_extension.dart';
 import 'app_toast.dart';
 import 'image_card_action.dart';
 
@@ -22,9 +25,11 @@ Future<void> Function() prepareImageCardDispatch(
     try {
       await action.invoke();
     } catch (error, stackTrace) {
+      final isFileDeleteFailure =
+          action.id == ImageCardActionId.delete && error is FileSystemException;
       AppLogger.e(
         'Image card action ${action.id.name} failed',
-        error,
+        isFileDeleteFailure ? fileSystemErrorSummary(error) : error,
         stackTrace,
       );
       if (error is ImageCardBatchException) {
@@ -42,9 +47,10 @@ Future<void> Function() prepareImageCardDispatch(
               error.result.failures.length + error.result.succeeded.length,
             )
           : l10n.common_error;
+      final details = isFileDeleteFailure ? '' : ': $error';
       AppToast.errorOnOverlay(
         overlay,
-        '$message · ${action.menuLabel}: $error',
+        '$message · ${action.menuLabel}$details',
       );
     }
   };

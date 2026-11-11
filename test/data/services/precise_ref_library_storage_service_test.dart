@@ -5,10 +5,15 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:logger/logger.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/core/utils/display_thumbnail_utils.dart';
+import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
 import 'package:nai_launcher/data/services/precise_ref_library_storage_service.dart';
 import 'package:path/path.dart' as p;
+
+import '../../helpers/log_capture.dart';
 
 Uint8List _pngBytes({int width = 8, int height = 8}) {
   final image = img.Image(width: width, height: height);
@@ -37,17 +42,50 @@ Uint8List _bmpBytes() {
 class _FailingRenameFileSystem extends PreciseRefLibraryFileSystem {
   bool failImportCommit = false;
   bool failDeleteStaging = false;
+  bool failDeleteRestore = false;
+  bool failDelete = false;
+  bool failRead = false;
+  bool failList = false;
+  Future<void> Function()? onDeleteStaged;
 
   @override
-  Future<void> rename(String from, String to) {
+  Future<void> rename(String from, String to) async {
     if (failImportCommit && from.contains('.importing-')) {
-      throw FileSystemException('injected import rename failure', from);
+      throw _failure(from);
     }
     if (failDeleteStaging && to.contains('.deleting-')) {
-      throw FileSystemException('injected delete rename failure', from);
+      throw _failure(from);
     }
-    return super.rename(from, to);
+    if (failDeleteRestore && from.contains('.deleting-')) {
+      throw _failure(from);
+    }
+    await super.rename(from, to);
+    if (to.contains('.deleting-')) await onDeleteStaged?.call();
   }
+
+  @override
+  Future<void> delete(String path) {
+    if (failDelete) throw _failure(path);
+    return super.delete(path);
+  }
+
+  @override
+  Future<Uint8List> readBytes(String path) {
+    if (failRead) throw _failure(path);
+    return super.readBytes(path);
+  }
+
+  @override
+  Stream<FileSystemEntity> list(String directory) {
+    if (failList) return Stream.error(_failure(directory));
+    return super.list(directory);
+  }
+
+  FileSystemException _failure(String path) => FileSystemException(
+    'injected failure: $path',
+    path,
+    OSError('private OS error: $path', 5),
+  );
 }
 
 class _DelayedReadStorage extends PreciseRefLibraryStorageService {
@@ -117,6 +155,11 @@ void main() {
   late PreciseRefLibraryStorageService storage;
 
   setUp(() async {
+    await AppLogger.initialize(
+      isTestEnvironment: true,
+      enableFileLogging: false,
+    );
+    AppLogger.debugSetMinimumLevelForTesting(Level.warning);
     tempDir = await Directory.systemTemp.createTemp(
       'precise_ref_storage_test_',
     );
@@ -126,11 +169,125 @@ void main() {
   });
 
   tearDown(() async {
+    AppLogger.debugSetMinimumLevelForTesting(null);
     await storage.close();
     await Hive.close();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
     }
+  });
+
+  void expectSafeFailureLogs(List<String> logs) {
+    final text = logs.join('\n');
+    expect(text, contains('FileSystemException(errno: 5)'));
+    for (final privateText in [
+      tempDir.path,
+      p.basename(tempDir.path),
+      'injected failure',
+      'private OS error',
+    ]) {
+      expect(text, isNot(contains(privateText)));
+    }
+  }
+
+  test('导入和暂存清理失败的日志只保留文件标识与错误码', () async {
+    storage = PreciseRefLibraryStorageService(
+      overrideDirectory: imageDir.path,
+      fileSystem: _FailingRenameFileSystem()
+        ..failImportCommit = true
+        ..failDelete = true,
+    );
+    final logs = await captureLogs(() async {
+      await expectLater(
+        storage.importFromBytes(_pngBytes(), name: 'private reference name'),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
+
+    expectSafeFailureLogs(logs);
+    expect(logs.join('\n'), contains('.png.importing-'));
+    expect(logs.join('\n'), isNot(contains('private reference name')));
+    expect(await storage.getAllEntries(), isEmpty);
+  });
+
+  test('删除暂存和读取失败的日志保留 UUID 但不带目录', () async {
+    final fileSystem = _FailingRenameFileSystem();
+    storage = PreciseRefLibraryStorageService(
+      overrideDirectory: imageDir.path,
+      fileSystem: fileSystem,
+    );
+    final entry = await storage.importFromBytes(_pngBytes(), name: 'private');
+    fileSystem
+      ..failDeleteStaging = true
+      ..failRead = true;
+    final logs = await captureLogs(() async {
+      expect(await storage.deleteEntry(entry.id), isFalse);
+      expect(await storage.readImageBytes(entry.id), isNull);
+    });
+
+    expectSafeFailureLogs(logs);
+    expect(logs.join('\n'), contains(entry.id));
+    expect(logs.where((line) => line.contains('errno: 5')), hasLength(2));
+    expect(File(entry.imagePath).existsSync(), isTrue);
+  });
+
+  test('对账目录列举失败的日志不带目录或异常原文', () async {
+    storage = PreciseRefLibraryStorageService(
+      overrideDirectory: imageDir.path,
+      fileSystem: _FailingRenameFileSystem()..failList = true,
+    );
+    final logs = await captureLogs(storage.init);
+
+    expectSafeFailureLogs(logs);
+    expect(logs.join('\n'), contains('精准参考库存储对账失败'));
+  });
+
+  test('孤立原图和两种暂存标记清理失败时只记录文件名', () async {
+    await storage.init();
+    const names = [
+      '11111111-1111-4111-8111-111111111111.png',
+      '22222222-2222-4222-8222-222222222222.png.importing-crash',
+      '33333333-3333-4333-8333-333333333333.png.deleting-crash',
+    ];
+    for (final name in names) {
+      await File(p.join(imageDir.path, name)).writeAsBytes(_pngBytes());
+    }
+    await storage.close();
+    storage = PreciseRefLibraryStorageService(
+      overrideDirectory: imageDir.path,
+      fileSystem: _FailingRenameFileSystem()..failDelete = true,
+    );
+    final logs = await captureLogs(storage.init);
+
+    expectSafeFailureLogs(logs);
+    expect(logs.where((line) => line.contains('errno: 5')), hasLength(3));
+    for (final name in names) {
+      expect(logs.join('\n'), contains(name));
+    }
+  });
+
+  test('删除回滚恢复失败时日志不带原图或暂存目录', () async {
+    final fileSystem = _FailingRenameFileSystem();
+    storage = PreciseRefLibraryStorageService(
+      overrideDirectory: imageDir.path,
+      fileSystem: fileSystem,
+    );
+    final entry = await storage.importFromBytes(_pngBytes(), name: 'private');
+    fileSystem
+      ..failDeleteRestore = true
+      ..onDeleteStaged = () => Hive.box<PreciseRefLibraryEntry>(
+        'precise_ref_library_entries',
+      ).close();
+    final logs = await captureLogs(() async {
+      await expectLater(
+        storage.deleteEntry(entry.id),
+        throwsA(isA<HiveError>()),
+      );
+    });
+
+    expectSafeFailureLogs(logs);
+    expect(logs.join('\n'), contains('恢复精准参考原图失败: ${entry.id}.png'));
+    expect(logs.join('\n'), contains('HiveError'));
   });
 
   test('detectImageExtension 按魔数识别所有支持格式并拒绝未知数据', () {
@@ -479,7 +636,11 @@ void main() {
   test('readImageBytes 在原图文件被删除后返回 null', () async {
     final entry = await storage.importFromBytes(_pngBytes(), name: 'a');
     File(entry.imagePath).deleteSync();
-    expect(await storage.readImageBytes(entry.id), isNull);
+    final logs = await captureLogs(() async {
+      expect(await storage.readImageBytes(entry.id), isNull);
+    });
+    expect(logs.join('\n'), contains('精准参考原图文件丢失: ${entry.id}'));
+    expect(logs.join('\n'), isNot(contains(tempDir.path)));
   });
 
   test('DisplayThumbnailUtils.resizeSync 把大图压到最长边 256', () {

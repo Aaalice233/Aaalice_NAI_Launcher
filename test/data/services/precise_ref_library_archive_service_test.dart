@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -7,13 +8,19 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as img;
+import 'package:logger/logger.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
 import 'package:nai_launcher/data/services/precise_ref_library_archive_service.dart';
 import 'package:nai_launcher/data/services/precise_ref_library_storage_service.dart';
 import 'package:path/path.dart' as p;
 
 import '../../helpers/shared_compute_gate.dart';
+import '../../helpers/log_capture.dart';
+
+class _MockDirectory extends Mock implements Directory {}
 
 class _FailingCommitStorage extends PreciseRefLibraryStorageService {
   var imports = 0;
@@ -114,6 +121,51 @@ void main() {
     expect(duplicate.id, isNot(anyOf(source.id, imported.id)));
     expect(await storage.getAllEntries(), hasLength(3));
     await expectNoStagingLeft();
+  });
+
+  test('导入暂存目录清理失败时只记录错误码且不改变导入结果', () async {
+    AppLogger.debugSetMinimumLevelForTesting(Level.warning);
+    addTearDown(() => AppLogger.debugSetMinimumLevelForTesting(null));
+    final path = await _writeArchive(
+      tempDir,
+      resource: 'images/11111111-1111-4111-8111-111111111111.png',
+    );
+    final realStaging = await Directory(
+      p.join(stagingRoot.path, 'private staging directory'),
+    ).create(recursive: true);
+    final root = _MockDirectory();
+    final staging = _MockDirectory();
+    when(() => root.create(recursive: true)).thenAnswer((_) async => root);
+    when(() => root.createTemp(any())).thenAnswer((_) async => staging);
+    when(() => staging.path).thenReturn(realStaging.path);
+    when(() => staging.exists()).thenAnswer((_) async => true);
+    when(() => staging.delete(recursive: true)).thenThrow(
+      FileSystemException(
+        'Cannot delete private staging directory',
+        realStaging.path,
+        const OSError('private OS error', 5),
+      ),
+    );
+    final outerZone = Zone.current;
+    final logs = await IOOverrides.runZoned(
+      () => captureLogs(() async {
+        final imported = await archives.importFromPath(path);
+        expect(imported, hasLength(1));
+        expect(
+          await File(imported.single.imagePath).readAsBytes(),
+          _pngBytes(),
+        );
+      }),
+      createDirectory: (path) => path == stagingRoot.path
+          ? root
+          : outerZone.run(() => Directory(path)),
+    );
+
+    final text = logs.join('\n');
+    expect(text, contains('Failed to delete precise reference import staging'));
+    expect(text, contains('FileSystemException(errno: 5)'));
+    expect(text, isNot(contains(tempDir.path)));
+    expect(text, isNot(contains('private')));
   });
 
   test('解压与校验经过共享计算闸门在后台完成', () async {

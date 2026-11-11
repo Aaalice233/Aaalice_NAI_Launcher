@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_action.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_action_dispatch.dart';
+
+import '../../../helpers/log_capture.dart';
 
 void main() {
   test(
@@ -84,4 +89,47 @@ void main() {
       expect(result.failures['b']?.error, same(failure));
     },
   );
+
+  testWidgets('delete action reports a file failure without its path', (
+    tester,
+  ) async {
+    const path = r'C:\QA\App Folder\precise_refs\reference.png';
+    final action = ImageCardAction(
+      id: ImageCardActionId.delete,
+      icon: Icons.delete,
+      label: 'Delete selected references',
+      supportsBatch: true,
+      invoke: () => throw const FileSystemException(
+        'private metadata error',
+        path,
+        OSError('private OS message', 5),
+      ),
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        locale: Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(body: SizedBox(key: Key('delete-action-context'))),
+      ),
+    );
+    final context = tester.element(
+      find.byKey(const Key('delete-action-context')),
+    );
+
+    final logs = await captureLogs(
+      () => dispatchImageCardAction(context, action),
+    );
+    final text = logs.join('\n');
+    expect(text, contains('Image card action delete failed'));
+    expect(text, contains('FileSystemException(errno: 5)'));
+    expect(text, isNot(contains(path)));
+    expect(text, isNot(contains('private metadata error')));
+    expect(text, isNot(contains('private OS message')));
+
+    await tester.pumpAndSettle();
+    expect(find.text('Error · Delete selected references'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
 }

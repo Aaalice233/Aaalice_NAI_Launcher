@@ -11,6 +11,7 @@ import '../../core/enums/precise_ref_type.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/async_work_pool.dart';
 import '../../core/utils/display_thumbnail_utils.dart';
+import '../../core/utils/file_system_error_summary.dart';
 import '../../core/utils/precise_ref_library_path_helper.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
 import 'precise_ref_portable_importer.dart';
@@ -138,20 +139,30 @@ class PreciseRefLibraryStorageService {
           await _entriesBox!.delete(id);
           metadataRolledBack = true;
         } catch (rollbackError, rollbackStack) {
-          AppLogger.e('回滚精准参考元数据失败', rollbackError, rollbackStack, _tag);
+          AppLogger.e(
+            '回滚精准参考元数据失败: $id',
+            fileSystemErrorSummary(rollbackError),
+            rollbackStack,
+            _tag,
+          );
         }
       }
       if (metadataRolledBack) {
         await _deleteIfExists(stagingPath);
       }
-      AppLogger.e('精准参考入库失败', e, s, _tag);
+      AppLogger.e(
+        '精准参考入库失败: $id$extension',
+        fileSystemErrorSummary(e),
+        s,
+        _tag,
+      );
       rethrow;
     }
 
     try {
       await _thumbnailCacheBox!.put(id, thumbnail);
     } catch (e) {
-      AppLogger.w('保存精准参考缩略图失败: $e', _tag);
+      AppLogger.w('保存精准参考缩略图失败: $id (${fileSystemErrorSummary(e)})', _tag);
     }
     _memoryThumbnails.put(id, thumbnail);
 
@@ -246,7 +257,7 @@ class PreciseRefLibraryStorageService {
         try {
           await _fileSystem.rename(entry.imagePath, tombstonePath);
         } catch (e, s) {
-          AppLogger.e('暂存待删除精准参考原图失败', e, s, _tag);
+          AppLogger.e('暂存待删除精准参考原图失败: $id', fileSystemErrorSummary(e), s, _tag);
           return false;
         }
       }
@@ -255,14 +266,14 @@ class PreciseRefLibraryStorageService {
         await _entriesBox!.delete(id);
       } catch (e, s) {
         await _restoreStagedFile(entry.imagePath, tombstonePath);
-        AppLogger.e('删除精准参考元数据失败', e, s, _tag);
+        AppLogger.e('删除精准参考元数据失败: $id', fileSystemErrorSummary(e), s, _tag);
         rethrow;
       }
 
       try {
         await _thumbnailCacheBox!.delete(id);
       } catch (e) {
-        AppLogger.w('删除精准参考缩略图缓存失败: $e', _tag);
+        AppLogger.w('删除精准参考缩略图缓存失败: $id (${fileSystemErrorSummary(e)})', _tag);
       }
       if (tombstonePath != null) {
         await _deleteIfExists(tombstonePath);
@@ -378,12 +389,12 @@ class PreciseRefLibraryStorageService {
     if (entry == null) return null;
     try {
       if (!await _fileSystem.exists(entry.imagePath)) {
-        AppLogger.w('精准参考原图文件丢失: ${entry.imagePath}', _tag);
+        AppLogger.w('精准参考原图文件丢失: $id', _tag);
         return null;
       }
       return await _fileSystem.readBytes(entry.imagePath);
     } catch (e) {
-      AppLogger.w('读取精准参考原图失败: $e', _tag);
+      AppLogger.w('读取精准参考原图失败: $id (${fileSystemErrorSummary(e)})', _tag);
       return null;
     }
   }
@@ -427,7 +438,7 @@ class PreciseRefLibraryStorageService {
         await _reconcileFile(entity.path, referencedPaths);
       }
     } catch (e, s) {
-      AppLogger.e('精准参考库存储对账失败', e, s, _tag);
+      AppLogger.e('精准参考库存储对账失败', fileSystemErrorSummary(e), s, _tag);
     }
   }
 
@@ -454,7 +465,10 @@ class PreciseRefLibraryStorageService {
         await _fileSystem.delete(filePath);
       }
     } catch (e) {
-      AppLogger.w('清理精准参考孤立文件失败: $filePath ($e)', _tag);
+      AppLogger.w(
+        '清理精准参考孤立文件失败: ${p.basename(filePath)} (${fileSystemErrorSummary(e)})',
+        _tag,
+      );
     }
   }
 
@@ -481,7 +495,12 @@ class PreciseRefLibraryStorageService {
     try {
       await _fileSystem.rename(stagedPath, originalPath);
     } catch (e, s) {
-      AppLogger.e('恢复精准参考原图失败', e, s, _tag);
+      AppLogger.e(
+        '恢复精准参考原图失败: ${p.basename(originalPath)}',
+        fileSystemErrorSummary(e),
+        s,
+        _tag,
+      );
     }
   }
 
@@ -491,7 +510,10 @@ class PreciseRefLibraryStorageService {
         await _fileSystem.delete(path);
       }
     } catch (e) {
-      AppLogger.w('清理精准参考暂存文件失败: $path ($e)', _tag);
+      AppLogger.w(
+        '清理精准参考暂存文件失败: ${p.basename(path)} (${fileSystemErrorSummary(e)})',
+        _tag,
+      );
     }
   }
 

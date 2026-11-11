@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,8 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 import 'package:nai_launcher/presentation/providers/vibe_library_selection_provider.dart';
+
+import '../../helpers/log_capture.dart';
 
 void main() {
   test(
@@ -147,6 +150,50 @@ void main() {
       contains('disk write failed'),
     );
   });
+
+  for (final batch in [false, true]) {
+    final operation = batch ? 'entries' : 'entry';
+    test(
+      'Vibe delete $operation reports only the file error summary',
+      () async {
+        final entry = _entry('vibe', 'Vibe', DateTime(2026));
+        const path = r'C:\QA\App Folder\library\vibe_library.hive';
+        const failure = FileSystemException(
+          'private database write failed',
+          path,
+          OSError('private OS message', 5),
+        );
+        final container = ProviderContainer(
+          overrides: [
+            vibeLibraryStorageServiceProvider.overrideWithValue(
+              _FailingDeleteStorageService([entry], failure),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final notifier = container.read(vibeLibraryNotifierProvider.notifier);
+        await notifier.loadFromCache(showLoading: false);
+
+        final logs = await captureLogs(() async {
+          if (batch) {
+            expect(await notifier.deleteEntries([entry.id]), 0);
+          } else {
+            expect(await notifier.deleteEntry(entry.id), isFalse);
+          }
+        });
+        final text = logs.join('\n');
+        expect(text, contains('Failed to delete $operation'));
+        expect(text, contains('FileSystemException(errno: 5)'));
+        expect(text, isNot(contains(path)));
+        expect(text, isNot(contains('private database write failed')));
+        expect(text, isNot(contains('private OS message')));
+
+        final state = container.read(vibeLibraryNotifierProvider);
+        expect(state.entries, [entry]);
+        expect(state.error, 'FileSystemException(errno: 5)');
+      },
+    );
+  }
 
   test('过滤结果写入和删除后会把 currentPage 校正到最后一个有效页', () async {
     final storage = _MutableStorageService();
@@ -589,6 +636,18 @@ class _FailingWriteStorageService extends VibeLibraryStorageService {
   Future<VibeLibraryEntry> saveEntry(VibeLibraryEntry entry) {
     throw StateError('disk write failed');
   }
+}
+
+class _FailingDeleteStorageService extends _FixedEntriesStorageService {
+  _FailingDeleteStorageService(super.entries, this.failure);
+
+  final FileSystemException failure;
+
+  @override
+  Future<bool> deleteEntry(String id) async => throw failure;
+
+  @override
+  Future<int> deleteEntries(List<String> ids) async => throw failure;
 }
 
 class _MutableStorageService extends VibeLibraryStorageService {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -6,6 +7,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/file_system_error_summary.dart';
 import '../../core/utils/last_result_memo.dart';
 import '../../data/models/vibe/vibe_library_category.dart';
 import '../../data/models/vibe/vibe_library_entry.dart';
@@ -426,8 +428,11 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       }
       return deleted;
     } catch (error, stackTrace) {
-      AppLogger.e('Failed to delete entry', error, stackTrace, 'VibeLibrary');
-      state = state.copyWith(error: error.toString());
+      final failure = error is FileSystemException
+          ? fileSystemErrorSummary(error)
+          : error;
+      AppLogger.e('Failed to delete entry', failure, stackTrace, 'VibeLibrary');
+      state = state.copyWith(error: failure.toString());
       return false;
     }
   }
@@ -445,8 +450,16 @@ class VibeLibraryNotifier extends _$VibeLibraryNotifier {
       );
       return count;
     } catch (error, stackTrace) {
-      AppLogger.e('Failed to delete entries', error, stackTrace, 'VibeLibrary');
-      state = state.copyWith(error: error.toString());
+      final failure = error is FileSystemException
+          ? fileSystemErrorSummary(error)
+          : error;
+      AppLogger.e(
+        'Failed to delete entries',
+        failure,
+        stackTrace,
+        'VibeLibrary',
+      );
+      state = state.copyWith(error: failure.toString());
       return 0;
     }
   }
