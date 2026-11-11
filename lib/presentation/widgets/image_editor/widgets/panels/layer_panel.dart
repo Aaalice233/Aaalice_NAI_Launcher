@@ -185,12 +185,12 @@ class _LayerPanelState extends State<LayerPanel> {
       renderHeight: frame.height.round(),
     );
     if (result == null || !mounted) return;
-    await widget.state.layerManager.replaceLayerBaseImage(
+    final replacedLayer = await widget.state.layerManager.replaceLayerBaseImage(
       layer.id,
       result.pngBytes,
       offset: layer.baseImageOffset,
     );
-    layer.model3d = Model3dLayerData(
+    replacedLayer?.model3d = Model3dLayerData(
       modelRef: result.modelRef,
       sceneState: result.sceneState,
     );

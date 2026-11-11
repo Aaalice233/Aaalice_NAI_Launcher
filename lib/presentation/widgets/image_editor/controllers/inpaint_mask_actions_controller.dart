@@ -141,10 +141,11 @@ class InpaintMaskActionsController {
         offset: editorState.frame.topLeft,
         role: LayerRole.mask,
       );
+      if (!isMounted()) return;
 
       if (layer != null) {
         AppLogger.i('Mask layer added: ${layer.id}', 'ImageEditor');
-        if (isMounted() && context.mounted) {
+        if (context.mounted) {
           AppToast.success(context, l10n.editor_maskLayerAdded);
         }
       } else {
@@ -153,7 +154,7 @@ class InpaintMaskActionsController {
           'Failed to decode image or unsupported format',
           'ImageEditor',
         );
-        if (isMounted() && context.mounted) {
+        if (context.mounted) {
           AppToast.error(context, l10n.editor_parseImageFailed);
         }
       }

@@ -225,6 +225,7 @@ class EditorSessionInitializer {
         name: context.l10n.editor_existingMaskLayerName,
         offset: editorState.frame.topLeft,
       );
+      if (!isMounted() || !session.accepts(operationEpoch)) return;
 
       if (layer != null) {
         AppLogger.i(

@@ -13,6 +13,21 @@ import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer_role
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test('replaceLayerImage forwards the base replacement result', () async {
+    final manager = _BaseReplacementManager();
+    final layer = Layer(name: 'replacement');
+    addTearDown(manager.dispose);
+    addTearDown(layer.dispose);
+    final bytes = Uint8List(0);
+    manager.result = layer;
+
+    expect(await manager.replaceLayerImage(layer.id, bytes), isTrue);
+    expect(manager.request, (layer.id, bytes));
+
+    manager.result = null;
+    expect(await manager.replaceLayerImage(layer.id, bytes), isFalse);
+  });
+
   testWidgets(
       'replaceLayerImage updates base image bytes and notifies listeners', (
     tester,
@@ -360,6 +375,21 @@ void main() {
 
     expect(layerManager.activeLayer, same(drawing));
   });
+}
+
+class _BaseReplacementManager extends LayerManager {
+  Layer? result;
+  (String, Uint8List)? request;
+
+  @override
+  Future<Layer?> replaceLayerBaseImage(
+    String layerId,
+    Uint8List imageBytes, {
+    Offset offset = Offset.zero,
+  }) async {
+    request = (layerId, imageBytes);
+    return result;
+  }
 }
 
 Uint8List _buildSolidPng(int width, int height, Color color) {
