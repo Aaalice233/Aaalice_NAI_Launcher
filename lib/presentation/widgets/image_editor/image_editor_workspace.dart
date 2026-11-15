@@ -1,63 +1,34 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-import '../../../core/platform/platform_capabilities.dart';
-import '../../../core/utils/app_logger.dart';
-import '../../../core/utils/editor_compression_utils.dart';
-import '../../../core/utils/focused_inpaint_utils.dart';
-import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/inpaint_outpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
-import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/services/efficient_vit_sam_service.dart';
 import '../../adaptive/adaptive_layout.dart';
-import '../../adaptive/adaptive_presenter.dart';
-import '../../utils/card_drop_reader.dart';
-import '../../utils/native_drop_callback.dart';
 import '../../widgets/common/app_toast.dart';
+import 'controllers/editor_canvas_resize_controller.dart';
+import 'controllers/editor_compression_controller.dart';
+import 'controllers/editor_exit_coordinator.dart';
+import 'controllers/editor_session_initializer.dart';
+import 'controllers/inpaint_mask_actions_controller.dart';
 import 'controllers/magic_wand_controller.dart';
 import 'core/editor_state.dart';
-import 'core/editor_view_action.dart';
 import 'effects/image_editor_effects_controller.dart';
-import 'core/focused_selection_state.dart';
-import 'core/layer_role_policy.dart';
-import 'frame/editor_frame_commands.dart';
+import 'export/editor_result_exporter.dart';
 import 'frame/editor_frame_controller.dart';
-import 'frame/focus_outpaint_export.dart';
-import 'frame/frame_geometry.dart';
 import 'frame/frame_tool_panel.dart';
-import 'layers/image_layer_source.dart';
-import 'layers/layer.dart';
-import 'layers/layer_role.dart';
-import 'painters/focused_context_overlay_painter.dart';
-import 'tools/closed_region_fill_tool.dart';
-import 'tools/frame_tool.dart';
-import 'tools/move_tool.dart';
-import 'tools/tool_base.dart';
-import 'canvas/editor_canvas.dart';
-import 'widgets/toolbar/desktop_toolbar.dart';
-import 'widgets/toolbar/editor_overflow_menu.dart';
-import 'widgets/toolbar/editor_view_menu.dart';
-import 'widgets/toolbar/mobile_toolbar.dart';
-import 'widgets/panels/layer_panel.dart';
-import 'widgets/panels/color_panel.dart';
-import 'widgets/panels/canvas_size_dialog.dart';
-import 'widgets/panels/shift_edges_dialog.dart';
-import 'widgets/editor_image_import.dart';
-import 'widgets/editor_status_bar.dart';
-import 'widgets/transform_session_bar.dart';
-import 'widgets/outpaint_edge_drag_overlay.dart';
-import 'widgets/magic_wand_progress_overlay.dart';
-import 'canvas/layer_painter.dart';
-import 'export/image_exporter_new.dart';
-import '../../widgets/common/themed_divider.dart';
-import '../../widgets/common/themed_slider.dart';
 import 'image_editor_controller.dart';
 import 'image_editor_types.dart';
+import 'layers/image_layer_source.dart';
+import 'widgets/panels/editor_compression_controls.dart';
+import 'widgets/panels/editor_shortcut_help_sheet.dart';
+import 'workspace/editor_drop_region.dart';
+import 'workspace/workspace_canvas_stack.dart';
+import 'workspace/workspace_desktop_layout.dart';
+import 'workspace/workspace_mobile_layout.dart';
 
 /// Layout host for one image editor session.
 class ImageEditorWorkspace extends StatefulWidget {
@@ -99,126 +70,62 @@ class ImageEditorWorkspace extends StatefulWidget {
 class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   ImageEditorController get _controller => widget.controller;
   EditorState get _state => _controller.editorState;
-  FocusedSelectionState get _focusedSelectionState =>
-      _controller.focusedSelectionState;
-  double get _minimumContextMegaPixels => _controller.minimumContextMegaPixels;
-  set _minimumContextMegaPixels(double value) =>
-      _controller.minimumContextMegaPixels = value;
-  bool get _focusedInpaintEnabled => _controller.focusedInpaintEnabled;
-  set _focusedInpaintEnabled(bool value) =>
-      _controller.focusedInpaintEnabled = value;
-  EditorCompressionPlan? get _compressionPlan => _controller.compressionPlan;
-  set _compressionPlan(EditorCompressionPlan? value) =>
-      _controller.compressionPlan = value;
-  EditorCompressionTarget? get _compressionTarget =>
-      _controller.compressionTarget;
-  set _compressionTarget(EditorCompressionTarget? value) =>
-      _controller.compressionTarget = value;
   bool get _isInitialized => _controller.isInitialized;
   set _isInitialized(bool value) => _controller.isInitialized = value;
   bool get _didStartInitialization => _controller.didStartInitialization;
   set _didStartInitialization(bool value) =>
       _controller.didStartInitialization = value;
   bool get _isOutpaintCommitPending => _controller.isOutpaintCommitPending;
-  String? get _sourceLayerId => _controller.sourceLayerId;
-  set _sourceLayerId(String? value) => _controller.sourceLayerId = value;
-  set _outpaintSourceImage(Uint8List? value) =>
-      _controller.outpaintSourceImage = value;
-  int? get _outpaintSourceWidth => _controller.outpaintSourceWidth;
-  set _outpaintSourceWidth(int? value) =>
-      _controller.outpaintSourceWidth = value;
-  int? get _outpaintSourceHeight => _controller.outpaintSourceHeight;
-  set _outpaintSourceHeight(int? value) =>
-      _controller.outpaintSourceHeight = value;
-  Uint8List? get _inpaintWorkingSourceImage =>
-      _controller.inpaintWorkingSourceImage;
-  set _inpaintWorkingSourceImage(Uint8List? value) =>
-      _controller.inpaintWorkingSourceImage = value;
-  int? get _inpaintWorkingSourceWidth => _controller.inpaintWorkingSourceWidth;
-  set _inpaintWorkingSourceWidth(int? value) =>
-      _controller.inpaintWorkingSourceWidth = value;
-  int? get _inpaintWorkingSourceHeight =>
-      _controller.inpaintWorkingSourceHeight;
-  set _inpaintWorkingSourceHeight(int? value) =>
-      _controller.inpaintWorkingSourceHeight = value;
-  int? get _initialSourceWidth => _controller.initialSourceWidth;
-  set _initialSourceWidth(int? value) => _controller.initialSourceWidth = value;
-  int? get _initialSourceHeight => _controller.initialSourceHeight;
-  set _initialSourceHeight(int? value) =>
-      _controller.initialSourceHeight = value;
-  bool get _sourceWasNormalized => _controller.sourceWasNormalized;
-  set _sourceWasNormalized(bool value) =>
-      _controller.sourceWasNormalized = value;
   bool get _hasOutpaintChanges => _frameController.hasOutpaintChanges;
   bool get _isImportingDroppedImage => _controller.isImportingDroppedImage;
-  set _isImportingDroppedImage(bool value) =>
-      _controller.isImportingDroppedImage = value;
+
   bool _showLayerPanel = true;
-  bool _allowRoutePop = false;
-  bool _exitDialogVisible = false;
+
   late final ImageEditorEffectsController _effectsController;
   late final MagicWandController _magicWandController;
   late final EditorFrameController _frameController;
+  late final EditorCompressionController _compressionController;
+  late final EditorCanvasResizeController _canvasResizeController;
+  late final EditorResultExporter _resultExporter;
+  late final EditorExitCoordinator _exitCoordinator;
+  late final InpaintMaskActionsController _maskActionsController;
+  late final EditorSessionInitializer _sessionInitializer;
   late final ImageLayerSource _imageSource = ImageLayerSource(
     _state.layerManager,
   );
-
-  /// 当前压缩档位是按哪块交出区域算的
-  Rect? _compressionPlanRegion;
 
   bool get _isInpaintMode => widget.mode == ImageEditorMode.inpaint;
   bool get _canExportAndClose =>
       !_isOutpaintCommitPending && !_frameController.isCroppingToFrame;
 
   Size get debugCanvasSize => _state.canvasSize;
-
   Rect get debugFrame => _state.frame;
-
   Size get debugCompressionTargetSize => Size(
-    _activeCompressionTarget.width.toDouble(),
-    _activeCompressionTarget.height.toDouble(),
+    _compressionController.activeTarget.width.toDouble(),
+    _compressionController.activeTarget.height.toDouble(),
   );
-
-  int get debugCompressionTargetCount => _compressionPlan?.targets.length ?? 0;
-
-  bool get debugCompressionApplied => _compressionApplied;
-
-  void debugSetCompressionTargetIndex(int index) {
-    _selectCompressionTarget(index);
-  }
-
-  bool get debugFocusedInpaintEnabled => _focusedInpaintEnabled;
-
+  int get debugCompressionTargetCount =>
+      _compressionController.plan?.targets.length ?? 0;
+  bool get debugCompressionApplied => _compressionController.compressionApplied;
+  void debugSetCompressionTargetIndex(int index) =>
+      _selectCompressionTarget(index);
+  bool get debugFocusedInpaintEnabled => _controller.focusedInpaintEnabled;
   bool get debugHasOutpaintChanges => _hasOutpaintChanges;
-
   bool get debugOutpaintCommitPending => _isOutpaintCommitPending;
-
   List<Rect> get debugVirtualOutpaintMaskRects =>
       _frameController.outpaintMaskRects;
-
-  int? get debugOutpaintSourceWidth => _outpaintSourceWidth;
-
-  int? get debugOutpaintSourceHeight => _outpaintSourceHeight;
-
+  int? get debugOutpaintSourceWidth => _controller.outpaintSourceWidth;
+  int? get debugOutpaintSourceHeight => _controller.outpaintSourceHeight;
   String? get debugCurrentToolId => _state.currentTool?.id;
-
   String? get debugActiveLayerId => _state.layerManager.activeLayerId;
-
   String? get debugActiveLayerName => _state.layerManager.activeLayer?.name;
-
-  int get debugActiveLayerStrokeCount {
-    return _state.layerManager.activeLayer?.strokes.length ?? 0;
-  }
-
+  int get debugActiveLayerStrokeCount =>
+      _state.layerManager.activeLayer?.strokes.length ?? 0;
   bool get debugIsDrawing => _state.isDrawing;
-
   bool get debugActiveLayerHasBaseImage =>
       _state.layerManager.activeLayer?.hasBaseImage ?? false;
-
   int get debugCurrentStrokePointCount => _state.currentStrokePoints.length;
-
-  bool get debugHasMaskContent => _hasMaskContent();
-
+  bool get debugHasMaskContent => _resultExporter.hasMaskContent();
   bool get debugMagicWandProcessing => _magicWandController.snapshot.processing;
 
   Future<void> debugApplyMagicWand(
@@ -235,17 +142,11 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
   );
 
   bool debugUndo() => _state.undo();
-
-  Offset debugCanvasToScreen(Offset point) {
-    return _state.canvasController.canvasToScreen(point, frame: _state.frame);
-  }
-
-  Rect? get debugFocusedRect => _focusedSelectionState.committedRect;
-
+  Offset debugCanvasToScreen(Offset point) =>
+      _state.canvasController.canvasToScreen(point, frame: _state.frame);
+  Rect? get debugFocusedRect => _controller.focusedSelectionState.committedRect;
   Rect? get debugSelectionBounds => _state.selectionPath?.getBounds();
-
   Rect? get debugPreviewBounds => _state.previewPath?.getBounds();
-
   List<String> get debugLayerNames =>
       _state.layerManager.layers.map((layer) => layer.name).toList();
 
@@ -255,13 +156,11 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         OutpaintHorizontalSnapTarget.right,
     OutpaintVerticalSnapTarget verticalSnapTarget =
         OutpaintVerticalSnapTarget.bottom,
-  }) {
-    return _applyOutpaintEdges(
-      edges,
-      horizontalSnapTarget: horizontalSnapTarget,
-      verticalSnapTarget: verticalSnapTarget,
-    );
-  }
+  }) => _applyOutpaintEdges(
+    edges,
+    horizontalSnapTarget: horizontalSnapTarget,
+    verticalSnapTarget: verticalSnapTarget,
+  );
 
   Future<void> debugApplyOutpaintFrameDelta(
     OutpaintFrameDelta delta, {
@@ -269,73 +168,46 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         OutpaintHorizontalSnapTarget.right,
     OutpaintVerticalSnapTarget verticalSnapTarget =
         OutpaintVerticalSnapTarget.bottom,
-  }) {
-    return _applyOutpaintFrameDelta(
-      delta,
-      horizontalSnapTarget: horizontalSnapTarget,
-      verticalSnapTarget: verticalSnapTarget,
-    );
-  }
+  }) => _applyOutpaintFrameDelta(
+    delta,
+    horizontalSnapTarget: horizontalSnapTarget,
+    verticalSnapTarget: verticalSnapTarget,
+  );
 
   Future<void> debugExportAndClose() => _exportAndClose();
 
   Future<void> debugImportDroppedImageLayer(
     String fileName,
     Uint8List imageBytes,
-  ) {
-    return _importDroppedImageLayer(fileName, imageBytes);
-  }
+  ) => importDroppedImageLayer(
+    context,
+    fileName,
+    imageBytes,
+    state: _state,
+    isMounted: () => mounted,
+    updateState: setState,
+  );
 
-  void debugSetToolById(String toolId) {
-    _state.setToolById(toolId);
-  }
+  void debugSetToolById(String toolId) => _state.setToolById(toolId);
+  void debugSetSelectionRect(Rect rect) =>
+      _state.setSelection(Path()..addRect(rect), saveHistory: false);
+  void debugSetPreviewRect(Rect rect) =>
+      _state.setPreviewPath(Path()..addRect(rect));
 
-  void debugSetSelectionRect(Rect rect) {
-    _state.setSelection(Path()..addRect(rect), saveHistory: false);
-  }
-
-  void debugSetPreviewRect(Rect rect) {
-    _state.setPreviewPath(Path()..addRect(rect));
+  static void debugShowShortcutHelpForContext(
+    BuildContext context, {
+    bool includeFrameTool = false,
+    bool includeCloneStamp = true,
+  }) {
+    presentEditorShortcutHelp(
+      context,
+      includeFrameTool: includeFrameTool,
+      includeCloneStamp: includeCloneStamp,
+    );
   }
 
   String _editorTitle() =>
       widget.title.isEmpty ? context.l10n.editor_defaultTitle : widget.title;
-
-  void _localizeDefaultLayerName() {
-    for (final layer in _state.layerManager.layers) {
-      if (layer.name == '\u56fe\u5c42 1' || layer.name == 'Layer 1') {
-        _state.layerManager.renameLayer(
-          layer.id,
-          context.l10n.editor_defaultDrawingLayerName,
-        );
-        return;
-      }
-    }
-  }
-
-  /// 重绘会话启用图层角色：原图层是受保护的图片层，最上方另建蒙版层；
-  /// 默认绘制层与编辑会话一样留作图片层，编辑组的笔迹与擦除都落在它上面而不碰原图
-  void _applyInpaintLayerRoles() {
-    if (!_isInpaintMode) return;
-    _state.layerManager.addLayer(
-      name: context.l10n.editor_maskLayerName,
-      index: 0,
-      role: LayerRole.mask,
-    );
-    _state.setRolePolicy(
-      LayerRolePolicy.inpaint(protectedLayerId: _sourceLayerId),
-    );
-  }
-
-  void _selectInitialLayers() {
-    final layers = _state.layerManager;
-    layers.selectInitialLayers(
-      layers.layers.firstWhere(
-        (layer) => !layer.isMask && layer.id != _sourceLayerId,
-        orElse: () => layers.layers.last,
-      ),
-    );
-  }
 
   /// 图层角色变化后当前工具可能不再可用，退回画笔
   void _handleActiveLayerChanged() {
@@ -374,6 +246,40 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       session: _controller,
       editorState: _state,
     );
+    _compressionController = EditorCompressionController(
+      session: () => _controller,
+      config: () => widget.config,
+      frameController: _frameController,
+    );
+    _canvasResizeController = EditorCanvasResizeController(
+      session: () => _controller,
+      config: () => widget.config,
+      frameController: _frameController,
+      compressionController: _compressionController,
+    );
+    _resultExporter = EditorResultExporter(
+      session: () => _controller,
+      config: () => widget.config,
+      frameController: _frameController,
+      imageSource: _imageSource,
+      compressionController: _compressionController,
+    );
+    _exitCoordinator = EditorExitCoordinator(
+      session: () => _controller,
+      resultExporter: _resultExporter,
+    );
+    _maskActionsController = InpaintMaskActionsController(
+      session: () => _controller,
+      config: () => widget.config,
+      compressionController: _compressionController,
+    );
+    _sessionInitializer = EditorSessionInitializer(
+      session: () => _controller,
+      config: () => widget.config,
+      frameController: _frameController,
+      imageSource: _imageSource,
+      compressionController: _compressionController,
+    );
     if (_isInpaintMode) {
       _state.setFrameCommands(_frameController);
       _frameController.supportsPasteBack =
@@ -400,7 +306,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     _state.selectionManager.selectionNotifier.addListener(
       _consumeFocusedSelection,
     );
-    _syncFocusedSelectionConstraint();
+    _compressionController.syncFocusedSelectionConstraint();
     _showLayerPanel = widget.initialShowLayerPanel;
   }
 
@@ -409,232 +315,13 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     super.didChangeDependencies();
     if (!_didStartInitialization) {
       _didStartInitialization = true;
-      unawaited(_initializeCanvas());
-    }
-  }
-
-  Future<void> _initializeCanvas() async {
-    final operationEpoch = _controller.beginOperation();
-    if (widget.initialImage != null) {
-      // 从已有图像初始化
-      await _loadInitialImage(operationEpoch);
-    } else {
-      // 显示尺寸选择对话框或使用默认尺寸
-      final size = widget.initialSize ?? const Size(1024, 1024);
-      _state.initNewCanvas(
-        size,
-        initialLayerName: context.l10n.editor_defaultDrawingLayerName,
+      unawaited(
+        _sessionInitializer.initializeCanvas(
+          context,
+          isMounted: () => mounted,
+          onMarkInitialized: () => setState(() => _isInitialized = true),
+        ),
       );
-      _localizeDefaultLayerName();
-      _applyInpaintLayerRoles();
-      _selectInitialLayers();
-      _focusedSelectionState.canvasSize = size;
-
-      // 加载已有蒙版（如果有）
-      await _loadExistingMask(operationEpoch);
-      if (!mounted || !_controller.accepts(operationEpoch)) return;
-      _loadExistingFocusSelection();
-    }
-
-    if (!mounted || !_controller.accepts(operationEpoch)) return;
-    _initializeCompressionPlan();
-
-    setState(() {
-      _isInitialized = true;
-    });
-
-    if (_isInpaintMode) {
-      _state.setToolById(
-        _focusedInpaintEnabled && widget.existingFocusRect == null
-            ? 'rect_selection'
-            : 'brush',
-      );
-    }
-
-    // 适应视口
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _state.canvasController.fitToViewport(_state.frame);
-    });
-  }
-
-  Future<void> _loadInitialImage(int operationEpoch) async {
-    final defaultDrawingLayerName = context.l10n.editor_defaultDrawingLayerName;
-    final baseLayerName = context.l10n.editor_baseLayerName;
-    ui.Codec? codec;
-    ui.Image? decodedImage;
-    try {
-      final editorImage = await NaiResolutionAdapter.prepareImageForEditorAsync(
-        widget.initialImage!,
-        alignForInpaint: _isInpaintMode,
-      );
-      if (!mounted || !_controller.accepts(operationEpoch)) return;
-      var workingBytes = editorImage?.bytes ?? widget.initialImage!;
-      if (editorImage?.resizeMode == NaiEditorResizeMode.medium) {
-        workingBytes = await _resizeEditorImageWithMedium(
-          workingBytes,
-          width: editorImage!.width,
-          height: editorImage.height,
-        );
-        if (!mounted || !_controller.accepts(operationEpoch)) return;
-      }
-      _initialSourceWidth = editorImage?.originalWidth;
-      _initialSourceHeight = editorImage?.originalHeight;
-      _sourceWasNormalized = editorImage?.wasNormalized ?? false;
-      if (_isInpaintMode) {
-        _inpaintWorkingSourceImage = workingBytes;
-        _inpaintWorkingSourceWidth = editorImage?.width;
-        _inpaintWorkingSourceHeight = editorImage?.height;
-      }
-
-      codec = await ui.instantiateImageCodec(workingBytes);
-      final frame = await codec.getNextFrame();
-      decodedImage = frame.image;
-      if (!mounted || !_controller.accepts(operationEpoch)) return;
-      final image = decodedImage;
-      _initialSourceWidth ??= image.width;
-      _initialSourceHeight ??= image.height;
-      _inpaintWorkingSourceWidth ??= image.width;
-      _inpaintWorkingSourceHeight ??= image.height;
-
-      _state.initNewCanvas(
-        Size(image.width.toDouble(), image.height.toDouble()),
-        initialLayerName: defaultDrawingLayerName,
-      );
-      _focusedSelectionState.canvasSize = _state.canvasSize;
-
-      // 将图像添加为底图图层
-      final sourceLayer = await _state.layerManager.addLayerFromImage(
-        workingBytes,
-        name: baseLayerName,
-      );
-      if (!mounted || !_controller.accepts(operationEpoch)) return;
-      _sourceLayerId = sourceLayer?.id;
-      if (_isInpaintMode && sourceLayer != null) {
-        _frameController.attachSource(
-          Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-        );
-      }
-
-      _localizeDefaultLayerName();
-      _applyInpaintLayerRoles();
-      _selectInitialLayers();
-
-      // 加载已有蒙版
-      await _loadExistingMask(operationEpoch);
-      if (!mounted || !_controller.accepts(operationEpoch)) return;
-      _loadExistingFocusSelection();
-      // 蒙版按整张原图载入，必须先于取景框恢复
-      _restoreExistingFrame();
-      _imageSource.captureBaseline();
-    } catch (e) {
-      if (!mounted || !_controller.accepts(operationEpoch)) return;
-      AppLogger.w('Failed to load initial image: $e', 'ImageEditor');
-      _state.initNewCanvas(
-        widget.initialSize ?? const Size(1024, 1024),
-        initialLayerName: defaultDrawingLayerName,
-      );
-      _localizeDefaultLayerName();
-      _applyInpaintLayerRoles();
-      _selectInitialLayers();
-      _focusedSelectionState.canvasSize = _state.canvasSize;
-    } finally {
-      decodedImage?.dispose();
-      codec?.dispose();
-    }
-  }
-
-  Future<Uint8List> _resizeEditorImageWithMedium(
-    Uint8List sourceBytes, {
-    required int width,
-    required int height,
-  }) {
-    return _controller.processingService.resize(
-      sourceBytes,
-      width: width,
-      height: height,
-    );
-  }
-
-  Future<void> _loadExistingMask(int operationEpoch) async {
-    if (widget.existingMask == null) return;
-
-    try {
-      final resizedMask = await InpaintMaskUtils.resizeMaskBytesAsync(
-        widget.existingMask!,
-        targetWidth: _state.canvasSize.width.round(),
-        targetHeight: _state.canvasSize.height.round(),
-      );
-      final overlayBytes = await InpaintMaskUtils.maskToEditorOverlayAsync(
-        resizedMask,
-      );
-      if (!mounted || !_controller.accepts(operationEpoch)) return;
-
-      // 将已有蒙版添加为图层
-      final layer = await _addMaskLayerAboveSource(
-        overlayBytes,
-        name: context.l10n.editor_existingMaskLayerName,
-        offset: _state.frame.topLeft,
-      );
-
-      if (layer != null) {
-        AppLogger.i(
-          'Existing mask loaded as layer: ${layer.id}',
-          'ImageEditor',
-        );
-      } else {
-        AppLogger.w('Failed to load existing mask as layer', 'ImageEditor');
-      }
-    } catch (e) {
-      AppLogger.e('Error loading existing mask: $e', 'ImageEditor');
-    }
-  }
-
-  void _loadExistingFocusSelection() {
-    if (!_isInpaintMode || widget.existingFocusRect == null) {
-      return;
-    }
-    final sourceWidth = _initialSourceWidth;
-    final sourceHeight = _initialSourceHeight;
-    final rect = widget.existingFocusRect!;
-    if (sourceWidth == null || sourceHeight == null) {
-      _focusedSelectionState.load(rect);
-      _constrainCommittedFocusedSelection();
-      return;
-    }
-    _focusedSelectionState.load(
-      Rect.fromLTRB(
-        rect.left * _state.canvasSize.width / sourceWidth,
-        rect.top * _state.canvasSize.height / sourceHeight,
-        rect.right * _state.canvasSize.width / sourceWidth,
-        rect.bottom * _state.canvasSize.height / sourceHeight,
-      ),
-    );
-    _constrainCommittedFocusedSelection();
-  }
-
-  /// 按导入时的缩放把上次的取景框换算到编辑器坐标
-  void _restoreExistingFrame() {
-    final rect = widget.existingFrameRect;
-    final sourceWidth = _initialSourceWidth;
-    final sourceHeight = _initialSourceHeight;
-    if (!_isInpaintMode ||
-        rect == null ||
-        sourceWidth == null ||
-        sourceHeight == null) {
-      return;
-    }
-    final scaleX = _state.canvasSize.width / sourceWidth;
-    final scaleY = _state.canvasSize.height / sourceHeight;
-    _frameController.restoreFrame(
-      Rect.fromLTRB(
-        rect.left * scaleX,
-        rect.top * scaleY,
-        rect.right * scaleX,
-        rect.bottom * scaleY,
-      ),
-    );
-    if (_focusedInpaintEnabled && _hasOutpaintChanges) {
-      _disableFocusedInpaintForOutpaint();
     }
   }
 
@@ -670,12 +357,15 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     }
 
     return PopScope<ImageEditorResult>(
-      canPop: _allowRoutePop,
+      canPop: _exitCoordinator.allowRoutePop,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) unawaited(_confirmExit());
       },
-      child: _buildDroppedImageLayerRegion(
-        LayoutBuilder(
+      child: EditorImageDropRegion(
+        disableDropRegion: widget.debugDisableDropRegion,
+        isImporting: () => _isImportingDroppedImage,
+        onPerformDrop: _handleDroppedImageLayerDrop,
+        child: LayoutBuilder(
           builder: (context, constraints) {
             final sizeClass = AdaptiveBreakpoints.classifyWidth(
               constraints.maxWidth,
@@ -687,586 +377,151 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
                 constraints.maxHeight >= 480 &&
                 !hasLargeText;
             return useDesktopLayout
-                ? _buildDesktopLayout(availableWidth: constraints.maxWidth)
-                : _buildMobileLayout(availableWidth: constraints.maxWidth);
+                ? WorkspaceDesktopLayout(
+                    availableWidth: constraints.maxWidth,
+                    title: _editorTitle(),
+                    completionLabel: widget.completionLabel,
+                    state: _state,
+                    isInpaintMode: _isInpaintMode,
+                    showLayerPanel: _showLayerPanel,
+                    frameController: _frameController,
+                    compressionController: _compressionController,
+                    canExportAndClose: () => _canExportAndClose,
+                    buildCanvasArea: _buildCanvasArea,
+                    onConfirmExit: _confirmExit,
+                    onSelectCompressionTarget: _selectCompressionTarget,
+                    onShowCompressionSheet: _showCompressionSheet,
+                    onShowEffectsDialog: _showEffectsDialog,
+                    onChangeCanvasSize: _changeCanvasSize,
+                    onLoadMask: _loadMask,
+                    onShowShiftEdgesDialog: _showShiftEdgesDialog,
+                    onCropToFrame: _cropToFrame,
+                    onToggleLayerPanel: () {
+                      _updateLayoutState(() {
+                        _showLayerPanel = !_showLayerPanel;
+                      });
+                    },
+                    onShowShortcutHelp: _showShortcutHelp,
+                    onExportAndClose: _exportAndClose,
+                    onResetInpaintMask: _resetInpaintMask,
+                  )
+                : WorkspaceMobileLayout(
+                    availableWidth: constraints.maxWidth,
+                    title: _editorTitle(),
+                    completionLabel: widget.completionLabel,
+                    state: _state,
+                    isInpaintMode: _isInpaintMode,
+                    frameController: _frameController,
+                    canExportAndClose: () => _canExportAndClose,
+                    buildCanvasArea: _buildCanvasArea,
+                    onShowLayerSheet: _showMobileLayerSheet,
+                    onShowCompressionSheet: _showCompressionSheet,
+                    onLoadMask: _loadMask,
+                    onShowShiftEdgesDialog: _showShiftEdgesDialog,
+                    onCropToFrame: _cropToFrame,
+                    onShowEffectsDialog: _showEffectsDialog,
+                    onExportAndClose: _exportAndClose,
+                    onResetInpaintMask: _resetInpaintMask,
+                  );
           },
         ),
       ),
     );
   }
 
+  Widget _buildCanvasArea() => WorkspaceCanvasStack(
+    session: _controller,
+    state: _state,
+    isInpaintMode: _isInpaintMode,
+    frameController: _frameController,
+    magicWandController: _magicWandController,
+    compressionController: _compressionController,
+    onApplyOutpaintEdges: _applyOutpaintEdges,
+    onApplyOutpaintFrameDelta: _applyOutpaintFrameDelta,
+    onToggleFocusedInpaint: _toggleFocusedInpaint,
+    onClearFocusedSelection: () {
+      _updateLayoutState(_compressionController.clearFocusedSelection);
+    },
+    onMinimumContextChanged: (value) {
+      _updateLayoutState(
+        () => _compressionController.updateMinimumContextMegaPixels(value),
+      );
+    },
+  );
+
   void _updateLayoutState(VoidCallback update) => setState(update);
 
-  Future<void> _changeCanvasSize() async {
-    final l10n = context.l10n;
-    final compressionScale = _compressionLinearScale;
-    final result = await CanvasSizeDialog.show(
-      context,
-      initialSize: _state.canvasSize,
-      title: _isInpaintMode
-          ? l10n.editor_changeFrameSize
-          : l10n.editor_changeCanvasSize,
-      allowStretch: !_isInpaintMode,
-    );
-
-    if (result != null && result.size != _state.canvasSize) {
-      try {
-        // 验证尺寸范围
-        final newWidth = result.size.width.toInt();
-        final newHeight = result.size.height.toInt();
-        const minSize = 64;
-        const maxSize = 4096;
-
-        if (newWidth < minSize || newHeight < minSize) {
-          _showError(l10n.editor_canvasTooSmall(minSize, minSize));
-          return;
-        }
-
-        if (newWidth > maxSize || newHeight > maxSize) {
-          _showError(l10n.editor_canvasTooLarge(maxSize, maxSize));
-          return;
-        }
-
-        if (_isInpaintMode) {
-          _resizeFrameTo(result.size);
-          return;
-        }
-
-        // 将 ContentHandlingMode 转换为 CanvasResizeMode
-        final mode = _convertContentModeToResizeMode(result.mode);
-
-        // 使用新的 resizeCanvas 方法，支持图层内容变换
-        _state.resizeCanvas(result.size, mode);
-        _focusedSelectionState.canvasSize = result.size;
-        _refreshCompressionPlan(desiredScale: compressionScale);
-        _constrainCommittedFocusedSelection();
-        _refreshCompressionPlan();
-
-        // 显示成功消息
-        if (mounted) {
-          AppToast.success(
-            context,
-            l10n.editor_canvasResized(newWidth, newHeight),
-          );
-        }
-      } catch (e) {
-        // 显示错误信息
-        _showError(l10n.editor_canvasResizeFailed(e));
-        AppLogger.e('Failed to resize canvas: $e', 'ImageEditor');
-      }
-    }
+  void _selectCompressionTarget(int index) {
+    if (!_compressionController.canSelectTarget) return;
+    _updateLayoutState(() => _compressionController.selectTargetAt(index));
   }
 
-  /// 重绘模式的尺寸对话框只调整取景框：左上角锚定，尺寸按 64 对齐
-  void _resizeFrameTo(Size size) {
-    final frame = _state.frame;
-    final outcome = _frameController.applyFrameDelta(
-      OutpaintFrameDelta(
-        right: size.width.round() - frame.width.round(),
-        bottom: size.height.round() - frame.height.round(),
-      ),
-      horizontalSnapTarget: OutpaintHorizontalSnapTarget.right,
-      verticalSnapTarget: OutpaintVerticalSnapTarget.bottom,
+  Future<void> _showCompressionSheet() {
+    return showEditorCompressionSheet(
+      context,
+      controller: _compressionController,
+      onSelectTarget: _selectCompressionTarget,
     );
-    if (!mounted) return;
-    if (outcome == FrameResizeOutcome.rejected) {
-      _showFrameResizeRejected();
+  }
+
+  Future<void> _showMobileLayerSheet() =>
+      showWorkspaceMobileLayerSheet(context, _state);
+
+  Future<void> _showEffectsDialog() => _effectsController.showDialog(
+    context,
+    onChanged: () => _updateLayoutState(() {}),
+  );
+
+  void _showShortcutHelp() => presentEditorShortcutHelp(
+    context,
+    includeFrameTool: _isInpaintMode,
+    includeCloneStamp: !_isInpaintMode,
+  );
+
+  void _toggleFocusedInpaint() {
+    if (_hasOutpaintChanges && !_controller.focusedInpaintEnabled) {
+      AppToast.warning(
+        context,
+        'Outpaint cannot be used together with Focused Inpaint.',
+      );
       return;
     }
-    if (outcome != FrameResizeOutcome.applied) return;
-    _state.canvasController.fitToViewport(_state.frame);
-    AppToast.success(
-      context,
-      context.l10n.editor_frameResized(
-        _state.frame.width.round(),
-        _state.frame.height.round(),
-      ),
-    );
+    _updateLayoutState(_compressionController.toggleFocusedInpaint);
   }
 
-  Future<void> _cropToFrame() {
-    return cropToFrameWithFeedback(context, _frameController);
-  }
-
-  Future<void> _showShiftEdgesDialog() async {
-    if (!_isInpaintMode) return;
-    final result = await ShiftEdgesDialog.show(
-      context,
-      sourceWidth: _state.canvasSize.width.round(),
-      sourceHeight: _state.canvasSize.height.round(),
-    );
-    if (result == null || !mounted) return;
-    await _applyOutpaintEdges(
-      result.requestedEdges,
-      horizontalSnapTarget: result.horizontalSnapTarget,
-      verticalSnapTarget: result.verticalSnapTarget,
-    );
-  }
-
-  /// 显示错误消息
-  void _showError(String message) {
+  void _consumeFocusedSelection() {
+    if (!_compressionController.consumeFocusedSelection()) return;
     if (mounted) {
-      AppToast.error(context, message);
+      _updateLayoutState(() {});
     }
   }
 
-  /// 将内容处理模式转换为画布调整模式
-  CanvasResizeMode _convertContentModeToResizeMode(ContentHandlingMode mode) {
-    switch (mode) {
-      case ContentHandlingMode.crop:
-        return CanvasResizeMode.crop;
-      case ContentHandlingMode.pad:
-        return CanvasResizeMode.pad;
-      case ContentHandlingMode.stretch:
-        return CanvasResizeMode.stretch;
-    }
-  }
-
-  Future<void> _completeAndPop([ImageEditorResult? result]) async {
-    if (!mounted) return;
-    setState(() => _allowRoutePop = true);
-    await WidgetsBinding.instance.endOfFrame;
-    if (mounted) Navigator.of(context).pop(result);
-  }
-
-  /// 确认退出
-  Future<void> _confirmExit() async {
-    if (_exitDialogVisible || _allowRoutePop) return;
-
-    // 检查是否有修改：检查历史记录或图层内容
-    final hasChanges =
-        _state.historyManager.canUndo ||
-        _state.layerManager.layers.any(
-          (l) => l.strokes.isNotEmpty || l.baseImage != null,
-        );
-
-    if (hasChanges) {
-      _exitDialogVisible = true;
-      final shouldExit = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.editor_confirmExitTitle),
-          content: Text(context.l10n.editor_confirmExitContent),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(context.l10n.common_cancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text(context.l10n.editor_exit),
-            ),
-            FilledButton(
-              onPressed: _canExportAndClose
-                  ? () async {
-                      Navigator.pop(context, false);
-                      await _exportAndClose();
-                    }
-                  : null,
-              child: Text(context.l10n.editor_saveAndExit),
-            ),
-          ],
-        ),
-      );
-      _exitDialogVisible = false;
-
-      if (shouldExit != true) return;
-    }
-
-    await _completeAndPop();
-  }
-
-  /// 导出并关闭
-  Future<void> _exportAndClose() async {
-    if (!mounted) return;
-    if (!_canExportAndClose) return;
-
-    bool loadingDialogShown = false;
-
-    try {
-      loadingDialogShown = true;
-      unawaited(
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          useRootNavigator: true,
-          builder: (context) => Center(
-            child: CircularProgressIndicator(
-              value: MediaQuery.disableAnimationsOf(context) ? 0.72 : null,
-            ),
-          ),
-        ),
+  Future<void> _fillClosedMaskRegionsAt(Offset canvasPoint) =>
+      _maskActionsController.fillClosedMaskRegionsAt(
+        context,
+        canvasPoint,
+        isMounted: () => mounted,
       );
 
-      await _state.pixelReadbacks.idle;
-      final pasteBackCanvas = _isInpaintMode
-          ? _frameController.pasteBackCanvas
-          : null;
-      final result = pasteBackCanvas == null
-          ? await _buildEditorResult()
-          : await _buildFocusOutpaintResult();
+  Future<void> _loadMask() =>
+      _maskActionsController.loadMaskFile(context, isMounted: () => mounted);
 
-      if (mounted && loadingDialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-        loadingDialogShown = false;
-      }
-
-      if (mounted) {
-        await _completeAndPop(result);
-      }
-    } catch (e, stack) {
-      AppLogger.e('Failed to export editor result', e, stack, 'ImageEditor');
-      if (mounted && loadingDialogShown) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      if (mounted) {
-        AppToast.error(context, context.l10n.editor_exportFailed(e));
-      }
+  void _resetInpaintMask() {
+    if (_maskActionsController.resetInpaintMask(context)) {
+      setState(() {});
     }
   }
 
-  Future<ImageEditorResult> _buildEditorResult() async {
-    final target = _activeCompressionTarget;
-    final compressionApplied = _compressionApplied;
-    final hasCanvasImageChanges =
-        _state.historyManager.canUndo ||
-        _state.layerManager.layers.any((l) => l.strokes.isNotEmpty) ||
-        _state.layerManager.layerCount > 1;
-    final hasImageChanges =
-        hasCanvasImageChanges || (!_isInpaintMode && compressionApplied);
+  Future<void> _changeCanvasSize() => _canvasResizeController.changeCanvasSize(
+    context,
+    isMounted: () => mounted,
+  );
 
-    final virtualOutpaintMaskRects = _frameController.outpaintMaskRects;
-    final hasMaskChanges =
-        _hasMaskContent() || virtualOutpaintMaskRects.isNotEmpty;
-    final workFocusAreaRect = _focusedInpaintEnabled
-        ? _focusedSelectionState.committedRect
-        : null;
-    final focusedInpaintEnabled =
-        _focusedInpaintEnabled && workFocusAreaRect != null;
-    final focusAreaRect = focusedInpaintEnabled
-        ? _projectWorkRectToCompressionTarget(workFocusAreaRect)
-        : null;
-    final useFocusedSelectionAsMask = focusedInpaintEnabled && !hasMaskChanges;
-    AppLogger.d(
-      'Export editor result: inpaint=$_isInpaintMode, '
-          'hasImageChanges=$hasImageChanges, hasMaskChanges=$hasMaskChanges, '
-          'selection=${_state.selectionPath != null}, '
-          'workFocusRect=$workFocusAreaRect, focusRect=$focusAreaRect, '
-          'focusedEnabled=$focusedInpaintEnabled, '
-          'useFocusedSelectionAsMask=$useFocusedSelectionAsMask, '
-          'work=${_state.canvasSize.width.round()}x${_state.canvasSize.height.round()}, '
-          'target=${target.width}x${target.height}, '
-          'compressionApplied=$compressionApplied, '
-          'layers=${_state.layerManager.layerCount}',
-      'ImageEditor',
-    );
+  Future<void> _cropToFrame() =>
+      cropToFrameWithFeedback(context, _frameController);
 
-    Uint8List? modifiedImage;
-    if (!_isInpaintMode && hasImageChanges) {
-      modifiedImage = await _exportMergedImageAtCompressionTarget();
-    }
-    final hasSourceImageChanges = _isInpaintMode && _imageSource.hasChanges;
-
-    final maskImage = await _exportResultMask(
-      hasMaskChanges: hasMaskChanges,
-      virtualOutpaintMaskRects: virtualOutpaintMaskRects,
-      focusedSelection: useFocusedSelectionAsMask ? workFocusAreaRect : null,
-    );
-
-    final inpaintSource = _isInpaintMode
-        ? await _prepareInpaintSourceAtCompressionTarget()
-        : null;
-
-    return ImageEditorResult(
-      modifiedImage: modifiedImage,
-      maskImage: maskImage,
-      hasImageChanges: !_isInpaintMode && hasImageChanges,
-      hasSourceImageChanges: hasSourceImageChanges,
-      hasMaskChanges:
-          _isInpaintMode && (hasMaskChanges || useFocusedSelectionAsMask),
-      focusAreaRect: focusAreaRect,
-      minimumContextMegaPixels: _minimumContextMegaPixels,
-      focusedInpaintEnabled: focusedInpaintEnabled,
-      outpaintSourceImage: _isInpaintMode && _hasOutpaintChanges
-          ? inpaintSource
-          : null,
-      outpaintSourceWidth: _isInpaintMode && _hasOutpaintChanges
-          ? target.width
-          : null,
-      outpaintSourceHeight: _isInpaintMode && _hasOutpaintChanges
-          ? target.height
-          : null,
-      hasOutpaintChanges: _isInpaintMode && _hasOutpaintChanges,
-      inpaintSourceImage: _isInpaintMode && !_hasOutpaintChanges
-          ? inpaintSource
-          : null,
-      inpaintSourceWidth: _isInpaintMode && !_hasOutpaintChanges
-          ? target.width
-          : null,
-      inpaintSourceHeight: _isInpaintMode && !_hasOutpaintChanges
-          ? target.height
-          : null,
-      sourceWasNormalized:
-          _isInpaintMode &&
-          !_hasOutpaintChanges &&
-          (_sourceWasNormalized || compressionApplied),
-      outputWidth: target.width,
-      outputHeight: target.height,
-      compressionApplied: compressionApplied,
-    );
-  }
-
-  /// 有蒙版内容时导出图层蒙版，否则用聚焦选区充当蒙版
-  Future<Uint8List?> _exportResultMask({
-    required bool hasMaskChanges,
-    required List<Rect> virtualOutpaintMaskRects,
-    required Rect? focusedSelection,
-  }) async {
-    if (!_isInpaintMode || !widget.showMaskExport) return null;
-    if (hasMaskChanges) {
-      final mask = await _exportInpaintLayerMaskAtCompressionTarget(
-        virtualOutpaintMaskRects,
-      );
-      AppLogger.d('Exported inpaint mask bytes: ${mask.length}', 'ImageEditor');
-      return mask;
-    }
-    if (focusedSelection == null) return null;
-    final mask = await _exportFocusedSelectionMaskAtCompressionTarget(
-      focusedSelection,
-    );
-    AppLogger.d(
-      'Exported focused selection mask bytes: ${mask.length}',
-      'ImageEditor',
-    );
-    return mask;
-  }
-
-  /// 不裁切时交出整张画布：生成页只送取景框，结果按蒙版贴回
-  Future<ImageEditorResult> _buildFocusOutpaintResult() async {
-    final target = _activeCompressionTarget;
-    final compressionApplied = _compressionApplied;
-    final canvas = _frameController.pasteBackCanvas;
-    if (canvas == null) {
-      throw StateError('Unable to read current source image.');
-    }
-    final source = await _resolveSourceImage(canvas);
-    final frameMask = await ImageExporterNew.exportMaskRasterFromLayers(
-      _state.layerManager.maskLayers,
-      _state.frame,
-      additionalMaskRects: _frameController.outpaintMaskRects,
-    );
-    final export = await FocusOutpaintExporter(_controller.processingService)
-        .export(
-          sourceImage: source.bytes,
-          sourceRect: source.rect,
-          frame: _state.frame,
-          frameMask: frameMask,
-          target: target,
-        );
-    final maskImage = export.maskImage;
-    AppLogger.d(
-      'Export focus outpaint: source=${source.rect}, frame=${_state.frame}, '
-          'canvas=${export.width}x${export.height}, crop=${export.crop}, '
-          'masked=${maskImage != null}, compressionApplied=$compressionApplied',
-      'ImageEditor',
-    );
-    final sourceWasNormalized = _sourceWasNormalized || compressionApplied;
-    if (maskImage == null) {
-      // 框内没有要生成的像素说明框落在原图内，整张画布就是原图
-      return ImageEditorResult(
-        minimumContextMegaPixels: _minimumContextMegaPixels,
-        hasSourceImageChanges: _imageSource.hasChanges,
-        inpaintSourceImage: export.sourceImage,
-        inpaintSourceWidth: export.width,
-        inpaintSourceHeight: export.height,
-        sourceWasNormalized: sourceWasNormalized,
-        outputWidth: export.width,
-        outputHeight: export.height,
-        compressionApplied: compressionApplied,
-      );
-    }
-    return ImageEditorResult(
-      maskImage: maskImage,
-      hasMaskChanges: true,
-      hasSourceImageChanges: _imageSource.hasChanges,
-      minimumContextMegaPixels: _minimumContextMegaPixels,
-      focusedInpaintEnabled: true,
-      focusOutpaint: FocusOutpaintResult(
-        sourceImage: export.sourceImage,
-        width: export.width,
-        height: export.height,
-        crop: export.crop,
-      ),
-      sourceWasNormalized: sourceWasNormalized,
-      outputWidth: export.width,
-      outputHeight: export.height,
-      compressionApplied: compressionApplied,
-    );
-  }
-
-  Uint8List? get _sourceLayerBytes {
-    final sourceLayerId = _sourceLayerId;
-    return sourceLayerId == null
-        ? null
-        : _state.layerManager.getLayerById(sourceLayerId)?.baseImageBytes;
-  }
-
-  /// 送出区域 [region] 对应的画面：图片层没改过时沿用原图字节与原图区域，
-  /// 改过则把区域内全部可见图片层重新合成，区域本身即新的原图区域
-  Future<({Uint8List bytes, Rect rect})> _resolveSourceImage(Rect region) async {
-    if (!_imageSource.hasChanges) {
-      final bytes = _sourceLayerBytes;
-      final rect = _frameController.sourceRect;
-      if (bytes == null || rect == null) {
-        throw StateError('Unable to read current source image.');
-      }
-      return (bytes: bytes, rect: rect);
-    }
-    return (bytes: await _imageSource.renderComposite(region), rect: region);
-  }
-
-  /// 按取景框从当前画面取出送去生成的源图，框外空白保持透明
-  Future<Uint8List> _materializeFrameSource({
-    int? targetWidth,
-    int? targetHeight,
-  }) async {
-    final frame = _state.frame;
-    final source = await _resolveSourceImage(frame);
-    final result = await _controller.processingService.materializeOutpaint(
-      sourceImage: source.bytes,
-      frame: EditorFrameGeometry.virtualFrame(
-        frame: frame,
-        sourceRect: source.rect,
-      ),
-      targetWidth: targetWidth,
-      targetHeight: targetHeight,
-    );
-    _outpaintSourceImage = result.sourceImage;
-    _outpaintSourceWidth = result.width;
-    _outpaintSourceHeight = result.height;
-    return result.sourceImage;
-  }
-
-  /// 只统计与取景框相交的蒙版；完全落在框外的内容不会送出
-  bool _hasMaskContent() {
-    final frame = _state.frame;
-    for (final layer in _state.layerManager.maskLayers) {
-      if (!layer.visible) {
-        continue;
-      }
-      if (layer.hasContent && layer.contentBounds.overlaps(frame)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool get _isClosedRegionFillActive =>
-      _state.currentTool?.id == ClosedRegionFillTool.toolId;
-
-  /// 封闭区域填充要点到取景框边缘附近、移动工具的变换手柄可能压在框边上，此时边缘拖动让出指针
-  bool get _toolNeedsFrameEdges =>
-      _isClosedRegionFillActive || _state.currentTool?.id == MoveTool.toolId;
-
-  Future<void> _fillClosedMaskRegionsAt(Offset canvasPoint) async {
-    if (!_isInpaintMode || !mounted) {
-      return;
-    }
-    final l10n = context.l10n;
-
-    try {
-      // 蒙版按点击时的取景框导出，填充结果落回同一位置
-      final region = _state.frame;
-      final originalMask = await ImageExporterNew.exportMaskFromLayers(
-        _state.layerManager.maskLayers,
-        region,
-        forceHardEdges: true,
-        preferCpuHardEdgeExport: true,
-      );
-      if (!mounted) {
-        return;
-      }
-
-      final fillResult =
-          await InpaintMaskUtils.fillEditorMaskRegionAtPointAsync(
-            originalMask,
-            x: (canvasPoint.dx - region.left).floor(),
-            y: (canvasPoint.dy - region.top).floor(),
-          );
-      if (!mounted) {
-        return;
-      }
-      switch (fillResult.status) {
-        case MaskFillRegionStatus.emptyMask:
-          AppToast.warning(context, l10n.editor_drawClosedMaskOutlineFirst);
-          return;
-        case MaskFillRegionStatus.outOfBounds:
-        case MaskFillRegionStatus.clickedMaskedPixel:
-        case MaskFillRegionStatus.openRegion:
-          AppToast.info(context, l10n.editor_noClosedRegionAtPosition);
-          return;
-        case MaskFillRegionStatus.filled:
-          break;
-      }
-
-      final patch = fillResult.addedPatch;
-      if (patch == null) {
-        throw Exception(l10n.editor_generateMaskOverlayFailed);
-      }
-      final ui.Image image;
-      try {
-        image = await _controller.processingService.decode(patch.bytes);
-      } on Object {
-        throw Exception(l10n.editor_updateMaskLayerFailed);
-      }
-      if (!mounted) {
-        image.dispose();
-        return;
-      }
-      _state.layerCommands.addMaskPixels(
-        image,
-        offset: region.topLeft.translate(
-          patch.left.toDouble(),
-          patch.top.toDouble(),
-        ),
-        newLayerName: l10n.editor_maskLayerName,
-        description: 'Fill Closed Mask Region',
-      );
-
-      _state.requestUiUpdate();
-      if (mounted) {
-        AppToast.success(context, l10n.editor_closedRegionFilled);
-      }
-    } catch (e) {
-      if (mounted) {
-        AppToast.error(context, l10n.editor_fillMaskFailed(e));
-      }
-    }
-  }
-
-  /// 蒙版层总在全部图片层之上
-  int _resolveMaskLayerInsertIndex() {
-    return _state.rolePolicy.insertIndexFor(
-      _state.layerManager,
-      LayerRole.mask,
-    );
-  }
-
-  /// [offset] 为蒙版图像左上角的文档坐标
-  Future<Layer?> _addMaskLayerAboveSource(
-    Uint8List imageBytes, {
-    required String name,
-    Offset offset = Offset.zero,
-  }) {
-    return _state.layerManager.addLayerFromImage(
-      imageBytes,
-      name: name,
-      index: _resolveMaskLayerInsertIndex(),
-      offset: offset,
-      role: LayerRole.mask,
-    );
-  }
+  Future<void> _showShiftEdgesDialog() => _canvasResizeController
+      .showShiftEdgesDialog(context, isMounted: () => mounted);
 
   Future<void> _applyOutpaintEdges(
     OutpaintEdges edges, {
@@ -1274,13 +529,13 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         OutpaintHorizontalSnapTarget.right,
     OutpaintVerticalSnapTarget verticalSnapTarget =
         OutpaintVerticalSnapTarget.bottom,
-  }) async {
-    return _applyOutpaintFrameDelta(
-      OutpaintFrameDelta.fromExpansionEdges(edges),
-      horizontalSnapTarget: horizontalSnapTarget,
-      verticalSnapTarget: verticalSnapTarget,
-    );
-  }
+  }) => _canvasResizeController.applyOutpaintEdges(
+    context,
+    edges,
+    horizontalSnapTarget: horizontalSnapTarget,
+    verticalSnapTarget: verticalSnapTarget,
+    isMounted: () => mounted,
+  );
 
   Future<void> _applyOutpaintFrameDelta(
     OutpaintFrameDelta delta, {
@@ -1288,1765 +543,47 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
         OutpaintHorizontalSnapTarget.right,
     OutpaintVerticalSnapTarget verticalSnapTarget =
         OutpaintVerticalSnapTarget.bottom,
-  }) async {
-    if (!_isInpaintMode || delta.isEmpty) {
-      return;
-    }
-    if (_frameController.sourceRect == null) {
-      if (mounted) {
-        AppToast.error(context, 'Unable to read current source image.');
-      }
-      return;
-    }
+  }) => _canvasResizeController.applyOutpaintFrameDelta(
+    context,
+    delta,
+    horizontalSnapTarget: horizontalSnapTarget,
+    verticalSnapTarget: verticalSnapTarget,
+    isMounted: () => mounted,
+  );
 
-    final outcome = _frameController.applyFrameDelta(
-      delta,
-      horizontalSnapTarget: horizontalSnapTarget,
-      verticalSnapTarget: verticalSnapTarget,
-    );
-    switch (outcome) {
-      case FrameResizeOutcome.applied:
-        _state.canvasController.fitToViewport(_state.frame);
-      case FrameResizeOutcome.rejected:
-        _showFrameResizeRejected();
-      case FrameResizeOutcome.unchanged:
-        break;
-    }
-  }
-
-  void _showFrameResizeRejected() {
-    if (!mounted) return;
-    AppToast.warning(
-      context,
-      context.l10n.editor_frameResizeRejected(
-        EditorFrameGeometry.minimumSourceOverlap,
-        InpaintOutpaintUtils.maxDimension,
-      ),
-    );
-  }
-
-  /// 拖边、平移、尺寸对话框与撤销重做都经由这里同步依赖取景框的状态
   void _handleFrameChanged() {
-    if (!_isInpaintMode || !_isInitialized || !_frameController.isAttached) {
-      return;
-    }
-    final frame = _state.frame;
-    _outpaintSourceImage = null;
-    _outpaintSourceWidth = frame.width.round();
-    _outpaintSourceHeight = frame.height.round();
-    _focusedSelectionState.canvasSize = frame.size;
-    if (_focusedInpaintEnabled && _hasOutpaintChanges) {
-      _disableFocusedInpaintForOutpaint();
-    }
-    _refreshCompressionPlan(desiredScale: _planLinearScale);
-    if (mounted) {
+    if (_canvasResizeController.syncOnFrameChanged() && mounted) {
       setState(() {});
     }
   }
 
-  void _disableFocusedInpaintForOutpaint() {
-    _focusedInpaintEnabled = false;
-    _syncFocusedSelectionConstraint();
-    _focusedSelectionState.clear();
-    _state.clearSelection(saveHistory: false);
-    _state.clearPreview();
-    // 正在用取景框工具调整时不打断
-    if (_state.currentTool?.id != FrameTool.toolId) {
-      _state.setToolById('brush');
-    }
-  }
-
-  void _resetInpaintMask() {
-    if (!_isInpaintMode || !_state.isMaskLayerActive) {
-      _state.clearActiveLayerWithHistory();
-      return;
-    }
-
-    _state.layerCommands.resetMaskLayers(
-      name: context.l10n.editor_maskLayerName,
-    );
-    _state.clearSelection(saveHistory: false);
-    _state.clearPreview();
-    _focusedSelectionState.clear();
-    _state.setToolById(_focusedInpaintEnabled ? 'rect_selection' : 'brush');
-    _refreshCompressionPlan();
-    _state.requestUiUpdate();
-    setState(() {});
-  }
-
-  Widget _buildDroppedImageLayerRegion(Widget child) {
-    if (widget.debugDisableDropRegion ||
-        !PlatformCapabilities.current.supportsExternalFileDrop) {
-      return child;
-    }
-
-    return DropRegion(
-      formats: cardDropFormats,
-      hitTestBehavior: HitTestBehavior.opaque,
-      onDropOver: (event) {
-        if (_isImportingDroppedImage) {
-          return DropOperation.none;
-        }
-
-        if (!const CardDropPolicy().accepts(event.session.items)) {
-          return DropOperation.none;
-        }
-
-        return event.session.allowedOperations.contains(DropOperation.copy)
-            ? DropOperation.copy
-            : DropOperation.none;
-      },
-      onPerformDrop: (event) => releaseNativeDropCallback(
-        () => _handleDroppedImageLayerDrop(event),
-        library: 'ImageEditorWorkspace',
-      ),
-      child: child,
-    );
-  }
-
-  Future<void> _handleDroppedImageLayerDrop(PerformDropEvent event) async {
-    if (_isImportingDroppedImage) {
-      return;
-    }
-
-    setState(() => _isImportingDroppedImage = true);
-    try {
-      final resources = await readCardDrop(context, event.session.items);
-      for (final resource in resources) {
-        if (!mounted) return;
-        await _importDroppedImageLayer(
-          resource.image.fileName,
-          resource.image.bytes,
-        );
-      }
-    } catch (error, stack) {
-      AppLogger.e('Image layer drop failed', error, stack, 'ImageEditorDrop');
-      if (mounted) {
-        AppToast.error(
-          context,
-          '${context.l10n.toast_unreadableDroppedImageSource}: $error',
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isImportingDroppedImage = false);
-      } else {
-        _isImportingDroppedImage = false;
-      }
-    }
-  }
-
-  Future<void> _importDroppedImageLayer(
-    String fileName,
-    Uint8List imageBytes,
-  ) async {
-    if (!mounted) {
-      return;
-    }
-
-    // 保留原图作为图片层插在当前图层上方，并带着变换框等待摆放
-    final placed = await importImageAsLayer(
-      context,
-      _state,
-      bytes: imageBytes,
-      layerName: _droppedImageLayerName(fileName),
-    );
-    if (!placed || !mounted) {
-      return;
-    }
-    _state.clearPreview();
-    _state.requestUiUpdate();
-    setState(() {});
-  }
-
-  String _droppedImageLayerName(String fileName) {
-    final trimmed = fileName.trim();
-    return trimmed.isEmpty ? 'dropped_image.png' : trimmed;
-  }
-
-  Widget _buildCanvasArea() {
-    final focusAreaRect = _focusedInpaintEnabled
-        ? _focusedSelectionState.resolveActiveRect(
-            previewPath: _state.previewPath,
-          )
-        : null;
-    final contextCrop = focusAreaRect == null
-        ? null
-        : _resolveFocusedContextCropOnWorkCanvas(focusAreaRect);
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: EditorCanvas(
-              state: _state,
-              showTransparentCanvasBackground:
-                  _isInpaintMode || _controller.hasTransparentCutout,
-              revealOutsideFrame: _isInpaintMode,
-              shouldSuppressPointerInput: _shouldSuppressCanvasPointerInput,
-              suppressSelectionOverlay: _focusedSelectionState
-                  .shouldSuppressSelectionOverlay(
-                    focusedEnabled: _isInpaintMode && _focusedInpaintEnabled,
-                    currentToolId: _state.currentTool?.id,
-                    previewPath: _state.previewPath,
-                  ),
-            ),
-          ),
-        ),
-        if (_isInpaintMode && !_focusedInpaintEnabled)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: VirtualOutpaintMaskPainter(
-                    state: _state,
-                    maskRectsFor: _frameController.outpaintMaskRectsFor,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        if (_isInpaintMode && !_focusedInpaintEnabled)
-          Positioned.fill(
-            child: ListenableBuilder(
-              listenable: Listenable.merge([
-                _frameController,
-                _state.framePreviewNotifier,
-                _state.toolChangeNotifier,
-              ]),
-              builder: (context, _) => _toolNeedsFrameEdges
-                  ? const SizedBox.shrink()
-                  : OutpaintEdgeDragOverlay(
-                      frame: _state.displayFrame,
-                      controller: _state.canvasController,
-                      enabled:
-                          !_frameController.isCommitting &&
-                          _state.framePreviewNotifier.value == null,
-                      onCommitted: _applyOutpaintEdges,
-                      onFrameResizeCommitted: _applyOutpaintFrameDelta,
-                      isFrameAllowed: _frameController.isFrameAllowed,
-                    ),
-            ),
-          ),
-        if (_isInpaintMode && focusAreaRect != null && contextCrop != null)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: FocusedContextOverlayPainter(
-                    state: _state,
-                    focusAreaRect: focusAreaRect,
-                    contextCrop: contextCrop,
-                    repaint: Listenable.merge([
-                      _state.renderNotifier,
-                      _state.canvasController,
-                    ]),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        if (_isInpaintMode)
-          Positioned(top: 16, left: 16, child: _buildFocusedSelectionCard()),
-        Positioned.fill(
-          child: MagicWandProgressOverlay(controller: _magicWandController),
-        ),
-        Positioned(
-          left: 16,
-          right: 16,
-          bottom: 16,
-          child: Center(child: TransformSessionBar(state: _state)),
-        ),
-      ],
-    );
-  }
-
-  bool _shouldSuppressCanvasPointerInput(Offset localPosition) {
-    if (!_isInpaintMode ||
-        _focusedInpaintEnabled ||
-        _toolNeedsFrameEdges ||
-        _frameController.isCommitting) {
-      return false;
-    }
-
-    final viewportSize = _state.canvasController.viewportSize;
-    if (viewportSize == Size.zero) {
-      return false;
-    }
-
-    return OutpaintEdgeDragOverlay.isResizeInteractionPoint(
-      localPosition: localPosition,
-      viewportSize: viewportSize,
-      frame: _state.frame,
-      controller: _state.canvasController,
-    );
-  }
-
-  /// 加载蒙版文件
-  Future<void> _loadMaskFile() async {
-    final l10n = context.l10n;
-    final maskLayerName = l10n.editor_maskLayerName;
-    try {
-      final picked = await pickEditorImageFile(context);
-      if (picked == null || !mounted) {
-        return;
-      }
-
-      // 蒙版层按 alpha 显示、导出按亮度判定，黑白蒙版不转 overlay 时黑色部分会显示成蒙版
-      final overlayBytes = await InpaintMaskUtils.maskToEditorOverlayAsync(
-        picked.bytes,
-      );
-      if (!mounted) {
-        return;
-      }
-      final layer = await _state.layerCommands.addImageLayer(
-        overlayBytes,
-        name: maskLayerName,
-        offset: _state.frame.topLeft,
-        role: LayerRole.mask,
-      );
-
-      if (layer != null) {
-        AppLogger.i('Mask layer added: ${layer.id}', 'ImageEditor');
-        if (mounted) {
-          AppToast.success(context, l10n.editor_maskLayerAdded);
-        }
-      } else {
-        // 图像解码失败或格式不支持
-        AppLogger.w(
-          'Failed to decode image or unsupported format',
-          'ImageEditor',
-        );
-        if (mounted) {
-          AppToast.error(context, l10n.editor_parseImageFailed);
-        }
-      }
-    } catch (e) {
-      AppLogger.e('Unexpected error loading mask file: $e', 'ImageEditor');
-      if (mounted) {
-        AppToast.error(context, l10n.editor_loadMaskFailed(e));
-      }
-    }
-  }
-
-  /// 加载蒙版
-  Future<void> _loadMask() async {
-    await _loadMaskFile();
-  }
-
-  /// 点「完成」后交出的区域：贴回时是原图与取景框合起来的整张画布，否则就是取景框
-  Rect get _outputRegion => _frameController.pasteBackCanvas ?? _state.frame;
-
-  /// 贴回时取景框在整张画布中的位置
-  Rect? get _pasteBackFrameInCanvas {
-    final canvas = _frameController.pasteBackCanvas;
-    if (canvas == null) return null;
-    return EditorFrameGeometry.frameInCanvas(
-      frame: _state.frame,
-      canvas: canvas,
-    );
-  }
-
-  /// 压缩档位以交出区域为工作尺寸；聚焦选区只在交出区域就是取景框时存在
-  int get _compressionWorkWidth => _outputRegion.width.round();
-
-  int get _compressionWorkHeight => _outputRegion.height.round();
-
-  EditorCompressionTarget get _activeCompressionTarget {
-    final target = _compressionTarget;
-    if (target != null) return target;
-    return EditorCompressionTarget(
-      width: _compressionWorkWidth,
-      height: _compressionWorkHeight,
-      isOriginal: true,
-    );
-  }
-
-  bool get _compressionApplied {
-    final target = _activeCompressionTarget;
-    return target.width != _compressionWorkWidth ||
-        target.height != _compressionWorkHeight;
-  }
-
-  /// 超出请求面积上限的档位会在交接给生成页时收敛，UI 要显示实际会发送的尺寸。
-  ({int width, int height})? get _clampedRequestSize {
-    final target = _activeCompressionTarget;
-    if (NaiResolutionAdapter.isGenerationCompatible(
-      target.width,
-      target.height,
-    )) {
-      return null;
-    }
-    final closest = NaiResolutionAdapter.findClosestResolution(
-      target.width,
-      target.height,
-    );
-    return (width: closest.width, height: closest.height);
-  }
-
-  /// 聚焦选区或贴回的取景框让原尺寸超出请求面积上限时，说明滑条为何收紧
-  String? _compressionLimitNotice() {
-    final plan = _compressionPlan;
-    if (!_isInpaintMode ||
-        plan == null ||
-        plan.targets.any((target) => target.isOriginal)) {
-      return null;
-    }
-    if (_frameController.pasteBackCanvas != null) {
-      return context.l10n.editor_compressionFrameLimited;
-    }
-    return _focusedInpaintEnabled
-        ? context.l10n.editor_compressionFocusLimited
-        : null;
-  }
-
-  double get _compressionLinearScale {
-    return _activeCompressionTarget.linearScaleFor(
-      _compressionWorkWidth,
-      _compressionWorkHeight,
-    );
-  }
-
-  /// 以档位计算时的工作尺寸为基准；取景框尺寸已变化时仍能还原原来的缩放比例
-  double get _planLinearScale {
-    final plan = _compressionPlan;
-    final target = _compressionTarget;
-    if (plan == null || target == null) return 1;
-    return target.linearScaleFor(plan.workWidth, plan.workHeight);
-  }
-
-  void _initializeCompressionPlan() {
-    _refreshCompressionPlan(desiredScale: 1);
-  }
-
-  void _refreshCompressionPlan({double? desiredScale}) {
-    final region = _outputRegion;
-    final workWidth = region.width.round();
-    final workHeight = region.height.round();
-    final previousTarget = _compressionTarget;
-    final previousScale = previousTarget?.linearScaleFor(
-      _compressionPlan?.workWidth ?? workWidth,
-      _compressionPlan?.workHeight ?? workHeight,
-    );
-    final plan = EditorCompressionPlan.resolve(
-      workWidth: workWidth,
-      workHeight: workHeight,
-      focusedInpaintEnabled: _isInpaintMode && _focusedInpaintEnabled,
-      focusedSelectionRect: _focusedSelectionState.committedRect,
-      focusedContextCrop: _pasteBackFrameInCanvas,
-      minimumContextPixels: _minimumContextMegaPixels,
-    );
-
-    EditorCompressionTarget target;
-    if (desiredScale != null) {
-      target = plan.targetAtOrBelowScale(desiredScale);
-    } else {
-      final exactIndex = plan.indexOf(previousTarget);
-      target = exactIndex >= 0
-          ? plan.targets[exactIndex]
-          : plan.targetAtOrBelowScale(previousScale ?? 1);
-    }
-    _compressionPlan = plan;
-    _compressionTarget = target;
-    _compressionPlanRegion = region;
-    _syncFocusedSelectionConstraint();
-    _publishRequestEstimate();
-  }
-
-  void _selectCompressionTarget(int index) {
-    final plan = _compressionPlan;
-    if (plan == null || plan.targets.isEmpty) return;
-    final resolvedIndex = index.clamp(0, plan.targets.length - 1);
-    _updateLayoutState(() {
-      _compressionTarget = plan.targets[resolvedIndex];
-      _syncFocusedSelectionConstraint();
-      _publishRequestEstimate();
-    });
-  }
-
-  /// 裁切到取景框及其撤销只改原图、不动取景框，交出区域要跟着原图重算
   void _handleLayersChanged() {
-    if (!_isInpaintMode ||
-        !_isInitialized ||
-        _outputRegion == _compressionPlanRegion) {
-      return;
+    if (_compressionController.refreshOnLayersChangedIfNeeded() && mounted) {
+      setState(() {});
     }
-    _refreshCompressionPlan(desiredScale: _planLinearScale);
-    if (mounted) setState(() {});
   }
 
-  void _publishRequestEstimate() {
-    if (!_isInpaintMode) return;
-    _frameController.updateRequestEstimate(_resolveRequestEstimate());
-  }
-
-  /// 按「完成」后生成页实际会走的请求方式估算发送尺寸与点数；
-  /// 没有生成页的请求上下文时无法预测实际尺寸，不给估算
-  EditorRequestEstimate? _resolveRequestEstimate() {
-    final config = widget.focusedInpaintCostConfig;
-    if (config == null) return null;
-    final size = _resolveRequestSize(config);
-    if (size == null) return null;
-    return EditorRequestEstimate(
-      requestWidth: size.width,
-      requestHeight: size.height,
-      cost: config.estimate(width: size.width, height: size.height),
-    );
-  }
-
-  ({int width, int height})? _resolveRequestSize(
-    ImageEditorFocusedInpaintCostConfig config,
-  ) {
-    final target = _activeCompressionTarget;
-    final canvas = _frameController.pasteBackCanvas;
-    if (canvas != null) {
-      final geometry = FocusedInpaintUtils.resolveGeometryForCrop(
-        sourceWidth: target.width,
-        sourceHeight: target.height,
-        crop: FocusOutpaintExporter.projectCrop(
-          frame: _state.frame,
-          canvas: canvas,
-          target: target,
-        ),
-      );
-      return geometry == null
-          ? null
-          : (width: geometry.requestWidth, height: geometry.requestHeight);
-    }
-    final focusRect = _focusedInpaintEnabled
-        ? _focusedSelectionState.committedRect
-        : null;
-    if (focusRect != null) {
-      final geometry = _resolveFocusedGeometryForWorkRect(focusRect);
-      return geometry == null
-          ? null
-          : (width: geometry.requestWidth, height: geometry.requestHeight);
-    }
-    // 生成页收到未压缩的源图时按当前请求尺寸重新推导，压缩过的只收敛到上限内
-    if (_compressionApplied) {
-      return _clampedRequestSize ??
-          (width: target.width, height: target.height);
-    }
-    return config.resolveImportRequestSize(
-      sourceWidth: target.width,
-      sourceHeight: target.height,
-    );
-  }
-
-  Rect _projectWorkRectToCompressionTarget(Rect rect) {
-    final target = _activeCompressionTarget;
-    return EditorCompressionGeometry.projectRect(
-      rect,
-      sourceWidth: _compressionWorkWidth,
-      sourceHeight: _compressionWorkHeight,
-      targetWidth: target.width,
-      targetHeight: target.height,
-    );
-  }
-
-  FocusedInpaintGeometry? _resolveFocusedGeometryForWorkRect(Rect rect) {
-    return EditorCompressionGeometry.resolveFocusedGeometry(
-      workWidth: _compressionWorkWidth,
-      workHeight: _compressionWorkHeight,
-      target: _activeCompressionTarget,
-      workSelectionRect: rect,
-      minimumContextPixels: _minimumContextMegaPixels,
-    );
-  }
-
-  Rect? _constrainFocusedWorkRect(Rect rect, {Offset? fixedAnchor}) {
-    return EditorCompressionGeometry.constrainWorkSelection(
-      workWidth: _compressionWorkWidth,
-      workHeight: _compressionWorkHeight,
-      target: _activeCompressionTarget,
-      workSelectionRect: rect,
-      minimumContextPixels: _minimumContextMegaPixels,
-      fixedWorkAnchor: fixedAnchor,
-    );
-  }
-
-  Rect? _resolveFocusedContextCropOnWorkCanvas(Rect selection) {
-    final geometry = _resolveFocusedGeometryForWorkRect(selection);
-    if (geometry == null) return null;
-    return EditorCompressionGeometry.projectTargetCropToWorkCanvas(
-      targetCrop: geometry.contextCrop,
-      workWidth: _compressionWorkWidth,
-      workHeight: _compressionWorkHeight,
-      target: _activeCompressionTarget,
-    );
-  }
-
-  Future<Uint8List> _exportMergedImageAtCompressionTarget() async {
-    final raw = await ImageExporterNew.exportMergedRgba(
-      _state.layerManager,
-      _state.frame,
-      transparentBackground: _controller.hasTransparentCutout,
-    );
-    final target = _activeCompressionTarget;
-    return EditorCompressionEncoder.encodeRgbaPngAsync(
-      raw,
-      targetWidth: target.width,
-      targetHeight: target.height,
-    );
-  }
-
-  Future<Uint8List> _exportInpaintLayerMaskAtCompressionTarget(
-    List<Rect> additionalMaskRects,
-  ) async {
-    final maskLayers = _state.layerManager.maskLayers;
-    final target = _activeCompressionTarget;
-    final region = _state.frame;
-    final raster = await ImageExporterNew.tryExportHardEdgeMaskRasterFromLayers(
-      maskLayers,
-      region,
-      additionalMaskRects: additionalMaskRects,
-    );
-    if (raster != null) {
-      return InpaintMaskUtils.resizeBinaryMaskToPngAsync(
-        raster.mask,
-        sourceWidth: raster.width,
-        sourceHeight: raster.height,
-        targetWidth: target.width,
-        targetHeight: target.height,
-      );
-    }
-
-    final mask = await ImageExporterNew.exportMaskFromLayers(
-      maskLayers,
-      region,
-      forceHardEdges: true,
-      additionalMaskRects: additionalMaskRects,
-    );
-    return InpaintMaskUtils.resizeMaskBytesAsync(
-      mask,
-      targetWidth: target.width,
-      targetHeight: target.height,
-    );
-  }
-
-  Future<Uint8List> _exportFocusedSelectionMaskAtCompressionTarget(
-    Rect workSelection,
-  ) {
-    final target = _activeCompressionTarget;
-    return InpaintMaskUtils.createRectMaskBytesAsync(
-      width: target.width,
-      height: target.height,
-      rect: _projectWorkRectToCompressionTarget(workSelection),
-    );
-  }
-
-  Future<Uint8List?> _prepareInpaintSourceAtCompressionTarget() async {
-    final target = _activeCompressionTarget;
-    Uint8List? source;
-    if (_hasOutpaintChanges) {
-      source = await _materializeFrameSource(
-        targetWidth: target.width,
-        targetHeight: target.height,
-      );
-    } else if (_imageSource.hasChanges) {
-      source = await _imageSource.renderComposite(_state.frame);
-    } else {
-      source = _inpaintWorkingSourceImage;
-    }
-    if (source == null) return null;
-
-    final normalized = await NaiResolutionAdapter.normalizeImageForRequestAsync(
-      source,
-      targetWidth: target.width,
-      targetHeight: target.height,
-    );
-    if (normalized == null) {
-      throw StateError('Failed to encode the compressed inpaint source.');
-    }
-    return normalized;
-  }
-
-  /// 档位实际会发送的尺寸，超出请求面积上限的档位按生成页规则收敛
-  String _compressionSizeText(EditorCompressionTarget target) {
-    final issue = NaiResolutionAdapter.validateGenerationResolution(
-      target.width,
-      target.height,
-    );
-    return '${issue?.suggestedWidth ?? target.width} x '
-        '${issue?.suggestedHeight ?? target.height}';
-  }
-
-  String _compressionSliderText(EditorCompressionPlan plan, double index) =>
-      _compressionSizeText(
-        plan.targets[index.round().clamp(0, plan.targets.length - 1)],
-      );
-
-  Widget _buildDesktopCompressionControl({required bool expanded}) {
-    final plan = _compressionPlan;
-    if (plan == null) return const SizedBox.shrink();
-    if (!expanded) {
-      return IconButton(
-        icon: const Icon(Icons.compress, size: 20),
-        onPressed: _showCompressionSheet,
-        tooltip: context.l10n.editor_compressionTooltip,
-      );
-    }
-
-    final target = _activeCompressionTarget;
-    final clamped = _clampedRequestSize;
-    final index = plan.indexOf(target).clamp(0, plan.targets.length - 1);
-    return Tooltip(
-      message: clamped == null
-          ? context.l10n.editor_compressionTooltip
-          : context.l10n.editor_compressionClampedToLimit(
-              target.width,
-              target.height,
-              clamped.width,
-              clamped.height,
-            ),
-      child: SizedBox(
-        width: 300,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.compress, size: 18),
-            const SizedBox(width: 6),
-            SizedBox(
-              width: 92,
-              child: Text(
-                _compressionSizeText(target),
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-            ),
-            Expanded(
-              child: NamedSlider(
-                label: context.l10n.editor_compressionTitle,
-                valueText: (position) => _compressionSliderText(plan, position),
-                value: index.toDouble(),
-                min: 0,
-                max: plan.targets.length > 1
-                    ? (plan.targets.length - 1).toDouble()
-                    : 1,
-                divisions: plan.targets.length > 1
-                    ? plan.targets.length - 1
-                    : null,
-                onChanged: plan.canCompress
-                    ? (value) => _selectCompressionTarget(value.round())
-                    : null,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMobileCompressionAction() {
-    return IconButton(
-      icon: const Icon(Icons.compress),
-      onPressed: _showCompressionSheet,
-      tooltip: context.l10n.editor_compressionTooltip,
-    );
-  }
-
-  Future<void> _showCompressionSheet() async {
-    await AdaptivePresenter.showPanel<void>(
-      context: context,
-      title: context.l10n.editor_compressionTitle,
-      initialChildSize: 0.62,
-      minChildSize: 0.42,
-      dialogWidth: 440,
-      builder: (panelContext, scrollController) => StatefulBuilder(
-        builder: (panelContext, setPanelState) {
-          final plan = _compressionPlan;
-          if (plan == null) return const SizedBox.shrink();
-          final target = _activeCompressionTarget;
-          final clamped = _clampedRequestSize;
-          final limitNotice = _compressionLimitNotice();
-          final index = plan.indexOf(target).clamp(0, plan.targets.length - 1);
-          final theme = Theme.of(panelContext);
-          return ListView(
-            controller: scrollController,
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-            children: [
-              Text(
-                context.l10n.editor_compressionSizeSummary(
-                  plan.workWidth,
-                  plan.workHeight,
-                  clamped?.width ?? target.width,
-                  clamped?.height ?? target.height,
-                ),
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                switch ((clamped, target.isOriginal)) {
-                  ((final size?, _)) =>
-                    context.l10n.editor_compressionClampedToLimit(
-                      target.width,
-                      target.height,
-                      size.width,
-                      size.height,
-                    ),
-                  ((_, true)) => context.l10n.editor_compressionUncompressed,
-                  ((_, false)) => context.l10n.editor_compressionApplyOnDone,
-                },
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              NamedSlider(
-                label: context.l10n.editor_compressionTitle,
-                valueText: (position) => _compressionSliderText(plan, position),
-                value: index.toDouble(),
-                min: 0,
-                max: plan.targets.length > 1
-                    ? (plan.targets.length - 1).toDouble()
-                    : 1,
-                divisions: plan.targets.length > 1
-                    ? plan.targets.length - 1
-                    : null,
-                onChanged: plan.canCompress
-                    ? (value) {
-                        _selectCompressionTarget(value.round());
-                        setPanelState(() {});
-                      }
-                    : null,
-              ),
-              Text(
-                context.l10n.editor_compressionNormalSummary(
-                  plan.normalTarget.width,
-                  plan.normalTarget.height,
-                  plan.minimumTarget.width,
-                  plan.minimumTarget.height,
-                ),
-                style: theme.textTheme.bodySmall,
-              ),
-              if (!plan.canCompress) ...[
-                const SizedBox(height: 8),
-                Text(
-                  context.l10n.editor_compressionUnavailable,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              if (limitNotice != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  limitNotice,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.tertiary,
-                  ),
-                ),
-              ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _showEffectsDialog() => _effectsController.showDialog(
-    context,
-    onChanged: () => _updateLayoutState(() {}),
-  );
-
-  /// 更改画布尺寸
-
-  FocusedInpaintCostEstimate? _resolveFocusedInpaintCostEstimate() {
-    final config = widget.focusedInpaintCostConfig;
-    if (!_isInpaintMode || !_focusedInpaintEnabled || config == null) {
-      return null;
-    }
-
-    final focusAreaRect = _focusedSelectionState.resolveActiveRect(
-      previewPath: _state.previewPath,
-    );
-    if (focusAreaRect == null) {
-      return null;
-    }
-
-    final geometry = _resolveFocusedGeometryForWorkRect(focusAreaRect);
-    if (geometry == null) {
-      return null;
-    }
-
-    final cost = config.estimate(
-      width: geometry.requestWidth,
-      height: geometry.requestHeight,
-    );
-
-    return FocusedInpaintCostEstimate(geometry: geometry, cost: cost);
-  }
-
-  static String _contextAreaText(double megaPixels) => '${megaPixels.round()}';
-
-  Widget _buildFocusedSelectionCard() {
-    final theme = Theme.of(context);
-    final hasFocusArea =
-        _focusedInpaintEnabled && _focusedSelectionState.hasCommittedRect;
-    final costEstimate = _resolveFocusedInpaintCostEstimate();
-
-    return Container(
-      width: 220,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _toggleFocusedInpaint,
-                  icon: Icon(
-                    _focusedInpaintEnabled
-                        ? Icons.crop_free
-                        : Icons.filter_center_focus,
-                    size: 16,
-                  ),
-                  label: Text(
-                    _focusedInpaintEnabled
-                        ? 'Focused Area Selection'
-                        : 'Focused Inpaint',
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            !_focusedInpaintEnabled
-                ? context.l10n.editor_focusInactiveHint
-                : hasFocusArea
-                ? context.l10n.editor_focusReadyHint
-                : context.l10n.editor_focusNeedsSelectionHint,
-            style: theme.textTheme.bodySmall,
-          ),
-          if (_focusedInpaintEnabled) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildFocusModeButton(
-                  icon: Icons.crop_square,
-                  label: context.l10n.editor_focusSelection,
-                  toolId: 'rect_selection',
-                ),
-                const SizedBox(width: 8),
-                _buildFocusModeButton(
-                  icon: Icons.brush_outlined,
-                  label: context.l10n.editor_focusBrush,
-                  toolId: 'brush',
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _focusedSelectionState.hasCommittedRect
-                    ? () {
-                        _updateLayoutState(() {
-                          _focusedSelectionState.clear();
-                          _state.clearSelection(saveHistory: false);
-                          _state.clearPreview();
-                          _state.setToolById('rect_selection');
-                          _refreshCompressionPlan();
-                        });
-                      }
-                    : null,
-                icon: const Icon(Icons.clear, size: 16),
-                label: Text(context.l10n.editor_clearSelection),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              context.l10n.editor_focusMinimumContextArea(
-                _contextAreaText(_minimumContextMegaPixels),
-              ),
-              style: theme.textTheme.labelMedium,
-            ),
-            NamedSlider(
-              label: context.l10n.editor_focusMinimumContextAreaLabel,
-              valueText: _contextAreaText,
-              value: _minimumContextMegaPixels,
-              min: 16,
-              max: 192,
-              divisions: 176,
-              onChanged: (value) {
-                _updateLayoutState(() {
-                  _minimumContextMegaPixels = value;
-                  _constrainCommittedFocusedSelection();
-                  _refreshCompressionPlan();
-                });
-              },
-            ),
-            if (costEstimate != null) ...[
-              const SizedBox(height: 8),
-              _buildFocusedAnlasWarning(costEstimate),
-              const SizedBox(height: 8),
-            ],
-            Text(
-              context.l10n.editor_focusContextHint,
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFocusedAnlasWarning(FocusedInpaintCostEstimate estimate) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.info_outline,
-            size: 17,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              context.l10n.editor_focusRequestSummary(
-                estimate.geometry.contextCrop.width,
-                estimate.geometry.contextCrop.height,
-                estimate.geometry.requestWidth,
-                estimate.geometry.requestHeight,
-                estimate.cost,
-              ),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _toggleFocusedInpaint() {
-    if (_hasOutpaintChanges && !_focusedInpaintEnabled) {
-      AppToast.warning(
+  Future<void> _handleDroppedImageLayerDrop(PerformDropEvent event) =>
+      handleDroppedImageLayerDrop(
         context,
-        'Outpaint cannot be used together with Focused Inpaint.',
+        event,
+        session: _controller,
+        state: _state,
+        isMounted: () => mounted,
+        updateState: setState,
       );
-      return;
-    }
 
-    final desiredScale = _compressionLinearScale;
-    _updateLayoutState(() {
-      _focusedInpaintEnabled = !_focusedInpaintEnabled;
-      if (_focusedInpaintEnabled) {
-        if (!_focusedSelectionState.hasCommittedRect) {
-          _state.setToolById('rect_selection');
-        }
-      } else {
-        _state.clearSelection(saveHistory: false);
-        _state.clearPreview();
-        _focusedSelectionState.clear();
-        _state.setToolById('brush');
-      }
-      _refreshCompressionPlan(desiredScale: desiredScale);
-    });
-  }
-
-  void _syncFocusedSelectionConstraint() {
-    if (!_isInpaintMode || !_focusedInpaintEnabled) {
-      _state.setRectSelectionConstraint(null);
-      return;
-    }
-    _state.setRectSelectionConstraint((candidate, fixedAnchor) {
-      return _constrainFocusedWorkRect(candidate, fixedAnchor: fixedAnchor) ??
-          candidate;
-    });
-  }
-
-  void _constrainCommittedFocusedSelection() {
-    final selection = _focusedSelectionState.committedRect;
-    if (selection == null) return;
-    final constrained = _constrainFocusedWorkRect(selection);
-    _focusedSelectionState.load(constrained);
-  }
-
-  void _consumeFocusedSelection() {
-    if (!_isInpaintMode || !_focusedInpaintEnabled) {
-      return;
-    }
-    if (_state.currentTool?.id != 'rect_selection') {
-      return;
-    }
-    final consumed = _focusedSelectionState.captureSelection(
-      _state.selectionPath,
-    );
-    if (!consumed) {
-      return;
-    }
-
-    _state.clearSelection(saveHistory: false);
-    _state.clearPreview();
-    _state.setToolById('brush');
-    _refreshCompressionPlan();
-    _state.requestUiUpdate();
-    if (mounted) {
-      _updateLayoutState(() {});
-    }
-  }
-
-  Widget _buildFocusModeButton({
-    required IconData icon,
-    required String label,
-    required String toolId,
-  }) {
-    final theme = Theme.of(context);
-    final selected = _state.currentTool?.id == toolId;
-
-    return Expanded(
-      child: OutlinedButton.icon(
-        onPressed: () {
-          _state.setToolById(toolId);
-        },
-        icon: Icon(icon, size: 16),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: selected
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurface,
-          backgroundColor: selected
-              ? theme.colorScheme.primary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          side: BorderSide(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.35),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          visualDensity: VisualDensity.compact,
-        ),
-      ),
-    );
-  }
-
-  /// 桌面端布局
-  Widget _buildDesktopLayout({required double availableWidth}) {
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 顶部菜单栏
-            _buildDesktopMenuBar(availableWidth: availableWidth),
-
-            // 主体区域
-            Expanded(
-              child: Row(
-                children: [
-                  // 左侧工具栏
-                  DesktopToolbar(
-                    state: _state,
-                    onClear: _isInpaintMode ? _resetInpaintMask : null,
-                  ),
-
-                  // 中间画布区域
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Expanded(child: _buildCanvasArea()),
-                        // 底部状态栏
-                        EditorStatusBar(state: _state),
-                      ],
-                    ),
-                  ),
-
-                  // 右侧面板
-                  if (_showLayerPanel)
-                    SizedBox(
-                      width: 280,
-                      child: Column(
-                        children: [
-                          // 图层面板
-                          Expanded(flex: 2, child: LayerPanel(state: _state)),
-                          const ThemedDivider(height: 1),
-                          // 工具设置面板
-                          Expanded(flex: 2, child: _buildToolSettingsPanel()),
-                          const ThemedDivider(height: 1),
-                          // 颜色面板：蒙版层只用固定的蒙版色
-                          if (!_state.isMaskLayerActive)
-                            ColorPanel(state: _state),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// 移动端布局
-  Widget _buildMobileLayout({required double availableWidth}) {
-    final compactActions = availableWidth < 520;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _editorTitle(),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          if (!compactActions) _buildMobileCompressionAction(),
-          IconButton(
-            icon: const Icon(Icons.layers),
-            onPressed: _showMobileLayerSheet,
-            tooltip: context.l10n.editor_layers,
-          ),
-          if (!compactActions && _isInpaintMode)
-            IconButton(
-              icon: const Icon(Icons.upload_file),
-              onPressed: _loadMask,
-              tooltip: context.l10n.editor_loadMask,
-            ),
-          if (!compactActions && _isInpaintMode)
-            IconButton(
-              icon: const Icon(Icons.open_in_full),
-              onPressed: _showShiftEdgesDialog,
-              tooltip: context.l10n.editor_shiftEdges,
-            ),
-          if (!compactActions && _isInpaintMode)
-            ListenableBuilder(
-              listenable: _frameController,
-              builder: (context, _) => IconButton(
-                icon: const Icon(Icons.crop),
-                onPressed: _frameController.canCropToFrame
-                    ? _cropToFrame
-                    : null,
-                tooltip: context.l10n.editor_cropToFrame,
-              ),
-            ),
-          if (!compactActions && !_isInpaintMode)
-            IconButton(
-              icon: const Icon(Icons.tune_rounded),
-              onPressed: _showEffectsDialog,
-              tooltip: context.l10n.editor_effects,
-            ),
-          _buildMobileOverflowMenu(includeCanvasActions: compactActions),
-          ListenableBuilder(
-            listenable: _frameController,
-            builder: (context, _) => IconButton(
-              icon: const Icon(Icons.check),
-              onPressed: _canExportAndClose ? _exportAndClose : null,
-              tooltip: widget.completionLabel ?? context.l10n.editor_done,
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) => Column(
-            children: [
-              // 画布区域
-              Expanded(child: _buildCanvasArea()),
-
-              // 横屏短窗口保留画布主区域，设置面板仍可独立滚动。
-              _buildMobileToolSettings(
-                maxHeight: constraints.maxHeight < 420 ? 96 : 150,
-              ),
-
-              // 底部工具栏
-              MobileToolbar(
-                state: _state,
-                onClear: _isInpaintMode ? _resetInpaintMask : null,
-                onLayersPressed: _showMobileLayerSheet,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 视图分组始终可达；画布操作只在顶栏放不下时收进菜单
-  Widget _buildMobileOverflowMenu({required bool includeCanvasActions}) {
-    return EditorOverflowMenu(
-      state: _state,
-      canvasActions: includeCanvasActions ? _mobileCanvasMenuActions : null,
-    );
-  }
-
-  List<EditorMenuAction> _mobileCanvasMenuActions() {
-    final l10n = context.l10n;
-    return [
-      EditorMenuAction(
-        icon: Icons.compress,
-        label: l10n.editor_compressionTooltip,
-        onSelected: () => unawaited(_showCompressionSheet()),
-      ),
-      if (_isInpaintMode) ...[
-        EditorMenuAction(
-          icon: Icons.upload_file,
-          label: l10n.editor_loadMask,
-          onSelected: () => unawaited(_loadMask()),
-        ),
-        EditorMenuAction(
-          icon: Icons.open_in_full,
-          label: l10n.editor_shiftEdges,
-          onSelected: () => unawaited(_showShiftEdgesDialog()),
-        ),
-        EditorMenuAction(
-          icon: Icons.crop,
-          label: l10n.editor_cropToFrame,
-          enabled: _frameController.canCropToFrame,
-          onSelected: () => unawaited(_cropToFrame()),
-        ),
-      ] else
-        EditorMenuAction(
-          icon: Icons.tune_rounded,
-          label: l10n.editor_effects,
-          onSelected: () => unawaited(_showEffectsDialog()),
-        ),
-    ];
-  }
-
-  /// 桌面端菜单栏
-  Widget _buildDesktopMenuBar({required double availableWidth}) {
-    final theme = Theme.of(context);
-
-    return Container(
-      height: 40,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.24),
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // 返回按钮
-          IconButton(
-            icon: const Icon(Icons.arrow_back, size: 20),
-            onPressed: () => _confirmExit(),
-            tooltip: context.l10n.editor_back,
-          ),
-
-          Text(_editorTitle(), style: theme.textTheme.titleSmall),
-
-          const Spacer(),
-
-          _buildDesktopCompressionControl(expanded: availableWidth >= 1700),
-          const SizedBox(width: 4),
-
-          if (!_isInpaintMode)
-            if (availableWidth >= 1280)
-              TextButton.icon(
-                icon: const Icon(Icons.tune_rounded, size: 18),
-                label: Text(context.l10n.editor_effects),
-                onPressed: _showEffectsDialog,
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.tune_rounded, size: 20),
-                onPressed: _showEffectsDialog,
-                tooltip: context.l10n.editor_effects,
-              ),
-
-          // 画布尺寸按钮（使用细粒度监听）
-          TextButton.icon(
-            icon: const Icon(Icons.aspect_ratio, size: 18),
-            label: ValueListenableBuilder<Size>(
-              valueListenable: _state.canvasSizeNotifier,
-              builder: (context, size, _) =>
-                  Text('${size.width.toInt()} x ${size.height.toInt()}'),
-            ),
-            onPressed: _changeCanvasSize,
-          ),
-
-          // 加载蒙版按钮
-          if (_isInpaintMode)
-            IconButton(
-              icon: const Icon(Icons.upload_file, size: 20),
-              onPressed: _loadMask,
-              tooltip: context.l10n.editor_loadMask,
-            ),
-
-          if (_isInpaintMode)
-            if (availableWidth >= 1280)
-              TextButton.icon(
-                icon: const Icon(Icons.open_in_full, size: 18),
-                label: Text(context.l10n.editor_shiftEdges),
-                onPressed: _showShiftEdgesDialog,
-              )
-            else
-              IconButton(
-                icon: const Icon(Icons.open_in_full, size: 20),
-                onPressed: _showShiftEdgesDialog,
-                tooltip: context.l10n.editor_shiftEdges,
-              ),
-
-          if (_isInpaintMode)
-            ListenableBuilder(
-              listenable: _frameController,
-              builder: (context, _) {
-                final onPressed = _frameController.canCropToFrame
-                    ? _cropToFrame
-                    : null;
-                if (availableWidth >= 1280) {
-                  return Tooltip(
-                    message: context.l10n.editor_cropToFrameHint,
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.crop, size: 18),
-                      label: Text(context.l10n.editor_cropToFrame),
-                      onPressed: onPressed,
-                    ),
-                  );
-                }
-                return IconButton(
-                  icon: const Icon(Icons.crop, size: 20),
-                  onPressed: onPressed,
-                  tooltip: context.l10n.editor_cropToFrame,
-                );
-              },
-            ),
-
-          const ThemedDivider(
-            height: 1,
-            vertical: true,
-            indent: 8,
-            endIndent: 8,
-          ),
-
-          // 切换面板
-          IconButton(
-            icon: Icon(
-              _showLayerPanel
-                  ? Icons.view_sidebar
-                  : Icons.view_sidebar_outlined,
-              size: 20,
-            ),
-            onPressed: () {
-              _updateLayoutState(() {
-                _showLayerPanel = !_showLayerPanel;
-              });
-            },
-            tooltip: context.l10n.editor_togglePanels,
-          ),
-
-          // 快捷键帮助
-          IconButton(
-            icon: const Icon(Icons.keyboard, size: 20),
-            onPressed: _showShortcutHelp,
-            tooltip: context.l10n.editor_shortcutHelpTitle,
-          ),
-
-          const ThemedDivider(
-            height: 1,
-            vertical: true,
-            indent: 8,
-            endIndent: 8,
-          ),
-
-          // 导出按钮
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: ListenableBuilder(
-              listenable: _frameController,
-              builder: (context, _) => FilledButton.icon(
-                icon: const Icon(Icons.check, size: 18),
-                label: Text(widget.completionLabel ?? context.l10n.editor_done),
-                onPressed: _canExportAndClose ? _exportAndClose : null,
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 工具设置面板
-  /// 使用 toolChangeNotifier 实现细粒度监听，仅在工具切换时重建
-  Widget _buildToolSettingsPanel() {
-    return ValueListenableBuilder<EditorTool?>(
-      valueListenable: _state.toolChangeNotifier,
-      builder: (context, tool, _) {
-        if (tool == null) {
-          return Center(child: Text(context.l10n.image_editor_select_tool));
-        }
-        return SingleChildScrollView(
-          child: tool.buildSettingsPanel(context, _state),
-        );
-      },
-    );
-  }
-
-  /// 移动端工具设置
-  /// 使用 toolChangeNotifier 实现细粒度监听
-  Widget _buildMobileToolSettings({required double maxHeight}) {
-    return ValueListenableBuilder<EditorTool?>(
-      valueListenable: _state.toolChangeNotifier,
-      builder: (context, tool, _) {
-        if (tool == null) return const SizedBox.shrink();
-
-        return Container(
-          constraints: BoxConstraints(maxHeight: maxHeight),
-          child: SingleChildScrollView(
-            child: tool.buildSettingsPanel(context, _state),
-          ),
-        );
-      },
-    );
-  }
-
-  /// 显示移动端图层面板
-  void _showMobileLayerSheet() {
-    unawaited(
-      AdaptivePresenter.showPanel<void>(
-        context: context,
-        title: context.l10n.editor_layers,
-        initialChildSize: 0.62,
-        builder: (sheetContext, scrollController) => PrimaryScrollController(
-          controller: scrollController,
-          child: LayerPanel(
-            state: _state,
-            // 收起弹层露出画布上的变换框
-            onImageImported: () => Navigator.of(sheetContext).maybePop(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 显示快捷键帮助
-  void _showShortcutHelp() => _presentShortcutHelp(
+  Future<void> _confirmExit() => _exitCoordinator.confirmExit(
     context,
-    includeFrameTool: _isInpaintMode,
-    includeCloneStamp: !_isInpaintMode,
+    canExportAndClose: () => _canExportAndClose,
+    isMounted: () => mounted,
+    updateState: setState,
   );
 
-  static void debugShowShortcutHelpForContext(
-    BuildContext context, {
-    bool includeFrameTool = false,
-    bool includeCloneStamp = true,
-  }) {
-    _presentShortcutHelp(
-      context,
-      includeFrameTool: includeFrameTool,
-      includeCloneStamp: includeCloneStamp,
-    );
-  }
-
-  static void _presentShortcutHelp(
-    BuildContext context, {
-    required bool includeFrameTool,
-    required bool includeCloneStamp,
-  }) {
-    unawaited(
-      AdaptivePresenter.showForm<void>(
-        context: context,
-        dialogWidth: 440,
-        titleBuilder: (panelContext) => Row(
-          children: [
-            const Icon(Icons.keyboard),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                panelContext.l10n.editor_shortcutHelpTitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        builder: (panelContext, scrollController) => ListView(
-          key: const ValueKey('image-editor-shortcut-help-scroll'),
-          controller: scrollController,
-          shrinkWrap: true,
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: const EdgeInsets.all(20),
-          children: [
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutPaintTools,
-              [
-                ('B', context.l10n.editor_toolBrush),
-                ('E', context.l10n.editor_toolEraser),
-                ('G', context.l10n.editor_toolFill),
-                ('W', context.l10n.editor_toolMagicWand),
-                ('P', context.l10n.editor_toolColorPicker),
-                ('Alt', context.l10n.editor_shortcutTemporaryColorPicker),
-                if (includeCloneStamp)
-                  ('Alt + Click', context.l10n.editor_shortcutCloneStampSource),
-                ('V', context.l10n.editor_toolMove),
-                if (includeFrameTool) ('C', context.l10n.editor_toolFrame),
-              ],
-            ),
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutSelectionTools,
-              [
-                ('M', context.l10n.editor_shortcutRectSelection),
-                ('U', context.l10n.editor_shortcutEllipseSelection),
-                ('L', context.l10n.editor_shortcutLassoSelection),
-              ],
-            ),
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutCanvasView,
-              [
-                for (final action in EditorViewAction.byShortcut)
-                  (action.shortcutLabel!, action.label(context)),
-                (context.l10n.editor_shortcutWheel, context.l10n.editor_zoom),
-                ('Ctrl+0', context.l10n.editor_shortcut100Zoom),
-                ('Ctrl++', context.l10n.editor_zoomIn),
-                ('Ctrl+-', context.l10n.editor_zoomOut),
-              ],
-            ),
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutBrushAdjust,
-              [
-                ('[', context.l10n.editor_shortcutBrushSmaller),
-                (']', context.l10n.editor_shortcutBrushLarger),
-                ('I', context.l10n.editor_shortcutOpacityLower),
-                ('O', context.l10n.editor_shortcutOpacityHigher),
-                ('Shift + Drag', context.l10n.editor_shortcutDragBrushSize),
-              ],
-            ),
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutColors,
-              [('X', context.l10n.editor_shortcutSwapColors)],
-            ),
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutCanvasActions,
-              [
-                ('Space + Drag', context.l10n.editor_shortcutPanCanvas),
-                ('Middle Drag', context.l10n.editor_shortcutPanCanvas),
-              ],
-            ),
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutHistoryActions,
-              [
-                ('Ctrl+Z', context.l10n.editor_undo),
-                ('Ctrl+Shift+Z', context.l10n.editor_redo),
-                ('Ctrl+Y', context.l10n.editor_redo),
-              ],
-            ),
-            _buildShortcutSection(
-              panelContext,
-              context.l10n.editor_shortcutSelectionActions,
-              [
-                ('Delete', context.l10n.editor_shortcutClearSelectionContent),
-                (
-                  'Backspace',
-                  context.l10n.editor_shortcutClearSelectionContent,
-                ),
-                ('← ↑ → ↓', context.l10n.editor_shortcutNudge),
-                ('Shift + ← ↑ → ↓', context.l10n.editor_shortcutNudgeFar),
-                ('Ctrl+T', context.l10n.editor_shortcutFreeTransform),
-                ('Enter', context.l10n.editor_shortcutApplyTransform),
-                ('Esc', context.l10n.editor_shortcutCancelCurrentAction),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _buildShortcutSection(
-    BuildContext context,
-    String title,
-    List<(String, String)> shortcuts,
-  ) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              // 按键名最多占半行，放大文字时在自身框内换行，不把说明顶出右侧
-              final keyMaxWidth = constraints.maxWidth / 2;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final s in shortcuts)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          Container(
-                            constraints: BoxConstraints(maxWidth: keyMaxWidth),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              s.$1,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(s.$2, style: theme.textTheme.bodySmall),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  Future<void> _exportAndClose() => _exitCoordinator.exportAndClose(
+    context,
+    canExportAndClose: () => _canExportAndClose,
+    isMounted: () => mounted,
+    updateState: setState,
+  );
 }
