@@ -5,81 +5,108 @@ import 'package:flutter/scheduler.dart';
 
 import 'quantized_alpha_schedule.dart';
 
-/// 按 [QuantizedAlphaSchedule] 往复的透明度，只在台阶变化的那一帧唤醒 Ticker。
-///
-/// 持续运行的 Ticker 每个 vsync 都会让整窗重新合成；两次台阶之间改由计时器等待，
-/// 不排帧。仍用 Ticker 取帧时间并接受 TickerMode 静音，后台页面不会被唤醒。
+class QuantizedAlphaClock {
+  QuantizedAlphaClock({required this.schedule})
+    : _alpha = schedule.alphaAt(Duration.zero);
+
+  final QuantizedAlphaSchedule schedule;
+  final _pulses = <QuantizedAlphaPulse>{};
+  Timer? _wakeTimer;
+  Duration? _origin;
+  Duration? _lastSample;
+  double _alpha;
+
+  @visibleForTesting
+  bool get hasPendingWake => _wakeTimer != null;
+
+  void _attach(QuantizedAlphaPulse pulse) {
+    _pulses.add(pulse);
+    pulse._publish(_alpha);
+    if (_wakeTimer == null) pulse._wake();
+  }
+
+  void _detach(QuantizedAlphaPulse pulse) {
+    _pulses.remove(pulse);
+    if (_pulses.isNotEmpty) return;
+    _wakeTimer?.cancel();
+    _wakeTimer = null;
+    _origin = null;
+    _lastSample = null;
+    _alpha = schedule.alphaAt(Duration.zero);
+  }
+
+  void _sample(QuantizedAlphaPulse pulse) {
+    final now = SchedulerBinding.instance.currentFrameTimeStamp;
+    if (_lastSample == now) {
+      pulse._publish(_alpha);
+      return;
+    }
+    _lastSample = now;
+    final elapsed = now - (_origin ??= now);
+    _alpha = schedule.alphaAt(elapsed);
+    for (final subscriber in _pulses) {
+      if (!subscriber._isMuted) subscriber._publish(_alpha);
+    }
+
+    // 只由帧回调续期，全部静音后最后一次唤醒不会留下新计时器。
+    _wakeTimer?.cancel();
+    final next = schedule.nextChangeAfter(elapsed);
+    _wakeTimer = next == null ? null : Timer(next - elapsed, _wake);
+  }
+
+  void _wake() {
+    _wakeTimer = null;
+    for (final pulse in _pulses) {
+      pulse._wake();
+    }
+  }
+}
+
+/// 由共享时钟发布透明度，保留卡片自己的 Ticker 以接受 TickerMode 静音。
 class QuantizedAlphaPulse extends ChangeNotifier
     implements ValueListenable<double> {
-  QuantizedAlphaPulse({required TickerProvider vsync, required this.schedule})
-    : _value = schedule.initialAlpha {
+  QuantizedAlphaPulse({required TickerProvider vsync, required this.clock})
+    : _value = clock.schedule.initialAlpha {
     _ticker = vsync.createTicker(_handleTick);
   }
 
-  final QuantizedAlphaSchedule schedule;
+  final QuantizedAlphaClock clock;
   late final Ticker _ticker;
-  Timer? _wakeTimer;
-  Duration _elapsed = Duration.zero;
-  Duration? _origin;
-  bool _isRunning = false;
   double _value;
 
   @override
   double get value => _value;
 
-  bool get isRunning => _isRunning;
+  bool get _isMuted => _ticker.muted;
 
-  @visibleForTesting
-  bool get hasPendingWake => _wakeTimer != null;
-
-  /// 从当前进度继续往复，停止期间的时长不计入。
   void repeat() {
-    if (_isRunning) return;
-    _isRunning = true;
-    _origin = null;
-    _ticker.start();
-    _setValue(schedule.alphaAt(_elapsed));
+    clock._attach(this);
   }
 
-  void stop() {
-    if (!_isRunning) return;
-    _isRunning = false;
-    _wakeTimer?.cancel();
-    _wakeTimer = null;
-    _ticker.stop();
-  }
-
-  /// 停止并回到起始进度。
   void reset() {
-    stop();
-    _elapsed = Duration.zero;
-    _setValue(schedule.initialAlpha);
+    clock._detach(this);
+    _ticker.stop();
+    _publish(clock.schedule.initialAlpha);
   }
 
   void _handleTick(Duration _) {
     _ticker.stop();
-    final now = SchedulerBinding.instance.currentFrameTimeStamp;
-    final origin = _origin ??= now - _elapsed;
-    _elapsed = now - origin;
-    _setValue(schedule.alphaAt(_elapsed));
-    final next = schedule.nextChangeAfter(_elapsed);
-    if (next != null) _wakeTimer = Timer(next - _elapsed, _wake);
+    clock._sample(this);
   }
 
   void _wake() {
-    _wakeTimer = null;
-    if (_isRunning) _ticker.start();
+    if (!_ticker.isActive) _ticker.start();
   }
 
-  void _setValue(double value) {
+  void _publish(double value) {
     if (value == _value) return;
     _value = value;
-    notifyListeners();
+    if (!_isMuted) notifyListeners();
   }
 
   @override
   void dispose() {
-    _wakeTimer?.cancel();
+    clock._detach(this);
     _ticker.dispose();
     super.dispose();
   }
