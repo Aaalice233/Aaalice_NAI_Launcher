@@ -12,6 +12,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../../../core/enums/precise_ref_type.dart';
 import '../../../../../core/extensions/precise_ref_type_extensions.dart';
+import '../../../../core/platform/image_file_picker.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../../data/services/precise_ref_library_storage_service.dart';
@@ -466,10 +467,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     if (selectedType == null) return; // 用户取消了类型选择
 
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: true,
-      );
+      final result = await pickImageFiles(allowMultiple: true);
 
       if (result != null && result.files.isNotEmpty) {
         final notifier = ref.read(generationParamsNotifierProvider.notifier);

@@ -2,10 +2,12 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 
+import '../../../../core/platform/image_file_picker.dart';
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/image_file_signature.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../common/app_toast.dart';
 import '../core/editor_image_decoder.dart';
@@ -19,23 +21,11 @@ const _supportedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'];
 /// 从文件选择器取一张图片；取消、格式不支持或读取失败时提示原因并返回 null
 Future<EditorImageFile?> pickEditorImageFile(BuildContext context) async {
   final l10n = context.l10n;
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.image,
-    allowMultiple: false,
-  );
+  final result = await pickImageFiles();
   if (result == null || result.files.isEmpty || !context.mounted) return null;
 
   final file = result.files.first;
   final path = file.path;
-  if (path != null) {
-    final extension = path.split('.').last.toLowerCase();
-    if (!_supportedExtensions.contains(extension)) {
-      AppLogger.w('Invalid file extension: $extension', 'ImageEditor');
-      AppToast.error(context, l10n.editor_unsupportedImageFormat(extension));
-      return null;
-    }
-  }
-
   var bytes = file.bytes;
   if (bytes == null && path != null) {
     try {
@@ -52,6 +42,16 @@ Future<EditorImageFile?> pickEditorImageFile(BuildContext context) async {
   if (bytes == null) {
     AppLogger.w('File bytes is null', 'ImageEditor');
     AppToast.error(context, l10n.editor_noFileData);
+    return null;
+  }
+  final extension = p
+      .extension(path ?? file.name)
+      .replaceFirst('.', '')
+      .toLowerCase();
+  if (!_supportedExtensions.contains(extension) &&
+      detectImageExtensionFromHeader(bytes) == null) {
+    AppLogger.w('Unsupported image format', 'ImageEditor');
+    AppToast.error(context, l10n.editor_unsupportedImageFormat(extension));
     return null;
   }
   if (!checkEditorImageBytes(context, bytes)) return null;

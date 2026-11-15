@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/platform/image_file_picker.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../services/provider_adapters/prompt_assistant_adapter.dart';
@@ -86,11 +87,7 @@ class _PromptAssistantCustomDialogState
       return;
     }
 
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
-      withData: true,
-    );
+    final result = await pickImageFiles(allowMultiple: true, withData: true);
     if (result == null) return;
 
     final next = <PromptAssistantImageInput>[];
