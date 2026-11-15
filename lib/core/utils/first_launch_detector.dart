@@ -113,7 +113,9 @@ class FirstLaunchState {
 }
 
 /// 首次启动状态 Notifier
-@riverpod
+///
+/// 首次启动状态由应用持有。
+@Riverpod(keepAlive: true)
 class FirstLaunchNotifier extends _$FirstLaunchNotifier {
   @override
   FirstLaunchState build() {

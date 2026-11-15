@@ -246,7 +246,13 @@ class _AutomaticUpdateCheckState extends ConsumerState<AutomaticUpdateCheck>
         onStartup: !_startupCheckCompleted,
       );
       ref.invalidate(provider);
-      await ref.read(provider.future);
+      // 本次检测持有订阅直到 Future 完成。
+      final subscription = ref.listenManual(provider.future, (_, _) {});
+      try {
+        await subscription.read();
+      } finally {
+        subscription.close();
+      }
       _startupCheckCompleted = true;
     } catch (error, stackTrace) {
       AppLogger.w('Auto update check failed: $error', 'AppBootstrap');

@@ -187,6 +187,24 @@ class ComfyUITask extends _$ComfyUITask {
     Map<String, Uint8List> inputImages = const {},
     Map<String, dynamic> paramValues = const {},
   }) async {
+    // 发起界面可在执行中关闭；任务期间自行保活，结束后再交回 autoDispose 回收
+    final keepAliveLink = ref.keepAlive();
+    try {
+      return await _runWorkflow(
+        templateId: templateId,
+        inputImages: inputImages,
+        paramValues: paramValues,
+      );
+    } finally {
+      keepAliveLink.close();
+    }
+  }
+
+  Future<List<Uint8List>?> _runWorkflow({
+    required String templateId,
+    required Map<String, Uint8List> inputImages,
+    required Map<String, dynamic> paramValues,
+  }) async {
     final connNotifier = ref.read(comfyUIConnectionProvider.notifier);
     final connStatus = ref.read(comfyUIConnectionProvider);
     final workflows = ref.read(comfyUIWorkflowsProvider.notifier);
