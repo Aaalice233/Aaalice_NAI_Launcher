@@ -163,7 +163,6 @@ class HistoryPanelList extends StatelessWidget {
                                 state.completionPreviews[currentImage.id],
                           )
                         : HistoryStreamPreviewCard(
-                            state: state,
                             generationIndex: index - state.currentImages.length,
                             imageWidth: state.batchWidth ?? previewWidth,
                             imageHeight: state.batchHeight ?? previewHeight,
