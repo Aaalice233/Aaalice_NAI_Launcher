@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +10,7 @@ import '../../../widgets/common/image_viewport_surface.dart';
 import '../../../widgets/common/surface_ink_well.dart';
 import '../../../../core/comfyui/comfyui_models.dart';
 import '../../../../core/comfyui/workflow_template.dart';
+import '../../../../core/platform/image_file_picker.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../providers/comfyui/comfyui_provider.dart';
@@ -338,10 +338,7 @@ class _ComfyUIWorkflowDialogState extends ConsumerState<ComfyUIWorkflowDialog> {
 
   Future<void> _pickImageForSlot(String slotId) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
+      final result = await pickImageFiles();
       if (result == null || result.files.isEmpty) return;
 
       final file = result.files.first;

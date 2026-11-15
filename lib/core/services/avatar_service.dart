@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import '../../data/models/auth/saved_account.dart';
+import '../platform/image_file_picker.dart';
 import '../utils/app_logger.dart';
 import 'avatar_image_cache.dart';
 
@@ -65,10 +65,7 @@ class AvatarService {
   /// 返回 AvatarResult 包含路径或错误信息
   Future<AvatarResult> pickAndSaveAvatar(SavedAccount account) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
+      final result = await pickImageFiles();
 
       // 用户取消选择
       if (result == null || result.files.isEmpty) {

@@ -29,11 +29,12 @@ Future<void> settleLayerThumbnails(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// 以普通编辑模式泵入工作区，按需切到 [toolId] 并等待布局稳定
+/// 泵入工作区，按需切到 [toolId] 并等待布局稳定
 Future<(GlobalKey<ImageEditorWorkspaceState>, ImageEditorController)>
 pumpEditorWorkspace(
   WidgetTester tester, {
   required Size viewSize,
+  ImageEditorMode mode = ImageEditorMode.edit,
   double textScale = 1,
   String locale = 'en',
   String? toolId,
@@ -49,6 +50,7 @@ pumpEditorWorkspace(
 
   final config = ImageEditorSessionConfig(
     initialSize: const Size(512, 512),
+    mode: mode,
     debugOptions: const ImageEditorDebugOptions(disableDropRegion: true),
   );
   final session = ImageEditorController(config: config);

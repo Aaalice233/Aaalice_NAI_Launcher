@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
+import '../../../core/platform/image_file_picker.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../core/utils/token_count_format.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
@@ -182,11 +183,7 @@ class AgentChatPanelCoordinator {
   }
 
   Future<void> _pickImages(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
-      withData: true,
-    );
+    final result = await pickImageFiles(allowMultiple: true, withData: true);
     if (result == null || !_isMounted()) return;
     final files = <DroppedFileData>[];
     for (final file in result.files) {

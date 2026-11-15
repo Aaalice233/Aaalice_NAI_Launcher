@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/image_file_picker.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../providers/precise_ref_library_provider.dart';
@@ -34,10 +34,7 @@ final class Img2ImgPanelCoordinator {
 
   Future<void> pickSource(BuildContext context) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
+      final result = await pickImageFiles();
       if (result == null || result.files.isEmpty) return;
       final file = result.files.first;
       final bytes =

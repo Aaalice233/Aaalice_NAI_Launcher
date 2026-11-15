@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
+import '../../../../core/platform/image_file_picker.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/utils/vibe_export_utils.dart';
@@ -260,11 +260,7 @@ class VibeExportHandler {
 
   /// 选择目标图片
   Future<String?> _selectTargetImage() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-      withData: false,
-    );
+    final result = await pickImageFiles();
 
     return result?.files.firstOrNull?.path;
   }
