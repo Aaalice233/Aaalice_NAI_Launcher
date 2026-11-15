@@ -64,12 +64,11 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
 
   @override
   TagGroupSyncState build() {
-    Future<void>.microtask(_init);
+    _init();
     return const TagGroupSyncState();
   }
 
   Future<void> _init() async {
-    if (!ref.mounted) return;
     try {
       await _cacheService.init();
       if (!ref.mounted) return;

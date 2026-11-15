@@ -70,7 +70,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
 
   @override
   TagLibraryState build() {
-    Future<void>.microtask(_loadInitial);
+    unawaited(_loadInitial());
     return const TagLibraryState(isLoading: true);
   }
 
@@ -82,12 +82,6 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
 
   /// 初始加载
   Future<void> _loadInitial() async {
-    if (!ref.mounted) {
-      if (!_initialLoadCompleter.isCompleted) {
-        _initialLoadCompleter.complete();
-      }
-      return;
-    }
     final revision = ++_loadRevision;
     try {
       await _libraryService.init();

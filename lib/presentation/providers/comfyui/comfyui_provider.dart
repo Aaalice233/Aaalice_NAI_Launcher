@@ -128,12 +128,11 @@ class ComfyUIWorkflows extends _$ComfyUIWorkflows {
 
   @override
   List<WorkflowTemplate> build() {
-    Future<void>.microtask(_initAsync);
+    _initAsync();
     return _manager.templates;
   }
 
   Future<void> _initAsync() async {
-    if (!ref.mounted) return;
     await _manager.loadAllTemplates();
     if (!ref.mounted) return;
     state = _manager.templates;

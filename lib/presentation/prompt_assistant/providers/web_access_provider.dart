@@ -60,12 +60,11 @@ class WebAccessConfigNotifier extends Notifier<WebAccessConfigState> {
         config = const WebAccessConfig();
       }
     }
-    Future<void>.microtask(_loadApiKey);
+    unawaited(_loadApiKey());
     return WebAccessConfigState(config: config);
   }
 
   Future<void> _loadApiKey() async {
-    if (!ref.mounted) return;
     final keyMutation = _apiKeyMutation;
     final apiKey = await _secure.getAgentWebAccessExaApiKey();
     if (!ref.mounted) return;

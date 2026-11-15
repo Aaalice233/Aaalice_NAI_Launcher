@@ -169,9 +169,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       _sessionControllerValue?.agent?.clearAllQueues();
     });
     if (_initializeImmediately) {
-      _initializing ??= Future<void>.microtask(
-        () => _init(presetSkills: _presetSkills),
-      );
+      unawaited(ensureInitialized());
     }
     return const AgentChatState();
   }
@@ -180,7 +178,6 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       _initializing ??= _init(presetSkills: _presetSkills);
 
   Future<void> _init({List<HarnessSkill>? presetSkills}) async {
-    if (!ref.mounted) return;
     final providedSupportDir = _providedSupportDir;
     if (providedSupportDir != null) {
       _supportDir = providedSupportDir;

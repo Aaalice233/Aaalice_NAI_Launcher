@@ -80,7 +80,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     _initCompleter ??= Completer<void>();
     if (!_initStarted) {
       _initStarted = true;
-      Future<void>.microtask(_init);
+      _init();
     }
     return const RandomPresetState(isLoading: true);
   }
@@ -88,12 +88,6 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   Future<void> get whenLoaded => _initCompleter?.future ?? Future.value();
 
   Future<void> _init() async {
-    if (!ref.mounted) {
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.complete();
-      }
-      return;
-    }
     try {
       await _storage.open();
       if (!ref.mounted) return;

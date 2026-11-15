@@ -59,14 +59,13 @@ class GelbooruAuth extends _$GelbooruAuth {
 
   @override
   GelbooruAuthState build() {
-    _initialization = Future<void>.microtask(_loadSavedCredentials);
+    _initialization = _loadSavedCredentials();
     return const GelbooruAuthState();
   }
 
   Future<void> ensureInitialized() => _initialization;
 
   Future<void> _loadSavedCredentials() async {
-    if (!ref.mounted) return;
     final storage = ref.read(secureStorageServiceProvider);
     final encoded = await storage.getGelbooruCredentials();
     if (!ref.mounted) return;

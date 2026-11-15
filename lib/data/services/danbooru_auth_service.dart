@@ -135,7 +135,7 @@ class DanbooruAuth extends _$DanbooruAuth {
 
   @override
   DanbooruAuthState build() {
-    _initialization = Future<void>.microtask(_loadSavedCredentials);
+    _initialization = _loadSavedCredentials();
     return const DanbooruAuthState();
   }
 
@@ -143,7 +143,6 @@ class DanbooruAuth extends _$DanbooruAuth {
 
   /// 加载保存的凭据
   Future<void> _loadSavedCredentials() async {
-    if (!ref.mounted) return;
     try {
       final storage = ref.read(secureStorageServiceProvider);
       final prefs = await SharedPreferences.getInstance();

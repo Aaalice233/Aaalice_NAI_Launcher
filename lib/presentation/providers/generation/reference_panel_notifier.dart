@@ -27,15 +27,14 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   @override
   ReferencePanelState build() {
     // 初始化时加载状态
-    Future<void>.microtask(_loadRecentCollapsedState);
-    Future<void>.microtask(_loadRecentEntries);
+    _loadRecentCollapsedState();
+    _loadRecentEntries();
 
     return const ReferencePanelState();
   }
 
   /// 加载最近使用区域的折叠状态
   Future<void> _loadRecentCollapsedState() async {
-    if (!ref.mounted) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       if (!ref.mounted) return;
@@ -90,7 +89,6 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   }
 
   Future<void> _loadRecentEntries() async {
-    if (!ref.mounted) return;
     final span = VibePerformanceDiagnostics.start(
       'referencePanel.loadRecentEntries',
     );

@@ -268,7 +268,7 @@ class AuthNotifier extends _$AuthNotifier {
 
   @override
   AuthState build() {
-    _initialization = Future<void>.microtask(_checkExistingAuth);
+    _initialization = _checkExistingAuth();
     return const AuthState(status: AuthStatus.loading);
   }
 
@@ -276,7 +276,6 @@ class AuthNotifier extends _$AuthNotifier {
 
   /// 检查已存储的认证状态
   Future<void> _checkExistingAuth() async {
-    if (!ref.mounted) return;
     try {
       await _restoreStoredSession();
     } on SecureStorageUnavailableException catch (error) {
