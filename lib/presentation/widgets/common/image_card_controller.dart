@@ -34,11 +34,13 @@ class ImageCardController extends ChangeNotifier {
   static const dragPreparationProgressValue = 0.96;
   static const dragPreparationOverlayFadeDuration = Duration(milliseconds: 140);
 
-  static final _glowSchedule = QuantizedAlphaSchedule(
-    begin: 0.04,
-    end: 0.1,
-    halfPeriod: const Duration(milliseconds: 2000),
-    initialProgress: 1 / 3,
+  static final _glowClock = QuantizedAlphaClock(
+    schedule: QuantizedAlphaSchedule(
+      begin: 0.04,
+      end: 0.1,
+      halfPeriod: const Duration(milliseconds: 2000),
+      initialProgress: 1 / 3,
+    ),
   );
 
   ImageCardViewData _data;
@@ -155,7 +157,7 @@ class ImageCardController extends ChangeNotifier {
     glowAlpha?.dispose();
     final glow = glowAlpha = QuantizedAlphaPulse(
       vsync: vsync,
-      schedule: _glowSchedule,
+      clock: _glowClock,
     );
     if (_motionPreferenceInitialized && !_reducedMotion) glow.repeat();
   }
