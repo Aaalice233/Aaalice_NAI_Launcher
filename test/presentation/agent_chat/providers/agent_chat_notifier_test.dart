@@ -1858,7 +1858,9 @@ User instructions.
 
       await notifier.newSession();
       await notifier.switchSession(sessionId);
-      final checkpoint = await notifier.beginEditedMessageRewind();
+      final checkpoint = await notifier.beginEditedMessageRewind(
+        notifier.lastVisibleUserEntry!.id,
+      );
       expect(checkpoint, isNotNull);
       final rewind = checkpoint!;
       expect(rewind.resources, isEmpty);

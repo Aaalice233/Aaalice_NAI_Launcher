@@ -1,19 +1,25 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
+import 'package:nai_launcher/core/agent/harness/session/session_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/agent_chat/models/agent_chat_prompt_envelope.dart';
 import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_chat_session_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel.dart';
+import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
+import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +28,6 @@ void main() {
     tester,
   ) async {
     final fixture = await _pumpPanel(tester);
-    addTearDown(fixture.dispose);
     fixture.notifier.showMessages([
       UserMessage.text('older'),
       AssistantMessage(
@@ -54,7 +59,6 @@ void main() {
     tester,
   ) async {
     final fixture = await _pumpPanel(tester);
-    addTearDown(fixture.dispose);
     fixture.notifier.showMessages([_resourceMessage]);
     await tester.pump();
 
@@ -79,11 +83,34 @@ void main() {
     );
   });
 
+  testWidgets('a stale edit action cannot bind to a replacement entry', (
+    tester,
+  ) async {
+    final fixture = await _pumpPanel(tester);
+    fixture.notifier.showMessages([UserMessage.text('original request')]);
+    await tester.pump();
+    final edit = _editButton(tester).onPressed!;
+
+    fixture.notifier.showMessages([UserMessage.text('replacement request')]);
+    edit();
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('agent-chat-message-edit-header')),
+      findsNothing,
+    );
+    await _pressEdit(tester);
+    final input = find.byKey(const ValueKey('agent-chat-input'));
+    expect(
+      tester.widget<TextField>(input).controller!.text,
+      'replacement request',
+    );
+  });
+
   testWidgets(
     'rejected edited send prepares before rewind and restores lane and draft',
     (tester) async {
       final fixture = await _pumpPanel(tester);
-      addTearDown(fixture.dispose);
       fixture.notifier
         ..showMessages([_resourceMessage])
         ..acceptSend = false;
@@ -120,7 +147,6 @@ void main() {
     tester,
   ) async {
     final fixture = await _pumpPanel(tester);
-    addTearDown(fixture.dispose);
     fixture.notifier
       ..showMessages([_resourceMessage])
       ..acceptSend = true;
@@ -151,10 +177,68 @@ void main() {
   });
 
   testWidgets(
+    'sending after a muted session switch appends to the newest turn',
+    (tester) async {
+      final fixture = await _pumpPanel(tester);
+      final notifier = fixture.notifier..acceptSend = true;
+      final original = UserMessage.text('original request');
+      final originalReply = AssistantMessage(
+        content: const [AssistantTextContent('original response')],
+        stopReason: StopReason.stop,
+      );
+      final newer = UserMessage.text('request from floating panel');
+      final newerReply = AssistantMessage(
+        content: const [AssistantTextContent('response from floating panel')],
+        stopReason: StopReason.stop,
+      );
+      notifier.showMessages([original, originalReply], sessionId: 'a');
+      await tester.pump();
+      await _pressEdit(tester);
+      final editHeader = find.byKey(
+        const ValueKey('agent-chat-message-edit-header'),
+      );
+      expect(editHeader, findsOneWidget);
+
+      fixture.tickerEnabled.value = false;
+      await tester.pump();
+      notifier.showMessages([
+        UserMessage.text('other session'),
+      ], sessionId: 'b');
+      await tester.pump();
+      notifier.showMessages([original, originalReply], sessionId: 'a');
+      await tester.pump();
+      notifier.showMessages([original, originalReply, newer, newerReply]);
+      await tester.pump();
+      fixture.tickerEnabled.value = true;
+      await tester.pump();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('agent-chat-input')),
+        'next request',
+      );
+      await tester.tap(find.byKey(const ValueKey('agent-chat-send')));
+      await tester.pump();
+
+      expect(notifier.calls, ['send']);
+      expect(notifier.state.messages, [
+        original,
+        originalReply,
+        newer,
+        newerReply,
+        isA<UserMessage>().having(
+          (message) => message.text,
+          'text',
+          'next request',
+        ),
+      ]);
+      expect(editHeader, findsNothing);
+    },
+  );
+
+  testWidgets(
     'an attachment whose reference was deleted from the text is still sent',
     (tester) async {
       final fixture = await _pumpPanel(tester);
-      addTearDown(fixture.dispose);
       fixture.notifier
         ..showMessages([_resourceMessage])
         ..acceptSend = true;
@@ -184,89 +268,86 @@ void main() {
   );
 }
 
-Future<void> _pressEdit(WidgetTester tester) async {
+IconButton _editButton(WidgetTester tester) {
   final action = find.byKey(const ValueKey('agent-user-message-edit-0'));
-  final button = tester.widget<IconButton>(
+  return tester.widget<IconButton>(
     find.descendant(of: action, matching: find.byType(IconButton)),
   );
-  button.onPressed!();
+}
+
+Future<void> _pressEdit(WidgetTester tester) async {
+  _editButton(tester).onPressed!();
   await tester.pump();
 }
 
-Future<_Fixture> _pumpPanel(WidgetTester tester) async {
-  final directory = Directory.systemTemp.createTempSync(
-    'agent_chat_edit_widget_',
-  );
-  late _EditNotifier notifier;
-  final container = ProviderContainer(
-    overrides: [
-      localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
-      agentChatNotifierProvider.overrideWith(() {
-        notifier = _EditNotifier(
-          supportDir: directory,
-          workspaceDir: directory,
-        );
-        return notifier;
-      }),
-    ],
-  );
-  await tester.runAsync(() async {
-    container.read(agentChatNotifierProvider);
-    for (var attempt = 0; attempt < 200; attempt++) {
-      if (container.read(agentChatNotifierProvider).initialized) return;
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    fail('AgentChatNotifier did not initialize');
-  });
-  notifier.makeReady();
+Future<({_EditNotifier notifier, ValueNotifier<bool> tickerEnabled})>
+_pumpPanel(WidgetTester tester) async {
+  final notifier = _EditNotifier();
+  final tickerEnabled = ValueNotifier(true);
+  addTearDown(tickerEnabled.dispose);
   await tester.pumpWidget(
-    UncontrolledProviderScope(
-      container: container,
-      child: const MaterialApp(
-        locale: Locale('en'),
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+        agentChatNotifierProvider.overrideWith(() => notifier),
+        agentSettingsProvider.overrideWith(_AgentSettings.new),
+        promptAssistantConfigProvider.overrideWith(_AssistantConfig.new),
+        webAccessConfigProvider.overrideWith(_WebAccessConfig.new),
+        imageGenerationNotifierProvider.overrideWith(_IdleGeneration.new),
+      ],
+      child: MaterialApp(
+        locale: const Locale('en'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: SizedBox(width: 420, height: 720, child: AgentChatPanel()),
+          body: ValueListenableBuilder<bool>(
+            valueListenable: tickerEnabled,
+            builder: (context, enabled, panel) =>
+                TickerMode(enabled: enabled, child: panel!),
+            child: const SizedBox(
+              width: 420,
+              height: 720,
+              child: AgentChatPanel(),
+            ),
+          ),
         ),
       ),
     ),
   );
   await tester.pump();
-  return _Fixture(container, directory, notifier);
-}
-
-class _Fixture {
-  const _Fixture(this.container, this.directory, this.notifier);
-
-  final ProviderContainer container;
-  final Directory directory;
-  final _EditNotifier notifier;
-
-  void dispose() {
-    container.dispose();
-    if (directory.existsSync()) directory.deleteSync(recursive: true);
-  }
+  return (notifier: notifier, tickerEnabled: tickerEnabled);
 }
 
 class _EditNotifier extends AgentChatNotifier {
-  _EditNotifier({required super.supportDir, required super.workspaceDir})
-    : super(presetSkills: const []);
-
   bool acceptSend = false;
   final List<String> calls = [];
+  final _entryIds = Map<Message, String>.identity();
   List<UserContent> sentContent = const [];
   int restoreCount = 0;
   int clearComposerCount = 0;
 
-  void makeReady() {
-    state = state.copyWith(initialized: true, routeReady: true);
+  @override
+  AgentChatState build() =>
+      const AgentChatState(initialized: true, routeReady: true);
+
+  @override
+  Future<void> ensureInitialized() async {}
+
+  @override
+  MessageEntry? get lastVisibleUserEntry {
+    final message = state.messages.reversed
+        .where(isVisualUserMessage)
+        .firstOrNull;
+    if (message == null) return null;
+    return MessageEntry(
+      id: _entryIds.putIfAbsent(message, () => 'entry-${_entryIds.length}'),
+      message: message,
+    );
   }
 
-  void showMessages(List<Message> messages) {
+  void showMessages(List<Message> messages, {String? sessionId}) {
     state = state.copyWith(
-      initialized: true,
-      routeReady: true,
+      activeSessionId: sessionId,
       messages: messages,
       status: AgentChatRunStatus.idle,
       pendingResources: const [],
@@ -306,13 +387,17 @@ class _EditNotifier extends AgentChatNotifier {
   }
 
   @override
-  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() async {
+  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind(
+    String entryId,
+  ) async {
     calls.add('rewind');
-    state = state.copyWith(messages: const []);
+    final index = state.messages.lastIndexWhere(isVisualUserMessage);
+    final message = visibleUserMessage(state.messages[index])!;
+    state = state.copyWith(messages: state.messages.take(index).toList());
     return AgentChatRewindCheckpoint(
       sessionId: state.activeSessionId,
       originalLeafId: 'old-leaf',
-      message: UserMessage.text('old text'),
+      message: message,
       resources: const [],
     );
   }
@@ -338,7 +423,13 @@ class _EditNotifier extends AgentChatNotifier {
     calls.add('send');
     sentContent = List.of(content);
     if (!acceptSend) return false;
-    state = state.copyWith(pendingResources: const []);
+    state = state.copyWith(
+      messages: [
+        ...state.messages,
+        UserMessage(content: content),
+      ],
+      pendingResources: const [],
+    );
     await onAccepted?.call();
     return true;
   }
@@ -348,6 +439,26 @@ class _EditNotifier extends AgentChatNotifier {
     clearComposerCount++;
     state = state.copyWith(composerText: '');
   }
+}
+
+class _AgentSettings extends AgentSettingsNotifier {
+  @override
+  AgentSettingsState build() => const AgentSettingsState(initialized: true);
+}
+
+class _AssistantConfig extends PromptAssistantConfigNotifier {
+  @override
+  PromptAssistantConfigState build() => PromptAssistantConfigState.defaults();
+}
+
+class _WebAccessConfig extends WebAccessConfigNotifier {
+  @override
+  WebAccessConfigState build() => const WebAccessConfigState(initialized: true);
+}
+
+class _IdleGeneration extends ImageGenerationNotifier {
+  @override
+  ImageGenerationState build() => const ImageGenerationState();
 }
 
 class _MemoryStorage extends LocalStorageService {

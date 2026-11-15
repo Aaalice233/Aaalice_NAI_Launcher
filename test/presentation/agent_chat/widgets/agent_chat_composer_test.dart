@@ -1212,7 +1212,11 @@ void main() {
     final controller = AgentChatPanelController();
     addTearDown(controller.dispose);
     controller.inputController.text = 'unfinished draft';
-    controller.beginEditingUserMessage(2, 'correct this request', const []);
+    controller.beginEditingUserMessage(
+      'entry-2',
+      'correct this request',
+      const [],
+    );
 
     await _pumpComposer(tester, width: 420, controller: controller);
 

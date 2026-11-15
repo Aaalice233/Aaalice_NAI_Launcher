@@ -130,15 +130,18 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                         children: [
                           Offstage(
                             offstage: true,
-                            child: SizedBox(
-                              width: constraints.maxWidth,
-                              height:
-                                  160 * textScale.clamp(1.0, 3.0).toDouble(),
-                              child: PromptInputWidget(
-                                key: widget.promptInputKey,
-                                controller: widget.promptInputController,
-                                compact: true,
-                                active: false,
+                            child: TickerMode(
+                              enabled: false,
+                              child: SizedBox(
+                                width: constraints.maxWidth,
+                                height:
+                                    160 * textScale.clamp(1.0, 3.0).toDouble(),
+                                child: PromptInputWidget(
+                                  key: widget.promptInputKey,
+                                  controller: widget.promptInputController,
+                                  compact: true,
+                                  active: false,
+                                ),
                               ),
                             ),
                           ),

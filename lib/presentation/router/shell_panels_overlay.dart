@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/windowing/workspace_side_panel_contract.dart';
 import '../agent_chat/widgets/agent_chat_panel.dart';
+import '../providers/queue_execution_provider.dart';
 import '../themes/theme_extension.dart';
+import '../widgets/common/ticker_mode_indexed_stack.dart';
 import '../widgets/queue/queue_management_page.dart';
 
 /// Shell 级持久面板。单一状态所有者保证智能体与队列不会重叠。
@@ -35,7 +37,7 @@ class ShellPanelNotifier extends Notifier<ShellPanel?> {
 }
 
 /// Shell 级持久面板槽位。切换面板时只替换内容，不叠加两个抽屉。
-class ShellPanelsOverlay extends StatefulWidget {
+class ShellPanelsOverlay extends ConsumerStatefulWidget {
   const ShellPanelsOverlay({
     super.key,
     required this.activePanel,
@@ -55,15 +57,31 @@ class ShellPanelsOverlay extends StatefulWidget {
   final VoidCallback? onPopOutAgent;
 
   @override
-  State<ShellPanelsOverlay> createState() => _ShellPanelsOverlayState();
+  ConsumerState<ShellPanelsOverlay> createState() => _ShellPanelsOverlayState();
 }
 
-class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
+class _ShellPanelsOverlayState extends ConsumerState<ShellPanelsOverlay> {
   final _panelFocusScopeNode = FocusScopeNode(
     debugLabel: 'shell-panel-focus-scope',
   );
   late ShellPanel _displayedPanel = widget.activePanel ?? ShellPanel.queue;
   late bool _hasOpenedAgent = widget.activePanel == ShellPanel.agent;
+  late bool _hasOpenedQueue = widget.activePanel == ShellPanel.queue;
+  late bool _isOffstage = widget.activePanel == null;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(queueExecutionNotifierProvider);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context) && widget.activePanel == null) {
+      _isOffstage = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -80,8 +98,10 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
       FocusManager.instance.primaryFocus?.unfocus();
     }
     if (activePanel != null) {
+      _isOffstage = false;
       _displayedPanel = activePanel;
       if (activePanel == ShellPanel.agent) _hasOpenedAgent = true;
+      if (activePanel == ShellPanel.queue) _hasOpenedQueue = true;
       if (oldWidget.activePanel != activePanel) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && widget.activePanel != null) {
@@ -89,6 +109,8 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
           }
         });
       }
+    } else if (MediaQuery.disableAnimationsOf(context)) {
+      _isOffstage = true;
     }
   }
 
@@ -121,78 +143,101 @@ class _ShellPanelsOverlayState extends State<ShellPanelsOverlay> {
               opacity: isVisible ? 1 : 0,
               duration: duration,
               curve: motionCurve,
+              // 零时长会同步触发 onEnd，减少动态效果时直接进入 Offstage。
+              onEnd: reduceMotion
+                  ? null
+                  : () {
+                      if (widget.activePanel == null) {
+                        setState(() => _isOffstage = true);
+                      }
+                    },
               child: ExcludeSemantics(
                 excluding: !isVisible,
                 child: IgnorePointer(
                   ignoring: !isVisible,
-                  child: Align(
-                    alignment: widget.desktop
-                        ? Alignment.centerRight
-                        : Alignment.bottomCenter,
-                    child: SizedBox(
-                      key: const ValueKey('shell-panel-surface'),
-                      width: widget.desktop
-                          ? showingAgent
-                                ? WorkspaceSidePanelContract.overlayWidth(
-                                    constraints.maxWidth,
+                  child: Offstage(
+                    offstage: _isOffstage,
+                    child: TickerMode(
+                      enabled: !_isOffstage,
+                      child: Align(
+                        alignment: widget.desktop
+                            ? Alignment.centerRight
+                            : Alignment.bottomCenter,
+                        child: SizedBox(
+                          key: const ValueKey('shell-panel-surface'),
+                          width: widget.desktop
+                              ? showingAgent
+                                    ? WorkspaceSidePanelContract.overlayWidth(
+                                        constraints.maxWidth,
+                                      )
+                                    : 460.0
+                                          .clamp(0, constraints.maxWidth)
+                                          .toDouble()
+                              : constraints.maxWidth,
+                          height: widget.desktop
+                              ? constraints.maxHeight
+                              : constraints.maxHeight *
+                                    (showingAgent ? 0.94 : 0.85),
+                          child: Material(
+                            color: showingAgent
+                                ? theme.colorScheme.surfaceContainerHigh
+                                : theme.scaffoldBackgroundColor,
+                            elevation: 18,
+                            shadowColor: theme.shadowColor.withValues(
+                              alpha: 0.28,
+                            ),
+                            borderRadius: widget.desktop
+                                ? const BorderRadius.horizontal(
+                                    left: Radius.circular(18),
                                   )
-                                : 460.0
-                                      .clamp(0, constraints.maxWidth)
-                                      .toDouble()
-                          : constraints.maxWidth,
-                      height: widget.desktop
-                          ? constraints.maxHeight
-                          : constraints.maxHeight *
-                                (showingAgent ? 0.94 : 0.85),
-                      child: Material(
-                        color: showingAgent
-                            ? theme.colorScheme.surfaceContainerHigh
-                            : theme.scaffoldBackgroundColor,
-                        elevation: 18,
-                        shadowColor: theme.shadowColor.withValues(alpha: 0.28),
-                        borderRadius: widget.desktop
-                            ? const BorderRadius.horizontal(
-                                left: Radius.circular(18),
-                              )
-                            : const BorderRadius.vertical(
-                                top: Radius.circular(22),
-                              ),
-                        clipBehavior: Clip.antiAlias,
-                        child: SafeArea(
-                          top: false,
-                          child: FocusScope(
-                            node: _panelFocusScopeNode,
-                            canRequestFocus: isVisible,
-                            descendantsAreFocusable: isVisible,
-                            child: FocusTraversalGroup(
-                              child: IndexedStack(
-                                index: showingAgent ? 1 : 0,
-                                children: [
-                                  KeyedSubtree(
-                                    key: const ValueKey('queue-shell-panel'),
-                                    child: QueueManagementPage(
-                                      onClose: widget.onClose,
-                                      onQueueStarted: widget.onQueueStarted,
-                                    ),
+                                : const BorderRadius.vertical(
+                                    top: Radius.circular(22),
                                   ),
-                                  KeyedSubtree(
-                                    key: const ValueKey('agent-shell-panel'),
-                                    child: _hasOpenedAgent
-                                        ? AgentChatPanel(
-                                            key: const ValueKey(
-                                              'agent-drawer-chat-panel',
-                                            ),
-                                            fullScreen: !widget.desktop,
-                                            onClose: widget.onClose,
-                                            onOpenSettings:
-                                                widget.onOpenAgentSettings,
-                                            onPopOut: widget.desktop
-                                                ? widget.onPopOutAgent
-                                                : null,
-                                          )
-                                        : const SizedBox.shrink(),
+                            clipBehavior: Clip.antiAlias,
+                            child: SafeArea(
+                              top: false,
+                              child: FocusScope(
+                                node: _panelFocusScopeNode,
+                                canRequestFocus: isVisible,
+                                descendantsAreFocusable: isVisible,
+                                child: FocusTraversalGroup(
+                                  child: TickerModeIndexedStack(
+                                    index: showingAgent ? 1 : 0,
+                                    children: [
+                                      KeyedSubtree(
+                                        key: const ValueKey(
+                                          'queue-shell-panel',
+                                        ),
+                                        child: _hasOpenedQueue
+                                            ? QueueManagementPage(
+                                                onClose: widget.onClose,
+                                                onQueueStarted:
+                                                    widget.onQueueStarted,
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+                                      KeyedSubtree(
+                                        key: const ValueKey(
+                                          'agent-shell-panel',
+                                        ),
+                                        child: _hasOpenedAgent
+                                            ? AgentChatPanel(
+                                                key: const ValueKey(
+                                                  'agent-drawer-chat-panel',
+                                                ),
+                                                fullScreen: !widget.desktop,
+                                                onClose: widget.onClose,
+                                                onOpenSettings:
+                                                    widget.onOpenAgentSettings,
+                                                onPopOut: widget.desktop
+                                                    ? widget.onPopOutAgent
+                                                    : null,
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
                           ),

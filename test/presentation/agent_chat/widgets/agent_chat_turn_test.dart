@@ -132,6 +132,67 @@ void main() {
     },
   );
 
+  testWidgets('work trail pauses elapsed refresh while the ancestor is muted', (
+    tester,
+  ) async {
+    final enabled = ValueNotifier(true);
+    addTearDown(enabled.dispose);
+    final startedAt =
+        DateTime.now().millisecondsSinceEpoch -
+        const Duration(minutes: 5, seconds: 30).inMilliseconds;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: ValueListenableBuilder<bool>(
+            valueListenable: enabled,
+            builder: (context, enabled, child) =>
+                TickerMode(enabled: enabled, child: child!),
+            child: TickerMode(
+              enabled: true,
+              child: AgentChatWorkTrail(
+                turn: AgentChatTurnModel(
+                  ordinal: 0,
+                  timeline: AgentChatTurnTimeline(
+                    id: 'running-turn',
+                    status: AgentChatTurnStatus.running,
+                    items: const [],
+                    firstSeq: 1,
+                    lastSeq: 1,
+                    startedAt: startedAt,
+                  ),
+                ),
+                running: true,
+                activities: const [],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    Text label() => tester.widget<Text>(find.textContaining('Working for'));
+
+    final initial = label();
+    await tester.pump(const Duration(seconds: 1));
+    expect(label(), isNot(same(initial)));
+
+    enabled.value = false;
+    await tester.pump();
+    final muted = label();
+    await tester.pump(const Duration(seconds: 3));
+    expect(label(), same(muted));
+
+    enabled.value = true;
+    await tester.pump();
+    final resumed = label();
+    expect(resumed.data, startsWith('Working for 5m '));
+    await tester.pump(const Duration(seconds: 1));
+    expect(label(), isNot(same(resumed)));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('completed work collapses while final answer remains visible', (
     tester,
   ) async {

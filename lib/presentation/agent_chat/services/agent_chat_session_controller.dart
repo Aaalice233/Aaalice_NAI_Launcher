@@ -101,6 +101,11 @@ class AgentChatSessionController {
   Future<void> _operationMutation = Future.value();
 
   String? get activeTurnId => _activeTurnId;
+  session_types.MessageEntry? get lastVisibleUserEntry => _visibleEntries
+      .reversed
+      .where((entry) => isVisualUserMessage(entry.message))
+      .firstOrNull;
+
   bool get hasSuspendedRun =>
       _activeTurnId == null &&
       _openOperation?.intent.kind == session_types.RunIntentKind.run;
@@ -745,6 +750,7 @@ class AgentChatSessionController {
   }
 
   Future<AgentChatRewindCheckpoint?> beginRewindLastUserMessage({
+    String? expectedEntryId,
     (Model, ChatThinkingSelection?)? keepThinkingSelection,
   }) async {
     AgentChatRewindCheckpoint? pendingCheckpoint;
@@ -772,6 +778,7 @@ class AgentChatSessionController {
           }
         }
         if (target == null) return;
+        if (expectedEntryId != null && target.id != expectedEntryId) return;
         final restoredResources = <AgentChatResourceReference>[];
         final targetMessage = target.message;
         // target selected by isVisualUserMessage, so this always resolves.

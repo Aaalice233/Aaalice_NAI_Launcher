@@ -18,7 +18,7 @@ import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assi
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('edited message checkpoint restores the persisted main lane', () async {
+  test('edited rewind guards and restores the main lane', () async {
     final directory = await Directory.systemTemp.createTemp(
       'agent_chat_notifier_edit_',
     );
@@ -71,7 +71,8 @@ void main() {
     await notifier.switchSession(sessionId);
     expect(await notifier.prepareEditedSend(), isTrue);
 
-    final checkpoint = await notifier.beginEditedMessageRewind();
+    final originalEntryId = notifier.lastVisibleUserEntry!.id;
+    final checkpoint = await notifier.beginEditedMessageRewind(originalEntryId);
     expect(checkpoint, isNotNull);
     expect(checkpoint!.message.text, 'original request');
     expect(container.read(provider).messages, isEmpty);
@@ -84,6 +85,20 @@ void main() {
     ]);
     final reopened = await JsonlSessionRepo(directory).open(metadata);
     expect(await reopened.findEntriesOnBranch(), hasLength(2));
+
+    await reopened.appendMessage(UserMessage.text('newer request'));
+    await reopened.appendMessage(
+      AssistantMessage(
+        content: const [AssistantTextContent('newer response')],
+        stopReason: StopReason.stop,
+      ),
+    );
+    await notifier.newSession();
+    await notifier.switchSession(sessionId);
+
+    expect(await notifier.beginEditedMessageRewind(originalEntryId), isNull);
+    expect(await reopened.findEntriesOnBranch(), hasLength(4));
+    expect(container.read(provider).messages, hasLength(4));
   });
 }
 
