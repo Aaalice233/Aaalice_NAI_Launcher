@@ -418,13 +418,16 @@ VersionInfo? latestVersionInfo(Ref ref) {
 @riverpod
 Future<void> automaticUpdateCheck(Ref ref, {bool onStartup = false}) async {
   final service = await ref.read(updateCheckServiceReadyProvider.future);
+  // 发起方撤销订阅后本次检测随 provider 一起作废，不再继续请求
+  if (!ref.mounted) return;
   final notifier = ref.read(updateStateProvider.notifier);
   await notifier.initialize();
+  if (!ref.mounted) return;
   final updateState = ref.read(updateStateProvider);
   if (updateState.hasDownloadedUpdate || updateState.hasNewVersion) return;
 
   final shouldCheck = onStartup
       ? await service.shouldCheckOnStartup()
       : await notifier.shouldCheck();
-  if (shouldCheck) await notifier.checkForUpdates();
+  if (shouldCheck && ref.mounted) await notifier.checkForUpdates();
 }

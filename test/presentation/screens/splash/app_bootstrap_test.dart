@@ -3,9 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/app_version.dart';
 import 'package:nai_launcher/core/services/data_migration_service.dart';
+import 'package:nai_launcher/core/services/update_check_service.dart';
+import 'package:nai_launcher/core/services/update_installer_service.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/version/version_info.dart';
 import 'package:nai_launcher/presentation/providers/startup_initialization_provider.dart';
 import 'package:nai_launcher/presentation/providers/update_provider.dart';
 import 'package:nai_launcher/presentation/screens/splash/app_bootstrap.dart';
@@ -135,6 +139,59 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
     expect(checks, 1);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('真实自动检测跨过帧间异步间隙后仍完成并写回更新状态', (tester) async {
+    const latest = VersionInfo(
+      version: '2.0.0',
+      currentVersion: '1.0.0',
+      releaseNotes: 'test',
+      isNewer: true,
+    );
+    final serviceReady = Completer<UpdateCheckService>();
+    final checkService = _MockUpdateCheckService();
+    final installer = _MockUpdateInstallerService();
+    when(installer.consumeExecutionResult).thenAnswer((_) async => null);
+    when(installer.restorePendingUpdate).thenAnswer((_) async => null);
+    when(checkService.shouldCheckOnStartup).thenAnswer((_) async => true);
+    when(
+      () => checkService.checkForUpdates(ignoreSkipped: false),
+    ).thenAnswer((_) async => latest);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          updateCheckServiceReadyProvider.overrideWith(
+            (ref) => serviceReady.future,
+          ),
+          updateCheckServiceProvider.overrideWithValue(checkService),
+          updateInstallerServiceProvider.overrideWithValue(installer),
+        ],
+        child: const AutomaticUpdateCheck(
+          delay: Duration(seconds: 1),
+          child: SizedBox(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+    // 服务就绪前先走几帧：无订阅者的 autoDispose provider 会在此期间被回收
+    for (var i = 0; i < 3; i++) {
+      await tester.pump();
+    }
+    serviceReady.complete(checkService);
+    await tester.pump();
+    await tester.pump();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AutomaticUpdateCheck)),
+    );
+    final state = container.read(updateStateProvider);
+    expect(state.status, UpdateStatus.available);
+    expect(state.versionInfo, latest);
+    verify(checkService.shouldCheckOnStartup).called(1);
+    verify(() => checkService.checkForUpdates(ignoreSkipped: false)).called(1);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -372,3 +429,8 @@ class _MemoryStorage extends LocalStorageService {
   @override
   T? getSetting<T>(String key, {T? defaultValue}) => defaultValue;
 }
+
+class _MockUpdateCheckService extends Mock implements UpdateCheckService {}
+
+class _MockUpdateInstallerService extends Mock
+    implements UpdateInstallerService {}
