@@ -88,7 +88,9 @@ void main() {
         localStorageServiceProvider.overrideWith((ref) => storage),
         secureStorageServiceProvider.overrideWithValue(_Secure()),
         tagTranslationLookupProvider.overrideWithValue(lookup),
-        zhDictionaryServiceProvider.overrideWith((ref) => _Dictionary()),
+        zhDictionaryServiceProvider.overrideWith(
+          () => ZhDictionaryNotifier(_Dictionary()),
+        ),
         promptAssistantServiceProvider.overrideWith(
           (ref) => PromptAssistantService(ref: ref, apiClient: api),
         ),

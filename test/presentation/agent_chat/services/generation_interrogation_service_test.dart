@@ -105,8 +105,7 @@ void main() {
           ),
         ),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: root,
             workspaceDirectory: root,
             environment: const {},

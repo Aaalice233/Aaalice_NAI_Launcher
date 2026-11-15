@@ -270,7 +270,7 @@ class _RightPanelState extends ConsumerState<RightPanel>
         return;
       }
       if (!allocation.canExpand) {
-        ref.read(shellPanelProvider.notifier).state = ShellPanel.agent;
+        ref.read(shellPanelProvider.notifier).open(ShellPanel.agent);
         return;
       }
     }

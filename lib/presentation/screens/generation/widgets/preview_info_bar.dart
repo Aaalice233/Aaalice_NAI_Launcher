@@ -47,7 +47,7 @@ class PreviewInfoBar extends ConsumerWidget {
     // 种子要等 PNG 元数据解析完才知道，解析期间先不占位
     final seed = ref
         .watch(generatedImageMetadataProvider(image))
-        .valueOrNull
+        .value
         ?.seed;
     final transparentBackground = ref.watch(
       generationParamsNotifierProvider.select(

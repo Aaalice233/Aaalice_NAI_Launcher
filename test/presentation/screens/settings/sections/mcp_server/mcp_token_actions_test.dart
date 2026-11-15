@@ -36,8 +36,7 @@ void main() {
       ProviderScope(
         overrides: [
           mcpServerNotifierProvider.overrideWith(
-            (ref) => McpServerNotifier(
-              ref,
+            () => McpServerNotifier(
               discovery: McpDiscoveryFileStore(directory: root),
               tokenStore: tokens,
               settingsStore: _DisabledSettings(),

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -20,11 +19,11 @@ part 'bulk_operation_service.g.dart';
 
 /// Bulk operation service for managing batch operations on local images
 class BulkOperationService {
-  final Ref _ref;
+  final Ref? _ref;
   final BulkGalleryStore? _store;
 
   BulkOperationService({Ref? ref, BulkGalleryStore? store})
-    : _ref = ref ?? _FakeRef(),
+    : _ref = ref,
       _store = store;
 
   Future<BulkImageStateService> _stateService() async {
@@ -37,7 +36,11 @@ class BulkOperationService {
 
   /// 获取 GalleryDataSource
   Future<GalleryDataSource> _getDataSource() async {
-    final dbManager = await _ref.read(databaseManagerProvider.future);
+    final ref = _ref;
+    if (ref == null) {
+      throw UnimplementedError();
+    }
+    final dbManager = await ref.read(databaseManagerProvider.future);
     final dataSource = dbManager.getDataSource<GalleryDataSource>('gallery');
     if (dataSource == null) {
       throw StateError('GalleryDataSource not found');
@@ -443,12 +446,6 @@ class BulkOperationService {
     }
     return value;
   }
-}
-
-/// Fake Ref for when no ref is provided (for backward compatibility)
-class _FakeRef implements Ref {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
 /// BulkOperationService Provider

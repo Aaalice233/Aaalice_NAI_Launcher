@@ -12,8 +12,19 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 
 import '../../helpers/memory_local_storage.dart';
 
+class _ProxyAddressNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void setAddress(String? value) {
+    state = value;
+  }
+}
+
 void main() {
-  final proxyAddress = StateProvider<String?>((ref) => null);
+  final proxyAddress = NotifierProvider<_ProxyAddressNotifier, String?>(
+    _ProxyAddressNotifier.new,
+  );
   late ProviderContainer container;
   late HttpOverrides? previousOverrides;
   final clients = <Dio>[];
@@ -72,7 +83,7 @@ void main() {
   test('代理地址变化会重建 HTTP/1.1 客户端', () {
     final first = readClient();
 
-    container.read(proxyAddress.notifier).state = '127.0.0.1:7890';
+    container.read(proxyAddress.notifier).setAddress('127.0.0.1:7890');
     final second = readClient();
 
     expect(second, isNot(same(first)));

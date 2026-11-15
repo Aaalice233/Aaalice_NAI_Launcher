@@ -12,7 +12,7 @@ const List<String> defaultSlotOptions = [
 
 /// 角色槽位配置（多人场景中每个角色的标签）
 @freezed
-class CharacterSlotTag with _$CharacterSlotTag {
+abstract class CharacterSlotTag with _$CharacterSlotTag {
   const factory CharacterSlotTag({
     /// 槽位索引 (0-based)
     required int slotIndex,
@@ -27,7 +27,7 @@ class CharacterSlotTag with _$CharacterSlotTag {
 
 /// 角色标签项（人数类别下的一个选项，如 girl、boy、2girls等）
 @freezed
-class CharacterTagOption with _$CharacterTagOption {
+abstract class CharacterTagOption with _$CharacterTagOption {
   const CharacterTagOption._();
 
   const factory CharacterTagOption({
@@ -63,7 +63,7 @@ class CharacterTagOption with _$CharacterTagOption {
 
 /// 人数类别配置（如单人、双人、三人、多人、无人）
 @freezed
-class CharacterCountCategory with _$CharacterCountCategory {
+abstract class CharacterCountCategory with _$CharacterCountCategory {
   const CharacterCountCategory._();
 
   const factory CharacterCountCategory({
@@ -106,7 +106,7 @@ class CharacterCountCategory with _$CharacterCountCategory {
 
 /// 完整人数类别配置
 @freezed
-class CharacterCountConfig with _$CharacterCountConfig {
+abstract class CharacterCountConfig with _$CharacterCountConfig {
   const CharacterCountConfig._();
 
   const factory CharacterCountConfig({

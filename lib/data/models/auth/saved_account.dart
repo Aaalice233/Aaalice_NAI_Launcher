@@ -15,7 +15,7 @@ enum AccountType {
 
 /// 已保存的账号
 @freezed
-class SavedAccount with _$SavedAccount {
+abstract class SavedAccount with _$SavedAccount {
   const SavedAccount._();
 
   const factory SavedAccount({

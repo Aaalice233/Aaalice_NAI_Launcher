@@ -49,7 +49,7 @@ class _EmptySkillCatalogService extends SkillCatalogService {
 }
 
 class _FakeRemoteModels extends ProviderRemoteModelsNotifier {
-  _FakeRemoteModels(super.ref, this.models);
+  _FakeRemoteModels(this.models);
 
   final List<String> models;
 
@@ -129,8 +129,7 @@ Future<_Harness> _pump(
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(secure),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: Directory.systemTemp,
             workspaceDirectory: Directory.systemTemp,
             environment: const {},
@@ -138,7 +137,7 @@ Future<_Harness> _pump(
           ),
         ),
         providerRemoteModelsProvider.overrideWith(
-          (ref) => _FakeRemoteModels(ref, remote),
+          () => _FakeRemoteModels(remote),
         ),
       ],
       child: MaterialApp(

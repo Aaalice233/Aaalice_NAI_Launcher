@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/enums/precise_ref_type.dart';
@@ -16,7 +16,7 @@ part 'precise_ref_library_entry.g.dart';
 /// 注意：Hive typeId 26 已被本模型占用，勿在其他模型中复用。
 @HiveType(typeId: 26)
 @freezed
-class PreciseRefLibraryEntry with _$PreciseRefLibraryEntry {
+abstract class PreciseRefLibraryEntry with _$PreciseRefLibraryEntry {
   const PreciseRefLibraryEntry._();
 
   const factory PreciseRefLibraryEntry({

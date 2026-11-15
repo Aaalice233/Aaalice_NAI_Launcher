@@ -216,6 +216,23 @@ AsyncValue<ShortcutConfig> _ready(ShortcutConfig config) =>
 AsyncValue<ShortcutConfig> _failed() =>
     AsyncValue.error(StateError('storage unavailable'), StackTrace.empty);
 
+AsyncValue<ShortcutConfig> _refreshing(ShortcutConfig previous) {
+  var loading = false;
+  final provider = FutureProvider<ShortcutConfig>((ref) {
+    if (loading) return Completer<ShortcutConfig>().future;
+    return previous;
+  });
+  final container = ProviderContainer();
+  try {
+    container.read(provider);
+    loading = true;
+    container.invalidate(provider);
+    return container.read(provider);
+  } finally {
+    container.dispose();
+  }
+}
+
 void main() {
   testWidgets('配置各状态切换与父级重建都保留 child State 和输入框焦点', (tester) async {
     final harness = await _pumpHarness(tester);
@@ -403,18 +420,17 @@ void main() {
 
     testWidgets('重新加载期间沿用上次配置，重新加载出错时回退默认绑定', (tester) async {
       final harness = await _pumpHarness(tester);
-      final custom = _ready(
-        _defaults.setCustomShortcut(ShortcutIds.generateImage, 'ctrl+g'),
+      final customConfig = _defaults.setCustomShortcut(
+        ShortcutIds.generateImage,
+        'ctrl+g',
       );
-      await harness.emit(custom);
+      await harness.emit(_ready(customConfig));
 
-      await harness.emit(
-        const AsyncLoading<ShortcutConfig>().copyWithPrevious(custom),
-      );
+      await harness.emit(_refreshing(customConfig));
       await harness.press(LogicalKeyboardKey.keyG);
       expect(harness.count(ShortcutIds.generateImage), 1, reason: '刷新中');
 
-      await harness.emit(_failed().copyWithPrevious(custom));
+      await harness.emit(_failed());
       await harness.press(LogicalKeyboardKey.keyG);
       expect(harness.count(ShortcutIds.generateImage), 1, reason: '出错旧键失效');
       await harness.press(LogicalKeyboardKey.enter);

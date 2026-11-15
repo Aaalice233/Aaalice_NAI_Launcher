@@ -266,10 +266,10 @@ class _PromptAssistantOverlayState
     _abandonOperation = () {
       unawaited(service.cancelCurrentTask(sessionId: sessionId));
       // Defer provider mutation when the owning editor is being unmounted.
-      if (!stateNotifier.mounted) return;
+      if (!stateNotifier.isMounted) return;
       final abandonedState = stateNotifier.getState(sessionId);
       scheduleMicrotask(() {
-        if (stateNotifier.mounted &&
+        if (stateNotifier.isMounted &&
             identical(stateNotifier.getState(sessionId), abandonedState)) {
           stateNotifier.finishProcessing(sessionId);
         }
@@ -738,9 +738,9 @@ class _PromptAssistantOverlayState
         requestCancellation,
         if (streamCancellation != null) streamCancellation,
       ]);
-      if (notifier.mounted) notifier.finishProcessing(sessionId);
+      if (notifier.isMounted) notifier.finishProcessing(sessionId);
     } catch (error) {
-      if (notifier.mounted) notifier.setError(sessionId, error.toString());
+      if (notifier.isMounted) notifier.setError(sessionId, error.toString());
       if (mounted) {
         AppToast.error(
           context,

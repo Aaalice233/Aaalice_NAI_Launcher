@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
 import '../../providers/queue_execution_provider.dart';

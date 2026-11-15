@@ -305,7 +305,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     _generationInvocationSettled = invocationSettled;
     final epoch = _lifecycleEpoch;
     final lifecycle = _lifecycle();
-    final subscription = ref.exists(subscriptionNotifierProvider)
+    final subscription = ref.read(subscriptionNotifierProvider.exists)
         ? ref.read(subscriptionNotifierProvider.notifier)
         : null;
     final invocationId = ++_invocationCounter;

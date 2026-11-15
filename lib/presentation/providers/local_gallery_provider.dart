@@ -68,7 +68,7 @@ class LocalGalleryError {
 
 /// 本地画廊状态
 @freezed
-class LocalGalleryState with _$LocalGalleryState {
+abstract class LocalGalleryState with _$LocalGalleryState {
   const factory LocalGalleryState({
     /// 当前页显示的记录
     @Default([]) List<LocalImageRecord> currentImages,

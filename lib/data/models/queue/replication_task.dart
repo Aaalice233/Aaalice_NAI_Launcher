@@ -21,7 +21,7 @@ enum ReplicationTaskSource {
 /// 仅持久化生成所需字段，避免把角色编辑器的名称、缩略图和临时 ID 耦合到
 /// 队列 JSON。缺少坐标时按 [CharacterPrompt] 的 AI 选位语义恢复。
 @freezed
-class ReplicationCharacterPromptSnapshot
+abstract class ReplicationCharacterPromptSnapshot
     with _$ReplicationCharacterPromptSnapshot {
   const ReplicationCharacterPromptSnapshot._();
 
@@ -78,7 +78,7 @@ class ReplicationCharacterPromptSnapshot
 ///
 /// 用于存储队列中的复刻任务，包含提示词和元数据
 @freezed
-class ReplicationTask with _$ReplicationTask {
+abstract class ReplicationTask with _$ReplicationTask {
   const ReplicationTask._();
 
   const factory ReplicationTask({
@@ -197,7 +197,7 @@ class ReplicationTask with _$ReplicationTask {
 
 /// 复刻任务列表 wrapper（用于 Hive JSON 存储）
 @freezed
-class ReplicationTaskList with _$ReplicationTaskList {
+abstract class ReplicationTaskList with _$ReplicationTaskList {
   const factory ReplicationTaskList({
     @Default([]) List<ReplicationTask> tasks,
   }) = _ReplicationTaskList;

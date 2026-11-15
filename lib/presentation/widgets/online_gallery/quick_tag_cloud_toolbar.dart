@@ -64,7 +64,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     final l10n = AppLocalizations.of(context)!;
     final query = ref.watch(quickTagCloudFilterProvider);
     final catalogValue = ref.watch(quickTagCloudCatalogProvider);
-    final catalog = catalogValue.valueOrNull;
+    final catalog = catalogValue.value;
     final selectedMeta = catalog?.findCodex(query.codexId);
     if (catalog != null &&
         query.codexId != 'all' &&
@@ -93,7 +93,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
     final codexValue = query.codexId == 'all' || selectedCodexLocked
         ? null
         : ref.watch(quickTagCloudCodexProvider(query.codexId));
-    final codex = codexValue?.valueOrNull;
+    final codex = codexValue?.value;
     final invalidCategory =
         codex != null &&
         query.categoryPath.isNotEmpty &&
@@ -146,7 +146,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
                 context,
                 catalog,
                 query,
-                codexValue?.valueOrNull,
+                codexValue?.value,
                 allowNsfw: allowNsfw,
               ),
       ),
@@ -178,19 +178,19 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
             visualDensity: VisualDensity.compact,
           ),
         ),
-      if (codexValue?.valueOrNull?.loadSource ==
+      if (codexValue?.value?.loadSource ==
               QuickTagCloudCodexLoadSource.fallback ||
-          codexValue?.valueOrNull?.loadSource ==
+          codexValue?.value?.loadSource ==
               QuickTagCloudCodexLoadSource.previousRelease)
         Tooltip(
           message:
-              codexValue?.valueOrNull?.loadSource ==
+              codexValue?.value?.loadSource ==
                   QuickTagCloudCodexLoadSource.previousRelease
               ? l10n.onlineGallery_codexPreviousRelease
               : l10n.onlineGallery_codexExternalFallback,
           child: Semantics(
             label:
-                codexValue?.valueOrNull?.loadSource ==
+                codexValue?.value?.loadSource ==
                     QuickTagCloudCodexLoadSource.previousRelease
                 ? l10n.onlineGallery_codexPreviousRelease
                 : l10n.onlineGallery_codexExternalFallback,
@@ -224,7 +224,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
             key: const ValueKey('quick-tag-cloud-contributors'),
             onPressed: () => _showContributors(
               context,
-              codexValue?.valueOrNull?.asMediaMeta() ?? selectedMeta,
+              codexValue?.value?.asMediaMeta() ?? selectedMeta,
             ),
             icon: const Icon(Icons.group_outlined, size: 20),
             label: Text(l10n.onlineGallery_codexContributors),
@@ -241,7 +241,7 @@ class _QuickTagCloudToolbarState extends ConsumerState<QuickTagCloudToolbar> {
                 : VisualDensity.compact,
             onPressed: () => _showContributors(
               context,
-              codexValue?.valueOrNull?.asMediaMeta() ?? selectedMeta,
+              codexValue?.value?.asMediaMeta() ?? selectedMeta,
             ),
             icon: const Icon(Icons.group_outlined, size: 20),
           );

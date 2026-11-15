@@ -602,7 +602,7 @@ ProviderContainer _buildControlledQueueContainer(
         () => _TestCharacterPromptNotifier(const []),
       ),
       imageGenerationNotifierProvider.overrideWith(() => generation),
-      kritaBridgeNotifierProvider.overrideWith((ref) => KritaBridgeNotifier()),
+      kritaBridgeNotifierProvider.overrideWith(KritaBridgeNotifier.new),
     ],
   );
 }
@@ -696,7 +696,7 @@ ProviderContainer _buildStartContainer(
       imageGenerationNotifierProvider.overrideWith(
         () => generationNotifier ?? _TestImageGenerationNotifier(),
       ),
-      kritaBridgeNotifierProvider.overrideWith((ref) => KritaBridgeNotifier()),
+      kritaBridgeNotifierProvider.overrideWith(KritaBridgeNotifier.new),
     ],
   );
 }

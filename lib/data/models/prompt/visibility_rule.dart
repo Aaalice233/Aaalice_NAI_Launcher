@@ -33,7 +33,7 @@ enum VisibilityConditionType {
 /// 根据构图决定是否生成某类别
 /// 例如: portrait 时不生成下装, full body 时才生成鞋子
 @freezed
-class VisibilityRule with _$VisibilityRule {
+abstract class VisibilityRule with _$VisibilityRule {
   const VisibilityRule._();
 
   const factory VisibilityRule({
@@ -125,7 +125,7 @@ class VisibilityRule with _$VisibilityRule {
 ///
 /// 管理多个可见性规则
 @freezed
-class VisibilityRuleSet with _$VisibilityRuleSet {
+abstract class VisibilityRuleSet with _$VisibilityRuleSet {
   const VisibilityRuleSet._();
 
   const factory VisibilityRuleSet({

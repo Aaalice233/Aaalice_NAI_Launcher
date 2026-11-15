@@ -35,25 +35,27 @@ void main() {
     AgentImageObservationLedger? observationLedger,
   }) {
     final store = discovery ?? McpDiscoveryFileStore(directory: root);
-    return McpServerNotifier(
-      container.read(_refProvider),
-      observationLedger: observationLedger,
-      hostFactory: (executor, appVersion) {
-        final host = _FakeMcpServerHost(
-          appVersion: appVersion,
-          discovery: store,
-          bindFailurePort: bindFailurePort,
-        );
-        hosts.add(host);
-        executors.add(executor);
-        return host;
-      },
-      discovery: store,
-      settingsStore: settings,
-      tokenStore: tokens,
-      supportDirectory: root,
-      notifyApprovalRequested: () async {},
+    final provider = NotifierProvider<McpServerNotifier, McpServerState>(
+      () => McpServerNotifier(
+        observationLedger: observationLedger,
+        hostFactory: (executor, appVersion) {
+          final host = _FakeMcpServerHost(
+            appVersion: appVersion,
+            discovery: store,
+            bindFailurePort: bindFailurePort,
+          );
+          hosts.add(host);
+          executors.add(executor);
+          return host;
+        },
+        discovery: store,
+        settingsStore: settings,
+        tokenStore: tokens,
+        supportDirectory: root,
+        notifyApprovalRequested: () async {},
+      ),
     );
+    return container.read(provider.notifier);
   }
 
   setUp(() async {
@@ -66,8 +68,7 @@ void main() {
       overrides: [
         localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: root,
             workspaceDirectory: root,
             environment: const {},
@@ -89,7 +90,7 @@ void main() {
       ..permissionMode = AgentPermissionMode.safe;
 
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
 
     expect(notifier.state.enabled, isTrue);
     expect(notifier.state.status, McpServerStatus.disabled);
@@ -100,7 +101,7 @@ void main() {
 
   test('enable starts the host and publishes the endpoint', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
 
     await notifier.enable();
 
@@ -119,7 +120,7 @@ void main() {
 
   test('disable stops the host and clears the session state', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
     await notifier.enable();
 
     await notifier.disable();
@@ -135,7 +136,7 @@ void main() {
 
   test('session updates flow into the state', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
     await notifier.enable();
 
     hosts.single.emitSessions([
@@ -155,7 +156,7 @@ void main() {
   test('a disconnected session loses its observation evidence', () async {
     final ledger = AgentImageObservationLedger();
     final notifier = build(observationLedger: ledger);
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
     await notifier.enable();
     ledger.recordToolResult('session-1', _observedImage(r'C:\work\a.png'));
     ledger.recordToolResult('session-2', _observedImage(r'C:\work\b.png'));
@@ -177,7 +178,7 @@ void main() {
 
   test('setPort rejects ports outside the allowed range', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
 
     expect(
       () => notifier.setPort(McpServerDefaults.minPort - 1),
@@ -192,7 +193,7 @@ void main() {
 
   test('setPort persists and restarts the listening host', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
     await notifier.enable();
 
     await notifier.setPort(15500);
@@ -207,7 +208,7 @@ void main() {
 
   test('setPort only persists while the server is disabled', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
 
     await notifier.setPort(15500);
 
@@ -218,7 +219,7 @@ void main() {
 
   test('regenerateToken restarts with a fresh token', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
     await notifier.enable();
     final firstToken = hosts.single.startedToken;
 
@@ -234,7 +235,7 @@ void main() {
     'readToken surfaces unavailable storage without minting a token',
     () async {
       final notifier = build();
-      addTearDown(notifier.dispose);
+      addTearDown(notifier.close);
       tokens.readFailure = const SecureStorageUnavailableException(
         SecureStorageStep.readFile,
         osErrorCode: 32,
@@ -252,7 +253,7 @@ void main() {
     'enable fails instead of rotating the token when storage is unavailable',
     () async {
       final notifier = build();
-      addTearDown(notifier.dispose);
+      addTearDown(notifier.close);
       tokens.readFailure = const SecureStorageUnavailableException(
         SecureStorageStep.readFile,
         osErrorCode: 32,
@@ -268,7 +269,7 @@ void main() {
 
   test('a bound port reports port_in_use instead of listening', () async {
     final notifier = build(bindFailurePort: McpServerDefaults.port);
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
 
     await notifier.enable();
 
@@ -282,7 +283,7 @@ void main() {
   test('a failed discovery write reports start_failed and retries', () async {
     final discovery = _FailingDiscoveryStore(root);
     final notifier = build(discovery: discovery);
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
 
     await notifier.enable();
 
@@ -308,7 +309,7 @@ void main() {
 
   test('permission mode is persisted and narrows the exposed tools', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
     await notifier.enable();
     final fullTools = _toolNames(executors.single);
 
@@ -325,7 +326,7 @@ void main() {
 
   test('close stops the host without persisting a disabled flag', () async {
     final notifier = build();
-    addTearDown(notifier.dispose);
+    addTearDown(notifier.close);
     await notifier.enable();
 
     await notifier.close();
@@ -334,8 +335,6 @@ void main() {
     expect(settings.enabledWrites, [true]);
   });
 }
-
-final _refProvider = Provider<Ref>((ref) => ref);
 
 List<String> _toolNames(McpToolExecutor executor) =>
     executor.tools.map((tool) => tool.name).toList();

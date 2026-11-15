@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 
 import 'cloud_sync_data_adapter.dart';
 import 'portable_sync_record.dart';

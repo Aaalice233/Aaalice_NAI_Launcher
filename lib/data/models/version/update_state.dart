@@ -6,7 +6,7 @@ part 'update_state.freezed.dart';
 
 /// 更新状态联合类型
 @freezed
-class UpdateState with _$UpdateState {
+sealed class UpdateState with _$UpdateState {
   /// 空闲状态
   const factory UpdateState.idle() = UpdateStateIdle;
 

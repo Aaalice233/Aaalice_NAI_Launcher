@@ -39,12 +39,13 @@ class AgentPromptDraftState {
 }
 
 final agentPromptDraftProvider =
-    StateNotifierProvider<AgentPromptDraftNotifier, AgentPromptDraftState>(
-      (ref) => AgentPromptDraftNotifier(),
+    NotifierProvider<AgentPromptDraftNotifier, AgentPromptDraftState>(
+      AgentPromptDraftNotifier.new,
     );
 
-class AgentPromptDraftNotifier extends StateNotifier<AgentPromptDraftState> {
-  AgentPromptDraftNotifier() : super(const AgentPromptDraftState());
+class AgentPromptDraftNotifier extends Notifier<AgentPromptDraftState> {
+  @override
+  AgentPromptDraftState build() => const AgentPromptDraftState();
 
   void synchronizeSaved({
     required String value,

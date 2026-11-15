@@ -188,7 +188,7 @@ class OnlineGalleryNotifier extends _$OnlineGalleryNotifier {
     _details.setBackgroundPaused(_networkRequestsPaused);
     if (!paused) {
       _detailRequestScopeRevision++;
-      state = state.copyWith();
+      ref.notifyListeners();
       final resumeInitial = _resumeInitialLoadAfterBackgroundPause;
       final resumeAppend = _resumeAppendAfterBackgroundPause;
       _resumeInitialLoadAfterBackgroundPause = false;

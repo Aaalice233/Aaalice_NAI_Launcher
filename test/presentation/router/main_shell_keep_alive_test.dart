@@ -87,7 +87,7 @@ void main() {
       );
     }
 
-    container.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+    container.read(shellPanelProvider.notifier).open(ShellPanel.queue);
     await tester.pumpAndSettle();
     final overlayState = tester.state(find.byType(ShellPanelsOverlay));
     tester.widget<TabBar>(find.byType(TabBar)).controller!.animateTo(1);
@@ -117,7 +117,7 @@ void main() {
     expect(tester.state(find.byType(ShellPanelsOverlay)), same(overlayState));
     expect(lifecycle[AppBranch.generation]!.created, 1);
     expect(lifecycle[AppBranch.generation]!.disposed, 0);
-    container.read(shellPanelProvider.notifier).state = null;
+    container.read(shellPanelProvider.notifier).close();
     await tester.pumpAndSettle();
 
     for (final branch in keptAliveAppBranches) {

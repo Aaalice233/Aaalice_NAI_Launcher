@@ -15,7 +15,7 @@ part 'random_category.g.dart';
 /// 表示随机提示词中的一个大类别（如发色、瞳色等），
 /// 每个类别包含多个标签分组。
 @freezed
-class RandomCategory with _$RandomCategory {
+abstract class RandomCategory with _$RandomCategory {
   const RandomCategory._();
 
   const factory RandomCategory({

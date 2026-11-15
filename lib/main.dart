@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_driver/driver_extension.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:screen_retriever/screen_retriever.dart';
@@ -645,6 +645,7 @@ Future<void> _bootstrapApplication() async {
 
   final desktopWindow = await desktopWindowFuture;
   final container = ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       generationSessionPersistenceEnabledProvider.overrideWithValue(true),
     ],

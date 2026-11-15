@@ -42,6 +42,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        retry: (retryCount, error) => null,
         overrides: [
           shortcutConfigNotifierProvider.overrideWith(
             notifierFactory ?? _TestShortcutConfigNotifier.new,
@@ -104,6 +105,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        retry: (retryCount, error) => null,
         overrides: [
           shortcutConfigNotifierProvider.overrideWith(
             _TestShortcutConfigNotifier.new,
@@ -166,6 +168,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        retry: (retryCount, error) => null,
         overrides: [
           shortcutConfigNotifierProvider.overrideWith(
             _TestShortcutConfigNotifier.new,
@@ -241,6 +244,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        retry: (retryCount, error) => null,
         overrides: [
           shortcutConfigNotifierProvider.overrideWith(
             _TestShortcutConfigNotifier.new,

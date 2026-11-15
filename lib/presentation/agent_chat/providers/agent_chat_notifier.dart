@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/agent/agent.dart';
@@ -66,8 +67,8 @@ typedef AgentWireCompletion =
     Stream<AgentWireEvent> Function(AgentChatRequest request);
 
 final agentChatNotifierProvider =
-    StateNotifierProvider<AgentChatNotifier, AgentChatState>((ref) {
-      return AgentChatNotifier(ref, initializeImmediately: false);
+    NotifierProvider<AgentChatNotifier, AgentChatState>(() {
+      return AgentChatNotifier(initializeImmediately: false);
     });
 
 /// 聊天 agent 编排层：
@@ -75,9 +76,8 @@ final agentChatNotifierProvider =
 /// - 会话经 [Session]/[JsonlSessionRepo] 持久化为 JSONL 树；
 /// - 上下文压缩经 [prepareCompaction]/[compact]（自动阈值 + 手动触发）；
 /// - skills 经目录发现加载，并以 XML 清单注入系统提示词。
-class AgentChatNotifier extends StateNotifier<AgentChatState> {
-  AgentChatNotifier(
-    this._ref, {
+class AgentChatNotifier extends Notifier<AgentChatState> {
+  AgentChatNotifier({
     List<HarnessSkill>? presetSkills,
     Directory? supportDir,
     Directory? workspaceDir,
@@ -92,43 +92,17 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
        _completeRequest = completeRequest,
        _skillEnvironment = skillEnvironment,
        _imageProjectDirectoryResolver = imageProjectDirectoryResolver,
-       super(const AgentChatState()) {
-    _ref.listen<WebAccessConfigState>(webAccessConfigProvider, (_, _) {
-      unawaited(_refreshWebAccessTools());
-    });
-    _ref.listen<PromptAssistantConfigState>(promptAssistantConfigProvider, (
-      previous,
-      next,
-    ) {
-      _refreshRoute();
-    });
-    _ref.listen<AgentSettingsState>(agentSettingsProvider, (_, _) {
-      _queueSettingsRefresh();
-    });
-    for (final provider in [
-      fixedTagsNotifierProvider,
-      tagLibraryPageNotifierProvider,
-      vibeLibraryNotifierProvider,
-      preciseRefLibraryNotifierProvider,
-    ]) {
-      _ref.listen(provider, (_, _) {
-        unawaited(refreshPendingResourceAvailability());
-      });
-    }
-    _presetSkills = presetSkills;
-    if (initializeImmediately) {
-      ensureInitialized();
-    }
-  }
+       _presetSkills = presetSkills,
+       _initializeImmediately = initializeImmediately;
 
-  final Ref _ref;
   final Directory? _providedSupportDir;
   final Directory? _providedWorkspaceDir;
   final JsonlSessionRepo? _providedSessionRepo;
   final AgentWireCompletion? _completeRequest;
   final Map<String, String>? _skillEnvironment;
   final Future<Directory?> Function()? _imageProjectDirectoryResolver;
-  late final List<HarnessSkill>? _presetSkills;
+  final List<HarnessSkill>? _presetSkills;
+  final bool _initializeImmediately;
   late Directory _supportDir;
   late Directory _workspaceDir;
   late AgentChatDraftController _draftController;
@@ -140,7 +114,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   late AgentToolRegistryBuilder _toolRegistryBuilder;
   late ManualInpaintToolbox _manualInpaintToolbox;
   late final ImageUpscaleToolbox _imageUpscaleToolbox = ImageUpscaleToolbox(
-    _ref,
+    ref,
   );
   late AgentApiClient _client;
   final Map<String, HarnessSkill> _skills = {};
@@ -160,9 +134,46 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   (ProviderConfig, String, String?)? _routeCache;
   (ProviderConfig, String, String?)? _activeRoute;
 
-  LocalStorageService get _local => _ref.read(localStorageServiceProvider);
+  LocalStorageService get _local => ref.read(localStorageServiceProvider);
   AgentChatSessionController get _sessionController => _sessionControllerValue!;
   Future<void> get whenInitialized => ensureInitialized();
+
+  @override
+  AgentChatState build() {
+    ref.listen<WebAccessConfigState>(webAccessConfigProvider, (_, _) {
+      unawaited(_refreshWebAccessTools());
+    });
+    ref.listen<PromptAssistantConfigState>(promptAssistantConfigProvider, (
+      previous,
+      next,
+    ) {
+      _refreshRoute();
+    });
+    ref.listen<AgentSettingsState>(agentSettingsProvider, (_, _) {
+      _queueSettingsRefresh();
+    });
+    for (final provider in <ProviderListenable<Object?>>[
+      fixedTagsNotifierProvider,
+      tagLibraryPageNotifierProvider,
+      vibeLibraryNotifierProvider,
+      preciseRefLibraryNotifierProvider,
+    ]) {
+      ref.listen(provider, (_, _) {
+        unawaited(refreshPendingResourceAvailability());
+      });
+    }
+    ref.onDispose(() {
+      _sessionControllerValue?.agent?.abort();
+      _questionController?.cancel();
+      _permissionController?.dispose();
+      _sessionControllerValue?.agent?.clearAllQueues();
+    });
+    state = const AgentChatState();
+    if (_initializeImmediately) {
+      unawaited(ensureInitialized());
+    }
+    return state;
+  }
 
   Future<void> ensureInitialized() =>
       _initializing ??= _init(presetSkills: _presetSkills);
@@ -178,6 +189,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         AppLogger.w('agent chat init failed: $e', 'AgentChat');
         _supportDir = Directory.systemTemp;
       }
+      if (!ref.mounted) return;
     }
     final sessionRepository =
         _providedSessionRepo ?? JsonlSessionRepo(_supportDir);
@@ -198,17 +210,18 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       preferred: _providedWorkspaceDir,
       imageProjectDirectory: _resolveCurrentImageProjectDirectory,
     );
+    if (!ref.mounted) return;
     _manualInpaintToolbox = ManualInpaintToolbox(
-      _ref,
+      ref,
       supportDirectory: _supportDir,
       workspaceDir: _workspaceDir.path,
       navigator: () =>
-          _ref.read(appRouterProvider).routerDelegate.navigatorKey.currentState,
+          ref.read(appRouterProvider).routerDelegate.navigatorKey.currentState,
       activeSessionId: () => state.activeSessionId,
       onDraftChanged: _recordManualInpaintDraftUpdate,
     );
     AgentResourceResolver createResourceResolver() => AgentResourceResolver(
-      _ref,
+      ref,
       loadInpaintDraftImage: _manualInpaintToolbox.loadDraftImage,
     );
     _draftController = AgentChatDraftController(
@@ -217,7 +230,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       readState: () => state,
       writeState: (next) => state = next,
       createResourceResolver: createResourceResolver,
-      isMounted: () => mounted,
+      isMounted: () => ref.mounted,
     );
     _draftControllerInitialized = true;
     _permissionController = AgentToolPermissionController(
@@ -225,8 +238,9 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       estimateAnlas: _estimatePreparedAnlas,
       describeFileTargets: _describePreparedFileTargets,
       chargeConfirmThreshold: () =>
-          _ref.read(shareImageSettingsProvider).effectiveHighAnlasCostThreshold,
+          ref.read(shareImageSettingsProvider).effectiveHighAnlasCostThreshold,
       onApprovalChanged: (request) {
+        if (!ref.mounted) return;
         final boundRequest = request?.bind(
           turnId: _sessionControllerValue?.activeTurnId,
           itemId: 'call:${request.toolCallId}',
@@ -241,11 +255,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
                 workPhase: AgentChatWorkPhase.awaitingApproval,
               );
       },
-      isMounted: () => mounted,
+      isMounted: () => ref.mounted,
     );
     _questionController = AgentUserQuestionController(
       onChanged: (request) {
-        if (!mounted) return;
+        if (!ref.mounted) return;
         state = state.copyWith(
           questionRequest: request,
           clearQuestionRequest: request == null,
@@ -254,7 +268,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     );
     _toolRegistryBuilder = AgentToolRegistryBuilder(
       questionController: _questionController!,
-      ref: _ref,
+      ref: ref,
       workspaceDir: _workspaceDir.path,
       skills: _skills,
       skillDiagnostics: _skillDiagnostics,
@@ -266,7 +280,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       messages: () =>
           _sessionControllerValue?.agent?.state.messages ?? const [],
       activeSessionId: () => state.activeSessionId,
-      isMounted: () => mounted,
+      isMounted: () => ref.mounted,
     );
     _sessionControllerValue = AgentChatSessionController(
       repository: sessionRepository,
@@ -277,14 +291,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       buildSystemPrompt: _buildSystemPrompt,
       readState: () => state,
       writeState: (next) => state = next,
-      isMounted: () => mounted,
+      isMounted: () => ref.mounted,
     );
     _eventController = AgentChatEventController(
       sessionController: _sessionController,
       permissionController: _permissionController!,
       readState: () => state,
       writeState: (next) => state = next,
-      isMounted: () => mounted,
+      isMounted: () => ref.mounted,
     );
 
     _usesPresetSkills = presetSkills != null;
@@ -294,12 +308,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       }
     } else {
       await _loadSkillsFromDisk();
+      if (!ref.mounted) return;
     }
 
-    _client = AgentApiClient(_ref.read(promptAssistantDioProvider));
+    _client = AgentApiClient(ref.read(promptAssistantDioProvider));
     _runtimeReady = true;
     _refreshRoute();
     await _sessionController.restoreLastSession();
+    if (!ref.mounted) return;
     _refreshRoute();
     state = state.copyWith(
       initialized: true,
@@ -308,7 +324,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<Agent> _buildAgent() async {
-    final permissionMode = _ref
+    final permissionMode = ref
         .read(agentSettingsProvider)
         .settings
         .chat
@@ -346,14 +362,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     if (!canManageAgentChatSessions(state)) {
       return;
     }
-    await _ref.read(agentSettingsProvider.notifier).setPermissionMode(mode);
+    await ref.read(agentSettingsProvider.notifier).setPermissionMode(mode);
     await _settingsRefresh;
   }
 
   List<AgentTool> _buildTools({required bool fullAccess}) {
     final permissionMode =
         _activePermissionMode ??
-        _ref.read(agentSettingsProvider).settings.chat.permissionMode;
+        ref.read(agentSettingsProvider).settings.chat.permissionMode;
     final registry = _toolRegistryBuilder.build(
       fullAccess: fullAccess,
       permissionMode: permissionMode,
@@ -369,7 +385,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     }
     final agent = _sessionControllerValue?.agent;
     if (agent == null) return;
-    final mode = _ref.read(agentSettingsProvider).settings.chat.permissionMode;
+    final mode = ref.read(agentSettingsProvider).settings.chat.permissionMode;
     agent.state.tools = _buildTools(fullAccess: mode.grantsFullAccess);
     agent.setSystemPrompt(await _buildSystemPrompt());
   }
@@ -381,7 +397,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       final loaded = await _scanCurrentSkills(
         skillEnabledOverrides: skillEnabledOverrides,
       );
-      if (!mounted) return;
+      if (!ref.mounted) return;
       _skills.clear();
       _skillDiagnostics
         ..clear()
@@ -397,7 +413,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }) async {
     final resolvedOverrides =
         skillEnabledOverrides ??
-        _ref.read(agentSettingsProvider).settings.skillEnabledOverrides;
+        ref.read(agentSettingsProvider).settings.skillEnabledOverrides;
     Directory? skillWorkspace = _providedWorkspaceDir;
     if (_providedWorkspaceDir == null) {
       try {
@@ -431,11 +447,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         skillEnabledOverrides: _activeAgentSettings?.skillEnabledOverrides,
       );
     }
-    if (!mounted) return _skills.length;
+    if (!ref.mounted) return _skills.length;
     state = state.copyWith(skills: _skills.values.toList(growable: false));
     final agent = _sessionController.agent;
     if (agent != null) {
-      final mode = _ref
+      final mode = ref
           .read(agentSettingsProvider)
           .settings
           .chat
@@ -449,15 +465,15 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   Future<void> _applyAgentSettings() async {
-    if (!mounted) return;
+    if (!ref.mounted) return;
     _settingsApplyPending = true;
     if (!_runtimeReady || _runActive) return;
     if (!_usesPresetSkills) await _loadSkillsFromDisk();
-    if (!mounted) return;
+    if (!ref.mounted) return;
     _refreshRoute();
     final agent = _sessionControllerValue?.agent;
     if (agent != null) {
-      final mode = _ref
+      final mode = ref
           .read(agentSettingsProvider)
           .settings
           .chat
@@ -465,7 +481,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       agent.state.tools = _buildTools(fullAccess: mode.grantsFullAccess);
       agent.setSystemPrompt(await _buildSystemPrompt());
     }
-    if (mounted) {
+    if (ref.mounted) {
       state = state.copyWith(skills: _skills.values.toList(growable: false));
     }
     _settingsApplyPending = false;
@@ -475,14 +491,14 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _preparingRun || state.status == AgentChatRunStatus.running;
 
   void _queueSettingsRefresh() {
-    if (!mounted) return;
+    if (!ref.mounted) return;
     _settingsApplyPending = true;
     _settingsRefresh = _settingsRefresh
         .catchError((Object error) {
           AppLogger.w('agent settings refresh failed: $error', 'AgentChat');
         })
         .then((_) async {
-          if (!mounted) return;
+          if (!ref.mounted) return;
           await _applyAgentSettings();
         });
   }
@@ -730,12 +746,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   (ProviderConfig, String, String?)? _resolveRoute() {
-    final config = _ref.read(promptAssistantConfigProvider);
+    final config = ref.read(promptAssistantConfigProvider);
     final enabled = config.providers.where((p) => p.enabled).toList();
     if (enabled.isEmpty) {
       return null;
     }
-    final modelReference = _ref
+    final modelReference = ref
         .read(agentSettingsProvider)
         .settings
         .chat
@@ -778,7 +794,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     );
   }
 
-  int? _contextWindowOverride((ProviderConfig, String, String?) route) => _ref
+  int? _contextWindowOverride((ProviderConfig, String, String?) route) => ref
       .read(agentSettingsProvider)
       .settings
       .chat
@@ -793,11 +809,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
     // Provider state must be captured before the API-key await because the
     // owning container may be disposed while secure storage is responding.
     final agentSettings =
-        settingsOverride ?? _ref.read(agentSettingsProvider).settings;
+        settingsOverride ?? ref.read(agentSettingsProvider).settings;
     // 路由缓存 + API Key 解析（短期 token 每次运行刷新）。
     final route = _activeRoute ?? _routeCache ?? _resolveRoute();
     if (route != null) {
-      final apiKey = await _ref
+      final apiKey = await ref
           .read(promptAssistantConfigProvider.notifier)
           .getProviderApiKey(route.$1.id);
       final resolvedRoute = (route.$1, route.$2, apiKey);
@@ -839,9 +855,10 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
   }
 
   void _refreshRoute() {
+    if (!ref.mounted) return;
     _routeCache = _resolveRoute();
     if (_routeCache == null) {
-      final hasProvider = _ref
+      final hasProvider = ref
           .read(promptAssistantConfigProvider)
           .providers
           .any((p) => p.enabled);
@@ -902,7 +919,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       ),
       'main',
     );
-    if (mounted) state = state.copyWith(thinkingLevel: level);
+    if (ref.mounted) state = state.copyWith(thinkingLevel: level);
   }
 
   // -------------------------------------------------------------------------
@@ -965,7 +982,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   Future<void> refreshPendingResourceAvailability() {
     if (!_draftControllerInitialized) {
-      if (mounted && state.unavailableResourceKeys.isNotEmpty) {
+      if (ref.mounted && state.unavailableResourceKeys.isNotEmpty) {
         state = state.copyWith(unavailableResourceKeys: const {});
       }
       return Future<void>.value();
@@ -1040,11 +1057,11 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         model.isEmpty) {
       return;
     }
-    final config = _ref.read(promptAssistantConfigProvider);
+    final config = ref.read(promptAssistantConfigProvider);
     if (!config.providers.any((p) => p.id == providerId && p.enabled)) {
       return;
     }
-    await _ref
+    await ref
         .read(agentSettingsProvider.notifier)
         .setModelReference(
           AgentModelReference(providerId: providerId, model: model),
@@ -1214,12 +1231,12 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         );
         return false;
       }
-      final agentSettings = _ref.read(agentSettingsProvider).settings;
+      final agentSettings = ref.read(agentSettingsProvider).settings;
       final permissionMode = agentSettings.chat.permissionMode;
       _activeAgentSettings = agentSettings;
       _activePermissionMode = permissionMode;
       _activeRoute = _routeCache;
-      releaseForeground = await _ref
+      releaseForeground = await ref
           .read(androidForegroundTaskServiceProvider)
           .acquire();
       final capability = _modelCapability(_activeRoute);
@@ -1308,7 +1325,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
       _activePermissionMode = null;
       _activeAgentSettings = null;
       _activeRoute = null;
-      if (mounted) {
+      if (ref.mounted) {
         state = state.copyWith(
           status: AgentChatRunStatus.idle,
           clearStreamingMessage: true,
@@ -1332,7 +1349,7 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
         stackTrace,
         'AgentChat',
       );
-      if (mounted) state = state.copyWith(error: error.toString());
+      if (ref.mounted) state = state.copyWith(error: error.toString());
       return false;
     }
   }
@@ -1425,15 +1442,6 @@ class AgentChatNotifier extends StateNotifier<AgentChatState> {
 
   Future<void> _handleEvent(AgentEvent event, AbortSignal signal) =>
       _eventController.handle(event, signal);
-
-  @override
-  void dispose() {
-    _sessionControllerValue?.agent?.abort();
-    _questionController?.cancel();
-    _permissionController?.dispose();
-    _sessionControllerValue?.agent?.clearAllQueues();
-    super.dispose();
-  }
 
   bool resolveUserQuestions(
     String toolCallId,

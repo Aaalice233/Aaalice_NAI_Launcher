@@ -7,7 +7,7 @@ part 'daily_trend_statistics.freezed.dart';
 /// 用于统计每日的图片生成数量和趋势数据
 /// 支持按日/周/月聚合的时间序列分析
 @freezed
-class DailyTrendStatistics with _$DailyTrendStatistics {
+abstract class DailyTrendStatistics with _$DailyTrendStatistics {
   const factory DailyTrendStatistics({
     /// 日期（该统计数据的日期）
     required DateTime date,
@@ -100,7 +100,7 @@ class DailyTrendStatistics with _$DailyTrendStatistics {
 ///
 /// 用于统计每周的图片生成数量和趋势数据
 @freezed
-class WeeklyTrendStatistics with _$WeeklyTrendStatistics {
+abstract class WeeklyTrendStatistics with _$WeeklyTrendStatistics {
   const factory WeeklyTrendStatistics({
     /// 周起始日期
     required DateTime weekStart,
@@ -145,7 +145,7 @@ class WeeklyTrendStatistics with _$WeeklyTrendStatistics {
 ///
 /// 用于统计每月的图片生成数量和趋势数据
 @freezed
-class MonthlyTrendStatistics with _$MonthlyTrendStatistics {
+abstract class MonthlyTrendStatistics with _$MonthlyTrendStatistics {
   const factory MonthlyTrendStatistics({
     /// 年份
     required int year,

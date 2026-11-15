@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/derivatives/derivative_registry.dart';
 import 'package:nai_launcher/core/derivatives/derivative_render.dart';
@@ -46,6 +47,7 @@ void defineDerivativeCopySaveTests<R extends DerivativeRenderedCopy>({
     final closed = Completer<String?>();
     await tester.pumpWidget(
       ProviderScope(
+        retry: (retryCount, error) => null,
         overrides: [
           ...overrides(),
           derivativeCopySaverProvider(kind).overrideWithValue(pending.saver),

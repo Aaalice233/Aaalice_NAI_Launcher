@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
@@ -49,30 +49,50 @@ final onlineGalleryLocalFavoritesRepositoryProvider =
     });
 
 final onlineGalleryLocalFavoritesProvider =
-    StateNotifierProvider<
+    NotifierProvider<
       OnlineGalleryLocalFavoritesNotifier,
       OnlineGalleryLocalFavoritesState
-    >((ref) {
-      return OnlineGalleryLocalFavoritesNotifier(
-        ref.watch(onlineGalleryLocalFavoritesRepositoryProvider),
-      );
-    });
+    >(OnlineGalleryLocalFavoritesNotifier.new);
 
 class OnlineGalleryLocalFavoritesNotifier
-    extends StateNotifier<OnlineGalleryLocalFavoritesState> {
-  OnlineGalleryLocalFavoritesNotifier(this._repository)
-    : super(const OnlineGalleryLocalFavoritesState(isLoading: true)) {
-    unawaited(initialize().catchError((Object _) {}));
+    extends Notifier<OnlineGalleryLocalFavoritesState> {
+  late OnlineGalleryLocalFavoritesRepository _repository;
+  int _buildGeneration = 0;
+
+  @override
+  OnlineGalleryLocalFavoritesState build() {
+    final repository = ref.watch(onlineGalleryLocalFavoritesRepositoryProvider);
+    _repository = repository;
+    final generation = ++_buildGeneration;
+    unawaited(_initializeFromBuild(repository, generation));
+    return const OnlineGalleryLocalFavoritesState(isLoading: true);
   }
 
-  final OnlineGalleryLocalFavoritesRepository _repository;
+  Future<void> _initializeFromBuild(
+    OnlineGalleryLocalFavoritesRepository repository,
+    int generation,
+  ) async {
+    try {
+      await repository.ensureInitialized();
+      if (!ref.mounted || generation != _buildGeneration) return;
+      state = state.copyWith(
+        isInitialized: true,
+        isLoading: false,
+        count: repository.count,
+        clearError: true,
+      );
+    } catch (error) {
+      if (!ref.mounted || generation != _buildGeneration) return;
+      state = state.copyWith(isLoading: false, lastError: error);
+    }
+  }
 
   Future<void> initialize() async {
     if (state.isInitialized) return;
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _repository.ensureInitialized();
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(
         isInitialized: true,
         isLoading: false,
@@ -80,7 +100,7 @@ class OnlineGalleryLocalFavoritesNotifier
         clearError: true,
       );
     } catch (error) {
-      if (!mounted) rethrow;
+      if (!ref.mounted) rethrow;
       state = state.copyWith(isLoading: false, lastError: error);
       rethrow;
     }
@@ -109,7 +129,7 @@ class OnlineGalleryLocalFavoritesNotifier
   Future<T> _write<T>(Future<T> Function() operation) async {
     try {
       final result = await operation();
-      if (mounted) {
+      if (ref.mounted) {
         state = state.copyWith(
           count: _repository.count,
           revision: state.revision + 1,
@@ -118,7 +138,7 @@ class OnlineGalleryLocalFavoritesNotifier
       }
       return result;
     } catch (error) {
-      if (mounted) state = state.copyWith(lastError: error);
+      if (ref.mounted) state = state.copyWith(lastError: error);
       rethrow;
     }
   }

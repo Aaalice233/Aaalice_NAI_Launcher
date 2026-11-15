@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/storage_keys.dart';
@@ -6,44 +8,56 @@ import '../../../core/storage/secure_storage_service.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 
 final promptAssistantConfigProvider =
-    StateNotifierProvider<
-      PromptAssistantConfigNotifier,
-      PromptAssistantConfigState
-    >((ref) => PromptAssistantConfigNotifier(ref));
+    NotifierProvider<PromptAssistantConfigNotifier, PromptAssistantConfigState>(
+      PromptAssistantConfigNotifier.new,
+    );
 
 class PromptAssistantConfigNotifier
-    extends StateNotifier<PromptAssistantConfigState> {
-  PromptAssistantConfigNotifier(this._ref)
-    : super(PromptAssistantConfigState.defaults()) {
-    _load();
+    extends Notifier<PromptAssistantConfigState> {
+  LocalStorageService get _local => ref.read(localStorageServiceProvider);
+  SecureStorageService get _secure => ref.read(secureStorageServiceProvider);
+
+  @override
+  PromptAssistantConfigState build() {
+    final initial = _loadInitial();
+    unawaited(_loadApiKeys(initial));
+    return initial;
   }
 
-  final Ref _ref;
-
-  LocalStorageService get _local => _ref.read(localStorageServiceProvider);
-  SecureStorageService get _secure => _ref.read(secureStorageServiceProvider);
-
-  Future<void> _load() async {
+  PromptAssistantConfigState _loadInitial() {
     final raw = _local.getSetting<String>(
       StorageKeys.promptAssistantConfigJson,
     );
     if (raw != null && raw.isNotEmpty) {
       try {
-        state = PromptAssistantConfigState.decode(raw);
+        return PromptAssistantConfigState.decode(raw);
       } catch (_) {
-        state = PromptAssistantConfigState.defaults();
+        return PromptAssistantConfigState.defaults();
       }
     }
+    return PromptAssistantConfigState.defaults();
+  }
 
+  Future<void> _loadApiKeys(PromptAssistantConfigState initial) async {
     final keyMap = <String, bool>{};
-    for (final provider in state.providers) {
+    for (final provider in initial.providers) {
       final key = await _secure.getPromptAssistantApiKey(provider.id);
+      if (!ref.mounted) return;
       keyMap[provider.id] = key != null && key.isNotEmpty;
     }
-    state = state.copyWith(providerHasApiKey: keyMap);
+    if (!ref.mounted) return;
+    final merged = <String, bool>{
+      for (final provider in state.providers)
+        provider.id:
+            state.providerHasApiKey[provider.id] ??
+            keyMap[provider.id] ??
+            false,
+    };
+    state = state.copyWith(providerHasApiKey: merged);
   }
 
   Future<void> _save() async {
+    if (!ref.mounted) return;
     await _local.setSetting(
       StorageKeys.promptAssistantConfigJson,
       state.encode(),
@@ -56,6 +70,7 @@ class PromptAssistantConfigNotifier
 
   /// 服务商已删除时忽略：页内编辑可能在删除之后才提交，不能留下孤立密钥。
   Future<void> setProviderApiKey(String providerId, String apiKey) async {
+    if (!ref.mounted) return;
     if (!state.providers.any((provider) => provider.id == providerId)) return;
     final trimmed = apiKey.trim();
     if (trimmed.isEmpty) {
@@ -63,6 +78,8 @@ class PromptAssistantConfigNotifier
     } else {
       await _secure.savePromptAssistantApiKey(providerId, trimmed);
     }
+    if (!ref.mounted) return;
+    if (!state.providers.any((provider) => provider.id == providerId)) return;
     final next = Map<String, bool>.from(state.providerHasApiKey)
       ..[providerId] = trimmed.isNotEmpty;
     state = state.copyWith(providerHasApiKey: next);
@@ -109,6 +126,7 @@ class PromptAssistantConfigNotifier
 
   /// 同 [setProviderApiKey]，服务商已删除时不能被延迟提交写回来。
   Future<void> setProviderBaseUrl(String providerId, String baseUrl) async {
+    if (!ref.mounted) return;
     final index = state.providers.indexWhere((p) => p.id == providerId);
     if (index < 0) return;
     final trimmed = baseUrl.trim();

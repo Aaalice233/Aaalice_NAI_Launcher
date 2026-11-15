@@ -3,9 +3,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/app_version.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
@@ -88,8 +89,7 @@ void main() {
             _FakeReplicationQueueNotifier.new,
           ),
           agentChatNotifierProvider.overrideWith(
-            (ref) => AgentChatNotifier(
-              ref,
+            () => AgentChatNotifier(
               supportDir: hiveDir,
               workspaceDir: Directory('${hiveDir.path}/agent-workspace'),
               presetSkills: const [],

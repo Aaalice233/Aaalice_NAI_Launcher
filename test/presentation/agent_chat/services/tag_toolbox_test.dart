@@ -143,6 +143,7 @@ void main() {
     addTearDown(emptyCatalog.close);
     final dbError = await databaseErrorCarrying('secret lighthouse keeper');
     final container = ProviderContainer(
+      retry: (retryCount, error) => null,
       overrides: [
         tagCatalogRepositoryProvider.overrideWithValue(
           TagCatalogRepository(database: emptyCatalog),

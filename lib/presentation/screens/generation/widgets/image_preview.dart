@@ -650,7 +650,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     if (enabled && ref.read(generationImageCardSelectionProvider).isActive) {
       ref.read(generationImageCardSelectionProvider.notifier).exit();
     }
-    ref.read(generationComparisonEnabledProvider.notifier).state = enabled;
+    ref.read(generationComparisonEnabledProvider.notifier).setEnabled(enabled);
   }
 
   Widget _buildGeneratedImageCard({

@@ -1,7 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -23,19 +24,31 @@ void main() {
 
   test('点击标签补全默认关闭并可持久化', () async {
     final storage = LocalStorageService();
-    final notifier = AutocompleteSettingsNotifier(storage);
-    addTearDown(notifier.dispose);
+    final container = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+    );
+    addTearDown(container.dispose);
 
-    expect(notifier.state.openOnTagClick, isFalse);
+    expect(
+      container.read(autocompleteSettingsProvider).openOnTagClick,
+      isFalse,
+    );
 
-    await notifier.setOpenOnTagClick(true);
+    await container
+        .read(autocompleteSettingsProvider.notifier)
+        .setOpenOnTagClick(true);
 
     expect(
       storage.getSetting<bool>(StorageKeys.autocompleteOpenOnTagClick),
       isTrue,
     );
-    final restored = AutocompleteSettingsNotifier(storage);
-    addTearDown(restored.dispose);
-    expect(restored.state.openOnTagClick, isTrue);
+    final restoredContainer = ProviderContainer(
+      overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+    );
+    addTearDown(restoredContainer.dispose);
+    expect(
+      restoredContainer.read(autocompleteSettingsProvider).openOnTagClick,
+      isTrue,
+    );
   });
 }

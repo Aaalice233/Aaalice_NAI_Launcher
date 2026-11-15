@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
 import 'package:nai_launcher/core/agent/llm_types.dart';
@@ -21,11 +22,8 @@ void main() {
     final directory = await Directory.systemTemp.createTemp(
       'agent_chat_notifier_edit_',
     );
-    final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
-      ref,
-    ) {
+    final provider = NotifierProvider<AgentChatNotifier, AgentChatState>(() {
       return AgentChatNotifier(
-        ref,
         supportDir: directory,
         workspaceDir: directory,
         presetSkills: const [],
@@ -39,8 +37,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
         secureStorageServiceProvider.overrideWithValue(_SecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: directory,
             workspaceDirectory: directory,
             environment: const {},
@@ -116,7 +113,7 @@ Future<void> _configureRoute(ProviderContainer container) async {
 // settings reject every write until their own load finishes.
 Future<void> _waitForInitialized(
   ProviderContainer container,
-  StateNotifierProvider<AgentChatNotifier, AgentChatState> provider,
+  NotifierProvider<AgentChatNotifier, AgentChatState> provider,
 ) async {
   await _waitForProviderState<AgentChatState>(
     container,

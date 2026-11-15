@@ -25,7 +25,7 @@ enum DependencyType {
 /// 实现词组选择数量依赖其他类别结果的功能
 /// 例如: 配饰数量根据角色总数变化 - 1人(0-3个), 2人(0-2个), 3人(0-1个)
 @freezed
-class DependencyConfig with _$DependencyConfig {
+abstract class DependencyConfig with _$DependencyConfig {
   const DependencyConfig._();
 
   const factory DependencyConfig({

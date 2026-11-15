@@ -3,3 +3,7 @@ targets:
     sources:
       exclude:
         - tool/.tmp/**
+    builders:
+      riverpod_generator:
+        options:
+          provider_name_strip_pattern: ""

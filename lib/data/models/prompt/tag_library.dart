@@ -34,7 +34,7 @@ enum TagLibrarySource {
 ///
 /// 存储按类别分组的带权重标签
 @freezed
-class TagLibrary with _$TagLibrary {
+abstract class TagLibrary with _$TagLibrary {
   const TagLibrary._();
 
   const factory TagLibrary({

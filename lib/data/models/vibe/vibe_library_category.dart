@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/extensions/list_sort_extensions.dart';
@@ -12,7 +12,7 @@ part 'vibe_library_category.g.dart';
 /// 用于组织 Vibe 库条目，支持无限层级嵌套
 @HiveType(typeId: 21)
 @freezed
-class VibeLibraryCategory with _$VibeLibraryCategory {
+abstract class VibeLibraryCategory with _$VibeLibraryCategory {
   const VibeLibraryCategory._();
 
   const factory VibeLibraryCategory({

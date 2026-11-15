@@ -30,7 +30,8 @@ import 'shell_panels_overlay.dart';
 
 export 'desktop_shell.dart' show DesktopShell;
 export 'mobile_shell.dart' show MobileShell;
-export 'shell_panels_overlay.dart' show ShellPanel, shellPanelProvider;
+export 'shell_panels_overlay.dart'
+    show ShellPanel, ShellPanelNotifier, shellPanelProvider;
 
 /// 主布局 Shell - 包含导航 (StatefulShellRoute 版本)
 ///
@@ -317,9 +318,7 @@ class _MainShellState extends ConsumerState<MainShell> {
         ShortcutHelpDialog.show(context);
       },
       ShortcutIds.toggleQueue: () {
-        final activePanel = ref.read(shellPanelProvider);
-        ref.read(shellPanelProvider.notifier).state =
-            activePanel == ShellPanel.queue ? null : ShellPanel.queue;
+        ref.read(shellPanelProvider.notifier).toggle(ShellPanel.queue);
       },
     };
 

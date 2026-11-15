@@ -4,7 +4,7 @@
 // 默认读取 %LOCALAPPDATA%/Temp/precise_ref_diag 下的副本，避免与运行中的应用抢锁。
 import 'dart:io';
 
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
 
 Future<void> main(List<String> args) async {

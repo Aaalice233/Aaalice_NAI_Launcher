@@ -13,7 +13,7 @@ part 'random_prompt_result.g.dart';
 ///
 /// 参考: docs/NAI随机提示词功能分析.md
 @freezed
-class RandomPromptResult with _$RandomPromptResult {
+abstract class RandomPromptResult with _$RandomPromptResult {
   const RandomPromptResult._();
 
   const factory RandomPromptResult({
@@ -107,7 +107,7 @@ class RandomPromptResult with _$RandomPromptResult {
 
 /// 生成的角色信息
 @freezed
-class GeneratedCharacter with _$GeneratedCharacter {
+abstract class GeneratedCharacter with _$GeneratedCharacter {
   const GeneratedCharacter._();
 
   const factory GeneratedCharacter({

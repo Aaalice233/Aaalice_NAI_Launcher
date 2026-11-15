@@ -77,7 +77,7 @@ void main() {
     ).readAsStringSync();
     expect(
       agentNotifierSource,
-      contains('AgentChatNotifier(ref, initializeImmediately: false)'),
+      contains('AgentChatNotifier(initializeImmediately: false)'),
     );
     final agentPanelSource = File(
       'lib/presentation/agent_chat/widgets/agent_chat_panel.dart',

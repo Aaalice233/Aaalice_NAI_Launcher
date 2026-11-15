@@ -12,7 +12,7 @@ part 'tag_library_category.g.dart';
 ///
 /// 用于组织词库条目，支持无限层级嵌套
 @freezed
-class TagLibraryCategory with _$TagLibraryCategory {
+abstract class TagLibraryCategory with _$TagLibraryCategory {
   const TagLibraryCategory._();
 
   const factory TagLibraryCategory({

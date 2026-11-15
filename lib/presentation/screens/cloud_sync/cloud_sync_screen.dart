@@ -16,7 +16,7 @@ class CloudSyncScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(cloudSyncUiStateProvider);
     // Held here, not in the form: the form leaves the tree while restoring.
-    final setupDraft = ref.watch(cloudSyncSetupDraftProvider.notifier);
+    final setupDraft = ref.watch(cloudSyncSetupDraftProvider);
     return SettingsPageLayout(
       title: context.l10n.cloudSync_title,
       description: context.l10n.cloudSync_description,

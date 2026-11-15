@@ -19,7 +19,7 @@ import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_ca
 import 'package:nai_launcher/presentation/widgets/common/desktop_window_frame.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_action.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_drag_source.dart';
 
@@ -161,6 +161,7 @@ void main() {
     );
 
     return ProviderScope(
+      retry: (retryCount, error) => null,
       child: MaterialApp(
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -301,6 +302,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        retry: (retryCount, error) => null,
         overrides: [
           localGalleryNotifierProvider.overrideWith(
             () => _ToolbarGalleryNotifier(

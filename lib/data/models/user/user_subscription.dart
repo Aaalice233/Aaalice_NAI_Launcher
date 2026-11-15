@@ -20,7 +20,7 @@ TrainingStepsInfo? _trainingStepsInfoFromJson(Object? value) {
 ///
 /// 从 /user/subscription API 获取，包含订阅等级和 Anlas 余额信息
 @freezed
-class UserSubscription with _$UserSubscription {
+abstract class UserSubscription with _$UserSubscription {
   const UserSubscription._();
 
   const factory UserSubscription({
@@ -102,7 +102,7 @@ class UserSubscription with _$UserSubscription {
 ///
 /// 网页端在配额透支（[isNegative]）时按正常价扣 Anlas；配额随时间自动回充。
 @freezed
-class OpusUsageInfo with _$OpusUsageInfo {
+abstract class OpusUsageInfo with _$OpusUsageInfo {
   const factory OpusUsageInfo({
     /// 剩余配额百分比（可因持续回充超过 100，负值语义见 [isNegative]）
     @Default(0) double percent,
@@ -120,7 +120,7 @@ class OpusUsageInfo with _$OpusUsageInfo {
 
 /// Anlas 训练步数信息
 @freezed
-class TrainingStepsInfo with _$TrainingStepsInfo {
+abstract class TrainingStepsInfo with _$TrainingStepsInfo {
   const factory TrainingStepsInfo({
     /// 固定（每月重置）的 Anlas
     @Default(0) int fixedTrainingStepsLeft,
@@ -135,7 +135,7 @@ class TrainingStepsInfo with _$TrainingStepsInfo {
 
 /// 订阅权益信息
 @freezed
-class SubscriptionPerks with _$SubscriptionPerks {
+abstract class SubscriptionPerks with _$SubscriptionPerks {
   const factory SubscriptionPerks({
     /// 最大优先级动作数
     @Default(0) int maxPriorityActions,
@@ -171,7 +171,7 @@ class SubscriptionPerks with _$SubscriptionPerks {
 
 /// 图像生成限制
 @freezed
-class ImageGenerationLimit with _$ImageGenerationLimit {
+abstract class ImageGenerationLimit with _$ImageGenerationLimit {
   const factory ImageGenerationLimit({
     /// 分辨率（像素数）
     @Default(0) int resolution,
@@ -186,7 +186,7 @@ class ImageGenerationLimit with _$ImageGenerationLimit {
 
 /// 订阅状态
 @freezed
-class SubscriptionState with _$SubscriptionState {
+sealed class SubscriptionState with _$SubscriptionState {
   const SubscriptionState._();
 
   /// 初始状态

@@ -144,7 +144,7 @@ class OnlineGalleryToolbarSourceControls {
     final allowNsfw = QuickTagCloudAccess.allowsNsfw(next);
     final filterNotifier = ref.read(quickTagCloudFilterProvider.notifier);
     final query = ref.read(quickTagCloudFilterProvider);
-    final catalog = ref.read(quickTagCloudCatalogProvider).valueOrNull;
+    final catalog = ref.read(quickTagCloudCatalogProvider).value;
     if (!allowNsfw && catalog?.findCodex(query.codexId)?.nsfw == true) {
       filterNotifier.selectCodex('all');
     }

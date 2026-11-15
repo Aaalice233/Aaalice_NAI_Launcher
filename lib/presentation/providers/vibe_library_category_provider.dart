@@ -14,7 +14,7 @@ part 'vibe_library_category_provider.g.dart';
 
 /// Vibe 库分类状态
 @freezed
-class VibeLibraryCategoryState with _$VibeLibraryCategoryState {
+abstract class VibeLibraryCategoryState with _$VibeLibraryCategoryState {
   const factory VibeLibraryCategoryState({
     /// 所有分类
     @Default([]) List<VibeLibraryCategory> categories,

@@ -10,7 +10,7 @@ part 'tag_template.g.dart';
 /// 标签模板数据模型
 /// 用于保存可复用的标签组合
 @freezed
-class TagTemplate with _$TagTemplate {
+abstract class TagTemplate with _$TagTemplate {
   const TagTemplate._();
 
   const factory TagTemplate({

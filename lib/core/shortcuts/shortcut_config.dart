@@ -6,7 +6,7 @@ part 'shortcut_config.g.dart';
 
 /// 快捷键绑定配置
 @freezed
-class ShortcutBinding with _$ShortcutBinding {
+abstract class ShortcutBinding with _$ShortcutBinding {
   const factory ShortcutBinding({
     required String id,
     required String actionKey,
@@ -37,7 +37,7 @@ class ShortcutBinding with _$ShortcutBinding {
 
 /// 快捷键配置
 @freezed
-class ShortcutConfig with _$ShortcutConfig {
+abstract class ShortcutConfig with _$ShortcutConfig {
   const factory ShortcutConfig({
     @Default({}) Map<String, ShortcutBinding> bindings,
     @Default(true) bool showShortcutBadges,

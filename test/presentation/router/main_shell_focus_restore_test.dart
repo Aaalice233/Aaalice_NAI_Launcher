@@ -189,10 +189,9 @@ void main() {
   testWidgets('关闭外壳面板后焦点回到当前页面', (tester) async {
     final harness = await _pumpShell(tester);
 
-    harness.container.read(shellPanelProvider.notifier).state =
-        ShellPanel.queue;
+    harness.container.read(shellPanelProvider.notifier).open(ShellPanel.queue);
     await tester.pumpAndSettle();
-    harness.container.read(shellPanelProvider.notifier).state = null;
+    harness.container.read(shellPanelProvider.notifier).close();
     await tester.pumpAndSettle();
 
     await harness.pressGenerate();

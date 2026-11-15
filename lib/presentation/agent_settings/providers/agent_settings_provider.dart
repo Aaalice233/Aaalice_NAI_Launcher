@@ -57,20 +57,12 @@ class AgentSkillBackupContext {
 }
 
 final agentSettingsProvider =
-    StateNotifierProvider<AgentSettingsNotifier, AgentSettingsState>((ref) {
-      final notifier = AgentSettingsNotifier(ref);
-      ref.listen<String?>(
-        imageSaveSettingsNotifierProvider.select(
-          (settings) => settings.customPath,
-        ),
-        (_, _) => unawaited(notifier.handleImageProjectChanged()),
-      );
-      return notifier;
-    });
+    NotifierProvider<AgentSettingsNotifier, AgentSettingsState>(
+      AgentSettingsNotifier.new,
+    );
 
-class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
-  AgentSettingsNotifier(
-    this._ref, {
+class AgentSettingsNotifier extends Notifier<AgentSettingsState> {
+  AgentSettingsNotifier({
     Directory? supportDirectory,
     Directory? workspaceDirectory,
     Map<String, String>? environment,
@@ -81,12 +73,8 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
        _environment = environment,
        _workspaceDirectoryResolver = workspaceDirectoryResolver,
        _skillCatalogService =
-           skillCatalogService ?? const SkillCatalogService(),
-       super(const AgentSettingsState()) {
-    _initialization = _load();
-  }
+           skillCatalogService ?? const SkillCatalogService();
 
-  final Ref _ref;
   final SkillCatalogService _skillCatalogService;
   final Directory? _providedWorkspaceDirectory;
   Directory? _resolvedWorkspaceDirectory;
@@ -98,7 +86,20 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   var _skillReloadGeneration = 0;
   var _imageProjectRefreshPending = false;
 
-  LocalStorageService get _local => _ref.read(localStorageServiceProvider);
+  LocalStorageService get _local => ref.read(localStorageServiceProvider);
+
+  @override
+  AgentSettingsState build() {
+    ref.listen<String?>(
+      imageSaveSettingsNotifierProvider.select(
+        (settings) => settings.customPath,
+      ),
+      (_, _) => unawaited(handleImageProjectChanged()),
+    );
+    state = const AgentSettingsState();
+    _initialization = _load();
+    return state;
+  }
 
   Future<void> _load() async {
     state = state.copyWith(initialized: false, error: '');
@@ -123,10 +124,10 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       } else {
         settings = await _migrateLegacy();
       }
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(settings: settings, error: '');
       await reloadSkills();
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(initialized: true, error: '');
       if (_imageProjectRefreshPending) {
         await handleImageProjectChanged();
@@ -138,7 +139,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
         null,
         'AgentSettings',
       );
-      if (mounted) {
+      if (ref.mounted) {
         state = state.copyWith(initialized: true, error: error.toString());
       }
     }
@@ -222,7 +223,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
 
   Future<void> _persist(AgentSettings next) async {
     await _local.setSetting(StorageKeys.agentSettingsJson, next.encode());
-    if (mounted) state = state.copyWith(settings: next, error: '');
+    if (ref.mounted) state = state.copyWith(settings: next, error: '');
   }
 
   Future<void> _update(
@@ -363,7 +364,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
           StorageKeys.agentSettingsJson,
           settings.encode(),
         );
-        if (mounted) {
+        if (ref.mounted) {
           final scanIsCurrent = scanGeneration == _skillReloadGeneration;
           state = state.copyWith(
             settings: settings,
@@ -389,7 +390,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
             rollbackStack,
           );
         }
-        if (mounted) {
+        if (ref.mounted) {
           state = state.copyWith(
             settings: previousSettings,
             skills: previousSkills,
@@ -414,7 +415,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
       final overrides = {...current.skillEnabledOverrides, id: enabled};
       return current.copyWith(skillEnabledOverrides: overrides);
     });
-    if (!mounted) return;
+    if (!ref.mounted) return;
     state = state.copyWith(
       skills: SkillCatalogSnapshot(
         entries: [
@@ -431,7 +432,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
     state = state.copyWith(refreshingSkills: true, error: '');
     try {
       final snapshot = await _scanSkills(state.settings.skillEnabledOverrides);
-      if (!mounted || generation != _skillReloadGeneration) return;
+      if (!ref.mounted || generation != _skillReloadGeneration) return;
       final currentOverrides = state.settings.skillEnabledOverrides;
       state = state.copyWith(
         skills: SkillCatalogSnapshot(
@@ -447,7 +448,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
         refreshingSkills: false,
       );
     } catch (error) {
-      if (!mounted || generation != _skillReloadGeneration) return;
+      if (!ref.mounted || generation != _skillReloadGeneration) return;
       state = state.copyWith(refreshingSkills: false, error: error.toString());
       rethrow;
     }
@@ -461,7 +462,7 @@ class AgentSettingsNotifier extends StateNotifier<AgentSettingsState> {
   }
 
   Future<void> handleImageProjectChanged() async {
-    if (!mounted) return;
+    if (!ref.mounted) return;
     if (!state.initialized) {
       _imageProjectRefreshPending = true;
       return;

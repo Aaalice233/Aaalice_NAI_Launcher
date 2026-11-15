@@ -28,9 +28,9 @@ void main() {
     if (await root.exists()) await root.delete(recursive: true);
   });
 
-  _RecordingMcpServerNotifier buildNotifier(Ref ref) {
+  _RecordingMcpServerNotifier buildNotifier({McpApprovalRequest? pending}) {
     return _RecordingMcpServerNotifier(
-      ref,
+      initialPendingApproval: pending,
       discovery: McpDiscoveryFileStore(directory: root),
       settingsStore: _MemorySettingsStore(),
       tokenStore: _MemoryTokenStore(),
@@ -48,10 +48,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          mcpServerNotifierProvider.overrideWith((ref) {
-            notifier = buildNotifier(ref);
-            if (pending != null) notifier.showApproval(pending);
-            return notifier;
+          mcpServerNotifierProvider.overrideWith(() {
+            return notifier = buildNotifier(pending: pending);
           }),
         ],
         child: MaterialApp(
@@ -195,10 +193,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            mcpServerNotifierProvider.overrideWith((ref) {
-              notifier = buildNotifier(ref);
-              if (pending != null) notifier.showApproval(pending);
-              return notifier;
+            mcpServerNotifierProvider.overrideWith(() {
+              return notifier = buildNotifier(pending: pending);
             }),
           ],
           child: MaterialApp(
@@ -294,15 +290,24 @@ McpApprovalRequest _request({String clientLabel = 'codex 1.0.0'}) {
 }
 
 class _RecordingMcpServerNotifier extends McpServerNotifier {
-  _RecordingMcpServerNotifier(
-    super.ref, {
+  _RecordingMcpServerNotifier({
+    this.initialPendingApproval,
     super.discovery,
     super.settingsStore,
     super.tokenStore,
     super.supportDirectory,
   });
 
+  final McpApprovalRequest? initialPendingApproval;
   final List<(String, bool)> resolutions = [];
+
+  @override
+  McpServerState build() {
+    final initial = super.build();
+    return initialPendingApproval == null
+        ? initial
+        : initial.copyWith(pendingApproval: initialPendingApproval);
+  }
 
   void showApproval(McpApprovalRequest request) {
     state = state.copyWith(pendingApproval: request);

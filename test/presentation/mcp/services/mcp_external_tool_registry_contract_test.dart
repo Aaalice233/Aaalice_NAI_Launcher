@@ -30,8 +30,7 @@ void main() {
       overrides: [
         localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: root,
             workspaceDirectory: root,
             environment: const {},

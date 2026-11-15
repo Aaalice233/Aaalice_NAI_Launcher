@@ -34,7 +34,7 @@ typedef _VibeLibraryPage = ({
 });
 
 @freezed
-class VibeLibraryState with _$VibeLibraryState {
+abstract class VibeLibraryState with _$VibeLibraryState {
   const factory VibeLibraryState({
     @Default([]) List<VibeLibraryEntry> entries,
     @Default([]) List<VibeLibraryCategory> categories,

@@ -35,20 +35,25 @@ class PromptAssistantOperationState {
 }
 
 final promptAssistantStateProvider =
-    StateNotifierProvider<
+    NotifierProvider<
       PromptAssistantStateNotifier,
       Map<String, PromptAssistantOperationState>
-    >((ref) => PromptAssistantStateNotifier());
+    >(PromptAssistantStateNotifier.new);
 
 class PromptAssistantStateNotifier
-    extends StateNotifier<Map<String, PromptAssistantOperationState>> {
-  PromptAssistantStateNotifier() : super(const {});
+    extends Notifier<Map<String, PromptAssistantOperationState>> {
+  @override
+  Map<String, PromptAssistantOperationState> build() => const {};
+
+  bool get isMounted => ref.mounted;
 
   PromptAssistantOperationState getState(String sessionId) {
+    if (!ref.mounted) return const PromptAssistantOperationState();
     return state[sessionId] ?? const PromptAssistantOperationState();
   }
 
   void _put(String sessionId, PromptAssistantOperationState value) {
+    if (!ref.mounted) return;
     state = {...state, sessionId: value};
   }
 

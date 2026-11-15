@@ -10,7 +10,7 @@ part 'version_info.g.dart';
 ///
 /// 用于存储 GitHub Release 的版本信息
 @freezed
-class VersionInfo with _$VersionInfo {
+abstract class VersionInfo with _$VersionInfo {
   const factory VersionInfo({
     /// 版本号（不含 v 前缀）
     required String version,

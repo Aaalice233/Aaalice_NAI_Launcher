@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
-import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_category.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -155,7 +154,7 @@ Future<void> _setCompactImeViewport(WidgetTester tester) async {
 Widget _wrap(Widget child) => ProviderScope(
   overrides: [
     autocompleteSettingsProvider.overrideWith(
-      (ref) => _DisabledAutocompleteSettingsNotifier(),
+      _DisabledAutocompleteSettingsNotifier.new,
     ),
   ],
   child: MaterialApp(
@@ -174,11 +173,10 @@ Widget _wrap(Widget child) => ProviderScope(
 
 class _DisabledAutocompleteSettingsNotifier
     extends AutocompleteSettingsNotifier {
-  _DisabledAutocompleteSettingsNotifier() : super(LocalStorageService()) {
-    state = const AutocompleteSettings(
-      enabled: false,
-      danbooruEnabled: false,
-      zhInstallPromptDismissed: true,
-    );
-  }
+  @override
+  AutocompleteSettings build() => const AutocompleteSettings(
+    enabled: false,
+    danbooruEnabled: false,
+    zhInstallPromptDismissed: true,
+  );
 }

@@ -5,7 +5,7 @@ part 'danbooru_user.g.dart';
 
 /// Danbooru 用户模型
 @freezed
-class DanbooruUser with _$DanbooruUser {
+abstract class DanbooruUser with _$DanbooruUser {
   const DanbooruUser._();
 
   const factory DanbooruUser({
@@ -62,7 +62,7 @@ class DanbooruUser with _$DanbooruUser {
 
 /// Danbooru 认证凭据
 @freezed
-class DanbooruCredentials with _$DanbooruCredentials {
+abstract class DanbooruCredentials with _$DanbooruCredentials {
   const factory DanbooruCredentials({
     required String username,
     required String apiKey,

@@ -11,7 +11,7 @@ part 'tag_group.g.dart';
 /// 对应 Danbooru wiki_pages 的 tag_group 页面
 /// 用于从 Danbooru 获取按语义分类的标签集合
 @freezed
-class TagGroup with _$TagGroup {
+abstract class TagGroup with _$TagGroup {
   const TagGroup._();
 
   const factory TagGroup({
@@ -218,7 +218,7 @@ class TagGroup with _$TagGroup {
 
 /// Tag Group 中的标签条目
 @freezed
-class TagGroupEntry with _$TagGroupEntry {
+abstract class TagGroupEntry with _$TagGroupEntry {
   const TagGroupEntry._();
 
   const factory TagGroupEntry({

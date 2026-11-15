@@ -71,7 +71,7 @@ enum TagGroupNodeType {
 /// 表示类别下的一个标签分组，可以是用户自定义的，
 /// 也可以是从 Danbooru Tag Group 或 Pool 同步而来的。
 @freezed
-class RandomTagGroup with _$RandomTagGroup {
+abstract class RandomTagGroup with _$RandomTagGroup {
   const RandomTagGroup._();
 
   const factory RandomTagGroup({

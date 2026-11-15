@@ -36,7 +36,7 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             naiImageGenerationApiServiceProvider.overrideWithValue(api),
-            dlssProvider.overrideWith((_) => dlss),
+            dlssProvider.overrideWithBuild((_, _) => dlss),
           ],
         );
         addTearDown(container.dispose);

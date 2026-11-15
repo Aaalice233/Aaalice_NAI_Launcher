@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/utils/image_share_sanitizer.dart';
@@ -47,13 +48,26 @@ DiscordShareSubmission _submission(Uint8List bytes, Set<String> ids) =>
 
 Future<void> _flush() => Future<void>.delayed(Duration.zero);
 
+ProviderContainer _createContainer(
+  DiscordShareService service, {
+  required ShareImagePrepareFunction prepare,
+}) {
+  return ProviderContainer(
+    overrides: [
+      discordShareTaskProvider.overrideWith(
+        () => DiscordShareTaskNotifier(service: service, prepare: prepare),
+      ),
+    ],
+  );
+}
+
 void main() {
   test(
     'snapshot survives caller changes and partial retry sends only failed IDs',
     () async {
       final service = _Service();
       Uint8List? prepared;
-      final notifier = DiscordShareTaskNotifier(
+      final container = _createContainer(
         service,
         prepare: (bytes, {required fileName, required stripMetadata}) async {
           prepared = bytes;
@@ -64,7 +78,8 @@ void main() {
           );
         },
       );
-      addTearDown(notifier.dispose);
+      addTearDown(container.dispose);
+      final notifier = container.read(discordShareTaskProvider.notifier);
       final bytes = Uint8List.fromList([1, 2, 3]);
       final ids = {'first', 'second'};
       final snapshot = _submission(bytes, ids);
@@ -108,7 +123,7 @@ void main() {
     'rate limit retains manual retry and never automatically resends',
     () async {
       final service = _Service();
-      final notifier = DiscordShareTaskNotifier(
+      final container = _createContainer(
         service,
         prepare: (bytes, {required fileName, required stripMetadata}) async =>
             SanitizedShareImage(
@@ -117,7 +132,8 @@ void main() {
               mimeType: 'image/png',
             ),
       );
-      addTearDown(notifier.dispose);
+      addTearDown(container.dispose);
+      final notifier = container.read(discordShareTaskProvider.notifier);
       notifier.submit(_submission(Uint8List(1), {'first'}));
       await _flush();
       service.results.single.completeError(
@@ -141,13 +157,14 @@ void main() {
     () async {
       final service = _Service();
       final prepared = Completer<SanitizedShareImage>();
-      final notifier = DiscordShareTaskNotifier(
+      final container = _createContainer(
         service,
         prepare: (bytes, {required fileName, required stripMetadata}) =>
             prepared.future,
       );
+      final notifier = container.read(discordShareTaskProvider.notifier);
       notifier.submit(_submission(Uint8List(1), {'first'}));
-      notifier.dispose();
+      container.dispose();
       prepared.complete(
         SanitizedShareImage(
           bytes: Uint8List(1),

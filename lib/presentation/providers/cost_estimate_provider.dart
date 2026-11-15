@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -62,7 +64,15 @@ _GenerationCostInput? _resolveGenerationCostInput(
         selectionRect: focusedSelectionRect,
         minContextMegaPixels: workflow.minimumContextMegaPixels,
       );
-    } else if (focusedMaskGeometry.hasValue || focusedMaskGeometry.hasError) {
+    } else if (focusedMaskGeometry.hasError) {
+      focusedGeometry = focusedMaskGeometry.requireValue;
+    } else if (focusedMaskGeometry.isLoading) {
+      final previous = focusedMaskGeometry.value;
+      if (previous == null) {
+        return null;
+      }
+      focusedGeometry = previous;
+    } else if (focusedMaskGeometry.hasValue) {
       focusedGeometry = focusedMaskGeometry.requireValue;
     } else {
       return null;
@@ -113,7 +123,7 @@ Future<FocusedInpaintMaskExtent?> focusedInpaintMaskExtent(Ref ref) async {
 /// 调整上下文参数只重算几何，不重新解码蒙版。外接矩形重算期间返回
 /// 带上一次几何的 [AsyncLoading]，首次计算尚无结果时不带值。
 @riverpod
-AsyncValue<FocusedInpaintGeometry?> focusedInpaintMaskRequestSize(Ref ref) {
+FutureOr<FocusedInpaintGeometry?> focusedInpaintMaskRequestSize(Ref ref) {
   final needsMaskSize = ref.watch(
     imageWorkflowControllerProvider.select(
       (workflow) => workflow.focusesOnMaskExtent,
@@ -123,7 +133,7 @@ AsyncValue<FocusedInpaintGeometry?> focusedInpaintMaskRequestSize(Ref ref) {
     generationParamsNotifierProvider.select((params) => params.isInpainting),
   );
   if (!needsMaskSize || !isInpainting) {
-    return const AsyncData(null);
+    return null;
   }
 
   final hasMask = ref.watch(
@@ -132,7 +142,7 @@ AsyncValue<FocusedInpaintGeometry?> focusedInpaintMaskRequestSize(Ref ref) {
     ),
   );
   if (!hasMask) {
-    return const AsyncData(null);
+    return null;
   }
 
   final minContextMegaPixels = ref.watch(
@@ -140,28 +150,16 @@ AsyncValue<FocusedInpaintGeometry?> focusedInpaintMaskRequestSize(Ref ref) {
       (workflow) => workflow.minimumContextMegaPixels,
     ),
   );
-  FocusedInpaintGeometry? resolve(FocusedInpaintMaskExtent? extent) =>
-      extent == null
+  final extent = ref
+      .watch(focusedInpaintMaskExtentProvider)
+      .unwrapPrevious()
+      .requireValue;
+  return extent == null
       ? null
       : FocusedInpaintUtils.resolveGeometryForMaskExtent(
           extent,
           minContextMegaPixels: minContextMegaPixels,
         );
-
-  final extent = ref.watch(focusedInpaintMaskExtentProvider);
-  if (extent.isLoading) {
-    if (!extent.hasValue) {
-      return const AsyncLoading();
-    }
-    return const AsyncLoading<FocusedInpaintGeometry?>().copyWithPrevious(
-      AsyncData(resolve(extent.valueOrNull)),
-      isRefresh: false,
-    );
-  }
-  if (extent.hasError) {
-    return AsyncError(extent.error!, extent.stackTrace!);
-  }
-  return AsyncData(resolve(extent.valueOrNull));
 }
 
 /// 蒙版外接矩形仍在后台计算时先等它落定，给出与同步计算一致的预估消耗。

@@ -10,6 +10,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -31,6 +32,7 @@ ProviderContainer createStorageFreeContainer({
 }) {
   SharedPreferences.setMockInitialValues(const {});
   return ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       localStorageServiceProvider.overrideWith(
         (ref) => InMemoryLocalStorageService(),

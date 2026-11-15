@@ -7,17 +7,19 @@ import '../../../core/utils/app_logger.dart';
 import '../../providers/cloud_sync/cloud_sync_ui_provider.dart';
 
 /// Owned above the form so restores and layout switches keep unsaved input.
-final cloudSyncSetupDraftProvider =
-    ChangeNotifierProvider.autoDispose<CloudSyncSetupDraft>((ref) {
-      final draft = CloudSyncSetupDraft(ref.read(cloudSyncUiPortProvider));
-      ref.listen<bool>(
-        cloudSyncUiStateProvider.select((state) => state.isConnected),
-        (wasConnected, connected) {
-          if (connected && wasConnected != true) draft.reset();
-        },
-      );
-      return draft;
-    });
+final cloudSyncSetupDraftProvider = Provider.autoDispose<CloudSyncSetupDraft>((
+  ref,
+) {
+  final draft = CloudSyncSetupDraft(ref.read(cloudSyncUiPortProvider));
+  ref.onDispose(draft.dispose);
+  ref.listen<bool>(
+    cloudSyncUiStateProvider.select((state) => state.isConnected),
+    (wasConnected, connected) {
+      if (connected && wasConnected != true) draft.reset();
+    },
+  );
+  return draft;
+});
 
 class CloudSyncSetupDraft extends ChangeNotifier {
   CloudSyncSetupDraft(this._port) {

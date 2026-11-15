@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
@@ -5,8 +6,9 @@ import 'package:nai_launcher/presentation/agent_settings/providers/agent_prompt_
 
 void main() {
   test('未保存草稿不会被延迟到达的持久化状态覆盖', () {
-    final notifier = AgentPromptDraftNotifier();
-    addTearDown(notifier.dispose);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(agentPromptDraftProvider.notifier);
 
     notifier.synchronizeSaved(value: '已保存', mode: AgentSystemPromptMode.append);
     notifier.updateDraft('用户草稿');
@@ -21,8 +23,9 @@ void main() {
   });
 
   test('保存期间继续编辑时只更新保存基线而不覆盖新草稿', () {
-    final notifier = AgentPromptDraftNotifier();
-    addTearDown(notifier.dispose);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(agentPromptDraftProvider.notifier);
 
     notifier.synchronizeSaved(value: '旧值', mode: AgentSystemPromptMode.append);
     notifier.updateDraft('待保存');
@@ -45,8 +48,9 @@ void main() {
   });
 
   test('仅切换模式也会标记未保存并可放弃', () {
-    final notifier = AgentPromptDraftNotifier();
-    addTearDown(notifier.dispose);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(agentPromptDraftProvider.notifier);
     notifier.synchronizeSaved(value: '内容', mode: AgentSystemPromptMode.append);
 
     notifier.updateMode(AgentSystemPromptMode.override);

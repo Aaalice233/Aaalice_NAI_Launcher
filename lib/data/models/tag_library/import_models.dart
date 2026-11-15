@@ -8,7 +8,7 @@ part 'import_models.g.dart';
 
 /// 导入预览数据
 @freezed
-class ImportPreview with _$ImportPreview {
+abstract class ImportPreview with _$ImportPreview {
   const ImportPreview._();
 
   const factory ImportPreview({
@@ -72,7 +72,7 @@ enum ConflictResolution {
 
 /// 导入冲突信息
 @freezed
-class ImportConflict with _$ImportConflict {
+abstract class ImportConflict with _$ImportConflict {
   const ImportConflict._();
 
   const factory ImportConflict({
@@ -115,7 +115,7 @@ class ImportConflict with _$ImportConflict {
 
 /// 导入结果
 @freezed
-class ImportResult with _$ImportResult {
+abstract class ImportResult with _$ImportResult {
   const ImportResult._();
 
   const factory ImportResult({
@@ -161,7 +161,7 @@ class ImportResult with _$ImportResult {
 
 /// 导出清单数据
 @freezed
-class ExportManifest with _$ExportManifest {
+abstract class ExportManifest with _$ExportManifest {
   const ExportManifest._();
 
   const factory ExportManifest({

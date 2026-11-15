@@ -11,7 +11,7 @@ part 'pool_sync_config.g.dart';
 ///
 /// 管理 Danbooru Pool 同步的全局配置
 @freezed
-class PoolSyncConfig with _$PoolSyncConfig {
+abstract class PoolSyncConfig with _$PoolSyncConfig {
   const PoolSyncConfig._();
 
   const factory PoolSyncConfig({

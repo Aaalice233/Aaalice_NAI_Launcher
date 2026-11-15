@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:nai_launcher/presentation/widgets/character/inline_character_editor.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/tag_editor_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';

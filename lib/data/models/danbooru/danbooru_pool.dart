@@ -18,7 +18,7 @@ enum PoolCategory {
 ///
 /// Pool 是 Danbooru 上的帖子集合，可用于从中提取高频标签
 @freezed
-class DanbooruPool with _$DanbooruPool {
+abstract class DanbooruPool with _$DanbooruPool {
   const DanbooruPool._();
 
   const factory DanbooruPool({

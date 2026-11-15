@@ -25,7 +25,9 @@ void main() {
       final dictionary = _Dictionary();
       final container = ProviderContainer(
         overrides: [
-          zhDictionaryServiceProvider.overrideWith((ref) => dictionary),
+          zhDictionaryServiceProvider.overrideWith(
+            () => ZhDictionaryNotifier(dictionary),
+          ),
         ],
       );
       addTearDown(container.dispose);

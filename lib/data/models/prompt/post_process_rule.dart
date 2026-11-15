@@ -27,7 +27,7 @@ enum PostProcessAction {
 /// 例如: sleeping/zzz/closed eyes 时移除眼睛颜色
 /// 例如: mermaid/centaur/lamia 不穿腿部服装
 @freezed
-class PostProcessRule with _$PostProcessRule {
+abstract class PostProcessRule with _$PostProcessRule {
   const PostProcessRule._();
 
   const factory PostProcessRule({
@@ -227,7 +227,7 @@ class PostProcessRule with _$PostProcessRule {
 
 /// 后处理规则集
 @freezed
-class PostProcessRuleSet with _$PostProcessRuleSet {
+abstract class PostProcessRuleSet with _$PostProcessRuleSet {
   const PostProcessRuleSet._();
 
   const factory PostProcessRuleSet({

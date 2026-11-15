@@ -17,7 +17,7 @@ part 'random_preset.g.dart';
 ///
 /// 包含完整的算法配置和类别/分组配置
 @freezed
-class RandomPreset with _$RandomPreset {
+abstract class RandomPreset with _$RandomPreset {
   const RandomPreset._();
 
   const factory RandomPreset({

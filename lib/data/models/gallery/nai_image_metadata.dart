@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/model_capabilities.dart';
@@ -22,7 +22,7 @@ part 'nai_image_metadata.g.dart';
 /// 用于存储V4多角色提示词的详细信息
 @HiveType(typeId: 25)
 @freezed
-class CharacterPromptInfo with _$CharacterPromptInfo {
+abstract class CharacterPromptInfo with _$CharacterPromptInfo {
   const factory CharacterPromptInfo({
     /// 角色提示词内容
     @HiveField(0) required String prompt,
@@ -52,7 +52,7 @@ class CharacterPromptInfo with _$CharacterPromptInfo {
 /// 从 PNG 图片的 stealth_pngcomp 隐写数据中提取的生成参数
 @HiveType(typeId: 24)
 @freezed
-class NaiImageMetadata with _$NaiImageMetadata {
+abstract class NaiImageMetadata with _$NaiImageMetadata {
   const factory NaiImageMetadata({
     /// 正向提示词
     @HiveField(0) @Default('') String prompt,

@@ -14,6 +14,7 @@ import 'fast_tag_service_provider.dart';
 
 export 'fast_tag_service_provider.dart'
     show
+        ZhDictionaryNotifier,
         fastTagServiceProvider,
         tagCatalogRepositoryProvider,
         zhDictionaryServiceProvider;

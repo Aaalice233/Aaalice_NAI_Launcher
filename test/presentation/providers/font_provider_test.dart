@@ -46,7 +46,7 @@ void main() {
       channel,
       (call) async => ['Segoe UI', 'Arial'],
     );
-    final container = ProviderContainer();
+    final container = ProviderContainer(retry: (retryCount, error) => null);
     addTearDown(container.dispose);
 
     final groups = await container.read(allFontsProvider.future);
@@ -64,7 +64,7 @@ void main() {
     messenger.setMockMethodCallHandler(channel, (call) async {
       throw PlatformException(code: 'enumeration_failed');
     });
-    final container = ProviderContainer();
+    final container = ProviderContainer(retry: (retryCount, error) => null);
     addTearDown(container.dispose);
 
     await expectLater(

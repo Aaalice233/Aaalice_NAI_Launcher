@@ -97,16 +97,14 @@ void main() {
           shareImageSettingsProvider.overrideWith(
             () => _FixedShareImageSettingsNotifier(shareSettings),
           ),
-          mcpServerNotifierProvider.overrideWith((ref) {
-            notifier = _FakeMcpServerNotifier(
-              ref,
+          mcpServerNotifierProvider.overrideWith(() {
+            return notifier = _FakeMcpServerNotifier(
+              initialSeedState: initialState,
               discovery: McpDiscoveryFileStore(directory: root),
               settingsStore: _MemorySettingsStore(),
               tokenStore: _MemoryTokenStore(),
               supportDirectory: root,
             );
-            if (initialState != null) notifier.seed(initialState);
-            return notifier;
           }),
         ],
         child: MaterialApp(
@@ -668,19 +666,26 @@ class _FixedShareImageSettingsNotifier extends ShareImageSettingsNotifier {
 }
 
 class _FakeMcpServerNotifier extends McpServerNotifier {
-  _FakeMcpServerNotifier(
-    super.ref, {
+  _FakeMcpServerNotifier({
+    this.initialSeedState,
     super.discovery,
     super.settingsStore,
     super.tokenStore,
     super.supportDirectory,
   });
 
+  final McpServerState? initialSeedState;
   final List<bool> enabledCalls = [];
   final List<int> ports = [];
   final List<AgentPermissionMode> permissionModes = [];
   int regenerateCount = 0;
   int readTokenCount = 0;
+
+  @override
+  McpServerState build() {
+    final base = super.build();
+    return initialSeedState ?? base;
+  }
 
   void seed(McpServerState next) => state = next;
 

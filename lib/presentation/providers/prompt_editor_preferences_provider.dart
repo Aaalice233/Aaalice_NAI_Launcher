@@ -7,12 +7,16 @@ import '../../core/storage/local_storage_service.dart';
 final promptTagModeProvider = NotifierProvider.autoDispose
     .family<PromptTagModeNotifier, bool, Object>(PromptTagModeNotifier.new);
 
-class PromptTagModeNotifier extends AutoDisposeFamilyNotifier<bool, Object> {
+class PromptTagModeNotifier extends Notifier<bool> {
+  PromptTagModeNotifier(this.arg);
+
+  final Object arg;
+
   @override
-  bool build(Object sessionId) => sessionId is String
+  bool build() => arg is String
       ? ref
                 .watch(localStorageServiceProvider)
-                .getSetting<bool>('${StorageKeys.promptTagMode}.$sessionId') ??
+                .getSetting<bool>('${StorageKeys.promptTagMode}.$arg') ??
             false
       : false;
 

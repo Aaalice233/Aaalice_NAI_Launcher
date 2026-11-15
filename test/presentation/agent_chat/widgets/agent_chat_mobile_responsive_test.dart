@@ -21,8 +21,7 @@ void main() {
       overrides: [
         localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
         agentChatNotifierProvider.overrideWith(
-          (ref) => _ResponsiveTestNotifier(
-            ref,
+          () => _ResponsiveTestNotifier(
             supportDir: supportDir,
             workspaceDir: supportDir,
           ),
@@ -229,8 +228,7 @@ Future<void> _waitForInitialized(ProviderContainer container) async {
 }
 
 class _ResponsiveTestNotifier extends AgentChatNotifier {
-  _ResponsiveTestNotifier(
-    super.ref, {
+  _ResponsiveTestNotifier({
     required super.supportDir,
     required super.workspaceDir,
   }) : super(presetSkills: const []);

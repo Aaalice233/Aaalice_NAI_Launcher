@@ -21,7 +21,7 @@ enum WeightSyntaxType {
 /// 提示词标签数据模型
 /// 用于可视化标签管理
 @freezed
-class PromptTag with _$PromptTag {
+abstract class PromptTag with _$PromptTag {
   const PromptTag._();
 
   const factory PromptTag({
