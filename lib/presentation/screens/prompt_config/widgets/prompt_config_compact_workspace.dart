@@ -4,6 +4,7 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/compact_control_metrics.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../widgets/common/horizontal_segmented_control.dart';
+import '../../../widgets/common/ticker_mode_indexed_stack.dart';
 import '../../../widgets/prompt/random_manager/algorithm_config_card.dart';
 import '../../../widgets/prompt/random_manager/preview_generator_panel.dart';
 import 'prompt_config_workspace_slivers.dart';
@@ -62,7 +63,7 @@ class _PromptConfigCompactWorkspaceState
     List<Widget> leadingFor(int section) =>
         section == widget.selectedSection ? [chrome] : const [];
 
-    return IndexedStack(
+    return TickerModeIndexedStack(
       index: widget.selectedSection,
       children: [
         widget.recipeBuilder(leadingFor(0)),

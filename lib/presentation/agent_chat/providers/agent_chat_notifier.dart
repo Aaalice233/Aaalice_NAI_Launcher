@@ -1158,9 +1158,14 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     return state.routeReady && _sessionController.agent != null;
   }
 
-  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() async {
+  session_types.MessageEntry? get lastVisibleUserEntry =>
+      _sessionController.lastVisibleUserEntry;
+
+  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind(
+    String entryId,
+  ) async {
     await ensureInitialized();
-    return _sessionController.beginRewindLastUserMessage();
+    return _sessionController.beginRewindLastUserMessage(entryId);
   }
 
   Future<void> restoreEditedMessageRewind(

@@ -100,7 +100,7 @@ class AgentChatPanelController extends ChangeNotifier {
   List<AgentToolActivity>? _lastActivities;
   int? _hoveredUserMessageIndex;
   int? _focusedUserMessageIndex;
-  int? _editingUserMessageIndex;
+  String? _editingUserMessageEntryId;
   String? _composerTextBeforeEdit;
   List<PendingAgentChatImage>? _composerImagesBeforeEdit;
 
@@ -108,8 +108,8 @@ class AgentChatPanelController extends ChangeNotifier {
       List.unmodifiable(_pendingImages);
   int? get hoveredUserMessageIndex => _hoveredUserMessageIndex;
   int? get focusedUserMessageIndex => _focusedUserMessageIndex;
-  int? get editingUserMessageIndex => _editingUserMessageIndex;
-  bool get isEditingUserMessage => _editingUserMessageIndex != null;
+  String? get editingUserMessageEntryId => _editingUserMessageEntryId;
+  bool get isEditingUserMessage => _editingUserMessageEntryId != null;
   bool get showJumpToLatest => !_autoScroll;
   bool get followingLatest => _autoScroll;
   bool get scrollOffsetAnimating {
@@ -168,7 +168,7 @@ class AgentChatPanelController extends ChangeNotifier {
       messageImageBytes.clear();
       messageImageSizes.clear();
       markdownDataImageBytes.clear();
-      _editingUserMessageIndex = null;
+      _editingUserMessageEntryId = null;
       _composerTextBeforeEdit = null;
       _composerImagesBeforeEdit = null;
       final savedViewport = _sessionOffsets[state.activeSessionId];
@@ -235,7 +235,7 @@ class AgentChatPanelController extends ChangeNotifier {
   }
 
   void beginEditingUserMessage(
-    int messageIndex,
+    String entryId,
     String text,
     List<PendingAgentChatImage> images,
   ) {
@@ -243,7 +243,7 @@ class AgentChatPanelController extends ChangeNotifier {
       _composerTextBeforeEdit = inputController.text;
       _composerImagesBeforeEdit = List.of(_pendingImages);
     }
-    _editingUserMessageIndex = messageIndex;
+    _editingUserMessageEntryId = entryId;
     restoreDraft(text, images);
   }
 
@@ -257,7 +257,7 @@ class AgentChatPanelController extends ChangeNotifier {
 
   void finishEditingUserMessage() {
     if (!isEditingUserMessage) return;
-    _editingUserMessageIndex = null;
+    _editingUserMessageEntryId = null;
     _composerTextBeforeEdit = null;
     _composerImagesBeforeEdit = null;
     notifyListeners();

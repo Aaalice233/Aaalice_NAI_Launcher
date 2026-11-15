@@ -300,12 +300,12 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
   void initState() {
     super.initState();
     _expanded = _lifecycleExpanded(widget);
-    _syncTimer();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _syncTimer();
     if (_restoredExpansion) return;
     _restoredExpansion = true;
     final stored = PageStorage.maybeOf(
@@ -345,7 +345,9 @@ class _AgentChatWorkTrailState extends State<AgentChatWorkTrail> {
 
   void _syncTimer() {
     _elapsedTimer?.cancel();
-    if (widget.running && _validStartedAt != null) {
+    if (TickerMode.valuesOf(context).enabled &&
+        widget.running &&
+        _validStartedAt != null) {
       _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
         if (mounted) setState(() {});
       });
