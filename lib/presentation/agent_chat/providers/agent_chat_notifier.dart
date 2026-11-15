@@ -1240,12 +1240,22 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     return state.routeReady && _sessionController.agent != null;
   }
 
-  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind() async {
+  session_types.MessageEntry? get lastVisibleUserEntry =>
+      _sessionController.lastVisibleUserEntry;
+
+  Future<AgentChatRewindCheckpoint?> beginEditedMessageRewind(
+    String entryId,
+  ) => _beginLastMessageRewind(expectedEntryId: entryId);
+
+  Future<AgentChatRewindCheckpoint?> _beginLastMessageRewind({
+    String? expectedEntryId,
+  }) async {
     await ensureInitialized();
     await _pendingThinking[_sessionController.session];
     final route = _routeCache;
     final level = state.thinkingLevel;
     final checkpoint = await _sessionController.beginRewindLastUserMessage(
+      expectedEntryId: expectedEntryId,
       keepThinkingSelection: route == null
           ? null
           : (
@@ -1272,7 +1282,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
 
   Future<void> retryLastMessage() async {
     if (!await prepareEditedSend()) return;
-    final checkpoint = await beginEditedMessageRewind();
+    final checkpoint = await _beginLastMessageRewind();
     if (checkpoint == null || !ref.mounted) return;
     var accepted = false;
     final sent = await sendContent(

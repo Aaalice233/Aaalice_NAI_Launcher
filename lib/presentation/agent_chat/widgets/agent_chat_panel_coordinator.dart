@@ -138,8 +138,9 @@ class AgentChatPanelCoordinator {
       );
       return;
     }
-    if (!await _notifier.validatePendingResourcesForSend()) {
-      if (!context.mounted) return;
+    final canSend = await _notifier.validatePendingResourcesForSend();
+    if (!context.mounted) return;
+    if (!canSend) {
       AppToast.error(context, context.l10n.agentChat_resourceUnavailable);
       return;
     }
@@ -152,13 +153,18 @@ class AgentChatPanelCoordinator {
       }
       return;
     }
-    final editingMessageIndex = _controller.editingUserMessageIndex;
+    final entryId = _controller.editingUserMessageEntryId;
     AgentChatRewindCheckpoint? checkpoint;
-    if (editingMessageIndex != null) {
-      if (!await _notifier.prepareEditedSend()) return;
-      checkpoint = await _notifier.beginEditedMessageRewind();
-      if (checkpoint == null || !_isMounted()) return;
+    if (entryId != null && entryId == _notifier.lastVisibleUserEntry?.id) {
+      if (await _notifier.prepareEditedSend() && _isMounted()) {
+        checkpoint = await _notifier.beginEditedMessageRewind(entryId);
+      }
+      if (!_isMounted()) return;
+      if (checkpoint == null && entryId == _notifier.lastVisibleUserEntry?.id) {
+        return;
+      }
     }
+    if (checkpoint == null) _controller.finishEditingUserMessage();
     _controller.followLatest();
     var accepted = false;
     final sent = await _notifier.sendContent(
@@ -322,6 +328,8 @@ class AgentChatPanelCoordinator {
         state.pendingResources.isEmpty &&
         messageIndex == lastUserIndex;
     if (!safe) return;
+    final entry = _notifier.lastVisibleUserEntry;
+    if (entry == null || !identical(entry.message, sourceMessage)) return;
     final UserMessage message;
     final references = <AgentChatResourceReference>[];
     final envelope = asAgentPromptEnvelope(sourceMessage);
@@ -352,7 +360,7 @@ class AgentChatPanelCoordinator {
     }
     await _notifier.validatePendingResourcesForSend();
     if (!_isMounted()) return;
-    _controller.beginEditingUserMessage(messageIndex, draft.text, draft.images);
+    _controller.beginEditingUserMessage(entry.id, draft.text, draft.images);
     _controller.inputFocus.requestFocus();
   }
 
