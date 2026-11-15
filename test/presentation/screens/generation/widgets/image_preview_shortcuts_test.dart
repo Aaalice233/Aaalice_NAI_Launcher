@@ -461,6 +461,7 @@ ProviderContainer _container(
   Future<ShortcutConfig> Function()? loader,
 }) {
   return ProviderContainer(
+    retry: (retryCount, error) => null,
     overrides: [
       imageGenerationNotifierProvider.overrideWith(
         _PreviewImageGenerationNotifier.new,

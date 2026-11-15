@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/derivatives/derivative_render.dart';
 import 'package:nai_launcher/core/mosaic/mosaic_render_service.dart';

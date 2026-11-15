@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
@@ -91,11 +92,8 @@ void main() {
       'agent_chat_initializing_draft_',
     );
     addTearDown(() => root.delete(recursive: true));
-    final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
-      ref,
-    ) {
+    final provider = NotifierProvider<AgentChatNotifier, AgentChatState>(() {
       return AgentChatNotifier(
-        ref,
         supportDir: root,
         workspaceDir: root,
         presetSkills: const [],
@@ -105,8 +103,7 @@ void main() {
       overrides: [
         localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: root,
             workspaceDirectory: root,
             environment: const {},
@@ -182,11 +179,8 @@ User instructions.
 ''');
 
     final storage = _MemoryLocalStorage();
-    final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
-      ref,
-    ) {
+    final provider = NotifierProvider<AgentChatNotifier, AgentChatState>(() {
       return AgentChatNotifier(
-        ref,
         supportDir: supportDir,
         workspaceDir: workspaceDir,
         skillEnvironment: const {},
@@ -196,8 +190,7 @@ User instructions.
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: supportDir,
             workspaceDirectory: workspaceDir,
             environment: const {},
@@ -239,22 +232,18 @@ User instructions.
       await _writeProjectSkill(projectB, 'project-b-skill');
       var currentProject = projectA;
       final storage = _MemoryLocalStorage();
-      final provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>(
-        (ref) {
-          return AgentChatNotifier(
-            ref,
-            supportDir: supportDir,
-            skillEnvironment: const {},
-            imageProjectDirectoryResolver: () => Future.value(currentProject),
-          );
-        },
-      );
+      final provider = NotifierProvider<AgentChatNotifier, AgentChatState>(() {
+        return AgentChatNotifier(
+          supportDir: supportDir,
+          skillEnvironment: const {},
+          imageProjectDirectoryResolver: () => Future.value(currentProject),
+        );
+      });
       final container = ProviderContainer(
         overrides: [
           localStorageServiceProvider.overrideWithValue(storage),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: supportDir,
               environment: const {},
               workspaceDirectoryResolver: () => Future.value(currentProject),
@@ -286,7 +275,7 @@ User instructions.
     late Directory tempDir;
     late _MemoryLocalStorage storage;
     late ProviderContainer container;
-    late StateNotifierProvider<AgentChatNotifier, AgentChatState> provider;
+    late NotifierProvider<AgentChatNotifier, AgentChatState> provider;
     late JsonlSessionRepo sessionRepo;
     late List<AgentChatRequest> requests;
     late AgentWireCompletion wireCompletion;
@@ -313,11 +302,8 @@ User instructions.
           AgentWireFinish(stopReason: StopReason.stop),
         ]);
       };
-      provider = StateNotifierProvider<AgentChatNotifier, AgentChatState>((
-        ref,
-      ) {
+      provider = NotifierProvider<AgentChatNotifier, AgentChatState>(() {
         return AgentChatNotifier(
-          ref,
           supportDir: tempDir,
           workspaceDir: tempDir,
           presetSkills: const [_testSkill, _mixedCaseSkill],
@@ -336,8 +322,7 @@ User instructions.
           ),
           localStorageServiceProvider.overrideWithValue(storage),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: tempDir,
               workspaceDirectory: tempDir,
               environment: const {},
@@ -1384,7 +1369,7 @@ AssistantMessage _assistant(Usage usage) {
 // settings reject every write until their own load finishes.
 Future<void> _waitForInitialized(
   ProviderContainer container,
-  StateNotifierProvider<AgentChatNotifier, AgentChatState> provider,
+  NotifierProvider<AgentChatNotifier, AgentChatState> provider,
 ) async {
   await _waitForProviderState<AgentChatState>(
     container,
@@ -1434,7 +1419,7 @@ Future<void> _waitForCondition(
 
 Future<void> _waitForSkill(
   ProviderContainer container,
-  StateNotifierProvider<AgentChatNotifier, AgentChatState> provider,
+  NotifierProvider<AgentChatNotifier, AgentChatState> provider,
   String name,
 ) => _waitForProviderState<AgentChatState>(
   container,

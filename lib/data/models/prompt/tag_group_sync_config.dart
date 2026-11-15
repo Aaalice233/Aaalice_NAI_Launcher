@@ -10,7 +10,7 @@ part 'tag_group_sync_config.g.dart';
 /// 管理 Danbooru Tag Group 同步的全局配置
 /// 替代原有的 PoolSyncConfig
 @freezed
-class TagGroupSyncConfig with _$TagGroupSyncConfig {
+abstract class TagGroupSyncConfig with _$TagGroupSyncConfig {
   const TagGroupSyncConfig._();
 
   const factory TagGroupSyncConfig({

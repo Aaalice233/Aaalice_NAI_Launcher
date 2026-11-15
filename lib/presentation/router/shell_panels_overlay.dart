@@ -9,7 +9,30 @@ import '../widgets/queue/queue_management_page.dart';
 /// Shell 级持久面板。单一状态所有者保证智能体与队列不会重叠。
 enum ShellPanel { agent, queue }
 
-final shellPanelProvider = StateProvider<ShellPanel?>((ref) => null);
+final shellPanelProvider = NotifierProvider<ShellPanelNotifier, ShellPanel?>(
+  ShellPanelNotifier.new,
+);
+
+class ShellPanelNotifier extends Notifier<ShellPanel?> {
+  @override
+  ShellPanel? build() => null;
+
+  void setPanel(ShellPanel? panel) {
+    state = panel;
+  }
+
+  void open(ShellPanel panel) {
+    state = panel;
+  }
+
+  void close() {
+    state = null;
+  }
+
+  void toggle(ShellPanel panel) {
+    state = state == panel ? null : panel;
+  }
+}
 
 /// Shell 级持久面板槽位。切换面板时只替换内容，不叠加两个抽屉。
 class ShellPanelsOverlay extends StatefulWidget {

@@ -48,18 +48,20 @@ final librarySidebarSortProvider =
       LibrarySidebarSection
     >(LibrarySidebarSortNotifier.new);
 
-class LibrarySidebarSortNotifier
-    extends FamilyNotifier<LibrarySidebarSortState, LibrarySidebarSection> {
+class LibrarySidebarSortNotifier extends Notifier<LibrarySidebarSortState> {
+  LibrarySidebarSortNotifier(this._section);
+
+  final LibrarySidebarSection _section;
   late LocalStorageService _storage;
-  late LibrarySidebarSection _section;
 
   @override
-  LibrarySidebarSortState build(LibrarySidebarSection arg) {
-    _section = arg;
+  LibrarySidebarSortState build() {
     _storage = ref.watch(localStorageServiceProvider);
-    final saved = _storage.getSetting<String>(arg.storageKey);
+    final saved = _storage.getSetting<String>(_section.storageKey);
     return LibrarySidebarSortState(
-      saved == null ? arg.defaultSort : LibrarySidebarSort.values.byName(saved),
+      saved == null
+          ? _section.defaultSort
+          : LibrarySidebarSort.values.byName(saved),
     );
   }
 
@@ -91,9 +93,11 @@ class LibrarySidebarSortNotifier
       }
       return changed;
     } finally {
-      state = LibrarySidebarSortState(
-        changed ? LibrarySidebarSort.original : previous.sort,
-      );
+      if (ref.mounted) {
+        state = LibrarySidebarSortState(
+          changed ? LibrarySidebarSort.original : previous.sort,
+        );
+      }
     }
   }
 
@@ -106,9 +110,13 @@ class LibrarySidebarSortNotifier
     state = LibrarySidebarSortState(previous.sort, isSaving: true);
     try {
       await _storage.setSetting(_section.storageKey, sort.name);
-      state = LibrarySidebarSortState(sort);
+      if (ref.mounted) {
+        state = LibrarySidebarSortState(sort);
+      }
     } catch (_) {
-      state = previous;
+      if (ref.mounted) {
+        state = previous;
+      }
       rethrow;
     }
   }

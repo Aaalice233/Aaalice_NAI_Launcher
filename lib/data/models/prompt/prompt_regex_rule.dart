@@ -9,7 +9,7 @@ part 'prompt_regex_rule.g.dart';
 /// 用户自定义的「匹配 → 替换」规则，在输入框失焦时按顺序作用于提示词全文。
 /// [pattern] 是 Dart [RegExp] 语法，[replacement] 支持 `$1` / `${name}` 捕获组引用。
 @freezed
-class PromptRegexRule with _$PromptRegexRule {
+abstract class PromptRegexRule with _$PromptRegexRule {
   const PromptRegexRule._();
 
   const factory PromptRegexRule({

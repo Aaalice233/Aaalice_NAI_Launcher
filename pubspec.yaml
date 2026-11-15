@@ -17,8 +17,8 @@ dependencies:
     sdk: flutter
 
   # 状态管理
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
+  flutter_riverpod: ^3.5.0
+  riverpod_annotation: ^4.0.8
 
   # 网络请求
   dio: ^5.4.0
@@ -38,8 +38,8 @@ dependencies:
   # Windows 端用自有实现替换插件的 DPAPI 文件存储
   flutter_secure_storage_platform_interface: ^1.1.2
   win32: ^5.15.0
-  hive: ^2.2.3
-  hive_flutter: ^1.1.0
+  hive_ce: ^2.23.3
+  hive_ce_flutter: ^2.5.0
   shared_preferences: ^2.2.3
 
   # SQLite数据库（画廊索引）
@@ -72,7 +72,7 @@ dependencies:
   super_drag_and_drop: ^0.9.1
 
   # 路由
-  go_router: ^14.2.0
+  go_router: ^18.1.4
 
   # UI 组件
   flex_color_scheme: ^7.3.1
@@ -82,8 +82,8 @@ dependencies:
   visibility_detector: ^0.4.0+2
 
   # 数据模型
-  freezed_annotation: ^2.4.1
-  json_annotation: ^4.9.0
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.12.0
 
   # 工具库
   path_provider: ^2.1.3
@@ -148,11 +148,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  build_runner: ^2.4.9
-  riverpod_generator: ^2.4.0
-  freezed: ^2.5.2
-  json_serializable: ^6.8.0
-  hive_generator: ^2.0.1
+  build_runner: ^2.17.1
+  riverpod_generator: ^4.0.10
+  freezed: ^4.0.3
+  json_serializable: ^6.15.2
+  hive_ce_generator: ^1.12.1
   # Mock 测试
   mocktail: ^1.0.3
   # 指针设备检测器回归测试直接引用（与 super_drag_and_drop 同版本锁定）

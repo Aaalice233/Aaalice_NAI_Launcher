@@ -9,7 +9,7 @@ part 'pool_post.g.dart';
 ///
 /// 表示 Danbooru Pool 中的单个帖子，包含分类标签
 @freezed
-class PoolPost with _$PoolPost {
+abstract class PoolPost with _$PoolPost {
   const PoolPost._();
 
   const factory PoolPost({

@@ -34,9 +34,10 @@ class TagLibraryDropHandler {
     required Uint8List bytes,
   }) async {
     final l10n = context.l10n;
+    final metadataService = ref.read(imageMetadataServiceProvider);
     try {
       // 解析图片元数据（此步骤不涉及 context）
-      final metadata = await ImageMetadataService().getMetadataFromBytes(bytes);
+      final metadata = await metadataService.getMetadataFromBytes(bytes);
       final prompt = metadata?.prompt ?? '';
 
       // 显示操作选择菜单

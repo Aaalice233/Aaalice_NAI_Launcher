@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/derivatives/derivative_registry.dart';

@@ -28,7 +28,9 @@ class OnlineGalleryToolbarSourceControls {
   OnlineGalleryToolbarSourceControls(this.bindings);
 
   final OnlineGalleryToolbarBindings bindings;
-  final DateFormattingService _dateFormattingService = DateFormattingService();
+
+  DateFormattingService get _dateFormattingService =>
+      ref.watch(dateFormattingServiceProvider);
 
   BuildContext get context => bindings.context;
   WidgetRef get ref => bindings.ref;
@@ -144,7 +146,7 @@ class OnlineGalleryToolbarSourceControls {
     final allowNsfw = QuickTagCloudAccess.allowsNsfw(next);
     final filterNotifier = ref.read(quickTagCloudFilterProvider.notifier);
     final query = ref.read(quickTagCloudFilterProvider);
-    final catalog = ref.read(quickTagCloudCatalogProvider).valueOrNull;
+    final catalog = ref.read(quickTagCloudCatalogProvider).value;
     if (!allowNsfw && catalog?.findCodex(query.codexId)?.nsfw == true) {
       filterNotifier.selectCodex('all');
     }

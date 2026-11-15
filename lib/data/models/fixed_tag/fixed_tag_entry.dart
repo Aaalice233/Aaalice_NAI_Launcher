@@ -25,7 +25,7 @@ enum FixedTagPosition {
 ///
 /// 用于保存可复用的提示词片段，支持权重调节和位置选择
 @freezed
-class FixedTagEntry with _$FixedTagEntry {
+abstract class FixedTagEntry with _$FixedTagEntry {
   const FixedTagEntry._();
 
   const factory FixedTagEntry({

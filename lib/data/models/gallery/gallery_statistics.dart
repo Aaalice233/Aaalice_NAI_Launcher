@@ -8,7 +8,7 @@ part 'gallery_statistics.freezed.dart';
 ///
 /// 用于统计不同分辨率图片的数量
 @freezed
-class ResolutionStatistics with _$ResolutionStatistics {
+abstract class ResolutionStatistics with _$ResolutionStatistics {
   const factory ResolutionStatistics({
     required String label, // 分辨率标签（如 "1024x1024", "512x768"）
     required int count, // 图片数量
@@ -22,7 +22,7 @@ class ResolutionStatistics with _$ResolutionStatistics {
 ///
 /// 用于统计不同生成模型的图片数量
 @freezed
-class ModelStatistics with _$ModelStatistics {
+abstract class ModelStatistics with _$ModelStatistics {
   const factory ModelStatistics({
     required String modelName, // 模型名称（如 "NAI Diffusion V4"）
     required int count, // 图片数量
@@ -36,7 +36,7 @@ class ModelStatistics with _$ModelStatistics {
 ///
 /// 用于统计不同采样器的图片数量
 @freezed
-class SamplerStatistics with _$SamplerStatistics {
+abstract class SamplerStatistics with _$SamplerStatistics {
   const factory SamplerStatistics({
     required String samplerName, // 采样器名称（如 "Euler Ancestral"）
     required int count, // 图片数量
@@ -50,7 +50,7 @@ class SamplerStatistics with _$SamplerStatistics {
 ///
 /// 用于统计不同大小范围的图片数量
 @freezed
-class SizeDistributionStatistics with _$SizeDistributionStatistics {
+abstract class SizeDistributionStatistics with _$SizeDistributionStatistics {
   const factory SizeDistributionStatistics({
     required String label, // 大小范围标签（如 "< 1MB", "1-5MB", "> 5MB"）
     required int count, // 图片数量
@@ -64,7 +64,7 @@ class SizeDistributionStatistics with _$SizeDistributionStatistics {
 ///
 /// 用于统计不同标签的使用频率
 @freezed
-class TagStatistics with _$TagStatistics {
+abstract class TagStatistics with _$TagStatistics {
   const factory TagStatistics({
     required String tagName, // 标签名称（如 "anime", "landscape"）
     required int count, // 使用该标签的图片数量
@@ -78,7 +78,7 @@ class TagStatistics with _$TagStatistics {
 ///
 /// 用于统计不同生成参数的使用频率
 @freezed
-class ParameterStatistics with _$ParameterStatistics {
+abstract class ParameterStatistics with _$ParameterStatistics {
   const factory ParameterStatistics({
     required String parameterName, // 参数名称（如 "steps", "scale"）
     required String value, // 参数值
@@ -94,7 +94,7 @@ class ParameterStatistics with _$ParameterStatistics {
 /// 包含画廊的完整统计信息，用于统计仪表盘显示
 /// 支持总览统计和各种维度分布统计
 @freezed
-class GalleryStatistics with _$GalleryStatistics {
+abstract class GalleryStatistics with _$GalleryStatistics {
   const factory GalleryStatistics({
     /// 图片总数
     required int totalImages,

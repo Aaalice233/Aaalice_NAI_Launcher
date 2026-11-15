@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/data/services/image_metadata_service.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_parse_executor.dart';

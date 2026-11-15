@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/utils/app_logger.dart';

@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_cache_database.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
 import 'package:nai_launcher/presentation/providers/autocomplete_services_provider.dart';
@@ -15,7 +15,6 @@ import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
 import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
-import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
@@ -181,7 +180,7 @@ void main() {
         ProviderScope(
           overrides: [
             autocompleteSettingsProvider.overrideWith(
-              (ref) => _DisabledAutocompleteSettingsNotifier(),
+              _DisabledAutocompleteSettingsNotifier.new,
             ),
             autocompleteServicesProvider.overrideWithValue(
               AutocompleteServices(
@@ -386,7 +385,7 @@ void main() {
       ProviderScope(
         overrides: [
           autocompleteSettingsProvider.overrideWith(
-            (ref) => _OpenOnTagClickSettingsNotifier(),
+            _OpenOnTagClickSettingsNotifier.new,
           ),
           autocompleteServicesProvider.overrideWithValue(
             AutocompleteServices(
@@ -443,7 +442,7 @@ void main() {
         ProviderScope(
           overrides: [
             autocompleteSettingsProvider.overrideWith(
-              (ref) => _OpenOnTagClickSettingsNotifier(),
+              _OpenOnTagClickSettingsNotifier.new,
             ),
             autocompleteServicesProvider.overrideWithValue(
               AutocompleteServices(
@@ -503,7 +502,7 @@ void main() {
         ProviderScope(
           overrides: [
             autocompleteSettingsProvider.overrideWith(
-              (ref) => _OpenOnTagClickSettingsNotifier(),
+              _OpenOnTagClickSettingsNotifier.new,
             ),
             autocompleteServicesProvider.overrideWithValue(
               AutocompleteServices(
@@ -732,7 +731,7 @@ void main() {
         ProviderScope(
           overrides: [
             autocompleteSettingsProvider.overrideWith(
-              (ref) => _OpenOnTagClickSettingsNotifier(),
+              _OpenOnTagClickSettingsNotifier.new,
             ),
             autocompleteServicesProvider.overrideWithValue(
               AutocompleteServices(
@@ -810,7 +809,7 @@ void main() {
       ProviderScope(
         overrides: [
           autocompleteSettingsProvider.overrideWith(
-            (ref) => _FixedAutocompleteSettingsNotifier(),
+            _FixedAutocompleteSettingsNotifier.new,
           ),
           autocompleteServicesProvider.overrideWithValue(
             AutocompleteServices(
@@ -866,7 +865,7 @@ void main() {
       ProviderScope(
         overrides: [
           autocompleteSettingsProvider.overrideWith(
-            (ref) => _FixedAutocompleteSettingsNotifier(),
+            _FixedAutocompleteSettingsNotifier.new,
           ),
           autocompleteServicesProvider.overrideWithValue(
             AutocompleteServices(
@@ -1267,7 +1266,7 @@ void main() {
       ProviderScope(
         overrides: [
           autocompleteSettingsProvider.overrideWith(
-            (ref) => _OpenOnTagClickSettingsNotifier(),
+            _OpenOnTagClickSettingsNotifier.new,
           ),
           autocompleteServicesProvider.overrideWithValue(
             AutocompleteServices(
@@ -1331,7 +1330,7 @@ void main() {
         ProviderScope(
           overrides: [
             autocompleteSettingsProvider.overrideWith(
-              (ref) => _OpenOnTagClickSettingsNotifier(),
+              _OpenOnTagClickSettingsNotifier.new,
             ),
             autocompleteServicesProvider.overrideWithValue(
               AutocompleteServices(
@@ -1861,13 +1860,12 @@ class _RelatedSource implements CompletionSource {
 
 class _DisabledAutocompleteSettingsNotifier
     extends AutocompleteSettingsNotifier {
-  _DisabledAutocompleteSettingsNotifier() : super(LocalStorageService()) {
-    state = const AutocompleteSettings(
-      enabled: false,
-      danbooruEnabled: false,
-      zhInstallPromptDismissed: true,
-    );
-  }
+  @override
+  AutocompleteSettings build() => const AutocompleteSettings(
+    enabled: false,
+    danbooruEnabled: false,
+    zhInstallPromptDismissed: true,
+  );
 
   @override
   Future<void> setEnabled(bool value) async {
@@ -1876,25 +1874,23 @@ class _DisabledAutocompleteSettingsNotifier
 }
 
 class _OpenOnTagClickSettingsNotifier extends AutocompleteSettingsNotifier {
-  _OpenOnTagClickSettingsNotifier() : super(LocalStorageService()) {
-    state = const AutocompleteSettings(
-      openOnTagClick: true,
-      danbooruEnabled: false,
-      zhInstallPromptDismissed: true,
-    );
-  }
+  @override
+  AutocompleteSettings build() => const AutocompleteSettings(
+    openOnTagClick: true,
+    danbooruEnabled: false,
+    zhInstallPromptDismissed: true,
+  );
 }
 
 class _FixedAutocompleteSettingsNotifier extends AutocompleteSettingsNotifier {
-  _FixedAutocompleteSettingsNotifier() : super(LocalStorageService()) {
-    state = const AutocompleteSettings(
-      showTranslations: false,
-      autoInsertComma: false,
-      replaceUnderscores: true,
-      danbooruEnabled: false,
-      zhInstallPromptDismissed: true,
-    );
-  }
+  @override
+  AutocompleteSettings build() => const AutocompleteSettings(
+    showTranslations: false,
+    autoInsertComma: false,
+    replaceUnderscores: true,
+    danbooruEnabled: false,
+    zhInstallPromptDismissed: true,
+  );
 }
 
 class _NoTranslations implements TranslationResolver {

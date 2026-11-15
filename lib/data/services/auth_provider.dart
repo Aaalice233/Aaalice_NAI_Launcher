@@ -279,6 +279,7 @@ class AuthNotifier extends _$AuthNotifier {
     try {
       await _restoreStoredSession();
     } on SecureStorageUnavailableException catch (error) {
+      if (!ref.mounted) return;
       // 凭据读不到不等于已登出，保留为可重试的失败状态，避免清掉仍然有效的会话
       AppLogger.w('Auto-login paused: $error', 'Auth');
       state = autoLoginFailureState(error);
@@ -288,6 +289,7 @@ class AuthNotifier extends _$AuthNotifier {
   Future<void> _restoreStoredSession() async {
     // 0. 检查自动登录设置（默认启用，确保重启后自动恢复登录）
     final prefs = await SharedPreferences.getInstance();
+    if (!ref.mounted) return;
     final autoLogin = prefs.getBool(_autoLoginKey) ?? true;
 
     if (!autoLogin) {
@@ -312,6 +314,7 @@ class AuthNotifier extends _$AuthNotifier {
     const maxWait = 50; // 50 * 100ms = 5秒
     while (accountManagerState.isLoading && waitCount < maxWait) {
       await Future.delayed(const Duration(milliseconds: 100));
+      if (!ref.mounted) return;
       accountManagerState = ref.read(accountManagerNotifierProvider);
       waitCount++;
     }
@@ -325,6 +328,7 @@ class AuthNotifier extends _$AuthNotifier {
     // 1. 检查是否有有效的全局 Token
 
     final token = await storage.getAccessToken();
+    if (!ref.mounted) return;
     if (token != null && token.isNotEmpty) {
       try {
         final apiService = ref.read(naiAuthApiServiceProvider);
@@ -335,6 +339,7 @@ class AuthNotifier extends _$AuthNotifier {
           final accountToken = await accountManagerNotifier.getAccountToken(
             account.id,
           );
+          if (!ref.mounted) return;
           if (accountToken == token) {
             matchedAccount = account;
             break;
@@ -360,6 +365,7 @@ class AuthNotifier extends _$AuthNotifier {
                   );
                 },
               );
+          if (!ref.mounted) return;
 
           endpointService.setCurrent(endpoint);
           accountManagerNotifier.updateLastUsed(matchedAccount.id);
@@ -387,6 +393,7 @@ class AuthNotifier extends _$AuthNotifier {
                 );
               },
             );
+        if (!ref.mounted) return;
 
         AppLogger.w(
           'Token valid but no matching account found, clearing and trying auto-login...',
@@ -395,16 +402,20 @@ class AuthNotifier extends _$AuthNotifier {
           endpointService.resetToOfficial();
         }
         await storage.clearAuth();
+        if (!ref.mounted) return;
       } on SecureStorageUnavailableException {
         rethrow;
       } catch (e) {
+        if (!ref.mounted) return;
         // Token 无效，清除后尝试自动登录
         AppLogger.w('Stored token invalid, trying auto-login...');
         await storage.clearAuth();
+        if (!ref.mounted) return;
         endpointService.resetToOfficial();
       }
     }
 
+    if (!ref.mounted) return;
     // 2. 尝试使用保存的账号自动登录
     final accountManager = ref.read(accountManagerNotifierProvider.notifier);
     final accounts = accountManager.sortedAccounts;
@@ -421,6 +432,7 @@ class AuthNotifier extends _$AuthNotifier {
       final accountToken = await accountManager.getAccountToken(
         lastUsedAccount.id,
       );
+      if (!ref.mounted) return;
       final accountType = lastUsedAccount.accountType;
       final accountEndpoint = accountManager.getAccountApiEndpoint(
         lastUsedAccount.id,
@@ -471,6 +483,7 @@ class AuthNotifier extends _$AuthNotifier {
                   ),
                 );
           }
+          if (!ref.mounted) return;
 
           // 保存到全局存储
           await storage.saveAuth(
@@ -478,6 +491,7 @@ class AuthNotifier extends _$AuthNotifier {
             expiry: DateTime.now().add(const Duration(days: 365 * 10)),
             email: lastUsedAccount.displayName,
           );
+          if (!ref.mounted) return;
           endpointService.setCurrent(accountEndpoint);
 
           state = AuthState(
@@ -497,6 +511,7 @@ class AuthNotifier extends _$AuthNotifier {
 
           return;
         } catch (e) {
+          if (!ref.mounted) return;
           AppLogger.w(
             'Auto-login failed for ${lastUsedAccount.displayName}: $e',
           );
@@ -514,6 +529,7 @@ class AuthNotifier extends _$AuthNotifier {
       }
     }
 
+    if (!ref.mounted) return;
     // 3. 无法自动登录，显示登录页
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

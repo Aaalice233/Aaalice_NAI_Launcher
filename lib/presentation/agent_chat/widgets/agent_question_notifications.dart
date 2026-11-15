@@ -34,7 +34,7 @@ class _AgentQuestionNotificationsState
       if (!mounted) return;
       if (ref.read(agentChatNotifierProvider).questionRequest?.toolCallId ==
           requestId) {
-        ref.read(shellPanelProvider.notifier).state = ShellPanel.agent;
+        ref.read(shellPanelProvider.notifier).open(ShellPanel.agent);
       }
     });
   }

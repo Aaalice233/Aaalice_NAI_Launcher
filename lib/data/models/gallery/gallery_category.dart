@@ -11,7 +11,7 @@ part 'gallery_category.g.dart';
 /// 用于组织画廊图片，支持无限层级嵌套
 /// 与文件夹系统同步
 @freezed
-class GalleryCategory with _$GalleryCategory {
+abstract class GalleryCategory with _$GalleryCategory {
   const GalleryCategory._();
 
   const factory GalleryCategory({

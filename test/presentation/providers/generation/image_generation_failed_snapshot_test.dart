@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
@@ -373,13 +373,21 @@ void main() {
     await stream.close();
     await generation;
 
-    final stateAtDispose = harness.state;
+    var lastObservedState = harness.state;
+    final stateAtDispose = lastObservedState;
+    harness.container.listen<ImageGenerationState>(
+      imageGenerationNotifierProvider,
+      (_, next) => lastObservedState = next,
+    );
+    expect(stateAtDispose.history, isEmpty);
+
     harness.container.dispose();
     harness.composer.complete(0, _png(width: 128, height: 128));
     await pumpEventQueue();
 
-    expect(notifier.state, same(stateAtDispose));
-    expect(notifier.state.history, isEmpty);
+    expect(lastObservedState, same(stateAtDispose));
+    expect(lastObservedState.history, isEmpty);
+    expect(Hive.box(StorageKeys.historyBox).isEmpty, isTrue);
   });
 }
 

@@ -130,6 +130,7 @@ class VibeImportHandler {
   ) async {
     final notifier = ref.read(generationParamsNotifierProvider.notifier);
     final storage = ref.read(vibeLibraryStorageServiceProvider);
+    final fileStorage = ref.read(vibeFileStorageServiceProvider);
     final groups = <({List<VibeReference> vibes, String? libraryId})>[];
     for (final resource in resources) {
       final entry = resource.vibe;
@@ -142,7 +143,7 @@ class VibeImportHandler {
         if (path == null) {
           throw StateError('Vibe Bundle file is unavailable: ${entry.id}');
         }
-        vibes = (await VibeFileStorageService().extractVibesFromBundle(path))
+        vibes = (await fileStorage.extractVibesFromBundle(path))
             .map((vibe) => vibe.copyWith(bundleSource: entry.displayName))
             .toList();
         if (vibes.length != entry.bundledVibeCount) {
@@ -312,7 +313,7 @@ class VibeImportHandler {
     try {
       if (availableSlots <= 0 || entry.filePath == null) return 0;
 
-      final fileStorage = VibeFileStorageService();
+      final fileStorage = ref.read(vibeFileStorageServiceProvider);
       final extractLimit = entry.bundledVibeCount
           .clamp(0, availableSlots)
           .toInt();

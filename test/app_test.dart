@@ -5,9 +5,10 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/app.dart';
@@ -139,9 +140,12 @@ void main() {
     });
 
     testWidgets('AppBootstrapEffects 监听 provider 变化时不重建子树', (tester) async {
-      final anlasWatcherProvider = StateProvider<int>((ref) => 0);
-      final kritaBridgeProvider = StateProvider<int>((ref) => 0);
-      final cooccurrenceDataPackProvider = StateProvider<int>((ref) => 0);
+      final anlasWatcherProvider =
+          NotifierProvider<_TestCounterNotifier, int>(_TestCounterNotifier.new);
+      final kritaBridgeProvider =
+          NotifierProvider<_TestCounterNotifier, int>(_TestCounterNotifier.new);
+      final cooccurrenceDataPackProvider =
+          NotifierProvider<_TestCounterNotifier, int>(_TestCounterNotifier.new);
       var buildCount = 0;
 
       await tester.pumpWidget(
@@ -167,16 +171,16 @@ void main() {
         tester.element(find.byType(AppBootstrapEffects)),
       );
 
-      expect(container.exists(anlasWatcherProvider), isTrue);
-      expect(container.exists(kritaBridgeProvider), isTrue);
-      expect(container.exists(cooccurrenceDataPackProvider), isTrue);
+      expect(container.read(anlasWatcherProvider.exists), isTrue);
+      expect(container.read(kritaBridgeProvider.exists), isTrue);
+      expect(container.read(cooccurrenceDataPackProvider.exists), isTrue);
       expect(buildCount, 1);
 
-      container.read(anlasWatcherProvider.notifier).state = 1;
+      container.read(anlasWatcherProvider.notifier).setValue(1);
       await tester.pump();
-      container.read(kritaBridgeProvider.notifier).state = 1;
+      container.read(kritaBridgeProvider.notifier).setValue(1);
       await tester.pump();
-      container.read(cooccurrenceDataPackProvider.notifier).state = 1;
+      container.read(cooccurrenceDataPackProvider.notifier).setValue(1);
       await tester.pump();
 
       expect(buildCount, 1);
@@ -184,7 +188,7 @@ void main() {
 
     testWidgets('AppBootstrapEffects 在启动和从后台返回时恢复云备份连接', (tester) async {
       var calls = 0;
-      final inert = StateProvider<int>((ref) => 0);
+      final inert = Provider<int>((ref) => 0);
       await tester.pumpWidget(
         ProviderScope(
           overrides: _backgroundLifecycleOverrides(),
@@ -215,7 +219,7 @@ void main() {
 
     testWidgets('仅切换窗口焦点时不重新恢复云备份连接', (tester) async {
       var calls = 0;
-      final inert = StateProvider<int>((ref) => 0);
+      final inert = Provider<int>((ref) => 0);
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
@@ -249,7 +253,7 @@ void main() {
     testWidgets('云备份连接恢复未完成时跳过重复 resumed', (tester) async {
       final release = Completer<void>();
       var calls = 0;
-      final inert = StateProvider<int>((ref) => 0);
+      final inert = Provider<int>((ref) => 0);
       await tester.pumpWidget(
         ProviderScope(
           overrides: _backgroundLifecycleOverrides(),
@@ -2482,7 +2486,9 @@ void main() {
 
   group('Prompt injected history', () {
     test('supports external undo and redo for injected prompts', () {
-      final history = PromptAssistantHistoryNotifier();
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final history = container.read(promptAssistantHistoryProvider.notifier);
       history.recordExternalChange(
         PromptHistorySessionIds.generationPrompt,
         before: 'old prompt',
@@ -2650,5 +2656,14 @@ Uint8List _buildNoisyPngBytes({required int width, required int height}) {
       );
     }
   }
-  return Uint8List.fromList(img.encodePng(image));
+    return Uint8List.fromList(img.encodePng(image));
+}
+
+class _TestCounterNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void setValue(int value) {
+    state = value;
+  }
 }

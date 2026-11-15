@@ -71,7 +71,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
   }
 
   void _setPanel(ShellPanel? panel, {FocusNode? restoreFocus}) {
-    ref.read(shellPanelProvider.notifier).state = panel;
+    ref.read(shellPanelProvider.notifier).setPanel(panel);
     if (panel == null && restoreFocus != null) _restoreFocus(restoreFocus);
   }
 

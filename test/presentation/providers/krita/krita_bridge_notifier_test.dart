@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/krita/krita_bridge_models.dart';
 import 'package:nai_launcher/core/krita/krita_bridge_server.dart';
@@ -42,6 +43,7 @@ class RecordingKritaBridgeService implements KritaBridgeMessageService {
 
 void main() {
   late Directory tempDir;
+  late ProviderContainer container;
   late KritaBridgeNotifier notifier;
   late RecordingKritaBridgeService bridgeService;
   late List<bool> persistedEnabledValues;
@@ -51,20 +53,28 @@ void main() {
         await Directory.systemTemp.createTemp('krita_bridge_notifier_test_');
     bridgeService = RecordingKritaBridgeService();
     persistedEnabledValues = [];
-    notifier = KritaBridgeNotifier(
-      serverFactory: () => KritaBridgeServer(
-        discoveryDirectory: tempDir,
-        pidProvider: () => 12345,
-        secretGenerator: () => 'notifier-secret',
-        clock: () => DateTime.utc(2026, 5, 7, 10, 30),
-      ),
-      serviceFactory: (_) => bridgeService,
-      persistEnabled: persistedEnabledValues.add,
+    container = ProviderContainer(
+      overrides: [
+        kritaBridgeNotifierProvider.overrideWith(
+          () => KritaBridgeNotifier(
+            serverFactory: () => KritaBridgeServer(
+              discoveryDirectory: tempDir,
+              pidProvider: () => 12345,
+              secretGenerator: () => 'notifier-secret',
+              clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+            ),
+            serviceFactory: (_) => bridgeService,
+            persistEnabled: persistedEnabledValues.add,
+          ),
+        ),
+      ],
     );
+    notifier = container.read(kritaBridgeNotifierProvider.notifier);
   });
 
   tearDown(() async {
     await notifier.close();
+    container.dispose();
     await bridgeService.close();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
@@ -98,17 +108,27 @@ void main() {
         File('${tempDir.path}${Platform.pathSeparator}krita-bridge.json');
     await foreign.writeAsString(foreignContent);
 
-    final failing = KritaBridgeNotifier(
-      serverFactory: () => KritaBridgeServer(
-        discoveryDirectory: tempDir,
-        pidProvider: () => throw StateError('pid unavailable'),
-        secretGenerator: () => 'failing-secret',
-        clock: () => DateTime.utc(2026, 5, 7, 10, 30),
-      ),
-      serviceFactory: (_) => bridgeService,
-      persistEnabled: persistedEnabledValues.add,
+    final failingContainer = ProviderContainer(
+      overrides: [
+        kritaBridgeNotifierProvider.overrideWith(
+          () => KritaBridgeNotifier(
+            serverFactory: () => KritaBridgeServer(
+              discoveryDirectory: tempDir,
+              pidProvider: () => throw StateError('pid unavailable'),
+              secretGenerator: () => 'failing-secret',
+              clock: () => DateTime.utc(2026, 5, 7, 10, 30),
+            ),
+            serviceFactory: (_) => bridgeService,
+            persistEnabled: persistedEnabledValues.add,
+          ),
+        ),
+      ],
     );
-    addTearDown(failing.close);
+    final failing = failingContainer.read(kritaBridgeNotifierProvider.notifier);
+    addTearDown(() async {
+      await failing.close();
+      failingContainer.dispose();
+    });
 
     await failing.enable();
 

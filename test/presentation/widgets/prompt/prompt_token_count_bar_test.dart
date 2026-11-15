@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -112,16 +114,21 @@ void main() {
     });
 
     testWidgets('keeps previous token usage while reloading', (tester) async {
-      final reloadingUsage =
-          const AsyncLoading<PromptTokenUsage?>().copyWithPrevious(
-        const AsyncData<PromptTokenUsage?>(
-          PromptTokenUsage(
-            usedTokens: 128,
-            limit: 512,
-          ),
-        ),
-        isRefresh: false,
-      );
+      var loading = false;
+      final dep = Provider<bool>((ref) => loading);
+      final usageProvider = FutureProvider<PromptTokenUsage?>((ref) {
+        if (ref.watch(dep)) return Completer<PromptTokenUsage?>().future;
+        return const PromptTokenUsage(
+          usedTokens: 128,
+          limit: 512,
+        );
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(usageProvider);
+      loading = true;
+      container.invalidate(dep);
+      final reloadingUsage = container.read(usageProvider);
 
       await tester.pumpWidget(
         MaterialApp(

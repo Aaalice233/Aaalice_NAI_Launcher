@@ -11,7 +11,7 @@ part 'algorithm_config.g.dart';
 ///
 /// 控制随机提示词生成的各项参数
 @freezed
-class AlgorithmConfig with _$AlgorithmConfig {
+abstract class AlgorithmConfig with _$AlgorithmConfig {
   const AlgorithmConfig._();
 
   const factory AlgorithmConfig({
@@ -260,7 +260,7 @@ class AlgorithmConfig with _$AlgorithmConfig {
 ///
 /// 存储每个类别被选中的概率
 @freezed
-class CategoryProbabilityConfig with _$CategoryProbabilityConfig {
+abstract class CategoryProbabilityConfig with _$CategoryProbabilityConfig {
   const CategoryProbabilityConfig._();
 
   const factory CategoryProbabilityConfig({

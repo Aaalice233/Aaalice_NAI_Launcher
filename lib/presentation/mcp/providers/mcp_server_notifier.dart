@@ -178,9 +178,8 @@ class McpServerState {
 
 /// MCP 服务器生命周期：开关、端口、权限模式与待授权请求都收敛在这里，
 /// 服务器本体只在启用期间存在。
-class McpServerNotifier extends StateNotifier<McpServerState> {
-  McpServerNotifier(
-    this._ref, {
+class McpServerNotifier extends Notifier<McpServerState> {
+  McpServerNotifier({
     McpServerHostFactory? hostFactory,
     McpDiscoveryFileStore? discovery,
     McpServerTokenStore? tokenStore,
@@ -188,33 +187,24 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     Directory? supportDirectory,
     AgentImageObservationLedger? observationLedger,
     Future<void> Function()? notifyApprovalRequested,
+    bool autoEnableOnBuild = false,
   }) : _hostFactory = hostFactory,
        _discovery = discovery ?? McpDiscoveryFileStore(),
-       _tokenStore =
-           tokenStore ??
-           SecureMcpServerTokenStore(_ref.read(secureStorageServiceProvider)),
-       _settings =
-           settingsStore ??
-           LocalStorageMcpServerSettingsStore(
-             _ref.read(localStorageServiceProvider),
-           ),
+       _injectedTokenStore = tokenStore,
+       _injectedSettings = settingsStore,
        _providedSupportDirectory = supportDirectory,
        _observationLedger = observationLedger ?? AgentImageObservationLedger(),
        _notifyApprovalRequested = notifyApprovalRequested,
-       super(const McpServerState()) {
-    state = McpServerState(
-      enabled: _settings.enabled,
-      configuredPort: _settings.port,
-      permissionMode: _settings.permissionMode,
-    );
-  }
+       _autoEnableOnBuild = autoEnableOnBuild;
 
-  final Ref _ref;
   final McpServerHostFactory? _hostFactory;
   final McpDiscoveryFileStore _discovery;
-  final McpServerTokenStore _tokenStore;
-  final McpServerSettingsStore _settings;
+  final McpServerTokenStore? _injectedTokenStore;
+  final McpServerSettingsStore? _injectedSettings;
+  late McpServerTokenStore _tokenStore;
+  late McpServerSettingsStore _settings;
   final Directory? _providedSupportDirectory;
+  final bool _autoEnableOnBuild;
 
   /// 按传输会话记录模型真正看过的图，会话归这里管，台账就归这里管。
   final AgentImageObservationLedger _observationLedger;
@@ -228,6 +218,35 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
   StreamSubscription<McpApprovalRequest?>? _approvalSubscription;
   Future<void> _transition = Future<void>.value();
   final Lock _tokenLock = Lock();
+
+  @override
+  McpServerState build() {
+    _tokenStore =
+        _injectedTokenStore ??
+        SecureMcpServerTokenStore(ref.read(secureStorageServiceProvider));
+    _settings =
+        _injectedSettings ??
+        LocalStorageMcpServerSettingsStore(
+          ref.read(localStorageServiceProvider),
+        );
+    final initial = McpServerState(
+      enabled: _settings.enabled,
+      configuredPort: _settings.port,
+      permissionMode: _settings.permissionMode,
+    );
+    state = initial;
+    if (_autoEnableOnBuild && _settings.enabled) {
+      unawaited(enable(persist: false));
+    }
+    final removeCleanupHandler = DesktopAppShutdownService.addCleanupHandler(
+      close,
+    );
+    ref.onDispose(() {
+      removeCleanupHandler();
+      unawaited(close());
+    });
+    return state;
+  }
 
   Future<void> setEnabled(bool enabled) => enabled ? enable() : disable();
 
@@ -249,7 +268,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     return _serialize(() async {
       if (port == state.configuredPort) return;
       await _settings.writePort(port);
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(configuredPort: port);
       if (!state.enabled) return;
       await _disable(persist: false);
@@ -261,7 +280,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     return _serialize(() async {
       if (mode == state.permissionMode) return;
       await _settings.writePermissionMode(mode);
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(permissionMode: mode);
       _rebuildRegistry(mode);
     });
@@ -273,7 +292,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
       await _tokenLock.synchronized(
         () => _tokenStore.write(generateMcpServerToken()),
       );
-      if (!mounted || !state.enabled) return;
+      if (!ref.mounted || !state.enabled) return;
       await _disable(persist: false);
       await _enable(persist: false);
     });
@@ -292,12 +311,6 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
       _approvals?.resolve(toolCallId, approved) ?? false;
 
   Future<void> close() => _serialize(() => _disable(persist: false));
-
-  @override
-  void dispose() {
-    unawaited(close());
-    super.dispose();
-  }
 
   Future<void> _serialize(Future<void> Function() action) {
     final next = _transition.then((_) => action());
@@ -327,10 +340,10 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
         ),
       );
       final factory = McpExternalToolRegistryFactory(
-        ref: _ref,
+        ref: ref,
         supportDir: supportDir,
         workspaceDir: workspaceDir.path,
-        isHostAlive: () => mounted && state.enabled,
+        isHostAlive: () => ref.mounted && state.enabled,
         observationLedger: _observationLedger,
         publishDisplayImage:
             (bytes, {required mimeType, required metadataStripped}) =>
@@ -355,10 +368,10 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
           args,
           generationRuntime: factory.generationRuntime,
         ),
-        chargeConfirmThreshold: () => _ref
+        chargeConfirmThreshold: () => ref
             .read(shareImageSettingsProvider)
             .effectiveHighAnlasCostThreshold,
-        isMounted: () => mounted,
+        isMounted: () => ref.mounted,
         notifyRequested: _notifyApprovalRequested ?? _playApprovalSound,
       );
       _factory = factory;
@@ -380,7 +393,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
       await host.start(port: state.configuredPort, token: await readToken());
       _host = host;
       _sessionSubscription = host.sessionChanges.listen(_handleSessionsChanged);
-      if (!mounted) {
+      if (!ref.mounted) {
         await _disable(persist: false);
         return;
       }
@@ -403,7 +416,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
         null,
         _logTag,
       );
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(
         enabled: false,
         status: McpServerStatus.error,
@@ -414,7 +427,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     } catch (error, stackTrace) {
       await _teardown();
       AppLogger.e('Failed to enable MCP server', error, stackTrace, _logTag);
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(
         enabled: false,
         status: McpServerStatus.error,
@@ -427,7 +440,7 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
 
   Future<void> _disable({required bool persist}) async {
     await _teardown();
-    if (mounted) {
+    if (ref.mounted) {
       state = state.copyWith(
         enabled: false,
         status: McpServerStatus.disabled,
@@ -467,12 +480,12 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     _observationLedger.retainSessions(
       sessions.map((session) => session.id).toList(growable: false),
     );
-    if (!mounted || !state.enabled) return;
+    if (!ref.mounted || !state.enabled) return;
     state = state.copyWith(sessions: sessions);
   }
 
   void _handleApprovalChanged(McpApprovalRequest? request) {
-    if (!mounted) return;
+    if (!ref.mounted) return;
     state = request == null
         ? state.copyWith(clearApproval: true)
         : state.copyWith(pendingApproval: request);
@@ -485,8 +498,8 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
   }
 
   Future<void> _playApprovalSound() async {
-    if (!mounted) return;
-    final settings = _ref.read(notificationSettingsNotifierProvider);
+    if (!ref.mounted) return;
+    final settings = ref.read(notificationSettingsNotifierProvider);
     await NotificationService.instance.notifyGenerationComplete(
       playSound: settings.soundEnabled,
       customSoundPath: settings.customSoundPath,
@@ -511,8 +524,8 @@ class McpServerNotifier extends StateNotifier<McpServerState> {
     appVersion: appVersion,
     imageEndpoint: McpImageHttpEndpoint(
       requiresStrippedMetadata: () =>
-          !mounted ||
-          _ref
+          !ref.mounted ||
+          ref
               .read(shareImageSettingsProvider)
               .effectiveStripMetadataForCopyAndDrag,
     ),
@@ -523,20 +536,6 @@ bool _isValidPort(int port) =>
     port >= McpServerDefaults.minPort && port <= McpServerDefaults.maxPort;
 
 final mcpServerNotifierProvider =
-    StateNotifierProvider<McpServerNotifier, McpServerState>((ref) {
-      final settings = LocalStorageMcpServerSettingsStore(
-        ref.read(localStorageServiceProvider),
-      );
-      final notifier = McpServerNotifier(ref, settingsStore: settings);
-      if (settings.enabled) {
-        unawaited(notifier.enable(persist: false));
-      }
-      final removeCleanupHandler = DesktopAppShutdownService.addCleanupHandler(
-        notifier.close,
-      );
-      ref.onDispose(() {
-        removeCleanupHandler();
-        unawaited(notifier.close());
-      });
-      return notifier;
-    });
+    NotifierProvider<McpServerNotifier, McpServerState>(
+      () => McpServerNotifier(autoEnableOnBuild: true),
+    );

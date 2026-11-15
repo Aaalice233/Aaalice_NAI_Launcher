@@ -68,9 +68,6 @@ class AccountProfileBottomSheet extends ConsumerStatefulWidget {
 
 class _AccountProfileBottomSheetState
     extends ConsumerState<AccountProfileBottomSheet> {
-  /// 头像服务
-  final _avatarService = AvatarService();
-
   /// 操作锁定（防止竞态条件）
   bool _isOperationInProgress = false;
 
@@ -93,20 +90,22 @@ class _AccountProfileBottomSheetState
     // 防止重复点击
     if (_isOperationInProgress) return;
     _setOperationInProgress(true);
+    final avatarService = ref.read(avatarServiceProvider);
+    final accountNotifier = ref.read(accountManagerNotifierProvider.notifier);
+    final account = currentAccount;
 
     try {
-      final result = await _avatarService.pickAndSaveAvatar(currentAccount);
+      final result = await avatarService.pickAndSaveAvatar(account);
 
       if (result.isSuccess && result.path != null) {
-        final updatedAccount = currentAccount.copyWith(avatarPath: result.path);
-        await ref
-            .read(accountManagerNotifierProvider.notifier)
-            .updateAccount(updatedAccount);
+        final updatedAccount = (mounted ? currentAccount : account).copyWith(
+          avatarPath: result.path,
+        );
+        await accountNotifier.updateAccount(updatedAccount);
 
         // 刷新 UI
-        setState(() {});
-
         if (mounted) {
+          setState(() {});
           AppToast.success(context, context.l10n.settings_avatarUpdated);
         }
       } else if (result.isFailure && mounted) {
@@ -131,19 +130,21 @@ class _AccountProfileBottomSheetState
     // 防止重复点击
     if (_isOperationInProgress) return;
     _setOperationInProgress(true);
+    final avatarService = ref.read(avatarServiceProvider);
+    final accountNotifier = ref.read(accountManagerNotifierProvider.notifier);
+    final account = currentAccount;
 
     try {
-      await _avatarService.removeAvatar(currentAccount);
+      await avatarService.removeAvatar(account);
 
-      final updatedAccount = currentAccount.copyWith(avatarPath: null);
-      await ref
-          .read(accountManagerNotifierProvider.notifier)
-          .updateAccount(updatedAccount);
+      final updatedAccount = (mounted ? currentAccount : account).copyWith(
+        avatarPath: null,
+      );
+      await accountNotifier.updateAccount(updatedAccount);
 
       // 刷新 UI
-      setState(() {});
-
       if (mounted) {
+        setState(() {});
         AppToast.success(context, context.l10n.settings_avatarRemoved);
       }
     } catch (e) {

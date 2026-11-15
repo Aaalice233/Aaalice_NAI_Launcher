@@ -1,14 +1,10 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:video_player_media_kit/video_player_media_kit.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/database/database_providers.dart';
 import '../../core/services/avatar_image_cache.dart';
-import '../../core/network/proxy_service.dart';
+import '../../core/network/startup_proxy_resolver.dart';
 import '../../core/network/system_proxy_http_overrides.dart';
 import '../../core/platform/platform_capabilities.dart';
 import '../../core/services/data_migration_service.dart';
@@ -38,8 +34,6 @@ import 'layout_state_provider.dart';
 import 'local_gallery_provider.dart';
 import 'online_gallery_provider.dart';
 import 'precise_ref_library_provider.dart';
-import '../../core/network/proxy_settings_provider.dart';
-import '../../data/models/settings/proxy_settings.dart';
 import 'random_preset_provider.dart';
 import 'tag_library_page_provider.dart';
 import 'tag_library_provider.dart';
@@ -47,6 +41,9 @@ import 'vibe_library_provider.dart';
 import '../agent_chat/providers/agent_chat_dock_provider.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
 import '../screens/statistics/statistics_state.dart';
+
+export '../../core/network/startup_proxy_resolver.dart'
+    show resolveStartupProxyAddress;
 
 /// 可替换的启动关键任务边界，便于验证 Splash 与真实初始化的时序。
 class StartupInitializationTasks {
@@ -75,13 +72,8 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
     MigrationResult? completedMigration;
     return StartupInitializationTasks(
       initializeRuntimeConfiguration: () async {
-        final settingsBox = Hive.box(StorageKeys.settingsBox);
-        final fileLoggingEnabled =
-            settingsBox.get(
-              StorageKeys.fileLoggingEnabled,
-              defaultValue: false,
-            ) ==
-            true;
+        final localStorage = ref.read(localStorageServiceProvider);
+        final fileLoggingEnabled = localStorage.getFileLoggingEnabled();
         await AppLogger.setFileLoggingEnabled(fileLoggingEnabled);
         try {
           await FileExportService.cleanupTemporaryOutputs();
@@ -107,7 +99,7 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
           );
         }
 
-        _configureSystemProxy(settingsBox);
+        _configureSystemProxy(localStorage);
       },
       runDataMigration: (onProgress) async {
         final cached = completedMigration;
@@ -163,23 +155,32 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
       initializeCriticalServices: () async {
         final hivePath = await HiveStorageHelper.instance.getPath();
         await Future.wait([
-          _openHiveBoxIfNeeded(StorageKeys.historyBox, hivePath: hivePath),
-          _openHiveBoxIfNeeded(StorageKeys.galleryBox, hivePath: hivePath),
-          _openHiveBoxIfNeeded(
+          HiveStartupBoxOpener.openBox(
+            StorageKeys.historyBox,
+            hivePath: hivePath,
+          ),
+          HiveStartupBoxOpener.openBox(
+            StorageKeys.galleryBox,
+            hivePath: hivePath,
+          ),
+          HiveStartupBoxOpener.openBox(
             StorageKeys.localFavoritesBox,
             hivePath: hivePath,
           ),
-          _openHiveBoxIfNeeded(StorageKeys.tagsBox, hivePath: hivePath),
-          _openHiveBoxIfNeeded(
+          HiveStartupBoxOpener.openBox(StorageKeys.tagsBox, hivePath: hivePath),
+          HiveStartupBoxOpener.openBox(
             StorageKeys.statisticsCacheBox,
             hivePath: hivePath,
           ),
-          _openHiveBoxIfNeeded(StorageKeys.collectionsBox, hivePath: hivePath),
-          _openHiveBoxIfNeeded<String>(
+          HiveStartupBoxOpener.openBox(
+            StorageKeys.collectionsBox,
+            hivePath: hivePath,
+          ),
+          HiveStartupBoxOpener.openBox<String>(
             StorageKeys.replicationQueueBox,
             hivePath: hivePath,
           ),
-          _openHiveBoxIfNeeded<String>(
+          HiveStartupBoxOpener.openBox<String>(
             StorageKeys.queueExecutionStateBox,
             hivePath: hivePath,
           ),
@@ -288,54 +289,18 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
   },
 );
 
-void _configureSystemProxy(Box<dynamic> settingsBox) {
+void _configureSystemProxy(LocalStorageService localStorage) {
   final capabilities = PlatformCapabilities.operatingSystem;
   if (!capabilities.isDesktop && !capabilities.isMobile) return;
 
-  final proxyAddress = resolveStartupProxyAddress(settingsBox, capabilities);
+  final proxyAddress = resolveStartupProxyAddressFromStorage(
+    localStorage,
+    capabilities,
+  );
   SystemProxyHttpOverrides.applyProxyAddress(proxyAddress);
   if (proxyAddress != null && proxyAddress.isNotEmpty) {
     AppLogger.i('Applied proxy: $proxyAddress', 'NETWORK');
   } else {
     AppLogger.d('No proxy applied (disabled or no address)', 'NETWORK');
-  }
-}
-
-/// 启动时要注入 [HttpOverrides.global] 的代理地址，未启用或拿不到时返回 null。
-///
-/// 启动时初始化全局路由，后续设置修改由 ProxySettingsNotifier 即时应用。
-/// 模式按 [resolveProxyMode] 折算：移动端读不到系统代理，只使用手动地址。
-@visibleForTesting
-String? resolveStartupProxyAddress(
-  Box<dynamic> settingsBox,
-  PlatformCapabilities capabilities,
-) {
-  final enabled =
-      settingsBox.get(StorageKeys.proxyEnabled, defaultValue: true) as bool;
-  if (!enabled) return null;
-
-  final storedMode =
-      settingsBox.get(StorageKeys.proxyMode, defaultValue: 'auto') as String;
-  final mode = resolveProxyMode(
-    ProxyMode.values.asNameMap()[storedMode] ?? ProxyMode.auto,
-    capabilities,
-  );
-  if (mode == ProxyMode.manual) {
-    final host = settingsBox.get(StorageKeys.proxyManualHost) as String?;
-    final port = settingsBox.get(StorageKeys.proxyManualPort) as int?;
-    if (host != null && host.isNotEmpty && port != null && port > 0) {
-      return '$host:$port';
-    }
-    return null;
-  }
-  return ProxyService.getSystemProxyAddress();
-}
-
-Future<void> _openHiveBoxIfNeeded<E>(
-  String name, {
-  required String hivePath,
-}) async {
-  if (!Hive.isBoxOpen(name)) {
-    await HiveStartupBoxOpener.openBox<E>(name, hivePath: hivePath);
   }
 }

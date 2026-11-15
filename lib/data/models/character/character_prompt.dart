@@ -24,7 +24,7 @@ enum CharacterPositionMode {
 
 /// 角色位置 (百分比坐标)
 @freezed
-class CharacterPosition with _$CharacterPosition {
+abstract class CharacterPosition with _$CharacterPosition {
   const CharacterPosition._();
 
   const factory CharacterPosition({
@@ -211,7 +211,7 @@ abstract final class CharacterPositionLayout {
 
 /// 单个角色提示词模型
 @freezed
-class CharacterPrompt with _$CharacterPrompt {
+abstract class CharacterPrompt with _$CharacterPrompt {
   const CharacterPrompt._();
 
   const factory CharacterPrompt({
@@ -331,7 +331,7 @@ class CharacterPrompt with _$CharacterPrompt {
 
 /// 多角色提示词配置
 @freezed
-class CharacterPromptConfig with _$CharacterPromptConfig {
+abstract class CharacterPromptConfig with _$CharacterPromptConfig {
   const CharacterPromptConfig._();
 
   const factory CharacterPromptConfig({

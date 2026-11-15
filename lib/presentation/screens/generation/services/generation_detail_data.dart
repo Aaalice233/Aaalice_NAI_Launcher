@@ -1,3 +1,4 @@
+import '../../../../data/services/image_metadata_service.dart';
 import '../../../providers/generation/generation_models.dart';
 import '../../../widgets/common/image_detail/file_image_detail_data.dart';
 import '../../../widgets/common/image_detail/image_detail_data.dart';
@@ -7,7 +8,10 @@ class GenerationDetailData {
   GenerationDetailData._();
 
   /// 已保存的图从文件解析元数据；未保存的图（关闭自动保存时）用内存字节兜底。
-  static ImageDetailData forImage(GeneratedImage image) {
+  static ImageDetailData forImage(
+    GeneratedImage image, {
+    ImageMetadataService? metadataService,
+  }) {
     final filePath = image.filePath;
     if (filePath != null && filePath.isNotEmpty) {
       return FileImageDetailData(
@@ -15,6 +19,7 @@ class GenerationDetailData {
         cachedBytes: image.bytes,
         id: image.id,
         initialMetadata: image.metadata,
+        metadataService: metadataService,
         showCopyButton: image.canSave,
         showSaveAsButton: image.canSave,
       );
@@ -22,6 +27,7 @@ class GenerationDetailData {
     return GeneratedImageDetailData(
       imageBytes: image.bytes,
       metadata: image.metadata,
+      metadataService: metadataService,
       id: image.id,
       showSaveButton: image.canSave,
       showCopyButton: image.canSave,

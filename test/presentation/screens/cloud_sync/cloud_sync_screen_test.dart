@@ -825,17 +825,29 @@ Finder _fieldWithLabel(String label) =>
 String _textOf(WidgetTester tester, String label) =>
     tester.widget<TextField>(_fieldWithLabel(label)).controller!.text;
 
-StateProvider<CloudSyncUiState> _stateSource() =>
-    StateProvider<CloudSyncUiState>((ref) => const CloudSyncUiState());
+class _CloudSyncStateSourceNotifier extends Notifier<CloudSyncUiState> {
+  @override
+  CloudSyncUiState build() => const CloudSyncUiState();
+
+  void setUiState(CloudSyncUiState next) {
+    state = next;
+  }
+}
+
+typedef _CloudSyncStateSource =
+    NotifierProvider<_CloudSyncStateSourceNotifier, CloudSyncUiState>;
+
+_CloudSyncStateSource _stateSource() =>
+    _CloudSyncStateSource(_CloudSyncStateSourceNotifier.new);
 
 void _setState(
   WidgetTester tester,
-  StateProvider<CloudSyncUiState> stateSource,
+  _CloudSyncStateSource stateSource,
   CloudSyncUiState state,
 ) {
   ProviderScope.containerOf(
     tester.element(find.byType(SettingsScreen)),
-  ).read(stateSource.notifier).state = state;
+  ).read(stateSource.notifier).setUiState(state);
 }
 
 CloudDriveProviderRegistry _oneDriveRegistry() => CloudDriveProviderRegistry([
@@ -877,7 +889,7 @@ Finder get _pageScrollable => find
 
 Widget _subject({
   CloudSyncUiState? state,
-  StateProvider<CloudSyncUiState>? stateSource,
+  _CloudSyncStateSource? stateSource,
   CloudSyncUiPort? port,
   double textScale = 1,
   CloudDriveProviderRegistry? registry,

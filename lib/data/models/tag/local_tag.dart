@@ -6,7 +6,7 @@ part 'local_tag.g.dart';
 /// 本地标签数据模型
 /// 用于存储从 CSV 加载的标签数据
 @freezed
-class LocalTag with _$LocalTag {
+abstract class LocalTag with _$LocalTag {
   const LocalTag._();
 
   const factory LocalTag({

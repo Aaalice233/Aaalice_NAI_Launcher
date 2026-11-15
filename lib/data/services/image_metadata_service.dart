@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../models/gallery/nai_image_metadata.dart';
@@ -130,7 +131,9 @@ class ParseStatistics {
 /// - 详细的解析统计
 /// - 增强的错误处理
 class ImageMetadataService {
-  static final ImageMetadataService _instance = ImageMetadataService._internal();
+  static final ImageMetadataService _instance =
+      ImageMetadataService._internal();
+  static ImageMetadataService get instance => _instance;
   factory ImageMetadataService() => _instance;
   ImageMetadataService._internal();
 
@@ -226,7 +229,10 @@ class ImageMetadataService {
     // 设置超时
     final timeoutTimer = Timer(_highPriorityTimeout, () {
       if (!taskCompleter.isCompleted) {
-        AppLogger.w('[MetadataFlow] Parse timeout for: $path', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] Parse timeout for: $path',
+          'ImageMetadataService',
+        );
         _statistics.recordTimeout();
         taskCompleter.complete(null);
       }
@@ -253,7 +259,12 @@ class ImageMetadataService {
       }
       return null;
     } catch (e, stack) {
-      AppLogger.e('[MetadataFlow] Parse error', e, stack, 'ImageMetadataService');
+      AppLogger.e(
+        '[MetadataFlow] Parse error',
+        e,
+        stack,
+        'ImageMetadataService',
+      );
       if (!taskCompleter.isCompleted) {
         taskCompleter.complete(null);
       }
@@ -329,7 +340,10 @@ class ImageMetadataService {
     final actualTimeout = timeout ?? _defaultParseTimeout;
     final timeoutTimer = Timer(actualTimeout, () {
       if (!taskCompleter.isCompleted) {
-        AppLogger.w('[MetadataFlow] Parse timeout for: $path', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] Parse timeout for: $path',
+          'ImageMetadataService',
+        );
         _statistics.recordTimeout();
         taskCompleter.complete(null);
       }
@@ -363,7 +377,12 @@ class ImageMetadataService {
       }
       return null;
     } catch (e, stack) {
-      AppLogger.e('[MetadataFlow] Parse error', e, stack, 'ImageMetadataService');
+      AppLogger.e(
+        '[MetadataFlow] Parse error',
+        e,
+        stack,
+        'ImageMetadataService',
+      );
       if (!taskCompleter.isCompleted) {
         taskCompleter.complete(null);
       }
@@ -600,7 +619,10 @@ class ImageMetadataService {
       final file = File(path);
       // 检查文件是否存在
       if (!await file.exists()) {
-        AppLogger.w('[MetadataFlow] File NOT FOUND: $path', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] File NOT FOUND: $path',
+          'ImageMetadataService',
+        );
         _statistics.recordFailure('file_not_found', totalStopwatch.elapsed);
         return null;
       }
@@ -627,7 +649,10 @@ class ImageMetadataService {
         }
       } catch (e) {
         parseStopwatch.stop();
-        AppLogger.w('[MetadataFlow] Unified parse error: $e', 'ImageMetadataService');
+        AppLogger.w(
+          '[MetadataFlow] Unified parse error: $e',
+          'ImageMetadataService',
+        );
         metadata = null;
       }
 
@@ -673,8 +698,16 @@ class ImageMetadataService {
       rethrow;
     } catch (e, stack) {
       totalStopwatch.stop();
-      _statistics.recordFailure('exception: ${e.runtimeType}', totalStopwatch.elapsed);
-      AppLogger.e('[MetadataFlow] Parse FAILED: $path', e, stack, 'ImageMetadataService');
+      _statistics.recordFailure(
+        'exception: ${e.runtimeType}',
+        totalStopwatch.elapsed,
+      );
+      AppLogger.e(
+        '[MetadataFlow] Parse FAILED: $path',
+        e,
+        stack,
+        'ImageMetadataService',
+      );
       return null;
     }
   }
@@ -715,6 +748,10 @@ class ImageMetadataService {
     }
   }
 }
+
+final imageMetadataServiceProvider = Provider<ImageMetadataService>(
+  (ref) => ImageMetadataService.instance,
+);
 
 /// 解析取消异常
 class _ParseCancelledException implements Exception {

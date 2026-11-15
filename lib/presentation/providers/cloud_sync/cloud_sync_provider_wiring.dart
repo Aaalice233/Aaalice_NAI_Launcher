@@ -34,9 +34,20 @@ import 'cloud_sync_application_service.dart';
 import 'cloud_sync_runtime_refresh.dart';
 import 'cloud_sync_ui_provider.dart';
 
-final cloudSyncApplicationStateProvider = StateProvider<CloudSyncUiState>(
-  (ref) => const CloudSyncUiState(),
-);
+final cloudSyncApplicationStateProvider =
+    NotifierProvider<CloudSyncApplicationStateNotifier, CloudSyncUiState>(
+      CloudSyncApplicationStateNotifier.new,
+    );
+
+class CloudSyncApplicationStateNotifier extends Notifier<CloudSyncUiState> {
+  @override
+  CloudSyncUiState build() => const CloudSyncUiState();
+
+  void setUiState(CloudSyncUiState next) {
+    if (!ref.mounted) return;
+    state = next;
+  }
+}
 
 final cloudDriveOAuthRuntimeProvider = Provider<CloudDriveOAuthRuntime>((ref) {
   return createCloudDriveOAuthRuntime(ref.watch(secureStorageServiceProvider));
@@ -81,7 +92,9 @@ final cloudSyncApplicationServiceProvider =
         installFfdkjDictionary: () =>
             ref.read(zhDictionaryServiceProvider).installOrUpdate(),
         onState: (state) =>
-            ref.read(cloudSyncApplicationStateProvider.notifier).state = state,
+            ref.read(cloudSyncApplicationStateProvider.notifier).setUiState(
+              state,
+            ),
         backendFactory: (draft) {
           final namespace = cloudSyncV3Namespace(draft.path);
           return switch (draft.backend) {

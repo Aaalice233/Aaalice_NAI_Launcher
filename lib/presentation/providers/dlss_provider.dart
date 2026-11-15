@@ -18,25 +18,57 @@ import '../../data/services/dlss/dlss_worker.dart';
 import '../../data/services/dlss/dlss_device_probe.dart';
 import '../../data/services/dlss/dlss_environment_service.dart';
 
-final dlssProvider = ChangeNotifierProvider<DlssController>((ref) {
-  final dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 60),
-    ),
-  );
-  ref.onDispose(() => dio.close(force: true));
-  final controller = DlssController(
-    ref.read(localStorageServiceProvider),
-    DlssRuntimeManager(dio: dio),
-    DlssReleaseSource(dio),
-    DlssWorker(),
-  );
-  if (PlatformCapabilities.operatingSystem.supportsDlssEnhancement) {
-    scheduleMicrotask(() => controller.refresh(fetchReleases: false));
+final dlssProvider = NotifierProvider<DlssNotifier, DlssController>(
+  DlssNotifier.new,
+);
+
+class DlssNotifier extends Notifier<DlssController> {
+  DlssNotifier([this._injectedController]);
+
+  final DlssController? _injectedController;
+
+  @override
+  DlssController build() {
+    void listener() {
+      if (ref.mounted) {
+        ref.notifyListeners();
+      }
+    }
+
+    final injected = _injectedController;
+    if (injected != null) {
+      injected.addListener(listener);
+      ref.onDispose(() {
+        injected.removeListener(listener);
+        injected.dispose();
+      });
+      return injected;
+    }
+
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 60),
+      ),
+    );
+    final controller = DlssController(
+      ref.read(localStorageServiceProvider),
+      DlssRuntimeManager(dio: dio),
+      DlssReleaseSource(dio),
+      DlssWorker(),
+    );
+    controller.addListener(listener);
+    ref.onDispose(() {
+      controller.removeListener(listener);
+      controller.dispose();
+      dio.close(force: true);
+    });
+    if (PlatformCapabilities.operatingSystem.supportsDlssEnhancement) {
+      scheduleMicrotask(() => controller.refresh(fetchReleases: false));
+    }
+    return controller;
   }
-  return controller;
-});
+}
 
 class DlssController extends ChangeNotifier {
   DlssController(

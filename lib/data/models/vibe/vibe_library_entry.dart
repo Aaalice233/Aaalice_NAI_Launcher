@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/extensions/list_sort_extensions.dart';
@@ -16,7 +16,7 @@ part 'vibe_library_entry.g.dart';
 /// 使用 Hive 进行本地持久化存储
 @HiveType(typeId: 23)
 @freezed
-class VibeLibraryEntry with _$VibeLibraryEntry {
+abstract class VibeLibraryEntry with _$VibeLibraryEntry {
   const VibeLibraryEntry._();
 
   const factory VibeLibraryEntry({

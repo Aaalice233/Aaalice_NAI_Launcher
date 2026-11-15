@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
@@ -832,7 +833,7 @@ Widget _app(
   List<Override> overrides = const [],
 }) => ProviderScope(
   overrides: [
-    dlssProvider.overrideWith((ref) => controller),
+    dlssProvider.overrideWith(() => DlssNotifier(controller)),
     localStorageServiceProvider.overrideWith((ref) => controller.storage),
     ...overrides,
   ],

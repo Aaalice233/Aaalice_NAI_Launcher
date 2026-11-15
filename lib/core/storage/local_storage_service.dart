@@ -1,5 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../constants/api_constants.dart';
@@ -1186,6 +1185,47 @@ class LocalStorageService {
   /// 保存是否包含预发布版本
   Future<void> setIncludePrereleaseUpdates(bool value) async {
     await setSetting(StorageKeys.includePrereleaseUpdates, value);
+  }
+
+  // ==================== ComfyUI & Krita Bridge ====================
+
+  /// 获取 ComfyUI 服务端地址
+  String getComfyUIServerUrl() {
+    return getSetting<String>(
+          StorageKeys.comfyuiServerUrl,
+          defaultValue: 'http://127.0.0.1:8188',
+        ) ??
+        'http://127.0.0.1:8188';
+  }
+
+  /// 保存 ComfyUI 服务端地址
+  Future<void> setComfyUIServerUrl(String url) async {
+    await setSetting(StorageKeys.comfyuiServerUrl, url);
+  }
+
+  /// 获取是否启用 ComfyUI 集成
+  bool getComfyUIEnabled() {
+    return getSetting<bool>(StorageKeys.comfyuiEnabled, defaultValue: false) ??
+        false;
+  }
+
+  /// 保存是否启用 ComfyUI 集成
+  Future<void> setComfyUIEnabled(bool enabled) async {
+    await setSetting(StorageKeys.comfyuiEnabled, enabled);
+  }
+
+  /// 获取是否启用 Krita 桥接
+  bool getKritaBridgeEnabled() {
+    return getSetting<bool>(
+          StorageKeys.kritaBridgeEnabled,
+          defaultValue: false,
+        ) ??
+        false;
+  }
+
+  /// 保存是否启用 Krita 桥接
+  Future<void> setKritaBridgeEnabled(bool enabled) async {
+    await setSetting(StorageKeys.kritaBridgeEnabled, enabled);
   }
 }
 

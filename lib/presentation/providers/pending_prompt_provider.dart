@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -29,7 +28,7 @@ enum SendTargetType {
 ///
 /// 用于跨页面传递提示词（如从画廊发送到主界面）
 @freezed
-class PendingPromptState with _$PendingPromptState {
+abstract class PendingPromptState with _$PendingPromptState {
   const factory PendingPromptState({
     /// 正向提示词
     String? prompt,

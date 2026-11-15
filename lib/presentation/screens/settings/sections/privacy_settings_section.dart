@@ -98,7 +98,7 @@ class _PrivacySettingsSectionState
     final watermarkSettings = watermarkState.configuration;
     final watermarkControlsEnabled = watermarkState.loadIssue == null;
     final localLogoMissing =
-        ref.watch(watermarkLocalLogoMissingProvider).valueOrNull ?? false;
+        ref.watch(watermarkLocalLogoMissingProvider).value ?? false;
     final mosaicState = ref.watch(mosaicSettingsProvider);
     final mosaicSettings = mosaicState.configuration;
     final mosaicControlsEnabled = mosaicState.loadIssue == null;

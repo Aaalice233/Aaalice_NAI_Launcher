@@ -11,6 +11,7 @@ import '../../../core/utils/encoded_image_dimensions.dart';
 import '../../../core/platform/platform_capabilities.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/services/image_metadata_service.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
@@ -584,12 +585,16 @@ class LocalGalleryContentView extends ConsumerWidget {
         return image?.isFavorite ?? false;
       }
 
+      final metadataService = ref.read(imageMetadataServiceProvider);
       ImageDetailOpener.showMultipleImmediate(
         context,
         images: images
             .map(
-              (r) =>
-                  LocalImageDetailData(r, getFavoriteStatus: getFavoriteStatus),
+              (r) => LocalImageDetailData(
+                r,
+                getFavoriteStatus: getFavoriteStatus,
+                metadataService: metadataService,
+              ),
             )
             .toList(),
         initialIndex: initialIndex,

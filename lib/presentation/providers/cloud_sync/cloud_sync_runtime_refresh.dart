@@ -37,7 +37,7 @@ import '../watermark_settings_provider.dart';
 
 Future<void> refreshCloudSyncRuntime(Ref ref, Set<String> adapterIds) async {
   if (adapterIds.contains('portable-settings')) {
-    if (ref.exists(dlssProvider)) {
+    if (ref.read(dlssProvider.exists)) {
       ref.read(dlssProvider).refreshPreferences();
     }
     ref.read(fixedTagsNotifierProvider.notifier).refresh();

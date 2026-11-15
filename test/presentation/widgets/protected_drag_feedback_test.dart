@@ -344,6 +344,7 @@ Widget _app({
   ShareImageTransform? transform,
 }) {
   return ProviderScope(
+    retry: (retryCount, error) => null,
     overrides: [
       databaseManagerProvider.overrideWith(
         (ref) => throw StateError('No database in drag tests'),

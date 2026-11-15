@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/core/save_naming/image_save_naming.dart';

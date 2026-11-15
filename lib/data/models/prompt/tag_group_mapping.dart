@@ -9,7 +9,7 @@ part 'tag_group_mapping.g.dart';
 ///
 /// 定义如何将 Danbooru 的 tag_group 映射到应用内部的语义子分类
 @freezed
-class TagGroupMapping with _$TagGroupMapping {
+abstract class TagGroupMapping with _$TagGroupMapping {
   const TagGroupMapping._();
 
   const factory TagGroupMapping({

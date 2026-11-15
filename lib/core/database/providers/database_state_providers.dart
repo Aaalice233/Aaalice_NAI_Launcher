@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'data_source_cache_provider.dart';
@@ -100,12 +99,11 @@ class DatabaseStatusNotifier extends _$DatabaseStatusNotifier {
   DatabaseState build() {
     final machine = ref.watch(databaseStateMachineProvider);
 
-    // 监听状态变化
-    ref.listen(databaseStateChangesProvider, (previous, next) {
-      next.whenData((change) {
-        state = change.current;
-      });
+    // 直接订阅状态机流，避免视图进入 TickerMode(enabled: false) 时暂停后台同步状态通知
+    final subscription = machine.stateChanges.listen((change) {
+      state = change.current;
     });
+    ref.onDispose(subscription.cancel);
 
     return machine.currentState;
   }

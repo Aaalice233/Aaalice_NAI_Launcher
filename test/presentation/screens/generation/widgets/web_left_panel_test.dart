@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
@@ -225,7 +225,7 @@ Future<void> _pumpPanel(
         authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
         localStorageServiceProvider.overrideWithValue(effectiveStorage),
         kritaBridgeNotifierProvider.overrideWith(
-          (ref) => _TestKritaBridgeNotifier(),
+          _TestKritaBridgeNotifier.new,
         ),
         replicationQueueNotifierProvider.overrideWith(
           _TestReplicationQueueNotifier.new,

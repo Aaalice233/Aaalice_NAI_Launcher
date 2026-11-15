@@ -4,7 +4,9 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_service.dart';
 import 'package:nai_launcher/core/services/verified_resumable_downloader.dart';
 import 'package:path/path.dart' as p;
@@ -86,6 +88,7 @@ void main() {
     late _DataPackFixture fixture;
     late List<HttpServer> servers;
     final services = <CooccurrenceDataPackService>[];
+    final containers = <ProviderContainer>[];
 
     setUpAll(sqfliteFfiInit);
 
@@ -97,11 +100,15 @@ void main() {
       fixture = await _DataPackFixture.create(tempDirectory);
       servers = [];
       services.clear();
+      containers.clear();
     });
 
     tearDown(() async {
       for (final service in services.reversed) {
         await service.close();
+      }
+      for (final container in containers.reversed) {
+        container.dispose();
       }
       for (final server in servers) {
         await server.close(force: true);
@@ -131,11 +138,21 @@ void main() {
       VerifiedResumableDownloader? downloader,
       DatabaseFactory? databaseFactory,
     }) {
-      final service = CooccurrenceDataPackService(
-        downloader: downloader,
-        manifestLoader: () async => manifest ?? fixture.manifest,
-        supportDirectoryLoader: () async => supportDirectory,
-        databaseFactoryOverride: databaseFactory ?? databaseFactoryFfi,
+      final container = ProviderContainer(
+        overrides: [
+          cooccurrenceDataPackServiceProvider.overrideWith(
+            () => CooccurrenceDataPackService(
+              downloader: downloader,
+              manifestLoader: () async => manifest ?? fixture.manifest,
+              supportDirectoryLoader: () async => supportDirectory,
+              databaseFactoryOverride: databaseFactory ?? databaseFactoryFfi,
+            ),
+          ),
+        ],
+      );
+      containers.add(container);
+      final service = container.read(
+        cooccurrenceDataPackServiceProvider.notifier,
       );
       services.add(service);
       return service;

@@ -3,10 +3,9 @@ import 'autocomplete_settings.dart';
 import 'cooccurrence_data_pack_service.dart';
 
 final cooccurrenceDataPackServiceProvider =
-    StateNotifierProvider<
-      CooccurrenceDataPackService,
-      CooccurrenceDataPackState
-    >((ref) => CooccurrenceDataPackService());
+    NotifierProvider<CooccurrenceDataPackService, CooccurrenceDataPackState>(
+      CooccurrenceDataPackService.new,
+    );
 
 /// Mounted only after the main application appears. It reacts to explicit
 /// settings changes but not transfer state changes, so a failed startup attempt

@@ -122,7 +122,7 @@ class Img2ImgPreviewCache {
       // provider 重算期间的旧值可能来自换图前，只沿用这张源图上显示过的框
       focusedFrame = keepStale ? _lastFrame : null;
     } else {
-      final extent = maskExtent.valueOrNull;
+      final extent = maskExtent.value;
       // 蒙版与源图同尺寸，几何与费用预估、请求裁剪取自同一外接矩形
       focusedFrame = extent == null
           ? null

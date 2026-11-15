@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 
 import '../vibe/vibe_reference.dart';
 import 'nai_image_metadata.dart';
@@ -18,7 +18,7 @@ enum MetadataStatus {
 /// 本地图片记录模型
 @HiveType(typeId: 22)
 @freezed
-class LocalImageRecord with _$LocalImageRecord {
+abstract class LocalImageRecord with _$LocalImageRecord {
   const factory LocalImageRecord({
     @HiveField(0) required String path, // 文件路径
     @HiveField(1) required int size, // 文件大小（字节）

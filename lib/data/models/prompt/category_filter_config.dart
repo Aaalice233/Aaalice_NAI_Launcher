@@ -10,7 +10,7 @@ part 'category_filter_config.g.dart';
 /// 控制各分类是否启用 Danbooru 补充标签和内置词库
 /// 与同步配置解耦，仅影响显示和生成
 @freezed
-class CategoryFilterConfig with _$CategoryFilterConfig {
+abstract class CategoryFilterConfig with _$CategoryFilterConfig {
   const CategoryFilterConfig._();
 
   const factory CategoryFilterConfig({

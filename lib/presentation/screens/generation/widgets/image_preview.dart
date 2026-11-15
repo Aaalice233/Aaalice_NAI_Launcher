@@ -650,7 +650,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     if (enabled && ref.read(generationImageCardSelectionProvider).isActive) {
       ref.read(generationImageCardSelectionProvider.notifier).exit();
     }
-    ref.read(generationComparisonEnabledProvider.notifier).state = enabled;
+    ref.read(generationComparisonEnabledProvider.notifier).setEnabled(enabled);
   }
 
   Widget _buildGeneratedImageCard({
@@ -835,8 +835,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     GeneratedImage image,
   ) async {
     NaiImageMetadata? metadata = image.metadata;
+    final metadataService = ref.read(imageMetadataServiceProvider);
+    final fixedTags = ref.read(fixedTagsNotifierProvider);
     try {
-      final metadataService = ImageMetadataService();
       final filePath = image.filePath;
       if (metadata == null &&
           filePath != null &&
@@ -845,7 +846,6 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
       }
       metadata ??= await metadataService.getMetadataFromBytes(image.bytes);
       if (metadata != null) {
-        final fixedTags = ref.read(fixedTagsNotifierProvider);
         metadata = matchMetadataFixedTags(
           metadata: metadata,
           positiveEntries: fixedTags.positiveEntries,
@@ -1063,7 +1063,15 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     );
     final initialIndex = selectedIndex < 0 ? 0 : selectedIndex;
 
-    final allImages = sequence.map(GenerationDetailData.forImage).toList();
+    final metadataService = ref.read(imageMetadataServiceProvider);
+    final allImages = sequence
+        .map(
+          (image) => GenerationDetailData.forImage(
+            image,
+            metadataService: metadataService,
+          ),
+        )
+        .toList();
 
     // 使用 ImageDetailOpener 打开详情页
     ImageDetailOpener.showMultipleImmediate(

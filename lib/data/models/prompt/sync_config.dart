@@ -44,7 +44,7 @@ enum SyncStatus {
 
 /// 词库同步配置
 @freezed
-class TagLibrarySyncConfig with _$TagLibrarySyncConfig {
+abstract class TagLibrarySyncConfig with _$TagLibrarySyncConfig {
   const TagLibrarySyncConfig._();
 
   const factory TagLibrarySyncConfig({

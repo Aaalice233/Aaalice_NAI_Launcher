@@ -52,10 +52,9 @@ final saveNamingPreviewSampleProvider =
       }
       NaiImageMetadata? metadata = latest.metadata;
       if (metadata == null) {
+        final metadataService = ref.read(imageMetadataServiceProvider);
         try {
-          metadata = await ImageMetadataService().getMetadataFromBytes(
-            latest.bytes,
-          );
+          metadata = await metadataService.getMetadataFromBytes(latest.bytes);
         } catch (error, stack) {
           AppLogger.e(
             'Failed to read metadata for save naming preview',

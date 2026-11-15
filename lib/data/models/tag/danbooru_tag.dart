@@ -51,7 +51,7 @@ enum DanbooruCategory {
 ///   - GET https://danbooru.donmai.us/autocomplete.json (自动补全)
 ///   - GET https://danbooru.donmai.us/tags.json (标签搜索)
 @freezed
-class DanbooruTag with _$DanbooruTag {
+abstract class DanbooruTag with _$DanbooruTag {
   const DanbooruTag._();
 
   const factory DanbooruTag({

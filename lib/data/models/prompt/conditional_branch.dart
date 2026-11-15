@@ -19,7 +19,7 @@ enum LogicType {
 /// 实现 switch-case 逻辑，用于服装类型选择等场景
 /// 例如: uniform 10%, swimsuit 5%, bodysuit 5%, normal 40%
 @freezed
-class ConditionalBranch with _$ConditionalBranch {
+abstract class ConditionalBranch with _$ConditionalBranch {
   const ConditionalBranch._();
 
   const factory ConditionalBranch({
@@ -78,7 +78,7 @@ class ConditionalBranch with _$ConditionalBranch {
 ///
 /// 包含多个分支的完整配置
 @freezed
-class ConditionalBranchConfig with _$ConditionalBranchConfig {
+abstract class ConditionalBranchConfig with _$ConditionalBranchConfig {
   const ConditionalBranchConfig._();
 
   const factory ConditionalBranchConfig({

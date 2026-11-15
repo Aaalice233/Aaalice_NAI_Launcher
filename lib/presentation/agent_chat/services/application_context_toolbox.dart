@@ -129,7 +129,7 @@ class ApplicationContextToolbox {
     executeFn: (_, params) async {
       final destination = params['destination'] as String;
       if (destination == 'queue') {
-        _ref.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+        _ref.read(shellPanelProvider.notifier).open(ShellPanel.queue);
         return agentToolJsonResult({
           'ok': true,
           'destination': destination,

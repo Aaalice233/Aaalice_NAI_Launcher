@@ -300,10 +300,23 @@ FocusedInpaintMaskExtent _extentOf(Rect bounds) => FocusedInpaintMaskExtent(
 /// provider 换蒙版重算时的状态：仍在加载，但带着上一张蒙版的结果。
 AsyncValue<FocusedInpaintMaskExtent?> _reloading(
   AsyncData<FocusedInpaintMaskExtent?> previous,
-) => const AsyncLoading<FocusedInpaintMaskExtent?>().copyWithPrevious(
-  previous,
-  isRefresh: false,
-);
+) {
+  var loading = false;
+  final dep = Provider<bool>((ref) => loading);
+  final provider = FutureProvider<FocusedInpaintMaskExtent?>((ref) {
+    if (ref.watch(dep)) return Completer<FocusedInpaintMaskExtent?>().future;
+    return previous.value;
+  });
+  final container = ProviderContainer();
+  try {
+    container.read(provider);
+    loading = true;
+    container.invalidate(dep);
+    return container.read(provider);
+  } finally {
+    container.dispose();
+  }
+}
 
 /// 按蒙版引用挂起的叠加图计算，由测试决定何时完成。
 class _PendingOverlays {

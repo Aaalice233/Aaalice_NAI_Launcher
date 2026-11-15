@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -54,6 +53,7 @@ class AuthModeNotifier extends _$AuthModeNotifier {
 
   Future<void> _loadAutoLoginState() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!ref.mounted) return;
     final autoLogin = prefs.getBool(_kAutoLoginKey) ?? true;
     state = state.copyWith(autoLogin: autoLogin);
   }

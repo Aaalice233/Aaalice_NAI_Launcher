@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/core/agent/agent.dart';
 import 'package:nai_launcher/core/agent/audit/audit_sink.dart';
 import 'package:nai_launcher/core/agent/harness/session/session.dart';

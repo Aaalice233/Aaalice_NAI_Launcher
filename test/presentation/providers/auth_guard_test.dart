@@ -72,14 +72,20 @@ void main() {
           height: 768,
         );
 
-        expect(container.exists(naiImageGenerationApiServiceProvider), isFalse);
+        expect(
+          container.read(naiImageGenerationApiServiceProvider.exists),
+          isFalse,
+        );
         await container
             .read(imageGenerationNotifierProvider.notifier)
             .generate(params);
 
         final generation = container.read(imageGenerationNotifierProvider);
         final request = container.read(authPromptRequestProvider);
-        expect(container.exists(naiImageGenerationApiServiceProvider), isFalse);
+        expect(
+          container.read(naiImageGenerationApiServiceProvider.exists),
+          isFalse,
+        );
         expect(generation.status, GenerationStatus.idle);
         expect(generation.errorMessage, isNull);
         expect(params.prompt, 'keep this prompt');

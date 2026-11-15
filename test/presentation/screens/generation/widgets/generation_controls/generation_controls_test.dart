@@ -40,7 +40,7 @@ void main() {
           authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
           localStorageServiceProvider.overrideWith((ref) => storage),
           kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
+            _TestKritaBridgeNotifier.new,
           ),
           replicationQueueNotifierProvider.overrideWith(
             _TestReplicationQueueNotifier.new,
@@ -119,7 +119,7 @@ void main() {
               authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
               localStorageServiceProvider.overrideWith((ref) => storage),
               kritaBridgeNotifierProvider.overrideWith(
-                (ref) => _TestKritaBridgeNotifier(),
+                _TestKritaBridgeNotifier.new,
               ),
               replicationQueueNotifierProvider.overrideWith(
                 _TestReplicationQueueNotifier.new,
@@ -292,7 +292,7 @@ void main() {
           ),
           localStorageServiceProvider.overrideWith((ref) => storage),
           kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
+            _TestKritaBridgeNotifier.new,
           ),
           replicationQueueNotifierProvider.overrideWith(
             _TestReplicationQueueNotifier.new,
@@ -399,7 +399,7 @@ void main() {
           ),
           localStorageServiceProvider.overrideWith((ref) => storage),
           kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
+            _TestKritaBridgeNotifier.new,
           ),
           replicationQueueNotifierProvider.overrideWith(
             _TestReplicationQueueNotifier.new,
@@ -623,7 +623,7 @@ void main() {
           authNotifierProvider.overrideWith(_UnauthenticatedAuthNotifier.new),
           localStorageServiceProvider.overrideWith((ref) => storage),
           kritaBridgeNotifierProvider.overrideWith(
-            (ref) => _TestKritaBridgeNotifier(),
+            _TestKritaBridgeNotifier.new,
           ),
           replicationQueueNotifierProvider.overrideWith(
             _TestReplicationQueueNotifier.new,
@@ -671,7 +671,7 @@ void main() {
             authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
             localStorageServiceProvider.overrideWith((ref) => storage),
             kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
+              _TestKritaBridgeNotifier.new,
             ),
             replicationQueueNotifierProvider.overrideWith(
               _TestReplicationQueueNotifier.new,
@@ -734,7 +734,7 @@ void main() {
             authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
             localStorageServiceProvider.overrideWith((ref) => storage),
             kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
+              _TestKritaBridgeNotifier.new,
             ),
             replicationQueueNotifierProvider.overrideWith(
               _TestReplicationQueueNotifier.new,
@@ -835,7 +835,7 @@ Future<_TestImageGenerationNotifier> _pumpLargeTextBatchControls(
       ),
       localStorageServiceProvider.overrideWith((ref) => storage),
       kritaBridgeNotifierProvider.overrideWith(
-        (ref) => _TestKritaBridgeNotifier(),
+        _TestKritaBridgeNotifier.new,
       ),
       replicationQueueNotifierProvider.overrideWith(
         _TestReplicationQueueNotifier.new,

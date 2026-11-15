@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/save_naming/image_save_naming.dart';

@@ -10,7 +10,7 @@ part 'fixed_tag_category.g.dart';
 ///
 /// 用于组织固定词条目，支持无限层级嵌套
 @freezed
-class FixedTagCategory with _$FixedTagCategory {
+abstract class FixedTagCategory with _$FixedTagCategory {
   const FixedTagCategory._();
 
   const factory FixedTagCategory({

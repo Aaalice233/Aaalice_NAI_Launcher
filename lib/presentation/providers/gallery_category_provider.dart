@@ -14,7 +14,7 @@ part 'gallery_category_provider.g.dart';
 
 /// 画廊分类状态
 @freezed
-class GalleryCategoryState with _$GalleryCategoryState {
+abstract class GalleryCategoryState with _$GalleryCategoryState {
   const factory GalleryCategoryState({
     /// 所有分类
     @Default([]) List<GalleryCategory> categories,

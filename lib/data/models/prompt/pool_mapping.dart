@@ -12,7 +12,7 @@ part 'pool_mapping.g.dart';
 ///
 /// 将 Danbooru Pool 映射到 NAI 标签分类
 @freezed
-class PoolMapping with _$PoolMapping {
+abstract class PoolMapping with _$PoolMapping {
   const PoolMapping._();
 
   const factory PoolMapping({

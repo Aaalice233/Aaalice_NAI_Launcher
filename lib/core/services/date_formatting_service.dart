@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../utils/app_logger.dart';
@@ -5,6 +6,8 @@ import '../utils/app_logger.dart';
 /// 日期格式化服务
 /// 封装日期和日期范围格式化逻辑
 class DateFormattingService {
+  const DateFormattingService();
+
   /// 格式化日期为 ISO 格式 (YYYY-MM-DD)
   ///
   /// [date] 要格式化的日期
@@ -55,7 +58,8 @@ class DateFormattingService {
       }
 
       AppLogger.d(
-          'Formatted date range (empty): empty', 'DateFormattingService',
+        'Formatted date range (empty): empty',
+        'DateFormattingService',
       );
       return '';
     } catch (e) {
@@ -87,3 +91,7 @@ class DateFormattingService {
     }
   }
 }
+
+final dateFormattingServiceProvider = Provider<DateFormattingService>(
+  (ref) => const DateFormattingService(),
+);

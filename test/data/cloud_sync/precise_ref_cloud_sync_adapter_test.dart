@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as image;
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync.dart';

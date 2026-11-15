@@ -7,7 +7,7 @@ part 'pool_output_config.g.dart';
 ///
 /// 控制从 Pool 帖子中输出哪些类型的标签
 @freezed
-class PoolOutputConfig with _$PoolOutputConfig {
+abstract class PoolOutputConfig with _$PoolOutputConfig {
   const PoolOutputConfig._();
 
   const factory PoolOutputConfig({

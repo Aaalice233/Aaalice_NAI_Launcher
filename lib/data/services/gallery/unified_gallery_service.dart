@@ -33,7 +33,7 @@ class GalleryService extends _$GalleryService {
 
   @override
   LocalGalleryService build() {
-    unawaited(ensureInitialized());
+    _initialization = Future<void>.microtask(_initializeService);
     ref.onDispose(() {
       _service?.dispose();
       _service = null;
@@ -46,6 +46,7 @@ class GalleryService extends _$GalleryService {
   }
 
   Future<void> _initializeService() async {
+    if (!ref.mounted) return;
     try {
       final dataSource = DatabaseManager.instance
           .getDataSource<GalleryDataSource>('gallery');
@@ -55,18 +56,30 @@ class GalleryService extends _$GalleryService {
         );
       }
 
-      _service = LocalGalleryServiceImpl(
+      final service = LocalGalleryServiceImpl(
         dataSource: dataSource,
         filterService: GalleryFilterService(dataSource),
       );
-      await _service!.initialize();
-      state = _service!;
+      _service = service;
+      await service.initialize();
+      if (!ref.mounted) {
+        await service.dispose();
+        if (identical(_service, service)) {
+          _service = null;
+        }
+        return;
+      }
+      state = service;
     } on GalleryPermissionDeniedException catch (error) {
       AppLogger.e('Gallery permission denied', error, null, 'GalleryService');
-      state = ErrorGalleryService(error: '无法访问图片文件夹: ${error.message}');
+      if (ref.mounted) {
+        state = ErrorGalleryService(error: '无法访问图片文件夹: ${error.message}');
+      }
     } on GalleryScanException catch (error) {
       AppLogger.e('Gallery scan failed', error, null, 'GalleryService');
-      state = ErrorGalleryService(error: '扫描图片失败: ${error.message}');
+      if (ref.mounted) {
+        state = ErrorGalleryService(error: '扫描图片失败: ${error.message}');
+      }
     } catch (error) {
       AppLogger.e(
         'Failed to initialize gallery service',
@@ -74,7 +87,9 @@ class GalleryService extends _$GalleryService {
         null,
         'GalleryService',
       );
-      state = ErrorGalleryService(error: '画廊初始化失败: $error');
+      if (ref.mounted) {
+        state = ErrorGalleryService(error: '画廊初始化失败: $error');
+      }
     }
   }
 

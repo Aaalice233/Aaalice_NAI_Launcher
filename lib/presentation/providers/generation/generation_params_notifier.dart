@@ -59,13 +59,13 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
   /// 加载最近使用的 Vibes
   Future<void> loadRecentVibes() async {
     await _vibeReferences.loadRecent();
-    if (!_isDisposed) state = state.copyWith();
+    if (!_isDisposed) ref.notifyListeners();
   }
 
   /// 记录 Vibe 使用并更新最近列表
   Future<void> _recordVibeUsage(VibeReference vibe) async {
     await _vibeReferences.recordUsage(vibe);
-    if (!_isDisposed) state = state.copyWith();
+    if (!_isDisposed) ref.notifyListeners();
   }
 
   VibeReferenceService _createVibeReferenceService({
@@ -131,13 +131,17 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
           : currentSeed;
       _storage.setLockedSeedValue(seedToLock);
       _storage.setSeedLocked(true);
-      state = state.copyWith(seed: seedToLock);
+      if (seedToLock != currentSeed) {
+        state = state.copyWith(seed: seedToLock);
+      } else {
+        ref.notifyListeners();
+      }
     } else {
       // 解锁：保留当前种子值，只取消锁定状态
       _storage.setSeedLocked(false);
       _storage.setLockedSeedValue(null);
       // 触发 state 变化以刷新 UI（保持种子值不变）
-      state = state.copyWith();
+      ref.notifyListeners();
     }
   }
 
@@ -654,7 +658,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final vibe = await _vibeReferences.useLibraryEntry(entryId);
     if (vibe == null || _isDisposed) return false;
     addVibeReference(vibe);
-    state = state.copyWith();
+    ref.notifyListeners();
     return true;
   }
 
@@ -672,7 +676,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final references = [...state.vibeReferencesV4];
     references[index] = vibe;
     _applyVibeReferences(references);
-    state = state.copyWith();
+    ref.notifyListeners();
     return true;
   }
 

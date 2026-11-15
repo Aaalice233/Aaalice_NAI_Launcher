@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/data/models/prompt/random_category.dart';
@@ -87,6 +88,7 @@ Future<void> pumpRandomManager(
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpWidget(
     ProviderScope(
+      retry: (retryCount, error) => null,
       overrides: [
         randomPresetNotifierProvider.overrideWith(presets),
         tagLibraryNotifierProvider.overrideWith(EmptyTagLibraryNotifier.new),

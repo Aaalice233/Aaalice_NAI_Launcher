@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -242,3 +243,5 @@ class AvatarService {
     return null;
   }
 }
+
+final avatarServiceProvider = Provider<AvatarService>((ref) => AvatarService());

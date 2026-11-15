@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
@@ -138,7 +138,7 @@ void main() {
               _TestVibeLibraryStorageService(),
             ),
             kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
+              _TestKritaBridgeNotifier.new,
             ),
           ],
           child: const MaterialApp(
@@ -191,7 +191,7 @@ void main() {
               _TestVibeLibraryStorageService(),
             ),
             kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
+              _TestKritaBridgeNotifier.new,
             ),
           ],
           child: const MaterialApp(
@@ -228,7 +228,7 @@ void main() {
               _TestVibeLibraryStorageService(),
             ),
             kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
+              _TestKritaBridgeNotifier.new,
             ),
           ],
           child: const MaterialApp(
@@ -289,7 +289,7 @@ void main() {
               _TestVibeLibraryStorageService(),
             ),
             kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
+              _TestKritaBridgeNotifier.new,
             ),
           ],
           child: const MaterialApp(
@@ -360,7 +360,7 @@ void main() {
               _TestVibeLibraryStorageService(),
             ),
             kritaBridgeNotifierProvider.overrideWith(
-              (ref) => _TestKritaBridgeNotifier(),
+              _TestKritaBridgeNotifier.new,
             ),
           ],
           child: MaterialApp(

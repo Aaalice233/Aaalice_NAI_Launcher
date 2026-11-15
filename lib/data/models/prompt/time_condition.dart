@@ -9,7 +9,7 @@ part 'time_condition.g.dart';
 /// 例如: 圣诞节词库 12月1-31日启用
 /// 注意: 首版不支持跨年日期范围
 @freezed
-class TimeCondition with _$TimeCondition {
+abstract class TimeCondition with _$TimeCondition {
   const TimeCondition._();
 
   const factory TimeCondition({
@@ -135,7 +135,7 @@ class TimeCondition with _$TimeCondition {
 ///
 /// 管理多个时间条件
 @freezed
-class TimeConditionGroup with _$TimeConditionGroup {
+abstract class TimeConditionGroup with _$TimeConditionGroup {
   const TimeConditionGroup._();
 
   const factory TimeConditionGroup({

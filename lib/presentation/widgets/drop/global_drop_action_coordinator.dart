@@ -178,10 +178,10 @@ class GlobalDropActionCoordinator {
   GlobalDropActionCoordinator({
     required this.context,
     required this.ref,
-    DroppedImageInspector inspector = const DroppedImageInspector(),
+    DroppedImageInspector? inspector,
     this.openGenerationAfterAction = false,
     this.respectCurrentRouteDropTarget = true,
-  }) : _inspector = inspector;
+  }) : _inspector = inspector ?? ref.read(droppedImageInspectorProvider);
 
   final BuildContext context;
   final WidgetRef ref;
@@ -559,10 +559,10 @@ class GlobalDropActionCoordinator {
     Uint8List bytes,
     AppLocalizations l10n,
   ) async {
+    final metadataService = ref.read(imageMetadataServiceProvider);
     try {
       final metadata =
-          detectedMetadata ??
-          await ImageMetadataService().getMetadataFromBytes(bytes);
+          detectedMetadata ?? await metadataService.getMetadataFromBytes(bytes);
       if (metadata == null || !metadata.hasData) {
         if (context.mounted) {
           AppToast.warning(context, l10n.metadataImport_noDataFound);
@@ -590,19 +590,18 @@ class GlobalDropActionCoordinator {
     Uint8List bytes,
     AppLocalizations l10n,
   ) async {
+    final metadataService = ref.read(imageMetadataServiceProvider);
+    final queueNotifier = ref.read(replicationQueueNotifierProvider.notifier);
     try {
       final metadata =
-          detectedMetadata ??
-          await ImageMetadataService().getMetadataFromBytes(bytes);
+          detectedMetadata ?? await metadataService.getMetadataFromBytes(bytes);
       if (metadata == null || metadata.prompt.isEmpty) {
         if (context.mounted) {
           AppToast.warning(context, context.l10n.toast_noValidPromptFound);
         }
         return;
       }
-      ref
-          .read(replicationQueueNotifierProvider.notifier)
-          .add(ReplicationTask.create(prompt: metadata.prompt));
+      queueNotifier.add(ReplicationTask.create(prompt: metadata.prompt));
       if (context.mounted) {
         final displayPrompt = metadata.prompt.length > 50
             ? '${metadata.prompt.substring(0, 50)}...'

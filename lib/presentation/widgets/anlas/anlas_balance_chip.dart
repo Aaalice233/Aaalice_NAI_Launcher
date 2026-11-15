@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/utils/localization_extension.dart';
+import '../../../data/models/user/user_subscription.dart';
 import '../../providers/cost_estimate_provider.dart';
 import '../../providers/subscription_provider.dart';
 import '../common/surface_ink_well.dart';
@@ -23,23 +24,23 @@ class AnlasBalanceChip extends ConsumerWidget {
     final estimatedCost = ref.watch(estimatedCostProvider);
     final theme = Theme.of(context);
 
-    return subscriptionState.map(
-      initial: (_) => _buildPlaceholder(theme, compact),
-      loading: (_) => _buildLoading(context, theme, compact),
-      loaded: (state) => _buildLoaded(
+    return switch (subscriptionState) {
+      SubscriptionStateInitial() => _buildPlaceholder(theme, compact),
+      SubscriptionStateLoading() => _buildLoading(context, theme, compact),
+      SubscriptionStateLoaded(:final subscription) => _buildLoaded(
         context,
         ref,
         theme,
-        state.subscription.anlasBalance,
+        subscription.anlasBalance,
         estimatedCost,
         compact,
       ),
-      error: (state) => _buildError(context, ref, theme, compact),
-      unsupported: (_) => Tooltip(
+      SubscriptionStateError() => _buildError(context, ref, theme, compact),
+      SubscriptionStateUnsupported() => Tooltip(
         message: context.l10n.anlas_thirdPartyUnavailable,
         child: _buildPlaceholder(theme, compact),
       ),
-    );
+    };
   }
 
   Widget _buildPlaceholder(ThemeData theme, bool compact) {

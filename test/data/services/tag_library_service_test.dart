@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/data/datasources/local/random_tag_library_data_source.dart';
 import 'package:nai_launcher/data/services/tag_library_service.dart';
 

@@ -31,10 +31,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _avatarService = AvatarService();
-  final _authErrorService = AuthErrorService();
-  final _dateFormattingService = DateFormattingService();
-
   OverlayEntry? _loadingOverlayEntry;
   bool _showTroubleshootingButton = false;
 
@@ -226,12 +222,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
 
     final l10n = context.l10n;
-    final errorText = _authErrorService.getErrorText(
+    final authErrorService = ref.read(authErrorServiceProvider);
+    final errorText = authErrorService.getErrorText(
       l10n,
       state.errorCode!,
       state.httpStatusCode,
     );
-    final recoveryHint = _authErrorService.getErrorRecoveryHint(
+    final recoveryHint = authErrorService.getErrorRecoveryHint(
       l10n,
       state.errorCode!,
       state.httpStatusCode,
@@ -301,6 +298,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     List<SavedAccount> accounts,
     SavedAccount currentAccount,
   ) {
+    final dateFormattingService = ref.read(dateFormattingServiceProvider);
     final sortedAccounts = List<SavedAccount>.from(accounts)
       ..sort((a, b) {
         final aTime = a.lastUsedAt ?? a.createdAt;
@@ -323,7 +321,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               account: account,
               isSelected: account.id == currentAccount.id,
               isDefault: account.id == defaultAccount.id,
-              createdDate: _dateFormattingService.formatDate(account.createdAt),
+              createdDate: dateFormattingService.formatDate(account.createdAt),
               onTap: () {
                 Navigator.pop(panelContext);
                 _handleQuickLogin(context, ref, account);
@@ -433,14 +431,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     WidgetRef ref,
     SavedAccount account,
   ) async {
+    final avatarService = ref.read(avatarServiceProvider);
+    final accountNotifier = ref.read(accountManagerNotifierProvider.notifier);
     try {
-      final result = await _avatarService.pickAndSaveAvatar(account);
+      final result = await avatarService.pickAndSaveAvatar(account);
 
       if (result.isSuccess && result.path != null) {
         final updatedAccount = account.copyWith(avatarPath: result.path);
-        await ref
-            .read(accountManagerNotifierProvider.notifier)
-            .updateAccount(updatedAccount);
+        await accountNotifier.updateAccount(updatedAccount);
 
         if (context.mounted) {
           AppToast.success(context, context.l10n.common_success);
@@ -463,12 +461,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     WidgetRef ref,
     SavedAccount account,
   ) async {
+    final avatarService = ref.read(avatarServiceProvider);
+    final accountNotifier = ref.read(accountManagerNotifierProvider.notifier);
     try {
-      await _avatarService.removeAvatar(account);
+      await avatarService.removeAvatar(account);
       final updatedAccount = account.copyWith(avatarPath: null);
-      await ref
-          .read(accountManagerNotifierProvider.notifier)
-          .updateAccount(updatedAccount);
+      await accountNotifier.updateAccount(updatedAccount);
 
       if (context.mounted) {
         AppToast.success(context, context.l10n.common_success);

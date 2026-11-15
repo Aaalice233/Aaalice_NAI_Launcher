@@ -52,7 +52,7 @@ part 'tag_generation_context.g.dart';
 /// final random = context.createRandom();
 /// ```
 @freezed
-class TagGenerationContext with _$TagGenerationContext {
+abstract class TagGenerationContext with _$TagGenerationContext {
   const TagGenerationContext._();
 
   const factory TagGenerationContext({

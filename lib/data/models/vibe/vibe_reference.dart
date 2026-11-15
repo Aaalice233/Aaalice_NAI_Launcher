@@ -45,7 +45,7 @@ extension VibeSourceTypeExtension on VibeSourceType {
 /// 1. 预编码模式: 从 PNG iTXt 或 .naiv4vibe 文件中提取的 Base64 编码数据
 /// 2. 原始图片模式: 需要服务端编码，消耗 2 Anlas/张
 @freezed
-class VibeReference with _$VibeReference {
+abstract class VibeReference with _$VibeReference {
   static const double defaultStrength = 0.6;
   static const double minSliderStrength = 0.01;
   static const double maxSliderStrength = 1.0;

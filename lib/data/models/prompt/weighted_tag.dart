@@ -28,7 +28,7 @@ enum TagSource {
 ///
 /// 用于实现可复现的加权随机选择。
 @freezed
-class WeightedTag with _$WeightedTag {
+abstract class WeightedTag with _$WeightedTag {
   const WeightedTag._();
 
   const factory WeightedTag({

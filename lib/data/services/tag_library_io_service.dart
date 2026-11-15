@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 
 import '../../core/utils/isolate_pool.dart';
@@ -515,3 +516,7 @@ class TagLibraryIOService {
   static String _excerpt(String value) =>
       value.length <= 64 ? value : '${value.substring(0, 64)}…';
 }
+
+final tagLibraryIOServiceProvider = Provider<TagLibraryIOService>(
+  (ref) => TagLibraryIOService(),
+);

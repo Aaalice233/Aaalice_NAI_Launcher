@@ -103,8 +103,9 @@ Future<void> showMobileMorePanel({
                     showBadge: agentRunning,
                     onTap: () {
                       Navigator.of(panelContext).pop();
-                      ref.read(shellPanelProvider.notifier).state =
-                          ShellPanel.agent;
+                      ref
+                          .read(shellPanelProvider.notifier)
+                          .open(ShellPanel.agent);
                     },
                   ),
                   _MobileMoreDestination(
@@ -115,8 +116,9 @@ Future<void> showMobileMorePanel({
                     badgeCount: queueCount,
                     onTap: () {
                       Navigator.of(panelContext).pop();
-                      ref.read(shellPanelProvider.notifier).state =
-                          ShellPanel.queue;
+                      ref
+                          .read(shellPanelProvider.notifier)
+                          .open(ShellPanel.queue);
                     },
                   ),
                   _MobileMoreDestination(

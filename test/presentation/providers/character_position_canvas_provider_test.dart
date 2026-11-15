@@ -4,7 +4,17 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
 import 'package:nai_launcher/presentation/providers/prompt_maximize_provider.dart';
 
-final _availabilityProvider = StateProvider<bool>((ref) => true);
+final _availabilityProvider =
+    NotifierProvider<_AvailabilityNotifier, bool>(_AvailabilityNotifier.new);
+
+class _AvailabilityNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void setAvailable(bool value) {
+    state = value;
+  }
+}
 
 void main() {
   test(
@@ -148,7 +158,7 @@ void main() {
       container.read(characterPositionCanvasProvider.notifier).open();
       expect(container.read(characterPositionCanvasProvider), isTrue);
 
-      container.read(_availabilityProvider.notifier).state = false;
+      container.read(_availabilityProvider.notifier).setAvailable(false);
       await Future<void>.delayed(Duration.zero);
 
       expect(container.read(characterPositionCanvasProvider), isFalse);
@@ -157,7 +167,7 @@ void main() {
     test('cannot open while the canvas is unavailable', () {
       final container = _buildContainer(_FakeCanvasStorage());
       addTearDown(container.dispose);
-      container.read(_availabilityProvider.notifier).state = false;
+      container.read(_availabilityProvider.notifier).setAvailable(false);
 
       container.read(characterPositionCanvasProvider.notifier).open();
 

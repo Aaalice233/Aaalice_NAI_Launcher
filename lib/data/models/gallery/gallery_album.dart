@@ -9,7 +9,7 @@ part 'gallery_album.g.dart';
 /// 与「收藏」不同，收藏是单张图片的布尔标记并作为系统相簿展示。
 /// 支持无限层级嵌套（parentId），树算法与 GalleryCategory 的扩展保持一致。
 @freezed
-class GalleryAlbum with _$GalleryAlbum {
+abstract class GalleryAlbum with _$GalleryAlbum {
   const factory GalleryAlbum({
     /// 唯一标识
     required String id,

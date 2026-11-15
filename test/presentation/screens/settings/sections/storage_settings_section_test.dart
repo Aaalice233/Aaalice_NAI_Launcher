@@ -6,7 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_provider.dart';
 import 'package:nai_launcher/core/autocomplete/cooccurrence_data_pack_service.dart';
 import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
@@ -431,7 +431,7 @@ Widget _buildSubject(
       ),
       if (cooccurrenceService != null)
         cooccurrenceDataPackServiceProvider.overrideWith(
-          (ref) => cooccurrenceService,
+          () => cooccurrenceService,
         ),
     ],
     child: MaterialApp(
@@ -456,8 +456,12 @@ Widget _buildSubject(
 
 class _ReadyCooccurrenceService extends CooccurrenceDataPackService {
   _ReadyCooccurrenceService(Directory directory)
-    : super(supportDirectoryLoader: () async => directory) {
-    state = const CooccurrenceDataPackState(
+    : super(supportDirectoryLoader: () async => directory);
+
+  @override
+  CooccurrenceDataPackState build() {
+    super.build();
+    return const CooccurrenceDataPackState(
       status: CooccurrenceDataPackStatus.ready,
       installedVersion: 'test',
       relationCount: 1,

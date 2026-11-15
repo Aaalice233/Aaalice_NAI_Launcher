@@ -303,7 +303,7 @@ void main() {
 
     final shellOverlay = find.byType(ShellPanelsOverlay);
     expect(shellOverlay, findsOneWidget);
-    container.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+    container.read(shellPanelProvider.notifier).open(ShellPanel.queue);
     await tester.pumpAndSettle();
     final queuePointerGate = tester.widget<IgnorePointer>(
       find
@@ -689,7 +689,7 @@ void main() {
 
       await tester.tap(find.text('打开详情'));
       await tester.pumpAndSettle();
-      container.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+      container.read(shellPanelProvider.notifier).open(ShellPanel.queue);
       await tester.pumpAndSettle();
       container
           .read(replicationQueueNotifierProvider.notifier)
@@ -719,7 +719,7 @@ void main() {
       expect(find.text('分支详情'), findsNothing);
       expect(find.text('打开详情'), findsOneWidget);
 
-      container.read(shellPanelProvider.notifier).state = ShellPanel.queue;
+      container.read(shellPanelProvider.notifier).open(ShellPanel.queue);
       await tester.pumpAndSettle();
       container
           .read(replicationQueueNotifierProvider.notifier)

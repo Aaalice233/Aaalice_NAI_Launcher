@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/models/prompt/category_filter_config.dart';
@@ -92,7 +91,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
       final config = await _libraryService.loadSyncConfig();
       final filterConfig = await _libraryService.loadCategoryFilterConfig();
 
-      if (revision != _loadRevision) return;
+      if (!ref.mounted || revision != _loadRevision) return;
       state = state.copyWith(
         library: library,
         syncConfig: config,
@@ -101,7 +100,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
         clearError: true,
       );
     } catch (e) {
-      if (revision != _loadRevision) return;
+      if (!ref.mounted || revision != _loadRevision) return;
       state = TagLibraryState(
         syncConfig: state.syncConfig,
         categoryFilterConfig: state.categoryFilterConfig,

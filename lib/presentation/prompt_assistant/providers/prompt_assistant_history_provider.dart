@@ -59,20 +59,24 @@ class PromptHistoryStack {
   bool get canRedoExternal => externalRedoStack.isNotEmpty;
 }
 
-final promptAssistantHistoryProvider = StateNotifierProvider<
-    PromptAssistantHistoryNotifier, Map<String, PromptHistoryStack>>(
-  (ref) => PromptAssistantHistoryNotifier(),
-);
+final promptAssistantHistoryProvider =
+    NotifierProvider<
+      PromptAssistantHistoryNotifier,
+      Map<String, PromptHistoryStack>
+    >(PromptAssistantHistoryNotifier.new);
 
 class PromptAssistantHistoryNotifier
-    extends StateNotifier<Map<String, PromptHistoryStack>> {
-  PromptAssistantHistoryNotifier() : super(const {});
+    extends Notifier<Map<String, PromptHistoryStack>> {
+  @override
+  Map<String, PromptHistoryStack> build() => const {};
 
   PromptHistoryStack stackOf(String sessionId) {
+    if (!ref.mounted) return const PromptHistoryStack();
     return state[sessionId] ?? const PromptHistoryStack();
   }
 
   void _put(String sessionId, PromptHistoryStack stack) {
+    if (!ref.mounted) return;
     state = {...state, sessionId: stack};
   }
 

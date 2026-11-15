@@ -169,16 +169,15 @@ final Uint8List _testImageBytes = Uint8List.fromList(
 );
 
 class _SeededReversePromptNotifier extends ReversePromptNotifier {
-  _SeededReversePromptNotifier(super.ref) {
-    state = ReversePromptState(
-      images: [
-        ReversePromptImage(
-          id: 'test-image',
-          bytes: _testImageBytes,
-          name: 'test.png',
-        ),
-      ],
-      finalPrompt: '保留的反推结果',
-    );
-  }
+  @override
+  ReversePromptState build() => ReversePromptState(
+    images: [
+      ReversePromptImage(
+        id: 'test-image',
+        bytes: _testImageBytes,
+        name: 'test.png',
+      ),
+    ],
+    finalPrompt: '保留的反推结果',
+  );
 }

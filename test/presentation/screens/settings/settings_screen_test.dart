@@ -133,8 +133,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: Directory.systemTemp,
               workspaceDirectory: Directory.systemTemp,
               environment: const {},
@@ -316,8 +315,7 @@ void main() {
               _MemorySecureStorage(),
             ),
             agentSettingsProvider.overrideWith(
-              (ref) => AgentSettingsNotifier(
-                ref,
+              () => AgentSettingsNotifier(
                 supportDirectory: Directory.systemTemp,
                 workspaceDirectory: Directory.systemTemp,
                 environment: const {},
@@ -386,8 +384,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: Directory.systemTemp,
               workspaceDirectory: Directory.systemTemp,
               environment: const {},
@@ -679,8 +676,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: Directory.systemTemp,
             workspaceDirectory: Directory.systemTemp,
             environment: const {},
@@ -791,8 +787,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: Directory.systemTemp,
             workspaceDirectory: Directory.systemTemp,
             environment: const {},
@@ -961,8 +956,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: Directory.systemTemp,
             workspaceDirectory: Directory.systemTemp,
             environment: const {},

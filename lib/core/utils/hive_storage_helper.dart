@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 

@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -147,7 +146,9 @@ class DanbooruAuth extends _$DanbooruAuth {
     try {
       final storage = ref.read(secureStorageServiceProvider);
       final prefs = await SharedPreferences.getInstance();
+      if (!ref.mounted) return;
       final secureJson = await storage.getDanbooruCredentials();
+      if (!ref.mounted) return;
       DanbooruCredentials? credentials = _decodeCredentials(secureJson);
       var hasDurableSecureCopy = credentials != null;
 
@@ -182,10 +183,11 @@ class DanbooruAuth extends _$DanbooruAuth {
         await prefs.remove(legacyCredentialsKey);
       }
 
-      if (credentials == null) return;
+      if (!ref.mounted || credentials == null) return;
 
       state = state.copyWith(credentials: credentials, isLoading: true);
       final result = await _verifyCredentialsWithResult(credentials);
+      if (!ref.mounted) return;
 
       switch (result) {
         case CredentialVerifyResult.success:
@@ -199,6 +201,7 @@ class DanbooruAuth extends _$DanbooruAuth {
             await storage.deleteDanbooruCredentials();
           }
           await prefs.remove(legacyCredentialsKey);
+          if (!ref.mounted) return;
           state = state.copyWith(
             clearCredentials: true,
             clearUser: true,
@@ -264,6 +267,7 @@ class DanbooruAuth extends _$DanbooruAuth {
       final (user, isNetworkError) = await _fetchUserProfileWithErrorType(
         credentials,
       );
+      if (!ref.mounted) return CredentialVerifyResult.networkError;
 
       if (user != null) {
         state = state.copyWith(
@@ -286,7 +290,9 @@ class DanbooruAuth extends _$DanbooruAuth {
         return CredentialVerifyResult.invalidCredentials;
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: '验证失败: $e');
+      if (ref.mounted) {
+        state = state.copyWith(isLoading: false, error: '验证失败: $e');
+      }
       // 未知异常视为网络错误，不删除凭据
       return CredentialVerifyResult.networkError;
     }

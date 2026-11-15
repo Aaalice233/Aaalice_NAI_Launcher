@@ -22,8 +22,7 @@ const cooccurrenceDataPackManifestAsset =
     'assets/data/cooccurrence_data_pack_manifest.json';
 
 /// Manages the optional co-occurrence data pack.
-class CooccurrenceDataPackService
-    extends StateNotifier<CooccurrenceDataPackState> {
+class CooccurrenceDataPackService extends Notifier<CooccurrenceDataPackState> {
   CooccurrenceDataPackService({
     VerifiedResumableDownloader? downloader,
     CooccurrenceManifestLoader? manifestLoader,
@@ -37,8 +36,7 @@ class CooccurrenceDataPackService
        ),
        _pack = CooccurrencePackRepository(
          downloader: downloader ?? VerifiedResumableDownloader(dio: Dio()),
-       ),
-       super(const CooccurrenceDataPackState());
+       );
 
   final CooccurrenceManifestLoader _manifestLoader;
   final ApplicationSupportDirectoryLoader _supportDirectoryLoader;
@@ -52,6 +50,18 @@ class CooccurrenceDataPackService
   Future<void>? _closing;
   bool _disposed = false;
 
+  @override
+  CooccurrenceDataPackState build() {
+    ref.onDispose(() => unawaited(close()));
+    return const CooccurrenceDataPackState();
+  }
+
+  void _setState(CooccurrenceDataPackState next) {
+    if (!_disposed && ref.mounted) {
+      state = next;
+    }
+  }
+
   bool get isQueryReady => _sqlite.isReady && !_disposed;
   String? get activeDataVersion => state.installedVersion;
   CooccurrenceDataPackManifest? get manifest => _manifest;
@@ -59,26 +69,33 @@ class CooccurrenceDataPackService
   Future<void> initialize() => _initialization ??= _initialize();
 
   Future<void> _initialize() async {
-    if (_disposed) return;
+    if (_disposed || !ref.mounted) return;
     try {
       final manifest = _manifest ??= await _manifestLoader();
       await _pack.prepare(await _supportDirectoryLoader());
-      state = state.copyWith(
-        status: CooccurrenceDataPackStatus.checking,
-        totalBytes: manifest.archiveSize,
-        availableVersion: manifest.dataVersion,
-        clearError: true,
+      if (_disposed || !ref.mounted) return;
+      _setState(
+        state.copyWith(
+          status: CooccurrenceDataPackStatus.checking,
+          totalBytes: manifest.archiveSize,
+          availableVersion: manifest.dataVersion,
+          clearError: true,
+        ),
       );
       await _pack.recoverInterruptedReplacement(manifest, _sqlite);
       final installedManifest = await _pack.readInstalledManifest() ?? manifest;
       final target = _pack.databaseFile(installedManifest);
       if (!await target.exists()) {
-        state = state.copyWith(
-          status: CooccurrenceDataPackStatus.unavailable,
-          downloadedBytes: await _pack.partialLength(manifest),
-          clearInstalledVersion: true,
-          relationCount: 0,
-          diskBytes: 0,
+        final partial = await _pack.partialLength(manifest);
+        if (_disposed || !ref.mounted) return;
+        _setState(
+          state.copyWith(
+            status: CooccurrenceDataPackStatus.unavailable,
+            downloadedBytes: partial,
+            clearInstalledVersion: true,
+            relationCount: 0,
+            diskBytes: 0,
+          ),
         );
         return;
       }
@@ -88,15 +105,19 @@ class CooccurrenceDataPackService
           installedManifest,
         );
         await _sqlite.replaceWith(database);
-        state = state.copyWith(
-          status: installedManifest.dataVersion == manifest.dataVersion
-              ? CooccurrenceDataPackStatus.ready
-              : CooccurrenceDataPackStatus.updateAvailable,
-          installedVersion: installedManifest.dataVersion,
-          relationCount: installedManifest.sourcePairCount,
-          diskBytes: await target.length(),
-          downloadedBytes: manifest.archiveSize,
-          clearError: true,
+        final diskBytes = await target.length();
+        if (_disposed || !ref.mounted) return;
+        _setState(
+          state.copyWith(
+            status: installedManifest.dataVersion == manifest.dataVersion
+                ? CooccurrenceDataPackStatus.ready
+                : CooccurrenceDataPackStatus.updateAvailable,
+            installedVersion: installedManifest.dataVersion,
+            relationCount: installedManifest.sourcePairCount,
+            diskBytes: diskBytes,
+            downloadedBytes: manifest.archiveSize,
+            clearError: true,
+          ),
         );
       } catch (error, stack) {
         AppLogger.e(
@@ -106,13 +127,16 @@ class CooccurrenceDataPackService
           'CooccurrencePack',
         );
         await _pack.removeInvalidInstallation(installedManifest);
-        state = state.copyWith(
-          status: CooccurrenceDataPackStatus.error,
-          clearInstalledVersion: true,
-          relationCount: 0,
-          diskBytes: 0,
-          error: CooccurrenceDataPackError.databaseIntegrity,
-          errorDetails: error.toString(),
+        if (_disposed || !ref.mounted) return;
+        _setState(
+          state.copyWith(
+            status: CooccurrenceDataPackStatus.error,
+            clearInstalledVersion: true,
+            relationCount: 0,
+            diskBytes: 0,
+            error: CooccurrenceDataPackError.databaseIntegrity,
+            errorDetails: error.toString(),
+          ),
         );
       }
     } catch (error, stack) {
@@ -122,10 +146,13 @@ class CooccurrenceDataPackService
         stack,
         'CooccurrencePack',
       );
-      state = state.copyWith(
-        status: CooccurrenceDataPackStatus.error,
-        error: CooccurrenceDataPackError.manifest,
-        errorDetails: error.toString(),
+      if (_disposed || !ref.mounted) return;
+      _setState(
+        state.copyWith(
+          status: CooccurrenceDataPackStatus.error,
+          error: CooccurrenceDataPackError.manifest,
+          errorDetails: error.toString(),
+        ),
       );
     }
   }
@@ -145,34 +172,40 @@ class CooccurrenceDataPackService
   Future<void> checkForUpdate() async {
     await initialize();
     final manifest = _manifest;
-    if (manifest == null) return;
-    state = state.copyWith(
-      status: !_sqlite.isReady
-          ? CooccurrenceDataPackStatus.unavailable
-          : state.installedVersion == manifest.dataVersion
-          ? CooccurrenceDataPackStatus.ready
-          : CooccurrenceDataPackStatus.updateAvailable,
+    if (manifest == null || _disposed || !ref.mounted) return;
+    _setState(
+      state.copyWith(
+        status: !_sqlite.isReady
+            ? CooccurrenceDataPackStatus.unavailable
+            : state.installedVersion == manifest.dataVersion
+            ? CooccurrenceDataPackStatus.ready
+            : CooccurrenceDataPackStatus.updateAvailable,
+      ),
     );
   }
 
   Future<void> _install({required bool force}) async {
     await initialize();
     final manifest = _manifest;
-    if (manifest == null || _disposed) return;
+    if (manifest == null || _disposed || !ref.mounted) return;
     if (!force &&
         _sqlite.isReady &&
         state.installedVersion == manifest.dataVersion) {
-      state = state.copyWith(status: CooccurrenceDataPackStatus.ready);
+      _setState(state.copyWith(status: CooccurrenceDataPackStatus.ready));
       return;
     }
     final token = CancelToken();
     _cancelToken = token;
-    state = state.copyWith(
-      status: CooccurrenceDataPackStatus.downloading,
-      totalBytes: manifest.archiveSize,
-      downloadedBytes: await _pack.partialLength(manifest),
-      bytesPerSecond: 0,
-      clearError: true,
+    final initialPartial = await _pack.partialLength(manifest);
+    if (_disposed || !ref.mounted) return;
+    _setState(
+      state.copyWith(
+        status: CooccurrenceDataPackStatus.downloading,
+        totalBytes: manifest.archiveSize,
+        downloadedBytes: initialPartial,
+        bytesPerSecond: 0,
+        clearError: true,
+      ),
     );
     try {
       await _pack.install(
@@ -180,50 +213,61 @@ class CooccurrenceDataPackService
         sqlite: _sqlite,
         cancelToken: token,
         onStage: (stage) {
-          if (_disposed) return;
-          state = state.copyWith(
-            status: switch (stage) {
-              CooccurrenceInstallStage.downloading =>
-                CooccurrenceDataPackStatus.downloading,
-              CooccurrenceInstallStage.verifying =>
-                CooccurrenceDataPackStatus.verifying,
-              CooccurrenceInstallStage.installing =>
-                CooccurrenceDataPackStatus.installing,
-            },
-            downloadedBytes: stage == CooccurrenceInstallStage.downloading
-                ? null
-                : manifest.archiveSize,
-            bytesPerSecond: stage == CooccurrenceInstallStage.downloading
-                ? null
-                : 0,
+          if (_disposed || !ref.mounted) return;
+          _setState(
+            state.copyWith(
+              status: switch (stage) {
+                CooccurrenceInstallStage.downloading =>
+                  CooccurrenceDataPackStatus.downloading,
+                CooccurrenceInstallStage.verifying =>
+                  CooccurrenceDataPackStatus.verifying,
+                CooccurrenceInstallStage.installing =>
+                  CooccurrenceDataPackStatus.installing,
+              },
+              downloadedBytes: stage == CooccurrenceInstallStage.downloading
+                  ? null
+                  : manifest.archiveSize,
+              bytesPerSecond: stage == CooccurrenceInstallStage.downloading
+                  ? null
+                  : 0,
+            ),
           );
         },
         onProgress: (progress) {
-          if (_disposed) return;
-          state = state.copyWith(
-            status: CooccurrenceDataPackStatus.downloading,
-            totalBytes: progress.totalBytes,
-            downloadedBytes: progress.receivedBytes,
-            bytesPerSecond: progress.bytesPerSecond,
+          if (_disposed || !ref.mounted) return;
+          _setState(
+            state.copyWith(
+              status: CooccurrenceDataPackStatus.downloading,
+              totalBytes: progress.totalBytes,
+              downloadedBytes: progress.receivedBytes,
+              bytesPerSecond: progress.bytesPerSecond,
+            ),
           );
         },
       );
-      state = state.copyWith(
-        status: CooccurrenceDataPackStatus.ready,
-        installedVersion: manifest.dataVersion,
-        relationCount: manifest.sourcePairCount,
-        diskBytes: manifest.databaseSize,
-        downloadedBytes: manifest.archiveSize,
-        clearError: true,
+      if (_disposed || !ref.mounted) return;
+      _setState(
+        state.copyWith(
+          status: CooccurrenceDataPackStatus.ready,
+          installedVersion: manifest.dataVersion,
+          relationCount: manifest.sourcePairCount,
+          diskBytes: manifest.databaseSize,
+          downloadedBytes: manifest.archiveSize,
+          clearError: true,
+        ),
       );
     } on VerifiedDownloadCancelledException {
-      state = state.copyWith(
-        status: _sqlite.isReady
-            ? CooccurrenceDataPackStatus.ready
-            : CooccurrenceDataPackStatus.unavailable,
-        downloadedBytes: await _pack.partialLength(manifest),
-        bytesPerSecond: 0,
-        clearError: true,
+      final partial = await _pack.partialLength(manifest);
+      if (_disposed || !ref.mounted) return;
+      _setState(
+        state.copyWith(
+          status: _sqlite.isReady
+              ? CooccurrenceDataPackStatus.ready
+              : CooccurrenceDataPackStatus.unavailable,
+          downloadedBytes: partial,
+          bytesPerSecond: 0,
+          clearError: true,
+        ),
       );
     } catch (error, stack) {
       final classified = _classifyError(error);
@@ -239,11 +283,14 @@ class CooccurrenceDataPackService
         stack,
         'CooccurrencePack',
       );
-      state = state.copyWith(
-        status: CooccurrenceDataPackStatus.error,
-        bytesPerSecond: 0,
-        error: classified,
-        errorDetails: error.toString(),
+      if (_disposed || !ref.mounted) return;
+      _setState(
+        state.copyWith(
+          status: CooccurrenceDataPackStatus.error,
+          bytesPerSecond: 0,
+          error: classified,
+          errorDetails: error.toString(),
+        ),
       );
     } finally {
       if (identical(_cancelToken, token)) _cancelToken = null;
@@ -259,14 +306,17 @@ class CooccurrenceDataPackService
     final manifest = _manifest;
     if (manifest == null) return;
     await _pack.deleteData(manifest, _sqlite);
-    state = state.copyWith(
-      status: CooccurrenceDataPackStatus.unavailable,
-      clearInstalledVersion: true,
-      downloadedBytes: 0,
-      bytesPerSecond: 0,
-      relationCount: 0,
-      diskBytes: 0,
-      clearError: true,
+    if (_disposed || !ref.mounted) return;
+    _setState(
+      state.copyWith(
+        status: CooccurrenceDataPackStatus.unavailable,
+        clearInstalledVersion: true,
+        downloadedBytes: 0,
+        bytesPerSecond: 0,
+        relationCount: 0,
+        diskBytes: 0,
+        clearError: true,
+      ),
     );
   }
 
@@ -291,11 +341,6 @@ class CooccurrenceDataPackService
     if (_activeInstall != null) await _activeInstall;
     _disposed = true;
     await _sqlite.close();
-  }
-
-  @override
-  void dispose() {
-    unawaited(close().whenComplete(super.dispose));
   }
 
   static CooccurrenceDataPackError _classifyError(Object error) {

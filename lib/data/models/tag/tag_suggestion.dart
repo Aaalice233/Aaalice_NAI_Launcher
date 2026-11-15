@@ -48,7 +48,7 @@ enum TagCategory {
 
 /// 标签建议模型
 @freezed
-class TagSuggestion with _$TagSuggestion {
+abstract class TagSuggestion with _$TagSuggestion {
   const factory TagSuggestion({
     /// 标签名称
     required String tag,
@@ -94,7 +94,7 @@ extension TagSuggestionExtension on TagSuggestion {
 
 /// 标签建议响应模型
 @freezed
-class TagSuggestionResponse with _$TagSuggestionResponse {
+abstract class TagSuggestionResponse with _$TagSuggestionResponse {
   const factory TagSuggestionResponse({@Default([]) List<TagSuggestion> tags}) =
       _TagSuggestionResponse;
 

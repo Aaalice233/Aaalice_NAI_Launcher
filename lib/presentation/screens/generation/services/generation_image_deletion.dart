@@ -10,9 +10,19 @@ import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 
 /// 只在本次运行内有效，不持久化，也不参与云同步。
-final generationImageDeleteConfirmSkippedProvider = StateProvider<bool>(
-  (ref) => false,
-);
+final generationImageDeleteConfirmSkippedProvider =
+    NotifierProvider<GenerationImageDeleteConfirmSkippedNotifier, bool>(
+      GenerationImageDeleteConfirmSkippedNotifier.new,
+    );
+
+class GenerationImageDeleteConfirmSkippedNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void skipForSession() {
+    state = true;
+  }
+}
 
 /// 删除生成结果的交互入口：确认、资产保护与结果提示；状态和文件变更由 notifier 完成。
 class GenerationImageDeletion {
@@ -29,6 +39,9 @@ class GenerationImageDeletion {
     final skipConfirmation = ref.read(
       generationImageDeleteConfirmSkippedProvider.notifier,
     );
+    final isConfirmSkipped = ref.read(
+      generationImageDeleteConfirmSkippedProvider,
+    );
     final requiresProtection = AssetProtectionGuard.settings(
       ref,
     ).effectiveConfirmDangerousActions;
@@ -42,7 +55,7 @@ class GenerationImageDeletion {
         if (image.filePath case final String path when path.isNotEmpty) path,
     }.toList();
 
-    if (!skipConfirmation.state) {
+    if (!isConfirmSkipped) {
       final outcome = await ThemedConfirmDialog.showWithOption(
         context: context,
         title: l10n.common_confirmDelete,
@@ -54,7 +67,7 @@ class GenerationImageDeletion {
         icon: Icons.delete_outline,
       );
       if (!outcome.confirmed) return;
-      if (outcome.optionChecked) skipConfirmation.state = true;
+      if (outcome.optionChecked) skipConfirmation.skipForSession();
     }
 
     // 保护模式是持久的安全设置，不受本次运行的免确认影响。

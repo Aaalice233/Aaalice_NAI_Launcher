@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/data/services/metadata/l2_cache_cleaner.dart';
 import 'package:nai_launcher/data/services/metadata/metadata_cache_evictor.dart';
 

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -207,7 +208,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     await ref
         .read(generationParamsNotifierProvider.notifier)
         .saveGenerationState();
-    if (ref.exists(imageGenerationNotifierProvider)) {
+    if (ref.read(imageGenerationNotifierProvider.exists)) {
       await ref
           .read(imageGenerationNotifierProvider.notifier)
           .flushGenerationHistory();
@@ -326,9 +327,7 @@ class NAILauncherApp extends ConsumerWidget {
         },
       },
       ShortcutIds.toggleQueue: () {
-        final activePanel = ref.read(shellPanelProvider);
-        ref.read(shellPanelProvider.notifier).state =
-            activePanel == ShellPanel.queue ? null : ShellPanel.queue;
+        ref.read(shellPanelProvider.notifier).toggle(ShellPanel.queue);
       },
       ShortcutIds.toggleQueuePause: () {
         final executionState = ref.read(queueExecutionNotifierProvider);

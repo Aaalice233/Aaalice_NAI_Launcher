@@ -46,7 +46,7 @@ class PreciseRefLibraryBatchImportResult {
 
 /// 精准参考库状态
 @freezed
-class PreciseRefLibraryState with _$PreciseRefLibraryState {
+abstract class PreciseRefLibraryState with _$PreciseRefLibraryState {
   const factory PreciseRefLibraryState({
     /// 所有条目
     @Default([]) List<PreciseRefLibraryEntry> entries,

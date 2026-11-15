@@ -134,20 +134,35 @@ class ScanProgressState {
 /// 画廊扫描进度Provider
 ///
 /// 使用流式扫描器实时接收单文件处理状态
-class GalleryScanProgressNotifier extends StateNotifier<ScanProgressState> {
+class GalleryScanProgressNotifier extends Notifier<ScanProgressState> {
   StreamSubscription<ScanStatus>? _statusSubscription;
   StreamSubscription<ScanProgressInfo>? _progressSubscription;
   Timer? _hideTimer;
 
-  GalleryScanProgressNotifier() : super(const ScanProgressState()) {
+  @override
+  ScanProgressState build() {
+    _hideTimer?.cancel();
+    _statusSubscription?.cancel();
+    _progressSubscription?.cancel();
     // 订阅 ScanStateManager 的状态变化
-    _statusSubscription = ScanStateManager.instance.statusStream.listen(_onStatusChange);
+    _statusSubscription = ScanStateManager.instance.statusStream.listen(
+      _onStatusChange,
+    );
     // 订阅进度流以获取当前处理文件
-    _progressSubscription = ScanStateManager.instance.progressStream.listen(_onProgressUpdate);
+    _progressSubscription = ScanStateManager.instance.progressStream.listen(
+      _onProgressUpdate,
+    );
+    ref.onDispose(() {
+      _hideTimer?.cancel();
+      _statusSubscription?.cancel();
+      _progressSubscription?.cancel();
+    });
+    return const ScanProgressState();
   }
   
   /// 处理进度更新
   void _onProgressUpdate(ScanProgressInfo progress) {
+    if (!ref.mounted) return;
     final scanManager = ScanStateManager.instance;
     final total = progress.total;
     final processed = progress.processed;
@@ -180,6 +195,7 @@ class GalleryScanProgressNotifier extends StateNotifier<ScanProgressState> {
 
   /// 处理状态变化（从 ScanStateManager）
   void _onStatusChange(ScanStatus status) {
+    if (!ref.mounted) return;
     switch (status) {
       case ScanStatus.scanning:
         if (!state.isScanning) {
@@ -225,6 +241,7 @@ class GalleryScanProgressNotifier extends StateNotifier<ScanProgressState> {
     // 3秒后自动隐藏进度条
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (!ref.mounted) return;
       state = const ScanProgressState();
     });
   }
@@ -234,18 +251,10 @@ class GalleryScanProgressNotifier extends StateNotifier<ScanProgressState> {
     _hideTimer?.cancel();
     state = const ScanProgressState();
   }
-
-  @override
-  void dispose() {
-    _hideTimer?.cancel();
-    _statusSubscription?.cancel();
-    _progressSubscription?.cancel();
-    super.dispose();
-  }
 }
 
 /// 全局扫描进度Provider
 final galleryScanProgressProvider =
-    StateNotifierProvider<GalleryScanProgressNotifier, ScanProgressState>(
-  (ref) => GalleryScanProgressNotifier(),
-);
+    NotifierProvider<GalleryScanProgressNotifier, ScanProgressState>(
+      GalleryScanProgressNotifier.new,
+    );

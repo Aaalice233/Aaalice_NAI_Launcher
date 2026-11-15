@@ -39,8 +39,7 @@ final onlineGalleryHttpClientProvider = Provider<Dio>(
   name: 'onlineGalleryHttpClientProvider',
 );
 
-// ignore: deprecated_member_use
-typedef OnlineGalleryHttpClientRef = ProviderRef<Dio>;
+typedef OnlineGalleryHttpClientRef = Ref;
 
 typedef GalleryTagMetadataLoader =
     Future<Map<String, TagCatalogRecord>> Function(Iterable<String> terms);
@@ -113,9 +112,7 @@ final onlineGallerySourceAdaptersProvider =
       name: 'onlineGallerySourceAdaptersProvider',
     );
 
-typedef OnlineGallerySourceAdaptersRef =
-    // ignore: deprecated_member_use
-    ProviderRef<Map<GallerySourceId, GallerySourceAdapter>>;
+typedef OnlineGallerySourceAdaptersRef = Ref;
 
 final onlineGalleryRepositoryProvider = Provider<OnlineGalleryRepository>((
   ref,

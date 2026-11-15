@@ -49,18 +49,30 @@ class DiscordShareTaskState {
   final bool canRetry;
 }
 
-class DiscordShareTaskNotifier extends StateNotifier<DiscordShareTaskState?> {
-  DiscordShareTaskNotifier(this._service, {ShareImagePrepareFunction? prepare})
-    : _prepare =
-          prepare ?? ImageShareSanitizer.prepareForCopyOrDragInBackground,
-      super(null);
+class DiscordShareTaskNotifier extends Notifier<DiscordShareTaskState?> {
+  DiscordShareTaskNotifier({
+    DiscordShareService? service,
+    ShareImagePrepareFunction? prepare,
+  }) : _injectedService = service,
+       _prepare =
+           prepare ?? ImageShareSanitizer.prepareForCopyOrDragInBackground;
 
-  final DiscordShareService _service;
+  final DiscordShareService? _injectedService;
+  late DiscordShareService _service;
   final ShareImagePrepareFunction _prepare;
   DiscordShareSubmission? _submission;
   SanitizedShareImage? _image;
   Set<String> _remaining = {};
   Timer? _timer;
+
+  @override
+  DiscordShareTaskState? build() {
+    _service = _injectedService ?? ref.watch(discordShareServiceProvider);
+    _timer?.cancel();
+    _releaseImage();
+    ref.onDispose(() => _timer?.cancel());
+    return null;
+  }
 
   void submit(DiscordShareSubmission submission) {
     if (state?.running == true) {
@@ -90,7 +102,7 @@ class DiscordShareTaskNotifier extends StateNotifier<DiscordShareTaskState?> {
         fileName: submission.fileName,
         stripMetadata: submission.stripMetadata,
       );
-      if (!mounted) return;
+      if (!ref.mounted) return;
       final result = await _service.share(
         session: submission.session,
         image: image,
@@ -103,14 +115,14 @@ class DiscordShareTaskNotifier extends StateNotifier<DiscordShareTaskState?> {
       );
       // Retry uses stable IDs from the relay, never presentation labels.
       _remaining = result.failedTargetIds.toSet();
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = DiscordShareTaskState(
         result: result,
         canRetry: _remaining.isNotEmpty,
       );
       if (!result.isPartial) _releaseImage();
     } catch (error) {
-      if (!mounted) return;
+      if (!ref.mounted) return;
       final delay = error is DiscordShareException ? error.retryAfter : null;
       state = DiscordShareTaskState(
         error: error,
@@ -125,6 +137,10 @@ class DiscordShareTaskNotifier extends StateNotifier<DiscordShareTaskState?> {
     final elapsed = Stopwatch()..start();
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!ref.mounted) {
+        timer.cancel();
+        return;
+      }
       final seconds = ((delay - elapsed.elapsed).inMilliseconds / 1000).ceil();
       state = DiscordShareTaskState(
         error: error,
@@ -147,15 +163,9 @@ class DiscordShareTaskNotifier extends StateNotifier<DiscordShareTaskState?> {
     _image = null;
     _remaining = {};
   }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
 }
 
 final discordShareTaskProvider =
-    StateNotifierProvider<DiscordShareTaskNotifier, DiscordShareTaskState?>(
-      (ref) => DiscordShareTaskNotifier(ref.watch(discordShareServiceProvider)),
+    NotifierProvider<DiscordShareTaskNotifier, DiscordShareTaskState?>(
+      DiscordShareTaskNotifier.new,
     );

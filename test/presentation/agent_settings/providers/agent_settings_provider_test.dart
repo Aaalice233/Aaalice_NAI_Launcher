@@ -158,8 +158,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -207,8 +206,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: temp,
             workspaceDirectory: temp,
             environment: const {},
@@ -242,8 +240,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: temp,
             workspaceDirectory: temp,
             environment: const {},
@@ -280,8 +277,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -341,8 +337,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: temp,
             workspaceDirectory: temp,
             environment: const {},
@@ -390,8 +385,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -439,8 +433,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -504,8 +497,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               environment: {'HOME': home.path},
               workspaceDirectoryResolver: () async => currentProject,
@@ -578,8 +570,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               environment: const {},
               skillCatalogService: catalog,
@@ -627,8 +618,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               environment: const {},
               skillCatalogService: catalog,
@@ -669,8 +659,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               environment: const {},
               skillCatalogService: catalog,
@@ -716,8 +705,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -751,8 +739,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: temp,
             workspaceDirectory: temp,
             environment: const {},
@@ -780,8 +767,7 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: temp,
             workspaceDirectory: temp,
             environment: const {},
@@ -805,8 +791,7 @@ void main() {
         overrides: [
           localStorageServiceProvider.overrideWithValue(storage),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -844,8 +829,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -908,8 +892,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},
@@ -939,8 +922,7 @@ void main() {
             _MemorySecureStorage(),
           ),
           agentSettingsProvider.overrideWith(
-            (ref) => AgentSettingsNotifier(
-              ref,
+            () => AgentSettingsNotifier(
               supportDirectory: temp,
               workspaceDirectory: temp,
               environment: const {},

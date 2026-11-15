@@ -10,7 +10,7 @@ part 'tag_library_entry.g.dart';
 ///
 /// 用于保存可复用的提示词片段，支持分类、标签和使用统计
 @freezed
-class TagLibraryEntry with _$TagLibraryEntry {
+abstract class TagLibraryEntry with _$TagLibraryEntry {
   const TagLibraryEntry._();
 
   const factory TagLibraryEntry({

@@ -1,6 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/image_collection.dart';
@@ -17,7 +16,7 @@ CollectionRepository collectionRepository(Ref ref) {
 
 /// 集合状态
 @freezed
-class CollectionState with _$CollectionState {
+abstract class CollectionState with _$CollectionState {
   const factory CollectionState({
     /// 所有集合
     @Default([]) List<ImageCollection> collections,

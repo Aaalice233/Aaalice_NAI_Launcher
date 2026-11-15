@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/data/cloud_sync/cloud_sync_data_adapter.dart';
 import 'package:nai_launcher/data/cloud_sync/fixed_tag_usage_cloud_sync_adapter.dart';
 import 'package:nai_launcher/data/cloud_sync/portable_sync_record.dart';

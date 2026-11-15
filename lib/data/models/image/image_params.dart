@@ -30,7 +30,7 @@ extension ImageGenerationActionExtension on ImageGenerationAction {
 /// Precise Reference 配置 (仅 V4+ 模型支持)
 /// 支持 Character/Style/CharacterAndStyle 三种类型
 @freezed
-class PreciseReference with _$PreciseReference {
+abstract class PreciseReference with _$PreciseReference {
   const factory PreciseReference({
     /// 参考图像数据
     required Uint8List image,
@@ -51,7 +51,7 @@ class PreciseReference with _$PreciseReference {
 
 /// 多角色提示词配置 (仅 V4 模型支持)
 @freezed
-class CharacterPrompt with _$CharacterPrompt {
+abstract class CharacterPrompt with _$CharacterPrompt {
   const CharacterPrompt._();
 
   const factory CharacterPrompt({
@@ -84,7 +84,7 @@ class CharacterPrompt with _$CharacterPrompt {
 
 /// 图像生成参数模型
 @freezed
-class ImageParams with _$ImageParams {
+abstract class ImageParams with _$ImageParams {
   const factory ImageParams({
     // ========== 基础参数 ==========
 
@@ -437,7 +437,7 @@ extension ImageParamsExtension on ImageParams {
 
 /// 图像生成请求模型
 @freezed
-class ImageGenerationRequest with _$ImageGenerationRequest {
+abstract class ImageGenerationRequest with _$ImageGenerationRequest {
   const factory ImageGenerationRequest({
     required String input,
     required String model,
@@ -451,7 +451,7 @@ class ImageGenerationRequest with _$ImageGenerationRequest {
 
 /// 图像生成参数（API 请求格式）
 @freezed
-class ImageGenerationParameters with _$ImageGenerationParameters {
+abstract class ImageGenerationParameters with _$ImageGenerationParameters {
   const factory ImageGenerationParameters({
     required int width,
     required int height,

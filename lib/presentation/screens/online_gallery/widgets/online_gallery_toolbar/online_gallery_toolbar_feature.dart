@@ -99,7 +99,9 @@ class _OnlineGalleryToolbarPresenter {
         onlineGalleryPromptTagSettingsProvider,
       );
       final outputFilter = ref.watch(onlineGalleryOutputFilterProvider);
-      const projectionService = GalleryPromptProjectionService();
+      final projectionService = ref.watch(
+        galleryPromptProjectionServiceProvider,
+      );
       final selectablePostIds = projectionService.selectableStableKeys(
         items: state.posts,
         promptTagSettings: promptTagSettings,

@@ -9,8 +9,7 @@ final preciseRefLibrarySelectionNotifierProvider =
       SelectionModeState
     >(PreciseRefLibrarySelectionNotifier.new);
 
-class PreciseRefLibrarySelectionNotifier
-    extends AutoDisposeNotifier<SelectionModeState>
+class PreciseRefLibrarySelectionNotifier extends Notifier<SelectionModeState>
     with CardSelectionCommands {
   @override
   SelectionModeState build() => const SelectionModeState();

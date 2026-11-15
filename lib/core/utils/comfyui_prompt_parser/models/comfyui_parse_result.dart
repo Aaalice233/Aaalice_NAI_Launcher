@@ -21,7 +21,7 @@ enum ComfyuiSyntaxType {
 
 /// 解析出的位置坐标
 @freezed
-class ParsedPosition with _$ParsedPosition {
+abstract class ParsedPosition with _$ParsedPosition {
   const ParsedPosition._();
 
   const factory ParsedPosition({
@@ -48,7 +48,7 @@ class ParsedPosition with _$ParsedPosition {
 
 /// 解析出的单个角色
 @freezed
-class ParsedCharacter with _$ParsedCharacter {
+abstract class ParsedCharacter with _$ParsedCharacter {
   const ParsedCharacter._();
 
   const factory ParsedCharacter({
@@ -65,7 +65,7 @@ class ParsedCharacter with _$ParsedCharacter {
 
 /// ComfyUI 提示词解析结果
 @freezed
-class ComfyuiParseResult with _$ComfyuiParseResult {
+abstract class ComfyuiParseResult with _$ComfyuiParseResult {
   const ComfyuiParseResult._();
 
   const factory ComfyuiParseResult({

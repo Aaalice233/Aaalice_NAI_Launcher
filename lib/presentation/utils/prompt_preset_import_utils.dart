@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../providers/quality_preset_provider.dart';

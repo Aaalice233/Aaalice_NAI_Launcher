@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -37,22 +39,18 @@ class WebAccessConfigState {
 }
 
 final webAccessConfigProvider =
-    StateNotifierProvider<WebAccessConfigNotifier, WebAccessConfigState>(
-      (ref) => WebAccessConfigNotifier(ref),
+    NotifierProvider<WebAccessConfigNotifier, WebAccessConfigState>(
+      WebAccessConfigNotifier.new,
     );
 
-class WebAccessConfigNotifier extends StateNotifier<WebAccessConfigState> {
-  WebAccessConfigNotifier(this._ref) : super(const WebAccessConfigState()) {
-    _load();
-  }
-
-  final Ref _ref;
+class WebAccessConfigNotifier extends Notifier<WebAccessConfigState> {
   int _apiKeyMutation = 0;
 
-  LocalStorageService get _local => _ref.read(localStorageServiceProvider);
-  SecureStorageService get _secure => _ref.read(secureStorageServiceProvider);
+  LocalStorageService get _local => ref.read(localStorageServiceProvider);
+  SecureStorageService get _secure => ref.read(secureStorageServiceProvider);
 
-  Future<void> _load() async {
+  @override
+  WebAccessConfigState build() {
     var config = const WebAccessConfig();
     final raw = _local.getSetting<String>(StorageKeys.agentWebAccessConfigJson);
     if (raw != null && raw.isNotEmpty) {
@@ -62,9 +60,14 @@ class WebAccessConfigNotifier extends StateNotifier<WebAccessConfigState> {
         config = const WebAccessConfig();
       }
     }
-    state = state.copyWith(config: config);
+    unawaited(_loadApiKey());
+    return WebAccessConfigState(config: config);
+  }
+
+  Future<void> _loadApiKey() async {
     final keyMutation = _apiKeyMutation;
     final apiKey = await _secure.getAgentWebAccessExaApiKey();
+    if (!ref.mounted) return;
     if (keyMutation == _apiKeyMutation) {
       state = state.copyWith(
         initialized: true,
@@ -76,6 +79,7 @@ class WebAccessConfigNotifier extends StateNotifier<WebAccessConfigState> {
   }
 
   Future<void> _setConfig(WebAccessConfig config) async {
+    if (!ref.mounted) return;
     state = state.copyWith(config: config);
     await _local.setSetting(
       StorageKeys.agentWebAccessConfigJson,
@@ -103,6 +107,7 @@ class WebAccessConfigNotifier extends StateNotifier<WebAccessConfigState> {
     } else {
       await _secure.saveAgentWebAccessExaApiKey(key);
     }
+    if (!ref.mounted) return;
     state = state.copyWith(hasExaApiKey: key.isNotEmpty);
   }
 }

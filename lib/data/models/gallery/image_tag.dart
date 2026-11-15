@@ -7,7 +7,7 @@ part 'image_tag.freezed.dart';
 /// 用于本地图片的自定义标签系统
 /// 用户可以为图片添加任意标签，用于组织和筛选
 @freezed
-class ImageTag with _$ImageTag {
+abstract class ImageTag with _$ImageTag {
   const factory ImageTag({
     /// 标签名称
     required String name,

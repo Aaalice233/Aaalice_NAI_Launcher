@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/local_image_record.dart';
@@ -88,7 +87,7 @@ class BulkOperationError {
 
 /// Bulk operation state
 @freezed
-class BulkOperationState with _$BulkOperationState {
+abstract class BulkOperationState with _$BulkOperationState {
   const factory BulkOperationState({
     /// Current operation type
     BulkOperationType? currentOperation,

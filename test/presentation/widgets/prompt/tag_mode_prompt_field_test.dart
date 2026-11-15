@@ -36,7 +36,7 @@ Future<void> pumpEditor(
     overrides: [
       localStorageServiceProvider.overrideWith((ref) => MemoryLocalStorage()),
       zhDictionaryServiceProvider.overrideWith(
-        (ref) => dictionary ?? _Dictionary(),
+        () => ZhDictionaryNotifier(dictionary ?? _Dictionary()),
       ),
       tagTranslationLookupProvider.overrideWithValue(
         lookup ??

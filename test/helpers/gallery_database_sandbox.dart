@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';

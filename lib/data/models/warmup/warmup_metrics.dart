@@ -17,7 +17,7 @@ enum WarmupTaskStatus {
 
 /// 预热任务指标
 @freezed
-class WarmupTaskMetrics with _$WarmupTaskMetrics {
+abstract class WarmupTaskMetrics with _$WarmupTaskMetrics {
   const WarmupTaskMetrics._();
 
   const factory WarmupTaskMetrics({

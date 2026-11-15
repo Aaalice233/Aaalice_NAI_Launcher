@@ -98,12 +98,17 @@ void main() {
       expect(find.byIcon(Icons.stop_rounded), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
       final finished = Completer<void>();
-      final stopListening = notifier.addListener((states) {
-        if (states['operation']?.processing == false && !finished.isCompleted) {
-          finished.complete();
-        }
-      }, fireImmediately: false);
-      addTearDown(stopListening);
+      final subscription = container.listen(
+        promptAssistantStateProvider,
+        (_, states) {
+          if (states['operation']?.processing == false &&
+              !finished.isCompleted) {
+            finished.complete();
+          }
+        },
+        fireImmediately: false,
+      );
+      addTearDown(subscription.close);
       switch (outcome) {
         case 'success':
           service.stream.add(const StreamingChunk(delta: 'updated'));

@@ -201,9 +201,8 @@ Future<_Fixture> _pumpPanel(WidgetTester tester) async {
   final container = ProviderContainer(
     overrides: [
       localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
-      agentChatNotifierProvider.overrideWith((ref) {
+      agentChatNotifierProvider.overrideWith(() {
         notifier = _EditNotifier(
-          ref,
           supportDir: directory,
           workspaceDir: directory,
         );
@@ -251,11 +250,8 @@ class _Fixture {
 }
 
 class _EditNotifier extends AgentChatNotifier {
-  _EditNotifier(
-    super.ref, {
-    required super.supportDir,
-    required super.workspaceDir,
-  }) : super(presetSkills: const []);
+  _EditNotifier({required super.supportDir, required super.workspaceDir})
+    : super(presetSkills: const []);
 
   bool acceptSend = false;
   final List<String> calls = [];

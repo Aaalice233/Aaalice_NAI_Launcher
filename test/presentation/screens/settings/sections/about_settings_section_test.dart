@@ -261,6 +261,7 @@ Future<void> _pumpSubject(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
+      retry: (retryCount, error) => null,
       overrides: [
         localStorageServiceProvider.overrideWithValue(
           _MemoryLocalStorageService(),

@@ -5,7 +5,7 @@ part 'image_collection.g.dart';
 
 /// 图片集合模型
 @freezed
-class ImageCollection with _$ImageCollection {
+abstract class ImageCollection with _$ImageCollection {
   const factory ImageCollection({
     required String id, // 集合ID
     required String name, // 集合名称

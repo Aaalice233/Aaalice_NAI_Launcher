@@ -20,7 +20,7 @@ class ReversePromptTaggerCategoryChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final modelCategories = ref
         .watch(reversePromptTaggerCategoriesProvider(labelsPath))
-        .valueOrNull;
+        .value;
     if (modelCategories == null) return const SizedBox.shrink();
     final available = [
       for (final category in OnnxTaggerLabelCategory.selectable)

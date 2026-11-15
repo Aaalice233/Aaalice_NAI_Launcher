@@ -410,8 +410,9 @@ void main() {
           sourceHeight: 146,
         );
         final container = _comparisonContainer(result);
-        container.read(generationComparisonEnabledProvider.notifier).state =
-            true;
+        container
+            .read(generationComparisonEnabledProvider.notifier)
+            .setEnabled(true);
 
         await tester.pumpWidget(
           _app(container, size: size, textScale: textScale, locale: locale),
@@ -487,7 +488,9 @@ void main() {
     );
     final container = _comparisonContainer(result);
     addTearDown(container.dispose);
-    container.read(generationComparisonEnabledProvider.notifier).state = true;
+    container
+        .read(generationComparisonEnabledProvider.notifier)
+        .setEnabled(true);
 
     await tester.pumpWidget(_app(container));
     await tester.pumpAndSettle();

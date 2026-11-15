@@ -54,7 +54,7 @@ class MobileShell extends ConsumerWidget {
     );
 
     void closePanel() {
-      ref.read(shellPanelProvider.notifier).state = null;
+      ref.read(shellPanelProvider.notifier).close();
     }
 
     final scaffold = Scaffold(

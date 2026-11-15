@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_session_picker.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/network/web_access/web_access_models.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
@@ -77,8 +77,7 @@ void main() {
         overrides: [
           localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
           agentChatNotifierProvider.overrideWith(
-            (ref) => _TestAgentChatNotifier(
-              ref,
+            () => _TestAgentChatNotifier(
               supportDir: tempDir,
               workspaceDir: tempDir,
             ),
@@ -172,9 +171,8 @@ void main() {
     container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
-        agentChatNotifierProvider.overrideWith((ref) {
+        agentChatNotifierProvider.overrideWith(() {
           return _TestAgentChatNotifier(
-            ref,
             supportDir: tempDir,
             workspaceDir: tempDir,
           );
@@ -279,9 +277,8 @@ void main() {
     container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
-        agentChatNotifierProvider.overrideWith((ref) {
+        agentChatNotifierProvider.overrideWith(() {
           return _TestAgentChatNotifier(
-            ref,
             supportDir: tempDir,
             workspaceDir: tempDir,
           );
@@ -370,16 +367,14 @@ void main() {
         localStorageServiceProvider.overrideWithValue(storage),
         secureStorageServiceProvider.overrideWithValue(_MemorySecureStorage()),
         agentSettingsProvider.overrideWith(
-          (ref) => AgentSettingsNotifier(
-            ref,
+          () => AgentSettingsNotifier(
             supportDirectory: tempDir,
             workspaceDirectory: tempDir,
             environment: const {},
           ),
         ),
-        agentChatNotifierProvider.overrideWith((ref) {
+        agentChatNotifierProvider.overrideWith(() {
           return _TestAgentChatNotifier(
-            ref,
             supportDir: tempDir,
             workspaceDir: tempDir,
           );
@@ -477,9 +472,8 @@ void main() {
           shortcutConfigNotifierProvider.overrideWith(
             _TestShortcutConfigNotifier.new,
           ),
-          agentChatNotifierProvider.overrideWith((ref) {
+          agentChatNotifierProvider.overrideWith(() {
             return _TestAgentChatNotifier(
-              ref,
               supportDir: tempDir,
               workspaceDir: tempDir,
             );
@@ -731,9 +725,8 @@ void main() {
     container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
-        agentChatNotifierProvider.overrideWith((ref) {
+        agentChatNotifierProvider.overrideWith(() {
           return _TestAgentChatNotifier(
-            ref,
             supportDir: tempDir,
             workspaceDir: tempDir,
           );
@@ -880,9 +873,8 @@ void main() {
     container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(_MemoryLocalStorage()),
-        agentChatNotifierProvider.overrideWith((ref) {
+        agentChatNotifierProvider.overrideWith(() {
           return _TestAgentChatNotifier(
-            ref,
             supportDir: tempDir,
             workspaceDir: tempDir,
           );
@@ -959,9 +951,8 @@ void main() {
     container = ProviderContainer(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storage),
-        agentChatNotifierProvider.overrideWith((ref) {
+        agentChatNotifierProvider.overrideWith(() {
           return _TestAgentChatNotifier(
-            ref,
             supportDir: tempDir,
             workspaceDir: tempDir,
           );
@@ -1286,9 +1277,8 @@ void main() {
       container = ProviderContainer(
         overrides: [
           localStorageServiceProvider.overrideWithValue(storage),
-          agentChatNotifierProvider.overrideWith((ref) {
+          agentChatNotifierProvider.overrideWith(() {
             return _TestAgentChatNotifier(
-              ref,
               supportDir: tempDir,
               workspaceDir: tempDir,
             );
@@ -1621,9 +1611,8 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           localStorageServiceProvider.overrideWithValue(storage),
-          agentChatNotifierProvider.overrideWith((ref) {
+          agentChatNotifierProvider.overrideWith(() {
             return _TestAgentChatNotifier(
-              ref,
               supportDir: tempDir,
               workspaceDir: tempDir,
             );
@@ -1807,8 +1796,7 @@ Future<_TestAgentChatNotifier> _pumpInkProbe(
         _MemoryLocalStorage(storage),
       ),
       agentChatNotifierProvider.overrideWith(
-        (ref) => _TestAgentChatNotifier(
-          ref,
+        () => _TestAgentChatNotifier(
           supportDir: tempDir,
           workspaceDir: tempDir,
         ),
@@ -1876,8 +1864,7 @@ Future<void> _waitForAgentSettingsInitialized(
 }
 
 class _TestAgentChatNotifier extends AgentChatNotifier {
-  _TestAgentChatNotifier(
-    super.ref, {
+  _TestAgentChatNotifier({
     required super.supportDir,
     required super.workspaceDir,
   }) : super(presetSkills: const []);

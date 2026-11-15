@@ -37,6 +37,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   Future<void> _loadRecentCollapsedState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!ref.mounted) return;
       final collapsed = prefs.getBool(StorageKeys.vibeRecentCollapsed);
       state = state.copyWith(isRecentCollapsed: collapsed ?? true);
     } catch (e) {
@@ -95,6 +96,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
     var uniqueCount = 0;
     try {
       final entries = await _storageService.getRecentDisplayEntries(limit: 20);
+      if (!ref.mounted) return;
       entryCount = entries.length;
       final uniqueEntries = entries.deduplicateByEncodingAndThumbnail(limit: 5);
       uniqueCount = uniqueEntries.length;

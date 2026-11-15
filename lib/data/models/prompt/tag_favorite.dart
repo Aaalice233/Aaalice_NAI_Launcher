@@ -9,7 +9,7 @@ part 'tag_favorite.g.dart';
 /// 标签收藏数据模型
 /// 用于保存用户常用的标签
 @freezed
-class TagFavorite with _$TagFavorite {
+abstract class TagFavorite with _$TagFavorite {
   const TagFavorite._();
 
   const factory TagFavorite({
