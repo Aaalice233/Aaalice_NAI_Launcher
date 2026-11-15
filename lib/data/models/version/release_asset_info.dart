@@ -9,10 +9,16 @@ enum ReleaseAssetType {
 
 /// GitHub Release 中的单个下载资产。
 class ReleaseAssetInfo {
+  static final RegExp _apkAbiPattern = RegExp(
+    r'(?:^|[_.-])(arm64-v8a|armeabi-v7a|x86_64)(?:$|[_.-])',
+    caseSensitive: false,
+  );
+
   final ReleaseAssetType type;
   final String platform;
   final String fileName;
   final String downloadUrl;
+  final String? abi;
   final String? sha256;
   final int? size;
   final String? label;
@@ -23,6 +29,7 @@ class ReleaseAssetInfo {
     required this.platform,
     required this.fileName,
     required this.downloadUrl,
+    this.abi,
     this.sha256,
     this.size,
     this.label,
@@ -49,6 +56,7 @@ class ReleaseAssetInfo {
     String? platform,
     String? fileName,
     String? downloadUrl,
+    String? abi,
     String? sha256,
     int? size,
     String? label,
@@ -59,6 +67,7 @@ class ReleaseAssetInfo {
       platform: platform ?? this.platform,
       fileName: fileName ?? this.fileName,
       downloadUrl: downloadUrl ?? this.downloadUrl,
+      abi: abi ?? this.abi,
       sha256: sha256 ?? this.sha256,
       size: size ?? this.size,
       label: label ?? this.label,
@@ -71,14 +80,18 @@ class ReleaseAssetInfo {
     final downloadUrl = asset['browser_download_url'] as String? ?? '';
     final size = (asset['size'] as num?)?.toInt();
     final type = inferType(fileName: fileName);
+    final abi = type == ReleaseAssetType.androidApk
+        ? inferAbi(fileName: fileName)
+        : null;
 
     return ReleaseAssetInfo(
       type: type,
       platform: inferPlatform(type),
       fileName: fileName,
       downloadUrl: downloadUrl,
+      abi: abi,
       size: size,
-      label: defaultLabel(type),
+      label: defaultLabel(type, abi: abi),
       description: defaultDescription(type),
     );
   }
@@ -94,6 +107,12 @@ class ReleaseAssetInfo {
         '';
     final type =
         parseType(asset['type'] as String?) ?? inferType(fileName: fileName);
+    final abi =
+        normalizeAbi(asset['abi']) ??
+        githubAsset?.abi ??
+        (type == ReleaseAssetType.androidApk
+            ? inferAbi(fileName: fileName)
+            : null);
 
     return ReleaseAssetInfo(
       type: type,
@@ -104,15 +123,72 @@ class ReleaseAssetInfo {
           asset['url'] as String? ??
           githubAsset?.downloadUrl ??
           '',
+      abi: abi,
       sha256: asset['sha256'] as String? ?? githubAsset?.sha256,
       size: (asset['size'] as num?)?.toInt() ?? githubAsset?.size,
       label:
-          asset['label'] as String? ?? githubAsset?.label ?? defaultLabel(type),
+          asset['label'] as String? ??
+          githubAsset?.label ??
+          defaultLabel(type, abi: abi),
       description:
           asset['description'] as String? ??
           githubAsset?.description ??
           defaultDescription(type),
     );
+  }
+
+  static String? normalizeAbi(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim().toLowerCase();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  static String? inferAbi({required String fileName}) {
+    final lowerName = fileName.trim().toLowerCase();
+    if (!lowerName.endsWith('.apk')) return null;
+    final stem = lowerName.substring(0, lowerName.length - 4);
+    final match = _apkAbiPattern.firstMatch(stem);
+    return match?.group(1)?.toLowerCase();
+  }
+
+  /// 按设备支持的 ABI 顺序选择 Android APK 资产。
+  ///
+  /// 资产均无 [abi]（旧版通用 APK）时返回第一个 Android 资产；
+  /// 否则按 [supportedAbis] 顺序匹配，都不匹配时退回 `arm64-v8a`，
+  /// 再退回第一个 Android 资产。
+  static ReleaseAssetInfo? selectAndroidAsset(
+    Iterable<ReleaseAssetInfo> assets, {
+    List<String> supportedAbis = const [],
+  }) {
+    final androidAssets = assets
+        .where((asset) => asset.type == ReleaseAssetType.androidApk)
+        .toList(growable: false);
+    if (androidAssets.isEmpty) return null;
+
+    final hasAnyAbi = androidAssets.any(
+      (asset) => normalizeAbi(asset.abi) != null,
+    );
+    if (!hasAnyAbi) {
+      return androidAssets.first;
+    }
+
+    for (final candidateAbi in supportedAbis) {
+      final normalizedCandidate = normalizeAbi(candidateAbi);
+      if (normalizedCandidate == null) continue;
+      for (final asset in androidAssets) {
+        if (normalizeAbi(asset.abi) == normalizedCandidate) {
+          return asset;
+        }
+      }
+    }
+
+    for (final asset in androidAssets) {
+      if (normalizeAbi(asset.abi) == 'arm64-v8a') {
+        return asset;
+      }
+    }
+
+    return androidAssets.first;
   }
 
   static ReleaseAssetType? parseType(String? value) {
@@ -157,12 +233,13 @@ class ReleaseAssetInfo {
     };
   }
 
-  static String defaultLabel(ReleaseAssetType type) {
+  static String defaultLabel(ReleaseAssetType type, {String? abi}) {
     return switch (type) {
       ReleaseAssetType.windowsInstaller => 'Windows 安装版',
       ReleaseAssetType.windowsPortable => 'Windows 便携版',
       ReleaseAssetType.macosPortable => 'macOS 便携版',
-      ReleaseAssetType.androidApk => 'Android APK',
+      ReleaseAssetType.androidApk =>
+        abi != null && abi.isNotEmpty ? 'Android APK ($abi)' : 'Android APK',
       ReleaseAssetType.unknown => '下载文件',
     };
   }

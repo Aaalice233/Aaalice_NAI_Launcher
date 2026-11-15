@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory = $true)]
   [string]$AssetDirectory,
 
@@ -44,15 +44,53 @@ function Get-AssetInfo {
       description = '解压后打开应用，更新时需要手动替换。'
     }
   }
+  if ($name -match '_Android_.+_(arm64-v8a|armeabi-v7a|x86_64)\.apk$') {
+    $abi = $Matches[1].ToLowerInvariant()
+    return [ordered]@{
+      platform = 'android'
+      type = 'android-apk'
+      abi = $abi
+      label = "Android APK ($abi)"
+      description = '下载后由 Android 系统确认并安装更新。'
+    }
+  }
   if ($name -match '_Android_.*\.apk$') {
     return [ordered]@{
       platform = 'android'
       type = 'android-apk'
+      abi = $null
       label = 'Android APK'
       description = '下载后由 Android 系统确认并安装更新。'
     }
   }
   return $null
+}
+
+function Get-PlatformSortOrder {
+  param([string]$Platform)
+
+  switch ($Platform) {
+    'android' { return 0 }
+    'macos' { return 1 }
+    'windows' { return 2 }
+    default { return 3 }
+  }
+}
+
+function Get-AndroidAbiSortOrder {
+  param([string]$Abi)
+
+  switch ($Abi) {
+    'arm64-v8a' { return 0 }
+    'armeabi-v7a' { return 1 }
+    'x86_64' { return 2 }
+    default {
+      if ([string]::IsNullOrEmpty($Abi)) {
+        return 3
+      }
+      return 4
+    }
+  }
 }
 
 function Get-ChangelogSection {
@@ -100,35 +138,59 @@ $assetPath = Resolve-Path $AssetDirectory
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $outputPath = Resolve-Path $OutputDirectory
 
-$releaseFiles = Get-ChildItem -Path $assetPath -File |
-  Where-Object { $_.Extension -in @('.exe', '.zip', '.apk') } |
-  Sort-Object Name
+$candidateFiles = @(
+  Get-ChildItem -Path $assetPath -File |
+    Where-Object { $_.Extension -in @('.exe', '.zip', '.apk') }
+)
 
-if (-not $releaseFiles) {
+if (-not $candidateFiles) {
   throw "No release assets were found in $assetPath"
 }
 
+# 旧版客户端（v4.3.1 及以前）会直接选用 manifest 中第一个 android-apk 资产，
+# 因此 Android 资产必须显式保证 arm64-v8a 排在第一位，不依赖文件名字母序。
+$resolvedEntries = @(
+  foreach ($file in $candidateFiles) {
+    $assetInfo = Get-AssetInfo -File $file
+    if (-not $assetInfo) {
+      throw "Unknown release asset type: $($file.Name)"
+    }
+    [pscustomobject]@{
+      File = $file
+      Info = $assetInfo
+      PlatformOrder = Get-PlatformSortOrder -Platform $assetInfo.platform
+      AbiOrder = if ($assetInfo.platform -eq 'android') {
+        Get-AndroidAbiSortOrder -Abi $assetInfo.abi
+      } else {
+        0
+      }
+    }
+  }
+) | Sort-Object PlatformOrder, AbiOrder, @{ Expression = { $_.File.Name } }
+
 $assets = @()
 $checksumLines = @()
-foreach ($file in $releaseFiles) {
-  $assetInfo = Get-AssetInfo -File $file
-  if (-not $assetInfo) {
-    throw "Unknown release asset type: $($file.Name)"
-  }
+foreach ($entry in $resolvedEntries) {
+  $file = $entry.File
+  $assetInfo = $entry.Info
 
   $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
   $downloadUrl = "https://github.com/$Repository/releases/download/$Tag/$([uri]::EscapeDataString($file.Name))"
   $checksumLines += "$hash  $($file.Name)"
-  $assets += [ordered]@{
+  $assetRecord = [ordered]@{
     platform = $assetInfo.platform
     type = $assetInfo.type
-    fileName = $file.Name
-    downloadUrl = $downloadUrl
-    sha256 = $hash
-    size = $file.Length
-    label = $assetInfo.label
-    description = $assetInfo.description
   }
+  if ($assetInfo.Contains('abi')) {
+    $assetRecord['abi'] = $assetInfo.abi
+  }
+  $assetRecord['fileName'] = $file.Name
+  $assetRecord['downloadUrl'] = $downloadUrl
+  $assetRecord['sha256'] = $hash
+  $assetRecord['size'] = $file.Length
+  $assetRecord['label'] = $assetInfo.label
+  $assetRecord['description'] = $assetInfo.description
+  $assets += $assetRecord
 }
 
 $changelogSection = Get-ChangelogSection -Version ($Version -replace '\+.*$', '')
@@ -167,6 +229,11 @@ function Get-DownloadBadge {
       return "[![macOS Portable ZIP](https://img.shields.io/badge/Portable-ZIP-555555?style=flat-square&logo=apple&logoColor=white)]($url)"
     }
     'android-apk' {
+      $abi = $Asset['abi']
+      if (-not [string]::IsNullOrWhiteSpace($abi)) {
+        $escapedAbi = $abi.Replace('-', '--').Replace('_', '__')
+        return "[![Android APK ($abi)](https://img.shields.io/badge/APK-$escapedAbi-3DDC84?style=flat-square&logo=android&logoColor=white)]($url)"
+      }
       return "[![Android APK](https://img.shields.io/badge/Android-APK-3DDC84?style=flat-square&logo=android&logoColor=white)]($url)"
     }
     default {
@@ -185,11 +252,18 @@ $macosBadges = @(
     Where-Object { $_['platform'] -eq 'macos' } |
     ForEach-Object { Get-DownloadBadge -Asset $_ }
 )
-$androidBadges = @(
+$androidAssets = @(
   $assets |
-    Where-Object { $_['platform'] -eq 'android' } |
+    Where-Object { $_['platform'] -eq 'android' }
+)
+$androidBadges = @(
+  $androidAssets |
     ForEach-Object { Get-DownloadBadge -Asset $_ }
 )
+$hasSplitAndroidApks = @(
+  $androidAssets |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_['abi']) }
+).Count -gt 0
 $downloadRows = @()
 if ($windowsBadges.Count -gt 0) {
   $downloadRows += "| **Windows** | $($windowsBadges -join '<br>') |"
@@ -198,7 +272,11 @@ if ($macosBadges.Count -gt 0) {
   $downloadRows += "| **macOS** | $($macosBadges -join '<br>') |"
 }
 if ($androidBadges.Count -gt 0) {
-  $downloadRows += "| **Android** | $($androidBadges -join '<br>') |"
+  $androidCell = $androidBadges -join '<br>'
+  if ($hasSplitAndroidApks) {
+    $androidCell += '<br><sub>大多数手机与平板请选择 `arm64-v8a`（32 位旧设备选 `armeabi-v7a`，桌面模拟器选 `x86_64`）。</sub>'
+  }
+  $downloadRows += "| **Android** | $androidCell |"
 }
 $releaseLines = @(
   "# NAI Launcher $Tag",
@@ -212,10 +290,10 @@ $releaseLines = @(
 )
 $releaseLines += $downloadRows
 $releaseLines += @(
-  "",
-  "> **应用内更新：** Windows 安装版用户无需手动下载。应用会自动选择 Setup x64，完成下载与 SHA256 校验后退出旧版本、静默安装并重新启动。Portable 版也支持应用内自动更新和失败回滚。",
-  "",
-  "> **安装提示：** Android 下载 APK 后由系统确认更新；macOS 当前需下载 ZIP 后手动替换应用。Windows Setup 为普通用户的推荐版本，Portable 适合放在自定义目录。",
+  '',
+  '> **应用内更新：** Windows 安装版用户无需手动下载。应用会自动选择 Setup x64，完成下载与 SHA256 校验后退出旧版本、静默安装并重新启动。Portable 版也支持应用内自动更新和失败回滚；Android 应用内更新会自动按设备架构下载对应 APK。',
+  '',
+  '> **安装提示：** Android 下载 APK 后由系统确认更新（大多数手机选 `arm64-v8a`）；macOS 当前需下载 ZIP 后手动替换应用。Windows Setup 为普通用户的推荐版本，Portable 适合放在自定义目录。',
   "",
   "## 📝 更新内容",
   "",

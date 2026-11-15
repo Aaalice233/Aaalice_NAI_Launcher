@@ -202,6 +202,163 @@ void main() {
       );
     },
   );
+
+  group('Android ABI asset selection', () {
+    ReleaseAssetInfo apkAsset(String fileName, {String? abi}) {
+      return ReleaseAssetInfo(
+        type: ReleaseAssetType.androidApk,
+        platform: 'android',
+        fileName: fileName,
+        downloadUrl: 'https://example.com/$fileName',
+        abi: abi,
+      );
+    }
+
+    test('selects the first matching asset in device supportedAbis order', () {
+      final service = GitHubApiService(dio: Dio());
+      final arm64 = apkAsset(
+        'NAI_Launcher_Android_4.4.0+47_arm64-v8a.apk',
+        abi: 'arm64-v8a',
+      );
+      final arm32 = apkAsset(
+        'NAI_Launcher_Android_4.4.0+47_armeabi-v7a.apk',
+        abi: 'armeabi-v7a',
+      );
+      final x64 = apkAsset(
+        'NAI_Launcher_Android_4.4.0+47_x86_64.apk',
+        abi: 'x86_64',
+      );
+      final assets = [arm64, arm32, x64];
+
+      expect(
+        service.findPlatformAsset(
+          assets,
+          'android-apk',
+          supportedAbis: const ['x86_64', 'arm64-v8a'],
+        ),
+        same(x64),
+      );
+      expect(
+        service.findPlatformAsset(
+          assets,
+          'android-apk',
+          supportedAbis: const ['armeabi-v7a'],
+        ),
+        same(arm32),
+      );
+    });
+
+    test('falls back to arm64-v8a and then the first Android APK when unmatched', () {
+      final service = GitHubApiService(dio: Dio());
+      final arm32 = apkAsset(
+        'NAI_Launcher_Android_4.4.0+47_armeabi-v7a.apk',
+        abi: 'armeabi-v7a',
+      );
+      final arm64 = apkAsset(
+        'NAI_Launcher_Android_4.4.0+47_arm64-v8a.apk',
+        abi: 'arm64-v8a',
+      );
+      final x64 = apkAsset(
+        'NAI_Launcher_Android_4.4.0+47_x86_64.apk',
+        abi: 'x86_64',
+      );
+
+      expect(
+        service.findPlatformAsset(
+          [arm32, arm64, x64],
+          'android-apk',
+          supportedAbis: const ['riscv64'],
+        ),
+        same(arm64),
+      );
+      expect(
+        service.findPlatformAsset(
+          [arm32, x64],
+          'android-apk',
+          supportedAbis: const ['riscv64'],
+        ),
+        same(arm32),
+      );
+    });
+
+    test('preserves legacy behavior when Android assets have no abi', () {
+      final service = GitHubApiService(dio: Dio());
+      final firstLegacy = apkAsset('NAI_Launcher_Android_4.3.1+46.apk');
+      final secondLegacy = apkAsset('NAI_Launcher_Android_4.3.1+46_extra.apk');
+
+      expect(
+        service.findPlatformAsset(
+          [firstLegacy, secondLegacy],
+          'android-apk',
+          supportedAbis: const ['x86_64', 'arm64-v8a'],
+        ),
+        same(firstLegacy),
+      );
+    });
+
+    test('fetchLatestRelease resolves primary Android asset using supportedAbisLoader', () async {
+      const sha = _StableReleaseDioAdapter.setupSha256;
+      const base =
+          'https://github.com/Aaalice233/Aaalice_NAI_Launcher/releases/download/v1.8.1';
+      final adapter = _StableReleaseDioAdapter(
+        manifestOverride: {
+          'version': '1.8.1+32',
+          'tag': 'v1.8.1',
+          'assets': [
+            {
+              'platform': 'android',
+              'type': 'android-apk',
+              'abi': 'arm64-v8a',
+              'fileName': 'NAI_Launcher_Android_1.8.1+32_arm64-v8a.apk',
+              'downloadUrl':
+                  '$base/NAI_Launcher_Android_1.8.1%2B32_arm64-v8a.apk',
+              'sha256': sha,
+              'size': 100,
+            },
+            {
+              'platform': 'android',
+              'type': 'android-apk',
+              'abi': 'armeabi-v7a',
+              'fileName': 'NAI_Launcher_Android_1.8.1+32_armeabi-v7a.apk',
+              'downloadUrl':
+                  '$base/NAI_Launcher_Android_1.8.1%2B32_armeabi-v7a.apk',
+              'sha256': sha,
+              'size': 90,
+            },
+            {
+              'platform': 'android',
+              'type': 'android-apk',
+              'abi': 'x86_64',
+              'fileName': 'NAI_Launcher_Android_1.8.1+32_x86_64.apk',
+              'downloadUrl': '$base/NAI_Launcher_Android_1.8.1%2B32_x86_64.apk',
+              'sha256': sha,
+              'size': 110,
+            },
+          ],
+        },
+      );
+      final dio = Dio(BaseOptions(baseUrl: GitHubApiService.defaultBaseUrl))
+        ..httpClientAdapter = adapter;
+      final service = GitHubApiService(
+        dio: dio,
+        supportedAbisLoader: () async => const ['x86_64', 'arm64-v8a'],
+      );
+
+      final info = await service.fetchLatestRelease(
+        owner: 'Aaalice233',
+        repo: 'Aaalice_NAI_Launcher',
+        currentVersion: '1.8.0+31',
+        platform: 'android-apk',
+      );
+
+      expect(info.primaryAsset?.abi, 'x86_64');
+      expect(
+        info.primaryAsset?.fileName,
+        'NAI_Launcher_Android_1.8.1+32_x86_64.apk',
+      );
+      expect(info.downloadUrl, info.primaryAsset?.downloadUrl);
+    });
+  });
 }
 
 class _StableReleaseDioAdapter implements HttpClientAdapter {

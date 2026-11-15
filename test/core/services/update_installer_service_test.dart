@@ -20,6 +20,9 @@ class _UnsupportedInstallationService extends AppInstallationService {
 }
 
 class _AndroidInstallationService extends AppInstallationService {
+  _AndroidInstallationService({List<String> supportedAbis = const []})
+    : super(androidSupportedAbisLoader: () async => supportedAbis);
+
   @override
   AppInstallationType getInstallationType() => AppInstallationType.androidApk;
 
@@ -336,6 +339,72 @@ void main() {
 
       expect(installedPath, apk.path);
       expect(shutdownCalled, isFalse);
+    });
+
+    test('downloads the Android APK matching device supportedAbis and persists abi', () async {
+      final updateDir = Directory('${tempDir.path}/updates')..createSync();
+      final payload = List<int>.generate(2048, (index) => (index * 7) % 251);
+      final source = File('${tempDir.path}/x64.apk');
+      await source.writeAsBytes(payload);
+      final hash = await UpdateInstallerService.calculateSha256(source);
+
+      final requestedPaths = <String>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        requestedPaths.add(request.uri.path);
+        request.response.headers.contentLength = payload.length;
+        request.response.add(payload);
+        await request.response.close();
+      });
+
+      try {
+        final arm64Asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.androidApk,
+          platform: 'android',
+          abi: 'arm64-v8a',
+          fileName: 'NAI_Launcher_Android_2.0.0+20_arm64-v8a.apk',
+          downloadUrl: 'http://127.0.0.1:${server.port}/arm64.apk',
+          sha256: hash,
+          size: payload.length,
+        );
+        final x64Asset = ReleaseAssetInfo(
+          type: ReleaseAssetType.androidApk,
+          platform: 'android',
+          abi: 'x86_64',
+          fileName: 'NAI_Launcher_Android_2.0.0+20_x86_64.apk',
+          downloadUrl: 'http://127.0.0.1:${server.port}/x64.apk',
+          sha256: hash,
+          size: payload.length,
+        );
+        final versionInfo = VersionInfo(
+          version: '2.0.0+20',
+          currentVersion: '1.9.0+19',
+          primaryAsset: arm64Asset,
+          assets: [arm64Asset, x64Asset],
+          isNewer: true,
+        );
+        final service = UpdateInstallerService(
+          dio: Dio(),
+          installationService: _AndroidInstallationService(
+            supportedAbis: const ['x86_64', 'arm64-v8a'],
+          ),
+          updateDirectory: updateDir,
+        );
+
+        final downloaded = await service.downloadUpdate(versionInfo);
+        expect(requestedPaths, ['/x64.apk']);
+        expect(downloaded.asset.abi, 'x86_64');
+        expect(
+          p.basename(downloaded.file.path),
+          'NAI_Launcher_Android_2.0.0+20_x86_64.apk',
+        );
+
+        final restored = await service.restorePendingUpdate();
+        expect(restored, isNotNull);
+        expect(restored!.update.asset.abi, 'x86_64');
+      } finally {
+        await server.close(force: true);
+      }
     });
 
     test('consumes updater result exactly once', () async {

@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pub_semver/pub_semver.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/services/app_installation_service.dart';
 import '../../models/version/release_asset_info.dart';
 import '../../models/version/version_info.dart';
 
@@ -52,8 +54,13 @@ class GitHubApiService {
   static const Duration receiveTimeout = Duration(seconds: 30);
 
   final Dio _dio;
+  final Future<List<String>> Function()? _supportedAbisLoader;
 
-  GitHubApiService({required Dio dio}) : _dio = dio;
+  GitHubApiService({
+    required Dio dio,
+    Future<List<String>> Function()? supportedAbisLoader,
+  }) : _dio = dio,
+       _supportedAbisLoader = supportedAbisLoader;
 
   /// 获取最新 Release 版本信息
   ///
@@ -238,7 +245,18 @@ class GitHubApiService {
       assets.add(asset);
     }
 
-    final primaryAsset = _findPlatformAsset(assets, platform);
+    final normalizedPlatform = platform.toLowerCase();
+    final isAndroidTarget =
+        normalizedPlatform == 'android-apk' || normalizedPlatform == 'android';
+    final supportedAbis = isAndroidTarget && _supportedAbisLoader != null
+        ? await _supportedAbisLoader()
+        : const <String>[];
+
+    final primaryAsset = _findPlatformAsset(
+      assets,
+      platform,
+      supportedAbis: supportedAbis,
+    );
     if (primaryAsset == null) {
       throw GitHubApiException(
         'Release manifest has no asset for platform $platform',
@@ -356,10 +374,24 @@ class GitHubApiService {
     );
   }
 
+  @visibleForTesting
+  ReleaseAssetInfo? findPlatformAsset(
+    List<ReleaseAssetInfo> assets,
+    String platform, {
+    List<String> supportedAbis = const [],
+  }) {
+    return _findPlatformAsset(
+      assets,
+      platform,
+      supportedAbis: supportedAbis,
+    );
+  }
+
   ReleaseAssetInfo? _findPlatformAsset(
     List<ReleaseAssetInfo> assets,
-    String platform,
-  ) {
+    String platform, {
+    List<String> supportedAbis = const [],
+  }) {
     final normalizedPlatform = platform.toLowerCase();
     if (normalizedPlatform == 'windows-installer') {
       return _firstAssetOfType(assets, ReleaseAssetType.windowsInstaller);
@@ -374,7 +406,10 @@ class GitHubApiService {
     }
     if (normalizedPlatform == 'android-apk' ||
         normalizedPlatform == 'android') {
-      return _firstAssetOfType(assets, ReleaseAssetType.androidApk);
+      return ReleaseAssetInfo.selectAndroidAsset(
+        assets,
+        supportedAbis: supportedAbis,
+      );
     }
     return assets
         .where((asset) => asset.type != ReleaseAssetType.unknown)
@@ -406,6 +441,7 @@ class GitHubApiService {
 /// GitHubApiService Provider
 @riverpod
 GitHubApiService gitHubApiService(Ref ref) {
+  final installationService = ref.watch(appInstallationServiceProvider);
   final dio = Dio(
     BaseOptions(
       baseUrl: GitHubApiService.defaultBaseUrl,
@@ -413,5 +449,8 @@ GitHubApiService gitHubApiService(Ref ref) {
       receiveTimeout: GitHubApiService.receiveTimeout,
     ),
   );
-  return GitHubApiService(dio: dio);
+  return GitHubApiService(
+    dio: dio,
+    supportedAbisLoader: installationService.getAndroidSupportedAbis,
+  );
 }

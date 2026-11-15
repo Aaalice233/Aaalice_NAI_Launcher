@@ -198,7 +198,7 @@ class UpdateInstallerService {
       );
     }
 
-    final asset = versionInfo.primaryAsset;
+    final asset = await _resolveTargetAsset(versionInfo);
     if (asset == null || !asset.supportsInAppInstall) {
       throw const UpdateInstallException(
         '未找到可自动安装的更新包',
@@ -263,6 +263,25 @@ class UpdateInstallerService {
     return downloaded;
   }
 
+  Future<ReleaseAssetInfo?> _resolveTargetAsset(VersionInfo versionInfo) async {
+    if (_installationService.getInstallationType() ==
+        AppInstallationType.androidApk) {
+      final hasAndroidAssets = versionInfo.assets.any(
+        (asset) => asset.type == ReleaseAssetType.androidApk,
+      );
+      if (hasAndroidAssets) {
+        final supportedAbis = await _installationService
+            .getAndroidSupportedAbis();
+        return ReleaseAssetInfo.selectAndroidAsset(
+              versionInfo.assets,
+              supportedAbis: supportedAbis,
+            ) ??
+            versionInfo.primaryAsset;
+      }
+    }
+    return versionInfo.primaryAsset;
+  }
+
   static UpdateInstallException _mapDownloadError(
     VerifiedDownloadException error,
   ) {
@@ -324,11 +343,19 @@ class UpdateInstallerService {
         throw const FormatException('Missing pending update asset');
       }
       final type = ReleaseAssetInfo.parseType(assetData['type'] as String?);
+      final resolvedType = type ?? ReleaseAssetType.unknown;
+      final fileName = assetData['fileName'] as String? ?? '';
+      final abi =
+          ReleaseAssetInfo.normalizeAbi(assetData['abi']) ??
+          (resolvedType == ReleaseAssetType.androidApk
+              ? ReleaseAssetInfo.inferAbi(fileName: fileName)
+              : null);
       final asset = ReleaseAssetInfo(
-        type: type ?? ReleaseAssetType.unknown,
+        type: resolvedType,
         platform: assetData['platform'] as String? ?? 'unknown',
-        fileName: assetData['fileName'] as String? ?? '',
+        fileName: fileName,
         downloadUrl: assetData['downloadUrl'] as String? ?? '',
+        abi: abi,
         sha256: assetData['sha256'] as String?,
         size: (assetData['size'] as num?)?.toInt(),
         label: assetData['label'] as String?,
@@ -635,6 +662,7 @@ class UpdateInstallerService {
         'platform': update.asset.platform,
         'fileName': update.asset.fileName,
         'downloadUrl': update.asset.downloadUrl,
+        'abi': update.asset.abi,
         'sha256': update.asset.sha256,
         'size': update.asset.size,
         'label': update.asset.label,
