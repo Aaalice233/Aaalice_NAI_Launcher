@@ -85,11 +85,16 @@ class FileInfo {
 class LocalImageDetailData extends ImageDetailData {
   final LocalImageRecord record;
   final bool Function(String path)? getFavoriteStatus;
+  final ImageMetadataService _metadataService;
 
   /// 图像最大维度阈值（超过此值会进行缩放优化）
   static const int _maxImageDimension = 4096;
 
-  LocalImageDetailData(this.record, {this.getFavoriteStatus});
+  LocalImageDetailData(
+    this.record, {
+    this.getFavoriteStatus,
+    ImageMetadataService? metadataService,
+  }) : _metadataService = metadataService ?? ImageMetadataService.instance;
 
   @override
   ImageProvider getImageProvider() {
@@ -145,7 +150,7 @@ class LocalImageDetailData extends ImageDetailData {
     if (recordMetadata != null) return recordMetadata;
 
     // 服务已在后台 isolate 走完整条解析链，这里再兜底解析只会重复同一次整图解码。
-    return ImageMetadataService().getMetadataImmediate(record.path);
+    return _metadataService.getMetadataImmediate(record.path);
   }
 
   @override
@@ -186,6 +191,7 @@ class LocalImageDetailData extends ImageDetailData {
 class GeneratedImageDetailData extends ImageDetailData {
   final Uint8List imageBytes;
   final NaiImageMetadata? _metadata;
+  final ImageMetadataService _metadataService;
   final String _id;
   final bool _showSaveButton;
   final bool _showCopyButton;
@@ -197,6 +203,7 @@ class GeneratedImageDetailData extends ImageDetailData {
   GeneratedImageDetailData({
     required this.imageBytes,
     NaiImageMetadata? metadata,
+    ImageMetadataService? metadataService,
     String? id,
     bool showSaveButton = true,
     bool showCopyButton = true,
@@ -204,6 +211,7 @@ class GeneratedImageDetailData extends ImageDetailData {
     this.preserveOriginalBytesOnSave = false,
     this.fixedTagUsageSnapshot,
   }) : _metadata = metadata,
+       _metadataService = metadataService ?? ImageMetadataService.instance,
        _id = id ?? imageBytes.hashCode.toString(),
        _showSaveButton = showSaveButton,
        _showCopyButton = showCopyButton,
@@ -227,7 +235,7 @@ class GeneratedImageDetailData extends ImageDetailData {
   @override
   Future<NaiImageMetadata?> getMetadataAsync() async {
     if (_metadata != null) return _metadata;
-    return ImageMetadataService().getMetadataFromBytes(imageBytes);
+    return _metadataService.getMetadataFromBytes(imageBytes);
   }
 
   @override

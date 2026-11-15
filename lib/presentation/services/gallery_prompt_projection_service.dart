@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/utils/prompt_tag_utils.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/online_gallery/gallery_item.dart';
@@ -296,3 +298,8 @@ class GalleryPromptProjectionService {
     _ => null,
   };
 }
+
+final galleryPromptProjectionServiceProvider =
+    Provider<GalleryPromptProjectionService>(
+      (ref) => const GalleryPromptProjectionService(),
+    );

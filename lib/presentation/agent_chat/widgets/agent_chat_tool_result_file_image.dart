@@ -12,6 +12,7 @@ import '../../../core/database/utils/lru_cache.dart';
 import '../../../core/utils/local_file_identity.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/services/image_metadata_service.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
@@ -211,7 +212,10 @@ class _AgentChatToolResultFileImageState
   void _openDetail() {
     ImageDetailOpener.showSingleImmediate(
       context,
-      image: FileImageDetailData(filePath: widget.path),
+      image: FileImageDetailData(
+        filePath: widget.path,
+        metadataService: ref.read(imageMetadataServiceProvider),
+      ),
       showMetadataPanel: true,
     );
   }

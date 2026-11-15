@@ -369,10 +369,8 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
                 isConflict: isConflict,
                 resolution: resolution,
                 onChanged: (value) => setState(
-                  () => selection.setCategorySelected(
-                    category.id,
-                    value == true,
-                  ),
+                  () =>
+                      selection.setCategorySelected(category.id, value == true),
                 ),
                 onResolutionChanged: isConflict
                     ? (newResolution) {
@@ -619,12 +617,14 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
   }
 
   Future<void> _selectFile() async {
+    final service = ref.read(tagLibraryIOServiceProvider);
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
     );
 
     if (result == null || result.files.single.path == null) return;
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
@@ -633,9 +633,9 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
 
     try {
       final file = File(result.files.single.path!);
-      final service = TagLibraryIOService();
       final preview = await service.parseImportFile(file);
 
+      if (!mounted) return;
       // 获取现有数据进行冲突检测
       final state = ref.read(tagLibraryPageNotifierProvider);
       final conflicts = await service.detectConflicts(
@@ -702,6 +702,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
     final l10n = context.l10n;
     final state = ref.read(tagLibraryPageNotifierProvider);
     final notifier = ref.read(tagLibraryPageNotifierProvider.notifier);
+    final service = ref.read(tagLibraryIOServiceProvider);
 
     setState(() {
       _isImporting = true;
@@ -721,7 +722,7 @@ class _ImportDialogState extends ConsumerState<ImportDialog> {
         renameSuffix: ' (${l10n.common_import})',
       );
 
-      final result = await TagLibraryIOService().executeImport(
+      final result = await service.executeImport(
         zipFile: file,
         plan: plan,
         onProgress: (progress, message) {

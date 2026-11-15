@@ -73,6 +73,18 @@ class OnlineGalleryLocalFavoritesRepository {
   }) : _box = box,
        _legacyStorage = legacyStorage;
 
+  factory OnlineGalleryLocalFavoritesRepository.fromOpenedBox({
+    required LocalStorageService legacyStorage,
+  }) {
+    return OnlineGalleryLocalFavoritesRepository(
+      box: Hive.box<dynamic>(StorageKeys.localFavoritesBox),
+      legacyStorage: legacyStorage,
+    );
+  }
+
+  static bool get isStorageOpen =>
+      Hive.isBoxOpen(StorageKeys.localFavoritesBox);
+
   static const String quickTagCloudMigrationMarkerKey =
       '__migration_quick_tag_cloud_favorites_v1__';
 

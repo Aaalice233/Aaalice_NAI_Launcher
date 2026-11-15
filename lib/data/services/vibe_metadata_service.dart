@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/vibe_file_parser.dart';
 import '../models/vibe/vibe_reference.dart';
@@ -12,6 +14,10 @@ import '../models/vibe/vibe_reference.dart';
 /// - 检查图片是否包含 Vibe 元数据
 /// - 获取 Vibe 缩略图
 class VibeMetadataService {
+  const VibeMetadataService();
+
+  static const VibeMetadataService instance = VibeMetadataService();
+
   /// 从图片字节数据中提取 Vibe 参考
   ///
   /// [image] - PNG 图片字节数据
@@ -68,10 +74,7 @@ class VibeMetadataService {
       // 检查文件是否存在
       final file = File(filePath);
       if (!await file.exists()) {
-        AppLogger.w(
-          'File not found: $filePath',
-          'VibeMetadataService',
-        );
+        AppLogger.w('File not found: $filePath', 'VibeMetadataService');
         return null;
       }
 
@@ -120,10 +123,7 @@ class VibeMetadataService {
   /// 返回 true 如果图片包含 NovelAI_Vibe_Encoding_Base64 iTXt 块
   Future<bool> hasVibeMetadata(Uint8List image) async {
     try {
-      final reference = await VibeFileParser.fromPng(
-        'image.png',
-        image,
-      );
+      final reference = await VibeFileParser.fromPng('image.png', image);
 
       return reference.vibeEncoding.isNotEmpty;
     } catch (e) {
@@ -190,3 +190,7 @@ class VibeMetadataService {
     }
   }
 }
+
+final vibeMetadataServiceProvider = Provider<VibeMetadataService>(
+  (ref) => VibeMetadataService.instance,
+);

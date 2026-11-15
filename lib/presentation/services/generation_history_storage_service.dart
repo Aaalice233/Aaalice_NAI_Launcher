@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce/hive_ce.dart';
 
-import '../../core/constants/storage_keys.dart';
+import '../../core/storage/generation_history_box_storage.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
@@ -22,6 +21,7 @@ final generationHistoryStorageServiceProvider =
     Provider<GenerationHistoryStorageService>(
       (ref) => GenerationHistoryStorageService(
         enabled: ref.watch(generationSessionPersistenceEnabledProvider),
+        boxStorage: ref.watch(generationHistoryBoxStorageProvider),
       ),
     );
 
@@ -32,27 +32,26 @@ final generationHistoryStorageServiceProvider =
 /// interrupted write can therefore leave only an orphan record, which is
 /// removed during the next load without losing an indexed image.
 class GenerationHistoryStorageService {
-  GenerationHistoryStorageService({this.enabled = true});
+  GenerationHistoryStorageService({
+    this.enabled = true,
+    GenerationHistoryBoxStorage boxStorage =
+        const GenerationHistoryBoxStorage(),
+  }) : _boxStorage = boxStorage;
 
   static const _orderKey = 'generation_history_v1_order';
   static const _recordPrefix = 'generation_history_v1_record_';
   static const maxEntries = 50;
 
   final bool enabled;
+  final GenerationHistoryBoxStorage _boxStorage;
   Future<void> _pendingWrite = Future<void>.value();
 
-  Box<dynamic>? get _box {
-    if (!enabled || !Hive.isBoxOpen(StorageKeys.historyBox)) {
-      return null;
-    }
-    return Hive.box<dynamic>(StorageKeys.historyBox);
-  }
+  bool get _canAccessBox => enabled && _boxStorage.isOpen;
 
   Future<List<GeneratedImage>> load() async {
-    final box = _box;
-    if (box == null) return const [];
+    if (!_canAccessBox) return const [];
 
-    final rawOrder = box.get(_orderKey);
+    final rawOrder = _boxStorage.read(_orderKey);
     final order = rawOrder is List
         ? rawOrder.whereType<String>().take(maxEntries).toList()
         : <String>[];
@@ -61,7 +60,7 @@ class GenerationHistoryStorageService {
 
     for (final id in order) {
       try {
-        final raw = box.get('$_recordPrefix$id');
+        final raw = _boxStorage.read('$_recordPrefix$id');
         if (raw is! Map) continue;
         final image = _decodeRecord(id, Map<dynamic, dynamic>.from(raw));
         if (image == null) continue;
@@ -70,7 +69,7 @@ class GenerationHistoryStorageService {
       } catch (error, stackTrace) {
         AppLogger.w(
           'Skipping invalid persisted generation image $id: '
-          '${metadataErrorSummary(error)}',
+              '${metadataErrorSummary(error)}',
           'GenerationHistory',
         );
         AppLogger.d(stackTrace.toString(), 'GenerationHistory');
@@ -78,15 +77,13 @@ class GenerationHistoryStorageService {
     }
 
     final indexedKeys = validIds.map((id) => '$_recordPrefix$id').toSet();
-    final staleKeys = box.keys
-        .whereType<String>()
-        .where(
-          (key) => key.startsWith(_recordPrefix) && !indexedKeys.contains(key),
-        )
+    final staleKeys = _boxStorage
+        .keysWithPrefix(_recordPrefix)
+        .where((key) => !indexedKeys.contains(key))
         .toList();
     if (staleKeys.isNotEmpty || validIds.length != order.length) {
-      await box.put(_orderKey, validIds);
-      await box.deleteAll(staleKeys);
+      await _boxStorage.put(_orderKey, validIds);
+      await _boxStorage.deleteAll(staleKeys);
     }
 
     return images;
@@ -105,16 +102,15 @@ class GenerationHistoryStorageService {
     );
 
     return _enqueue(() async {
-      final box = _box;
-      if (box == null) return;
+      if (!_canAccessBox) return;
 
       final previousOrder =
-          (box.get(_orderKey) as List?)?.whereType<String>().toSet() ??
+          (_boxStorage.read(_orderKey) as List?)?.whereType<String>().toSet() ??
           const <String>{};
       if (records.isNotEmpty) {
-        await box.putAll(records);
+        await _boxStorage.putAll(records);
       }
-      await box.put(_orderKey, boundedOrder);
+      await _boxStorage.put(_orderKey, boundedOrder);
 
       final retained = boundedOrder.toSet();
       final evictedKeys = previousOrder
@@ -122,22 +118,18 @@ class GenerationHistoryStorageService {
           .map((id) => '$_recordPrefix$id')
           .toList();
       if (evictedKeys.isNotEmpty) {
-        await box.deleteAll(evictedKeys);
+        await _boxStorage.deleteAll(evictedKeys);
       }
     });
   }
 
   Future<void> clear() {
     return _enqueue(() async {
-      final box = _box;
-      if (box == null) return;
-      final recordKeys = box.keys
-          .whereType<String>()
-          .where((key) => key.startsWith(_recordPrefix))
-          .toList();
-      await box.delete(_orderKey);
+      if (!_canAccessBox) return;
+      final recordKeys = _boxStorage.keysWithPrefix(_recordPrefix);
+      await _boxStorage.delete(_orderKey);
       if (recordKeys.isNotEmpty) {
-        await box.deleteAll(recordKeys);
+        await _boxStorage.deleteAll(recordKeys);
       }
     });
   }

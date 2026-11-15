@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce/hive_ce.dart';
 
-import '../../core/constants/storage_keys.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/models/online_gallery/gallery_item.dart';
 import '../../data/models/online_gallery/online_gallery_favorite_record.dart';
@@ -40,10 +38,15 @@ class OnlineGalleryLocalFavoritesState {
   );
 }
 
+final onlineGalleryLocalFavoritesStorageReadyProvider =
+    Provider<bool Function()>(
+      (ref) =>
+          () => OnlineGalleryLocalFavoritesRepository.isStorageOpen,
+    );
+
 final onlineGalleryLocalFavoritesRepositoryProvider =
     Provider<OnlineGalleryLocalFavoritesRepository>((ref) {
-      return OnlineGalleryLocalFavoritesRepository(
-        box: Hive.box<dynamic>(StorageKeys.localFavoritesBox),
+      return OnlineGalleryLocalFavoritesRepository.fromOpenedBox(
         legacyStorage: ref.watch(localStorageServiceProvider),
       );
     });

@@ -428,7 +428,9 @@ class _OnlineGalleryContentPresenter {
           onlineGalleryPromptTagSettingsProvider,
         );
         final outputFilter = cardRef.watch(onlineGalleryOutputFilterProvider);
-        const projectionService = GalleryPromptProjectionService();
+        final projectionService = cardRef.watch(
+          galleryPromptProjectionServiceProvider,
+        );
         final projection = projectionService.project(
           item: post,
           detail: detail,

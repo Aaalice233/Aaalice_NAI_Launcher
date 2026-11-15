@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
 import '../utils/app_logger.dart';
@@ -169,3 +170,7 @@ class AuthErrorService {
     return AuthErrorMessage(errorText, recoveryHint);
   }
 }
+
+final authErrorServiceProvider = Provider<AuthErrorService>(
+  (ref) => AuthErrorService(),
+);

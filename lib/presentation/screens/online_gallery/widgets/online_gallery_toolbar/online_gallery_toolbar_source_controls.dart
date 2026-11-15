@@ -28,7 +28,9 @@ class OnlineGalleryToolbarSourceControls {
   OnlineGalleryToolbarSourceControls(this.bindings);
 
   final OnlineGalleryToolbarBindings bindings;
-  final DateFormattingService _dateFormattingService = DateFormattingService();
+
+  DateFormattingService get _dateFormattingService =>
+      ref.watch(dateFormattingServiceProvider);
 
   BuildContext get context => bindings.context;
   WidgetRef get ref => bindings.ref;

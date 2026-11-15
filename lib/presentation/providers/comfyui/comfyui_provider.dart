@@ -2,12 +2,11 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:hive_ce/hive_ce.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/comfyui/comfyui.dart';
 import '../../../core/comfyui/object_info_parser.dart';
-import '../../../core/constants/storage_keys.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -19,20 +18,15 @@ part 'comfyui_provider.g.dart';
 class ComfyUISettings extends _$ComfyUISettings {
   @override
   ComfyUISettingsState build() {
-    final box = Hive.box(StorageKeys.settingsBox);
-    final storedServerUrl =
-        box.get(
-              StorageKeys.comfyuiServerUrl,
-              defaultValue: 'http://127.0.0.1:8188',
-            )
-            as String;
+    final storage = ref.read(localStorageServiceProvider);
+    final storedServerUrl = storage.getComfyUIServerUrl();
     final serverUrl = normalizeComfyUIBaseUrl(storedServerUrl);
     if (serverUrl != storedServerUrl) {
-      box.put(StorageKeys.comfyuiServerUrl, serverUrl);
+      unawaited(storage.setComfyUIServerUrl(serverUrl));
     }
     return ComfyUISettingsState(
       serverUrl: serverUrl,
-      enabled: box.get(StorageKeys.comfyuiEnabled, defaultValue: false) as bool,
+      enabled: storage.getComfyUIEnabled(),
     );
   }
 
@@ -50,9 +44,9 @@ class ComfyUISettings extends _$ComfyUISettings {
   }
 
   void _persist() {
-    final box = Hive.box(StorageKeys.settingsBox);
-    box.put(StorageKeys.comfyuiServerUrl, state.serverUrl);
-    box.put(StorageKeys.comfyuiEnabled, state.enabled);
+    final storage = ref.read(localStorageServiceProvider);
+    unawaited(storage.setComfyUIServerUrl(state.serverUrl));
+    unawaited(storage.setComfyUIEnabled(state.enabled));
   }
 }
 

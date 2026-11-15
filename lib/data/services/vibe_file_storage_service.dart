@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/vibe/vibe_library_entry.dart';
 import '../models/vibe/vibe_reference.dart';
 import 'vibe_file_repository.dart';
@@ -134,3 +136,7 @@ class VibeFileStorageService {
     onDeleteEntry: onDeleteEntry,
   );
 }
+
+final vibeFileStorageServiceProvider = Provider<VibeFileStorageService>(
+  (ref) => VibeFileStorageService(),
+);

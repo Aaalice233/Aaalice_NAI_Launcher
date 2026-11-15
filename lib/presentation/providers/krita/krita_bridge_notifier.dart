@@ -3,10 +3,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce/hive_ce.dart';
 
-import '../../../core/constants/storage_keys.dart';
 import '../../../core/krita/krita_bridge_server.dart';
+import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/services/auth_provider.dart';
@@ -112,13 +111,11 @@ class KritaBridgeNotifier extends Notifier<KritaBridgeState> {
   @override
   KritaBridgeState build() {
     if (_useHivePersistence) {
-      final box = Hive.box(StorageKeys.settingsBox);
+      final storage = ref.read(localStorageServiceProvider);
       _persistEnabled =
-          _injectedPersistEnabled ??
-          ((enabled) => box.put(StorageKeys.kritaBridgeEnabled, enabled));
+          _injectedPersistEnabled ?? storage.setKritaBridgeEnabled;
       _serviceFactory = _injectedServiceFactory ?? _defaultServiceFactory;
-      final enabled =
-          box.get(StorageKeys.kritaBridgeEnabled, defaultValue: false) as bool;
+      final enabled = storage.getKritaBridgeEnabled();
       if (enabled) {
         Future<void>.microtask(() {
           if (ref.mounted) {

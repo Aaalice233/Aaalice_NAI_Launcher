@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce/hive_ce.dart';
 
-import '../../core/constants/storage_keys.dart';
 import '../../core/utils/app_logger.dart';
 import '../../data/models/online_gallery/gallery_source.dart';
 import '../../data/services/danbooru_auth_service.dart';
@@ -75,7 +73,7 @@ class OnlineGalleryLifecycleService {
       _authScopes.gelbooruScope(_ref.read(gelbooruAuthProvider));
 
   void attach() {
-    if (Hive.isBoxOpen(StorageKeys.localFavoritesBox)) {
+    if (_ref.read(onlineGalleryLocalFavoritesStorageReadyProvider)()) {
       Future.microtask(() async {
         if (_disposed) return;
         await _ref

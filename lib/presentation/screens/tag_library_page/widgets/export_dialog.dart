@@ -309,7 +309,7 @@ class _ExportDialogState extends ConsumerState<ExportDialog> {
         .where((c) => _selection.isCategorySelected(c.id))
         .toList();
 
-    final service = TagLibraryIOService();
+    final service = ref.read(tagLibraryIOServiceProvider);
     final fileName = service.generateExportFileName();
 
     setState(() {

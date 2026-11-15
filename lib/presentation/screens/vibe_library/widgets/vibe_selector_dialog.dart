@@ -444,7 +444,7 @@ class _VibeSelectorDialogState extends ConsumerState<VibeSelectorDialog> {
     var bundleSelections = 0;
     var fullEntrySelections = 0;
     var selectedEntryCount = 0;
-    final fileService = VibeFileStorageService();
+    final fileService = ref.read(vibeFileStorageServiceProvider);
 
     try {
       for (final id in _selectedIds) {

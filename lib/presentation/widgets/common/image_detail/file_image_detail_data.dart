@@ -19,6 +19,7 @@ class FileImageDetailData extends ImageDetailData {
   final Uint8List? _cachedBytes;
   final String? _id;
   final NaiImageMetadata? _initialMetadata;
+  final ImageMetadataService _metadataService;
   final Future<NaiImageMetadata?> Function(String path) _readCachedMetadata;
   NaiImageMetadata? _prefetchedMetadata;
   Future<void>? _pendingPrefetch;
@@ -35,12 +36,15 @@ class FileImageDetailData extends ImageDetailData {
     NaiImageMetadata? initialMetadata,
     bool showCopyButton = true,
     bool showSaveAsButton = true,
+    ImageMetadataService? metadataService,
     Future<NaiImageMetadata?> Function(String path)? readCachedMetadata,
   }) : _cachedBytes = cachedBytes,
        _id = id ?? filePath,
        _initialMetadata = initialMetadata,
+       _metadataService = metadataService ?? ImageMetadataService.instance,
        _readCachedMetadata =
-           readCachedMetadata ?? ImageMetadataService().getCachedAsync,
+           readCachedMetadata ??
+           (metadataService ?? ImageMetadataService.instance).getCachedAsync,
        _showCopyButton = showCopyButton,
        _showSaveAsButton = showSaveAsButton;
 
@@ -111,7 +115,7 @@ class FileImageDetailData extends ImageDetailData {
       _initialMetadata ?? _prefetchedMetadata;
 
   NaiImageMetadata? get _knownMetadata =>
-      _resolvedMetadata ?? ImageMetadataService().getCached(filePath);
+      _resolvedMetadata ?? _metadataService.getCached(filePath);
 
   /// 同步获取元数据（初始传入、预取结果、L1 缓存依次兜底）
   @override
@@ -160,7 +164,7 @@ class FileImageDetailData extends ImageDetailData {
       '[MetadataFlow] Not resolved yet, calling getMetadataImmediate...',
       'FileImageDetailData',
     );
-    final result = await ImageMetadataService().getMetadataImmediate(filePath);
+    final result = await _metadataService.getMetadataImmediate(filePath);
     AppLogger.i(
       '[MetadataFlow] getMetadataImmediate returned: hasData=${result?.hasData}',
       'FileImageDetailData',

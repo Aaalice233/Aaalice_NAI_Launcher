@@ -3,10 +3,10 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/storage/random_preset_storage.dart';
 import '../../data/models/prompt/algorithm_config.dart';
 import '../../data/models/prompt/default_categories.dart';
 import '../../data/models/prompt/official_wordlist.dart';
@@ -70,15 +70,13 @@ class RandomPresetState {
 /// 随机预设管理器
 @Riverpod(keepAlive: true)
 class RandomPresetNotifier extends _$RandomPresetNotifier {
-  static const String _boxName = 'random_presets';
-  static const String _selectedIdKey = 'selected_preset_id';
-
-  late Box<String> _box;
+  late RandomPresetStorage _storage;
   Completer<void>? _initCompleter;
   bool _initStarted = false;
 
   @override
   RandomPresetState build() {
+    _storage = ref.read(randomPresetStorageProvider);
     _initCompleter ??= Completer<void>();
     if (!_initStarted) {
       _initStarted = true;
@@ -97,7 +95,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       return;
     }
     try {
-      _box = await Hive.openBox<String>(_boxName);
+      await _storage.open();
       if (!ref.mounted) return;
       await _loadPresets();
     } catch (e) {
@@ -125,22 +123,18 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     final presets = <RandomPreset>[];
 
     // 加载存储的预设
-    for (final key in _box.keys) {
-      if (key == _selectedIdKey) continue;
+    for (final json in _storage.readPresetJsonValues()) {
       try {
-        final json = _box.get(key);
-        if (json != null) {
-          final data = jsonDecode(json) as Map<String, dynamic>;
-          final preset = RandomPreset.fromJson(data);
-          presets.add(preset);
-        }
+        final data = jsonDecode(json) as Map<String, dynamic>;
+        final preset = RandomPreset.fromJson(data);
+        presets.add(preset);
       } catch (e) {
         // 忽略无效的预设数据
       }
     }
 
     // 默认项是官网 recipe 的只读入口，不再保留旧版词库模式或用户修改。
-    final storedSelectedId = _box.get(_selectedIdKey);
+    final storedSelectedId = _storage.getSelectedPresetId();
     final storedDefaults = presets.where((preset) => preset.isDefault).toList();
     final previousDefault = storedDefaults.firstOrNull;
     final defaultPreset = RandomPreset.defaultPreset().copyWith(
@@ -196,7 +190,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
         ? normalizedStoredSelectedId!
         : presets.first.id;
     if (storedSelectedId != selectedId) {
-      await _box.put(_selectedIdKey, selectedId);
+      await _storage.setSelectedPresetId(selectedId);
     }
 
     if (!ref.mounted) return;
@@ -209,19 +203,19 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
 
   /// 保存预设到存储
   Future<void> _savePreset(RandomPreset preset) async {
-    await _box.put(preset.id, jsonEncode(preset.toJson()));
+    await _storage.savePresetJson(preset.id, jsonEncode(preset.toJson()));
   }
 
   /// 删除预设从存储
   Future<void> _deletePreset(String id) async {
-    await _box.delete(id);
+    await _storage.deletePreset(id);
   }
 
   /// 选择预设
   Future<void> selectPreset(String id) async {
     await _ensureInitialized();
     state = state.copyWith(selectedPresetId: id);
-    await _box.put(_selectedIdKey, id);
+    await _storage.setSelectedPresetId(id);
   }
 
   /// 创建新预设
@@ -248,7 +242,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     state = state.copyWith(presets: newPresets, selectedPresetId: newPreset.id);
 
     await _savePreset(newPreset);
-    await _box.put(_selectedIdKey, newPreset.id);
+    await _storage.setSelectedPresetId(newPreset.id);
 
     return newPreset;
   }
@@ -287,7 +281,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     final newPresets = [...state.presets, preset];
     state = state.copyWith(presets: newPresets, selectedPresetId: preset.id);
     await _savePreset(preset);
-    await _box.put(_selectedIdKey, preset.id);
+    await _storage.setSelectedPresetId(preset.id);
   }
 
   /// 删除预设
@@ -311,7 +305,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
 
     await _deletePreset(id);
     if (newSelectedId != null) {
-      await _box.put(_selectedIdKey, newSelectedId);
+      await _storage.setSelectedPresetId(newSelectedId);
     }
   }
 
