@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import '../../../core/utils/image_share_sanitizer.dart';
 import '../../../core/utils/keyboard_modifier_utils.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
+import '../quantized_alpha/quantized_alpha_pulse.dart';
+import '../quantized_alpha/quantized_alpha_schedule.dart';
 import 'image_card_models.dart';
 
 class ImageCardController extends ChangeNotifier {
@@ -25,12 +27,19 @@ class ImageCardController extends ChangeNotifier {
     );
     _lastStreamPreview = _capturedStreamPreview(data);
     showPreparedIndexBadge = data.dragPreparationReady;
-    if (data.isGenerating) _initGlowAnimation(vsync);
+    if (data.isGenerating) _initGlowAlpha(vsync);
     _shareTransferCache = _createShareTransferCache();
   }
 
   static const dragPreparationProgressValue = 0.96;
   static const dragPreparationOverlayFadeDuration = Duration(milliseconds: 140);
+
+  static final _glowSchedule = QuantizedAlphaSchedule(
+    begin: 0.04,
+    end: 0.1,
+    halfPeriod: const Duration(milliseconds: 2000),
+    initialProgress: 1 / 3,
+  );
 
   ImageCardViewData _data;
   ImageCardCapabilities _capabilities;
@@ -52,8 +61,7 @@ class ImageCardController extends ChangeNotifier {
 
   final AnimationController glossController;
   late final Animation<double> glossAnimation;
-  AnimationController? glowController;
-  Animation<double>? glowAnimation;
+  QuantizedAlphaPulse? glowAlpha;
 
   ImageCardViewData get data => _data;
   ImageCardCapabilities get capabilities => _capabilities;
@@ -76,11 +84,10 @@ class ImageCardController extends ChangeNotifier {
     _capabilities = capabilities;
 
     if (data.isGenerating && !oldData.isGenerating) {
-      _initGlowAnimation(vsync);
+      _initGlowAlpha(vsync);
     } else if (!data.isGenerating && oldData.isGenerating) {
-      glowController?.dispose();
-      glowController = null;
-      glowAnimation = null;
+      glowAlpha?.dispose();
+      glowAlpha = null;
     }
 
     if (data.streamPreview?.isNotEmpty == true) {
@@ -135,29 +142,22 @@ class ImageCardController extends ChangeNotifier {
       glossController.stop();
       glossController.value = 0;
     }
-    final controller = glowController;
-    if (controller == null) return;
+    final glow = glowAlpha;
+    if (glow == null) return;
     if (reducedMotion) {
-      controller.stop();
-      controller.value = 1 / 3;
-    } else if (!controller.isAnimating) {
-      controller.repeat(reverse: true);
+      glow.reset();
+    } else {
+      glow.repeat();
     }
   }
 
-  void _initGlowAnimation(TickerProvider vsync) {
-    glowController?.dispose();
-    glowController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      value: 1 / 3,
+  void _initGlowAlpha(TickerProvider vsync) {
+    glowAlpha?.dispose();
+    final glow = glowAlpha = QuantizedAlphaPulse(
       vsync: vsync,
+      schedule: _glowSchedule,
     );
-    if (_motionPreferenceInitialized && !_reducedMotion) {
-      glowController!.repeat(reverse: true);
-    }
-    glowAnimation = Tween<double>(begin: 0.04, end: 0.1).animate(
-      CurvedAnimation(parent: glowController!, curve: Curves.easeInOut),
-    );
+    if (_motionPreferenceInitialized && !_reducedMotion) glow.repeat();
   }
 
   void hoverEnter({required VoidCallback warmShareCache}) {
@@ -289,7 +289,7 @@ class ImageCardController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     glossController.dispose();
-    glowController?.dispose();
+    glowAlpha?.dispose();
     _legacyTapResetTimer?.cancel();
     _doubleTapResetTimer?.cancel();
     final cache = _shareTransferCache;

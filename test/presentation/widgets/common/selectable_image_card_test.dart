@@ -20,6 +20,7 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/history_pan
 import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/draggable_memory_image.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_actions.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_card_generating.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_stream_preview.dart';
 import 'package:nai_launcher/presentation/widgets/common/pro_context_menu.dart';
@@ -122,31 +123,7 @@ void main() {
   testWidgets('stream preview progress stays legible over image content', (
     tester,
   ) async {
-    final preview = Uint8List.fromList(
-      img.encodePng(img.Image(width: 32, height: 32)),
-    );
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          theme: ThemeData.dark(),
-          home: Scaffold(
-            body: SizedBox.square(
-              dimension: 160,
-              child: SelectableImageCard(
-                isGenerating: true,
-                progress: 0.42,
-                currentImage: 1,
-                totalImages: 1,
-                streamPreview: preview,
-                imageWidth: 32,
-                imageHeight: 32,
-                enableSelection: false,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_buildStreamingCardApp());
     await tester.pump();
 
     final indicator = tester.widget<CircularProgressIndicator>(
@@ -163,6 +140,60 @@ void main() {
     expect(count.style?.color, Colors.white);
     expect(percent.style?.color, Colors.white);
     expect(percent.style?.shadows, isNotEmpty);
+  });
+
+  testWidgets('generating card glow draws frames only at alpha steps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildCardApp(isGenerating: true, progress: 0.42));
+    expect(_generatingGlowAlpha(tester), 14 / 255);
+    await tester.pump();
+    expect(tester.binding.hasScheduledFrame, isFalse);
+
+    var drewFrame = false;
+    void markFrame(Duration _) {
+      drewFrame = true;
+    }
+
+    tester.binding.addPostFrameCallback(markFrame);
+    var frames = 0;
+    var steps = 0;
+    var alpha = _generatingGlowAlpha(tester);
+    for (var ms = 0; ms < 4000; ms++) {
+      await tester.pump(const Duration(milliseconds: 1));
+      if (!drewFrame) continue;
+      drewFrame = false;
+      tester.binding.addPostFrameCallback(markFrame);
+      frames++;
+
+      final next = _generatingGlowAlpha(tester);
+      if (next == alpha) continue;
+      expect((next - alpha).abs() * 255, closeTo(1, 1e-9));
+      alpha = next;
+      steps++;
+    }
+    expect(steps, 30);
+    expect(frames, steps);
+  });
+
+  testWidgets('reduced motion holds the generating glow still', (tester) async {
+    await tester.pumpWidget(_buildStreamingCardApp(disableAnimations: true));
+    await tester.pump();
+    final pulse = tester
+        .widget<ImageCardGenerating>(find.byType(ImageCardGenerating))
+        .controller
+        .glowAlpha!;
+    final initialAlpha = Tween<double>(
+      begin: 0.04,
+      end: 0.1,
+    ).transform(Curves.easeInOut.transform(1 / 3));
+    expect(_generatingGlowAlpha(tester), initialAlpha);
+    expect(pulse.hasPendingWake, isFalse);
+
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(_generatingGlowAlpha(tester), initialAlpha);
+    expect(pulse.hasPendingWake, isFalse);
+    expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
   testWidgets('completed image cards use the shared hover scale', (
@@ -909,6 +940,52 @@ void main() {
 
 void _noop() {}
 
+Widget _buildStreamingCardApp({bool disableAnimations = false}) {
+  final preview = Uint8List.fromList(
+    img.encodePng(img.Image(width: 32, height: 32)),
+  );
+  return ProviderScope(
+    child: MaterialApp(
+      theme: ThemeData.dark(),
+      home: MediaQuery(
+        data: MediaQueryData(disableAnimations: disableAnimations),
+        child: Scaffold(
+          body: SizedBox.square(
+            dimension: 160,
+            child: SelectableImageCard(
+              isGenerating: true,
+              progress: 0.42,
+              currentImage: 1,
+              totalImages: 1,
+              streamPreview: preview,
+              imageWidth: 32,
+              imageHeight: 32,
+              enableSelection: false,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+double _generatingGlowAlpha(WidgetTester tester) {
+  final glow = tester.widget<Container>(
+    find
+        .descendant(
+          of: find.byType(ImageCardGenerating),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                widget.decoration is BoxDecoration &&
+                (widget.decoration! as BoxDecoration).boxShadow != null,
+          ),
+        )
+        .first,
+  );
+  return (glow.decoration! as BoxDecoration).boxShadow!.single.color.a;
+}
+
 Widget _buildStreamPreviewApp(Uint8List previewBytes) {
   return MaterialApp(
     home: Scaffold(
@@ -1059,6 +1136,7 @@ Widget _buildCardApp({
   bool isFavorite = false,
   bool isGenerating = false,
   bool disableAnimations = false,
+  double? progress,
   VoidCallback? onSave = _noop,
   VoidCallback? onSaveAs = _noop,
   bool enableCopyAction = true,
@@ -1080,6 +1158,7 @@ Widget _buildCardApp({
   final card = SelectableImageCard(
     imageBytes: bytes,
     isGenerating: isGenerating,
+    progress: progress,
     currentImage: isGenerating ? 1 : null,
     totalImages: isGenerating ? 2 : null,
     imageWidth: 32,
