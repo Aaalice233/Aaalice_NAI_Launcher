@@ -114,143 +114,182 @@ class _ShellPanelsOverlayState extends ConsumerState<ShellPanelsOverlay> {
     }
   }
 
+  void _onVisibilityAnimationEnd() {
+    if (widget.activePanel == null) {
+      setState(() => _isOffstage = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isVisible = widget.activePanel != null;
+    return LayoutBuilder(
+      builder: (context, constraints) => Stack(
+        children: [
+          if (isVisible && !widget.desktop)
+            Positioned.fill(
+              child: GestureDetector(
+                key: const ValueKey('shell-panel-scrim'),
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onClose,
+                child: ColoredBox(
+                  color: theme.colorScheme.scrim.withValues(alpha: 0.36),
+                ),
+              ),
+            ),
+          _ShellPanelVisibility(
+            isVisible: isVisible,
+            isOffstage: _isOffstage,
+            onEnd: _onVisibilityAnimationEnd,
+            child: _ShellPanelBody(
+              constraints: constraints,
+              desktop: widget.desktop,
+              showingAgent: _displayedPanel == ShellPanel.agent,
+              isVisible: isVisible,
+              hasOpenedQueue: _hasOpenedQueue,
+              hasOpenedAgent: _hasOpenedAgent,
+              focusScopeNode: _panelFocusScopeNode,
+              onClose: widget.onClose,
+              onQueueStarted: widget.onQueueStarted,
+              onOpenAgentSettings: widget.onOpenAgentSettings,
+              onPopOutAgent: widget.onPopOutAgent,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShellPanelVisibility extends StatelessWidget {
+  const _ShellPanelVisibility({
+    required this.isVisible,
+    required this.isOffstage,
+    required this.onEnd,
+    required this.child,
+  });
+
+  final bool isVisible;
+  final bool isOffstage;
+  final VoidCallback onEnd;
+  final Widget child;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final isVisible = widget.activePanel != null;
-    final showingAgent = _displayedPanel == ShellPanel.agent;
-    final duration = reduceMotion ? Duration.zero : theme.appTheme.fastDuration;
-    final motionCurve = theme.appTheme.standardCurve;
+    final panel = Offstage(
+      offstage: isOffstage,
+      child: TickerMode(enabled: !isOffstage, child: child),
+    );
+    return AnimatedOpacity(
+      key: const ValueKey('shell-panel-visibility-transition'),
+      opacity: isVisible ? 1 : 0,
+      duration: reduceMotion ? Duration.zero : theme.appTheme.fastDuration,
+      curve: theme.appTheme.standardCurve,
+      // 零时长会同步触发 onEnd，减少动态效果时直接进入 Offstage。
+      onEnd: reduceMotion ? null : onEnd,
+      child: ExcludeSemantics(
+        excluding: !isVisible,
+        child: IgnorePointer(ignoring: !isVisible, child: panel),
+      ),
+    );
+  }
+}
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Stack(
-          children: [
-            if (isVisible && !widget.desktop)
-              Positioned.fill(
-                child: GestureDetector(
-                  key: const ValueKey('shell-panel-scrim'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.onClose,
-                  child: ColoredBox(
-                    color: theme.colorScheme.scrim.withValues(alpha: 0.36),
-                  ),
-                ),
-              ),
-            AnimatedOpacity(
-              key: const ValueKey('shell-panel-visibility-transition'),
-              opacity: isVisible ? 1 : 0,
-              duration: duration,
-              curve: motionCurve,
-              // 零时长会同步触发 onEnd，减少动态效果时直接进入 Offstage。
-              onEnd: reduceMotion
-                  ? null
-                  : () {
-                      if (widget.activePanel == null) {
-                        setState(() => _isOffstage = true);
-                      }
-                    },
-              child: ExcludeSemantics(
-                excluding: !isVisible,
-                child: IgnorePointer(
-                  ignoring: !isVisible,
-                  child: Offstage(
-                    offstage: _isOffstage,
-                    child: TickerMode(
-                      enabled: !_isOffstage,
-                      child: Align(
-                        alignment: widget.desktop
-                            ? Alignment.centerRight
-                            : Alignment.bottomCenter,
-                        child: SizedBox(
-                          key: const ValueKey('shell-panel-surface'),
-                          width: widget.desktop
-                              ? showingAgent
-                                    ? WorkspaceSidePanelContract.overlayWidth(
-                                        constraints.maxWidth,
-                                      )
-                                    : 460.0
-                                          .clamp(0, constraints.maxWidth)
-                                          .toDouble()
-                              : constraints.maxWidth,
-                          height: widget.desktop
-                              ? constraints.maxHeight
-                              : constraints.maxHeight *
-                                    (showingAgent ? 0.94 : 0.85),
-                          child: Material(
-                            color: showingAgent
-                                ? theme.colorScheme.surfaceContainerHigh
-                                : theme.scaffoldBackgroundColor,
-                            elevation: 18,
-                            shadowColor: theme.shadowColor.withValues(
-                              alpha: 0.28,
-                            ),
-                            borderRadius: widget.desktop
-                                ? const BorderRadius.horizontal(
-                                    left: Radius.circular(18),
-                                  )
-                                : const BorderRadius.vertical(
-                                    top: Radius.circular(22),
-                                  ),
-                            clipBehavior: Clip.antiAlias,
-                            child: SafeArea(
-                              top: false,
-                              child: FocusScope(
-                                node: _panelFocusScopeNode,
-                                canRequestFocus: isVisible,
-                                descendantsAreFocusable: isVisible,
-                                child: FocusTraversalGroup(
-                                  child: TickerModeIndexedStack(
-                                    index: showingAgent ? 1 : 0,
-                                    children: [
-                                      KeyedSubtree(
-                                        key: const ValueKey(
-                                          'queue-shell-panel',
-                                        ),
-                                        child: _hasOpenedQueue
-                                            ? QueueManagementPage(
-                                                onClose: widget.onClose,
-                                                onQueueStarted:
-                                                    widget.onQueueStarted,
-                                              )
-                                            : const SizedBox.shrink(),
-                                      ),
-                                      KeyedSubtree(
-                                        key: const ValueKey(
-                                          'agent-shell-panel',
-                                        ),
-                                        child: _hasOpenedAgent
-                                            ? AgentChatPanel(
-                                                key: const ValueKey(
-                                                  'agent-drawer-chat-panel',
-                                                ),
-                                                fullScreen: !widget.desktop,
-                                                onClose: widget.onClose,
-                                                onOpenSettings:
-                                                    widget.onOpenAgentSettings,
-                                                onPopOut: widget.desktop
-                                                    ? widget.onPopOutAgent
-                                                    : null,
-                                              )
-                                            : const SizedBox.shrink(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+class _ShellPanelBody extends StatelessWidget {
+  const _ShellPanelBody({
+    required this.constraints,
+    required this.desktop,
+    required this.showingAgent,
+    required this.isVisible,
+    required this.hasOpenedQueue,
+    required this.hasOpenedAgent,
+    required this.focusScopeNode,
+    required this.onClose,
+    required this.onQueueStarted,
+    required this.onOpenAgentSettings,
+    required this.onPopOutAgent,
+  });
+
+  final BoxConstraints constraints;
+  final bool desktop;
+  final bool showingAgent;
+  final bool isVisible;
+  final bool hasOpenedQueue;
+  final bool hasOpenedAgent;
+  final FocusScopeNode focusScopeNode;
+  final VoidCallback onClose;
+  final VoidCallback onQueueStarted;
+  final VoidCallback onOpenAgentSettings;
+  final VoidCallback? onPopOutAgent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final content = FocusScope(
+      node: focusScopeNode,
+      canRequestFocus: isVisible,
+      descendantsAreFocusable: isVisible,
+      child: FocusTraversalGroup(child: _buildPanels()),
+    );
+    return Align(
+      alignment: desktop ? Alignment.centerRight : Alignment.bottomCenter,
+      child: SizedBox(
+        key: const ValueKey('shell-panel-surface'),
+        width: desktop
+            ? showingAgent
+                  ? WorkspaceSidePanelContract.overlayWidth(
+                      constraints.maxWidth,
+                    )
+                  : 460.0.clamp(0, constraints.maxWidth).toDouble()
+            : constraints.maxWidth,
+        height: desktop
+            ? constraints.maxHeight
+            : constraints.maxHeight * (showingAgent ? 0.94 : 0.85),
+        child: Material(
+          color: showingAgent
+              ? theme.colorScheme.surfaceContainerHigh
+              : theme.scaffoldBackgroundColor,
+          elevation: 18,
+          shadowColor: theme.shadowColor.withValues(alpha: 0.28),
+          borderRadius: desktop
+              ? const BorderRadius.horizontal(left: Radius.circular(18))
+              : const BorderRadius.vertical(top: Radius.circular(22)),
+          clipBehavior: Clip.antiAlias,
+          child: SafeArea(top: false, child: content),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPanels() {
+    return TickerModeIndexedStack(
+      index: showingAgent ? 1 : 0,
+      children: [
+        KeyedSubtree(
+          key: const ValueKey('queue-shell-panel'),
+          child: hasOpenedQueue
+              ? QueueManagementPage(
+                  onClose: onClose,
+                  onQueueStarted: onQueueStarted,
+                )
+              : const SizedBox.shrink(),
+        ),
+        KeyedSubtree(
+          key: const ValueKey('agent-shell-panel'),
+          child: hasOpenedAgent
+              ? AgentChatPanel(
+                  key: const ValueKey('agent-drawer-chat-panel'),
+                  fullScreen: !desktop,
+                  onClose: onClose,
+                  onOpenSettings: onOpenAgentSettings,
+                  onPopOut: desktop ? onPopOutAgent : null,
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }
