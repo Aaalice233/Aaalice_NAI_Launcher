@@ -45,7 +45,7 @@ final class ReferencePanelNotifierProvider
 }
 
 String _$referencePanelNotifierHash() =>
-    r'1e830a93d5c43821a85930f83c6ae4cab353677f';
+    r'745b25314f9ffcfd1a8ecf7e11eef317c7990a69';
 
 /// 引用面板 UI 状态
 
