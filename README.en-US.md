@@ -182,7 +182,7 @@ Open [GitHub Releases](https://github.com/Aaalice233/Aaalice_NAI_Launcher/releas
 | Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | Installer recommended for most users. |
 | Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | Portable package; extract and run. |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | Extract and open `Aaalice NAI Launcher.app`. |
-| Android | `NAI_Launcher_Android_<version>.apk` | Sideload the APK. The first install may require permission to install unknown apps. |
+| Android | `NAI_Launcher_Android_<version>_arm64-v8a.apk`<br>`NAI_Launcher_Android_<version>_armeabi-v7a.apk`<br>`NAI_Launcher_Android_<version>_x86_64.apk` | Sideload the APK matching your device architecture (`arm64-v8a` for most phones and tablets, `armeabi-v7a` for older 32-bit devices, `x86_64` for desktop emulators). The first install may require permission to install unknown apps. |
 
 Every release includes `checksums.txt`. If an archive cannot be extracted or installed, verify the downloaded file first.
 

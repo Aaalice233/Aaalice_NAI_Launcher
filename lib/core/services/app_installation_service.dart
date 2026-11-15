@@ -1,9 +1,12 @@
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:win32_registry/win32_registry.dart';
 
 part 'app_installation_service.g.dart';
+
+typedef AndroidSupportedAbisLoader = Future<List<String>> Function();
 
 enum AppInstallationType {
   windowsInstaller,
@@ -17,6 +20,13 @@ enum AppInstallationType {
 class AppInstallationService {
   static const uninstallRegistryPath =
       r'Software\Microsoft\Windows\CurrentVersion\Uninstall\Aaalice NAI Launcher';
+
+  final AndroidSupportedAbisLoader? _androidSupportedAbisLoader;
+  List<String>? _cachedAndroidAbis;
+
+  AppInstallationService({
+    AndroidSupportedAbisLoader? androidSupportedAbisLoader,
+  }) : _androidSupportedAbisLoader = androidSupportedAbisLoader;
 
   AppInstallationType getInstallationType() {
     if (Platform.isWindows) {
@@ -50,6 +60,43 @@ class AppInstallationService {
     return type == AppInstallationType.windowsInstaller ||
         type == AppInstallationType.windowsPortable ||
         type == AppInstallationType.androidApk;
+  }
+
+  /// 获取当前 Android 设备支持的 ABI 列表（按系统偏好顺序）。
+  /// 非 Android 平台或读取失败时返回空列表。
+  Future<List<String>> getAndroidSupportedAbis() async {
+    final cached = _cachedAndroidAbis;
+    if (cached != null) return cached;
+
+    final loader = _androidSupportedAbisLoader;
+    if (loader != null) {
+      final loaded = _normalizeAbis(await loader());
+      _cachedAndroidAbis = loaded;
+      return loaded;
+    }
+
+    if (getInstallationType() != AppInstallationType.androidApk ||
+        !Platform.isAndroid) {
+      return const [];
+    }
+
+    try {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final abis = _normalizeAbis(androidInfo.supportedAbis);
+      _cachedAndroidAbis = abis;
+      return abis;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static List<String> _normalizeAbis(Iterable<String?> rawAbis) {
+    return List<String>.unmodifiable(
+      rawAbis
+          .whereType<String>()
+          .map((abi) => abi.trim().toLowerCase())
+          .where((abi) => abi.isNotEmpty),
+    );
   }
 
   bool _isInstalledWindowsApp() {

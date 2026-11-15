@@ -182,7 +182,7 @@ NAI Launcher 面向經常使用 NovelAI 的圖像創作者。生成、改圖、P
 | Windows | `NAI_Launcher_Windows_<version>_Setup.exe` | 推薦給大多數使用者的安裝版。 |
 | Windows | `NAI_Launcher_Windows_<version>_Portable.zip` | 解壓縮後直接執行的可攜版。 |
 | macOS | `NAI_Launcher_macOS_<version>_Portable.zip` | 解壓縮後開啟 `Aaalice NAI Launcher.app`。 |
-| Android | `NAI_Launcher_Android_<version>.apk` | 側載 APK；首次安裝可能需要允許目前的應用程式安裝未知來源軟體。 |
+| Android | `NAI_Launcher_Android_<version>_arm64-v8a.apk`<br>`NAI_Launcher_Android_<version>_armeabi-v7a.apk`<br>`NAI_Launcher_Android_<version>_x86_64.apk` | 依裝置架構側載 APK（大多數手機與平板選 `arm64-v8a`，32 位元舊裝置選 `armeabi-v7a`，桌面模擬器選 `x86_64`）；首次安裝可能需要允許目前的應用程式安裝未知來源軟體。 |
 
 每個 Release 都會提供 `checksums.txt`。如果下載後無法解壓縮或安裝，可以先核對檔案校驗值。
 
