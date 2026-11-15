@@ -117,16 +117,19 @@ class KritaBridgeNotifier extends Notifier<KritaBridgeState> {
           _injectedPersistEnabled ??
           ((enabled) => box.put(StorageKeys.kritaBridgeEnabled, enabled));
       _serviceFactory = _injectedServiceFactory ?? _defaultServiceFactory;
-      state = const KritaBridgeState();
       final enabled =
           box.get(StorageKeys.kritaBridgeEnabled, defaultValue: false) as bool;
       if (enabled) {
-        unawaited(enable(persist: false));
+        Future<void>.microtask(() {
+          if (ref.mounted) {
+            unawaited(enable(persist: false));
+          }
+        });
       }
       ref.onDispose(() {
         unawaited(close());
       });
-      return state;
+      return const KritaBridgeState();
     }
 
     _persistEnabled = _injectedPersistEnabled;

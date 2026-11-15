@@ -82,7 +82,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
     _initCompleter ??= Completer<void>();
     if (!_initStarted) {
       _initStarted = true;
-      _init();
+      Future<void>.microtask(_init);
     }
     return const RandomPresetState(isLoading: true);
   }
@@ -90,11 +90,20 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
   Future<void> get whenLoaded => _initCompleter?.future ?? Future.value();
 
   Future<void> _init() async {
+    if (!ref.mounted) {
+      if (_initCompleter != null && !_initCompleter!.isCompleted) {
+        _initCompleter!.complete();
+      }
+      return;
+    }
     try {
       _box = await Hive.openBox<String>(_boxName);
+      if (!ref.mounted) return;
       await _loadPresets();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: '加载预设失败: $e');
+      if (ref.mounted) {
+        state = state.copyWith(isLoading: false, error: '加载预设失败: $e');
+      }
     } finally {
       if (_initCompleter != null && !_initCompleter!.isCompleted) {
         _initCompleter!.complete();
@@ -190,6 +199,7 @@ class RandomPresetNotifier extends _$RandomPresetNotifier {
       await _box.put(_selectedIdKey, selectedId);
     }
 
+    if (!ref.mounted) return;
     state = state.copyWith(
       presets: presets,
       selectedPresetId: selectedId,

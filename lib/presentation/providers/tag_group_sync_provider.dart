@@ -64,13 +64,15 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
 
   @override
   TagGroupSyncState build() {
-    _init();
+    Future<void>.microtask(_init);
     return const TagGroupSyncState();
   }
 
   Future<void> _init() async {
+    if (!ref.mounted) return;
     try {
       await _cacheService.init();
+      if (!ref.mounted) return;
 
       // 初始化时计算过滤数量
       final presetState = ref.read(randomPresetNotifierProvider);
@@ -85,6 +87,7 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
 
   /// 从缓存计算过滤后的标签数量
   Future<void> _updateFilteredCounts(List<TagGroupMapping> mappings) async {
+    if (!ref.mounted) return;
     final enabledMappings = mappings.where((m) => m.enabled).toList();
     if (enabledMappings.isEmpty) {
       state = state.copyWith(filteredTagCounts: {});
@@ -99,6 +102,7 @@ class TagGroupSyncNotifier extends _$TagGroupSyncNotifier {
       0, // 不应用额外的热度过滤
       includeChildren: true,
     );
+    if (!ref.mounted) return;
 
     state = state.copyWith(filteredTagCounts: counts);
 

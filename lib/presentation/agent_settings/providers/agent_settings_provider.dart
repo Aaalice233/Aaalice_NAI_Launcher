@@ -96,12 +96,12 @@ class AgentSettingsNotifier extends Notifier<AgentSettingsState> {
       ),
       (_, _) => unawaited(handleImageProjectChanged()),
     );
-    state = const AgentSettingsState();
-    _initialization = _load();
-    return state;
+    _initialization = Future<void>.microtask(_load);
+    return const AgentSettingsState();
   }
 
   Future<void> _load() async {
+    if (!ref.mounted) return;
     state = state.copyWith(initialized: false, error: '');
     try {
       final raw = _local.getSetting<String>(StorageKeys.agentSettingsJson);

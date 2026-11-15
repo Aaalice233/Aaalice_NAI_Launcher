@@ -53,7 +53,7 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
   @override
   AccountManagerState build() {
-    _initialLoad = _loadAccounts();
+    _initialLoad = Future<void>.microtask(_loadAccounts);
     return const AccountManagerState(isLoading: true);
   }
 
@@ -65,8 +65,10 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
 
   /// 加载账号列表
   Future<void> _loadAccounts() async {
+    if (!ref.mounted) return;
     try {
       _box = await Hive.openBox(_boxName);
+      if (!ref.mounted) return;
       final accountsJson = _box?.get(_accountsKey) as String?;
 
       List<SavedAccount> accounts = [];
@@ -95,6 +97,7 @@ class AccountManagerNotifier extends _$AccountManagerNotifier {
         isLoading: false,
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = AccountManagerState(isLoading: false, error: e.toString());
     }
   }

@@ -64,7 +64,9 @@ class OnlineGalleryLocalFavoritesNotifier
     final repository = ref.watch(onlineGalleryLocalFavoritesRepositoryProvider);
     _repository = repository;
     final generation = ++_buildGeneration;
-    unawaited(_initializeFromBuild(repository, generation));
+    Future<void>.microtask(
+      () => _initializeFromBuild(repository, generation),
+    );
     return const OnlineGalleryLocalFavoritesState(isLoading: true);
   }
 
@@ -72,6 +74,7 @@ class OnlineGalleryLocalFavoritesNotifier
     OnlineGalleryLocalFavoritesRepository repository,
     int generation,
   ) async {
+    if (!ref.mounted || generation != _buildGeneration) return;
     try {
       await repository.ensureInitialized();
       if (!ref.mounted || generation != _buildGeneration) return;

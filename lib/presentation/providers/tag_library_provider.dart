@@ -70,7 +70,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
 
   @override
   TagLibraryState build() {
-    unawaited(_loadInitial());
+    Future<void>.microtask(_loadInitial);
     return const TagLibraryState(isLoading: true);
   }
 
@@ -82,6 +82,12 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
 
   /// 初始加载
   Future<void> _loadInitial() async {
+    if (!ref.mounted) {
+      if (!_initialLoadCompleter.isCompleted) {
+        _initialLoadCompleter.complete();
+      }
+      return;
+    }
     final revision = ++_loadRevision;
     try {
       await _libraryService.init();
@@ -91,7 +97,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
       final config = await _libraryService.loadSyncConfig();
       final filterConfig = await _libraryService.loadCategoryFilterConfig();
 
-      if (revision != _loadRevision) return;
+      if (!ref.mounted || revision != _loadRevision) return;
       state = state.copyWith(
         library: library,
         syncConfig: config,
@@ -100,7 +106,7 @@ class TagLibraryNotifier extends _$TagLibraryNotifier {
         clearError: true,
       );
     } catch (e) {
-      if (revision != _loadRevision) return;
+      if (!ref.mounted || revision != _loadRevision) return;
       state = TagLibraryState(
         syncConfig: state.syncConfig,
         categoryFilterConfig: state.categoryFilterConfig,

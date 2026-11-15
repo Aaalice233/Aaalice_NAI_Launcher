@@ -37,12 +37,14 @@ class ZhDictionaryNotifier extends Notifier<ZhDictionaryService> {
       service.dispose();
     });
     if (_injectedService == null) {
-      unawaited(() async {
+      Future<void>.microtask(() async {
+        if (!ref.mounted) return;
         await service.initialize();
+        if (!ref.mounted) return;
         if (service.state.isInstalled) {
           await service.checkForUpdate();
         }
-      }());
+      });
     }
     return service;
   }

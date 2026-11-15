@@ -77,9 +77,11 @@ class OnlineGalleryLifecycleService {
   void attach() {
     if (Hive.isBoxOpen(StorageKeys.localFavoritesBox)) {
       Future.microtask(() async {
+        if (_disposed) return;
         await _ref
             .read(onlineGalleryLocalFavoritesProvider.notifier)
             .initialize();
+        if (_disposed) return;
         _handleLocalFavoritesChanged(reloadFavorites: false);
       });
       _ref.listen<(bool, int)>(

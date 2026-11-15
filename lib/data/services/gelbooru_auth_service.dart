@@ -59,15 +59,17 @@ class GelbooruAuth extends _$GelbooruAuth {
 
   @override
   GelbooruAuthState build() {
-    _initialization = _loadSavedCredentials();
+    _initialization = Future<void>.microtask(_loadSavedCredentials);
     return const GelbooruAuthState();
   }
 
   Future<void> ensureInitialized() => _initialization;
 
   Future<void> _loadSavedCredentials() async {
+    if (!ref.mounted) return;
     final storage = ref.read(secureStorageServiceProvider);
     final encoded = await storage.getGelbooruCredentials();
+    if (!ref.mounted) return;
     if (encoded == null || encoded.isEmpty) {
       state = const GelbooruAuthState(status: GelbooruAuthStatus.unconfigured);
       return;
@@ -87,6 +89,7 @@ class GelbooruAuth extends _$GelbooruAuth {
       } catch (_) {
         // The unreadable value is ignored even if the platform store is locked.
       }
+      if (!ref.mounted) return;
       state = const GelbooruAuthState(
         status: GelbooruAuthStatus.unconfigured,
         error: GelbooruAuthError.storage,

@@ -134,12 +134,14 @@ class ComfyUIWorkflows extends _$ComfyUIWorkflows {
 
   @override
   List<WorkflowTemplate> build() {
-    _initAsync();
+    Future<void>.microtask(_initAsync);
     return _manager.templates;
   }
 
   Future<void> _initAsync() async {
+    if (!ref.mounted) return;
     await _manager.loadAllTemplates();
+    if (!ref.mounted) return;
     state = _manager.templates;
   }
 
@@ -600,6 +602,7 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
   }
 
   Future<void> _fetchFromServer() async {
+    if (!ref.mounted) return;
     final connNotifier = ref.read(comfyUIConnectionProvider.notifier);
     var conn = connNotifier.manager;
 
@@ -611,6 +614,7 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
           _tag,
         );
         final ok = await connNotifier.connect();
+        if (!ref.mounted) return;
         if (!ok) {
           AppLogger.w('Cannot fetch models: ComfyUI not connected', _tag);
           return;
@@ -682,6 +686,7 @@ class ComfyUISeedvr2Models extends _$ComfyUISeedvr2Models {
         ...legacyModels,
         ...normalUpscaleModels,
       ]);
+      if (!ref.mounted) return;
       state = models;
       _hasFetchedFromServer = true;
       AppLogger.i(

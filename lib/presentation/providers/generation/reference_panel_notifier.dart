@@ -27,16 +27,18 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   @override
   ReferencePanelState build() {
     // 初始化时加载状态
-    _loadRecentCollapsedState();
-    _loadRecentEntries();
+    Future<void>.microtask(_loadRecentCollapsedState);
+    Future<void>.microtask(_loadRecentEntries);
 
     return const ReferencePanelState();
   }
 
   /// 加载最近使用区域的折叠状态
   Future<void> _loadRecentCollapsedState() async {
+    if (!ref.mounted) return;
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!ref.mounted) return;
       final collapsed = prefs.getBool(StorageKeys.vibeRecentCollapsed);
       state = state.copyWith(isRecentCollapsed: collapsed ?? true);
     } catch (e) {
@@ -88,6 +90,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
   }
 
   Future<void> _loadRecentEntries() async {
+    if (!ref.mounted) return;
     final span = VibePerformanceDiagnostics.start(
       'referencePanel.loadRecentEntries',
     );
@@ -95,6 +98,7 @@ class ReferencePanelNotifier extends _$ReferencePanelNotifier {
     var uniqueCount = 0;
     try {
       final entries = await _storageService.getRecentDisplayEntries(limit: 20);
+      if (!ref.mounted) return;
       entryCount = entries.length;
       final uniqueEntries = entries.deduplicateByEncodingAndThumbnail(limit: 5);
       uniqueCount = uniqueEntries.length;

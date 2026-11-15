@@ -20,7 +20,7 @@ class PromptAssistantConfigNotifier
   @override
   PromptAssistantConfigState build() {
     final initial = _loadInitial();
-    unawaited(_loadApiKeys(initial));
+    Future<void>.microtask(() => _loadApiKeys(initial));
     return initial;
   }
 
@@ -39,6 +39,7 @@ class PromptAssistantConfigNotifier
   }
 
   Future<void> _loadApiKeys(PromptAssistantConfigState initial) async {
+    if (!ref.mounted) return;
     final keyMap = <String, bool>{};
     for (final provider in initial.providers) {
       final key = await _secure.getPromptAssistantApiKey(provider.id);

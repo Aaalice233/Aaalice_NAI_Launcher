@@ -47,12 +47,14 @@ class AuthModeNotifier extends _$AuthModeNotifier {
 
   @override
   AuthModeState build() {
-    _loadAutoLoginState();
+    Future<void>.microtask(_loadAutoLoginState);
     return const AuthModeState();
   }
 
   Future<void> _loadAutoLoginState() async {
+    if (!ref.mounted) return;
     final prefs = await SharedPreferences.getInstance();
+    if (!ref.mounted) return;
     final autoLogin = prefs.getBool(_kAutoLoginKey) ?? true;
     state = state.copyWith(autoLogin: autoLogin);
   }

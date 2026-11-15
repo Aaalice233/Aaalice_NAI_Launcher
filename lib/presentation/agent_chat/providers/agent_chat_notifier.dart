@@ -168,17 +168,19 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       _permissionController?.dispose();
       _sessionControllerValue?.agent?.clearAllQueues();
     });
-    state = const AgentChatState();
     if (_initializeImmediately) {
-      unawaited(ensureInitialized());
+      _initializing ??= Future<void>.microtask(
+        () => _init(presetSkills: _presetSkills),
+      );
     }
-    return state;
+    return const AgentChatState();
   }
 
   Future<void> ensureInitialized() =>
       _initializing ??= _init(presetSkills: _presetSkills);
 
   Future<void> _init({List<HarnessSkill>? presetSkills}) async {
+    if (!ref.mounted) return;
     final providedSupportDir = _providedSupportDir;
     if (providedSupportDir != null) {
       _supportDir = providedSupportDir;
