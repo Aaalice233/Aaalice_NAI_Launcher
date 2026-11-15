@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../themes/theme_extension.dart';
@@ -23,13 +24,12 @@ class ImageCardGenerating extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasPreview = data.streamPreview?.isNotEmpty == true;
-    final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    // 光晕与进度环逐帧重绘，分层隔离后不必每帧重录卡片内容与外围界面。
+    final ValueListenable<double> glowAlpha =
+        controller.glowAlpha ?? const AlwaysStoppedAnimation(0.06);
+    // 光晕按透明度台阶重绘、进度环逐帧重绘，分层隔离后不必重录卡片内容与外围界面。
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: reducedMotion
-            ? const AlwaysStoppedAnimation(0.06)
-            : controller.glowAnimation ?? const AlwaysStoppedAnimation(0.06),
+        animation: glowAlpha,
         builder: (context, child) => Container(
           decoration: BoxDecoration(
             color: hasPreview ? null : theme.colorScheme.surface,
@@ -37,7 +37,7 @@ class ImageCardGenerating extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: theme.colorScheme.primary.withValues(
-                  alpha: controller.glowAnimation?.value ?? 0.06,
+                  alpha: glowAlpha.value,
                 ),
                 blurRadius: 18,
               ),
