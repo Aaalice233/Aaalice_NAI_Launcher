@@ -14,6 +14,7 @@ import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../data/services/gallery/local_gallery_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
+import '../../providers/generation/image_generation_selectors.dart';
 import '../../providers/image_generation_provider.dart';
 import '../../providers/local_gallery_provider.dart';
 import '../../providers/precise_ref_library_provider.dart';
@@ -534,6 +535,7 @@ class _AgentChatResourcePickerBodyState
       ),
       const SizedBox(height: 4),
     ];
+    final items = _buildItems();
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
@@ -543,7 +545,7 @@ class _AgentChatResourcePickerBodyState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ...controls,
-              Expanded(child: _buildItems()),
+              Expanded(child: items),
             ],
           );
         }
@@ -562,7 +564,7 @@ class _AgentChatResourcePickerBodyState
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     ...controls,
-                    SizedBox(height: itemsHeight, child: _buildItems()),
+                    SizedBox(height: itemsHeight, child: items),
                   ],
                 ),
               ),
@@ -578,7 +580,11 @@ class _AgentChatResourcePickerBodyState
       if (_tab == 0) {
         final generatedImageLabel = context.l10n.agentChat_generatedImage;
         final images = ref
-            .watch(imageGenerationNotifierProvider)
+            .watch(
+              imageGenerationNotifierProvider.select(
+                selectGenerationPanelImages,
+              ),
+            )
             .mergedPanelImages
             .where(
               (image) =>

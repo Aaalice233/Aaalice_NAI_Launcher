@@ -1,4 +1,48 @@
+import 'package:flutter/foundation.dart';
+
+import '../../../../../data/models/image/image_stream_chunk.dart';
 import '../../../../providers/image_generation_provider.dart';
+
+class HistoryPanelStructure {
+  HistoryPanelStructure.fromState(ImageGenerationState state)
+    : _fields = (
+        history: state.history,
+        currentImages: state.currentImages,
+        completionPreviews: state.completionPreviews,
+        isGenerating: state.isGenerating,
+        batchWidth: state.batchWidth,
+        batchHeight: state.batchHeight,
+      ),
+      _visiblePreviewImageNumbers = [
+        for (final slot in visibleHistoryStreamPreviewSlots(state))
+          slot.imageNumber,
+      ];
+
+  final ({
+    List<GeneratedImage> history,
+    List<GeneratedImage> currentImages,
+    Map<String, StreamPreviewFrame> completionPreviews,
+    bool isGenerating,
+    int? batchWidth,
+    int? batchHeight,
+  })
+  _fields;
+  final List<int> _visiblePreviewImageNumbers;
+
+  // copyWith 保留集合引用；槽位每帧新建，只按可见编号比较结构。
+  @override
+  bool operator ==(Object other) =>
+      other is HistoryPanelStructure &&
+      _fields == other._fields &&
+      listEquals(
+        _visiblePreviewImageNumbers,
+        other._visiblePreviewImageNumbers,
+      );
+
+  @override
+  int get hashCode =>
+      Object.hash(_fields, Object.hashAll(_visiblePreviewImageNumbers));
+}
 
 double resolveHistoryPreviewAspectRatio(
   double aspectRatio, {

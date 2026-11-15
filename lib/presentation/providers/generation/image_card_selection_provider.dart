@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../selection/card_selection.dart';
 import '../../widgets/common/image_card_action.dart';
 import '../image_generation_provider.dart';
+import 'image_generation_selectors.dart';
 
 final generationImageCardSelectionProvider =
     NotifierProvider<GenerationImageCardSelection, SelectionModeState>(
@@ -17,12 +18,15 @@ class GenerationImageCardSelection extends Notifier<SelectionModeState>
   @override
   SelectionModeState build() {
     ref.onDispose(actionRunner.dispose);
-    ref.listen(imageGenerationNotifierProvider, (_, next) {
-      final available = next.selectableMergedImages
-          .map((image) => image.id)
-          .toSet();
-      removeDeleted(state.selectedIds.difference(available));
-    });
+    ref.listen(
+      imageGenerationNotifierProvider.select(selectGenerationPanelImages),
+      (_, next) {
+        final available = next.selectableMergedImages
+            .map((image) => image.id)
+            .toSet();
+        removeDeleted(state.selectedIds.difference(available));
+      },
+    );
     return const SelectionModeState();
   }
 }
