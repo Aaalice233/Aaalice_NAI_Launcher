@@ -30,6 +30,7 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_request_resolution.dart';
+import 'package:nai_launcher/presentation/providers/generation/stream_preview_decode.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
@@ -38,6 +39,7 @@ import 'package:nai_launcher/presentation/providers/notification_settings_provid
 import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
 import 'package:path/path.dart' as p;
 
+import '../../helpers/controlled_preview_images.dart';
 import '../../helpers/corrupt_png.dart';
 
 class MockNAIImageGenerationApiService extends Mock
@@ -59,6 +61,9 @@ ProviderContainer _createAuthenticatedContainer({
   return ProviderContainer(
     overrides: [
       authNotifierProvider.overrideWith(_AuthenticatedAuthNotifier.new),
+      streamPreviewImageResolverProvider.overrideWithValue(
+        resolvedPreviewImage,
+      ),
       ...overrides,
     ],
   );

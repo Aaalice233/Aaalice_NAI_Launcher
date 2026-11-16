@@ -8,11 +8,15 @@ import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_se
 import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/generation/batch_generation_notifier.dart';
+import 'package:nai_launcher/presentation/providers/generation/stream_preview_decode.dart';
+
+import '../../../helpers/controlled_preview_images.dart';
 
 class MockNAIImageGenerationApiService extends Mock
     implements NAIImageGenerationApiService {}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() {
     registerFallbackValue(const ImageParams());
   });
@@ -25,6 +29,9 @@ void main() {
       mockApiService = MockNAIImageGenerationApiService();
       container = ProviderContainer(
         overrides: [
+          streamPreviewImageResolverProvider.overrideWithValue(
+            resolvedPreviewImage,
+          ),
           naiImageGenerationApiServiceProvider.overrideWithValue(
             mockApiService,
           ),

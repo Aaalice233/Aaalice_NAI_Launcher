@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -5,9 +6,11 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../data/datasources/remote/nai_image_generation_api_service.dart';
 import '../../../data/models/image/image_params.dart';
+import '../../../data/models/image/image_stream_chunk.dart';
 import 'generation_models.dart';
 import 'generation_settings_notifiers.dart';
 import 'image_generation_service.dart';
+import 'stream_preview_decode.dart';
 import '../dlss_provider.dart';
 
 part 'stream_generation_notifier.g.dart';
@@ -124,25 +127,40 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
       status: StreamGenerationStatus.connecting,
       startTime: DateTime.now(),
     );
+    Uint8List? pendingPreview;
+    int? currentStep;
+    int? totalSteps;
     final result = await service.generateSingle(
       params,
       onProgress: (_, _, progress, {previewImage}) {
         if (!identical(_service, service) || service.isCancelled) return;
-        state = state.copyWith(
-          status: StreamGenerationStatus.streaming,
-          progress: progress,
-          previewImage: previewImage,
+        pendingPreview = previewImage;
+        unawaited(
+          _publishProgress(
+            previewImage,
+            () =>
+                identical(_service, service) &&
+                !service.isCancelled &&
+                identical(pendingPreview, previewImage),
+            () {
+              state = state.copyWith(
+                status: StreamGenerationStatus.streaming,
+                progress: progress,
+                previewImage: previewImage,
+                currentStep: currentStep,
+                totalSteps: totalSteps,
+              );
+            },
+          ),
         );
       },
-      onStepProgress: (currentStep, totalSteps) {
-        if (!identical(_service, service) || service.isCancelled) return;
-        state = state.copyWith(
-          currentStep: currentStep,
-          totalSteps: totalSteps,
-        );
+      onStepProgress: (current, total) {
+        currentStep = current;
+        totalSteps = total;
       },
       onCompleting: () {
         if (!identical(_service, service) || service.isCancelled) return;
+        pendingPreview = null;
         state = state.copyWith(
           status: StreamGenerationStatus.completing,
           progress: 1,
@@ -151,6 +169,10 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
     );
     if (!identical(_service, service)) return;
     _service = null;
+    _complete(result);
+  }
+
+  void _complete(ImageGenerationResult result) {
     if (result.isCancelled) {
       state = state.copyWith(
         status: StreamGenerationStatus.cancelled,
@@ -172,6 +194,27 @@ class StreamGenerationNotifier extends _$StreamGenerationNotifier {
         endTime: DateTime.now(),
       );
     }
+  }
+
+  Future<void> _publishProgress(
+    Uint8List? preview,
+    bool Function() isCurrent,
+    void Function() publish,
+  ) async {
+    StreamPreviewDecode? decoded;
+    if (preview != null) {
+      decoded = StreamPreviewDecode(
+        StreamPreviewFrame(bytes: preview),
+        ref.read(streamPreviewImageResolverProvider),
+      );
+      await decoded.ready;
+    }
+    if (!isCurrent()) {
+      decoded?.dispose();
+      return;
+    }
+    publish();
+    decoded?.releaseAfterFrame();
   }
 
   void cancel() {
