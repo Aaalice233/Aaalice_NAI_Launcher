@@ -45,6 +45,7 @@ import 'generation/generation_settings_notifiers.dart';
 import 'generation/image_generation_coordinator.dart';
 import 'generation/image_workflow_controller.dart';
 import 'generation/pending_failed_snapshots.dart';
+import 'generation/stream_preview_decode.dart';
 import 'generation/stream_preview_snapshot.dart';
 import 'generation/stream_snapshot_composition.dart';
 import 'image_save_settings_provider.dart';
@@ -89,6 +90,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   final Set<String> _deletedImageIds = <String>{};
   final StreamPreviewSnapshotStore _streamPreviews =
       StreamPreviewSnapshotStore();
+  GenerationPreviewReceived? _latestPreview;
   final Set<String> _failedSnapshotKeys = {};
   final PendingFailedSnapshots _pendingFailedSnapshots =
       PendingFailedSnapshots();
@@ -103,6 +105,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       _isDisposed = true;
       _lifecycleEpoch++;
       _activeComparisonSource = null;
+      _latestPreview = null;
       _streamPreviews.clear();
       _pendingFailedSnapshots.discardAll();
       final invocationSettled = _generationInvocationSettled;
@@ -611,6 +614,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         :final requestSize,
         :final totalImages,
       ):
+        _latestPreview = null;
         state = state.copyWith(
           currentImage: startImage,
           totalImages: totalImages,
@@ -635,8 +639,6 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       case GenerationPreviewReceived(
         :final params,
         :final imageNumber,
-        :final totalImages,
-        :final progress,
         :final bytes,
         :final focusedPreviewPlacement,
       ):
@@ -647,24 +649,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           params,
           focusedPreviewPlacement,
         );
-        final slot = StreamPreviewSlot(
-          imageNumber: imageNumber,
-          totalImages: totalImages,
-          progress: progress,
-          previewBytes: bytes,
-          focusedPreviewPlacement: focusedPreviewPlacement,
-        );
-        state = state.copyWith(
-          currentImage: imageNumber,
-          progress: ((imageNumber - 1) + progress) / totalImages,
-          streamPreview: bytes,
-          focusedPreviewPlacement: focusedPreviewPlacement,
-          clearFocusedPreviewPlacement: focusedPreviewPlacement == null,
-          streamPreviewSlots: _replacePreviewSlot(
-            state.streamPreviewSlots,
-            slot,
-          ),
-        );
+        _latestPreview = event;
+        unawaited(_publishPreview(event, epoch));
       case GenerationImageFinalizing(:final imageNumber, :final totalImages):
         state = state.copyWith(
           currentImage: imageNumber,
@@ -696,6 +682,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         :final vibeEncodings,
         :final postprocessErrors,
       ):
+        _latestPreview = null;
         final generated = images.indexed
             .map(
               (entry) => GeneratedImage.create(
@@ -750,6 +737,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           );
         }
       case GenerationCompleted(:final params):
+        _latestPreview = null;
         final images = List<GeneratedImage>.from(state.currentImages);
         _activeComparisonSource = null;
         _streamPreviews.clear();
@@ -770,6 +758,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           }
         }
       case GenerationCancelled():
+        _latestPreview = null;
         _appendFailedSnapshots(event.runId);
         _streamPreviews.clear();
         _activeComparisonSource = null;
@@ -781,6 +770,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           clearStreamPreview: true,
         );
       case GenerationFailed(:final error):
+        _latestPreview = null;
         _appendFailedSnapshots(event.runId);
         _streamPreviews.clear();
         _activeComparisonSource = null;
@@ -793,6 +783,56 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
           clearStreamPreview: true,
         );
     }
+  }
+
+  Future<void> _publishPreview(
+    GenerationPreviewReceived event,
+    int epoch,
+  ) async {
+    final decoded = StreamPreviewDecode(
+      StreamPreviewFrame(
+        bytes: event.bytes,
+        placement: event.focusedPreviewPlacement,
+      ),
+      ref.read(streamPreviewImageResolverProvider),
+    );
+    await decoded.ready;
+    if (!_isCurrentLifecycle(epoch) || event.runId != _activeRunId) {
+      decoded.dispose();
+      return;
+    }
+    final remembered = _streamPreviews.preview(event.runId, event.imageNumber);
+    final acceptingPreview = state.streamPreviewSlots.any(
+      (slot) => slot.imageNumber == event.imageNumber && slot.progress < 1,
+    );
+    if (!identical(remembered?.bytes, event.bytes) || !acceptingPreview) {
+      decoded.dispose();
+      return;
+    }
+    final latest = identical(_latestPreview, event);
+    state = state.copyWith(
+      currentImage: latest ? event.imageNumber : state.currentImage,
+      progress: latest
+          ? ((event.imageNumber - 1) + event.progress) / event.totalImages
+          : state.progress,
+      streamPreview: latest ? event.bytes : state.streamPreview,
+      focusedPreviewPlacement: latest
+          ? event.focusedPreviewPlacement
+          : state.focusedPreviewPlacement,
+      clearFocusedPreviewPlacement:
+          latest && event.focusedPreviewPlacement == null,
+      streamPreviewSlots: _replacePreviewSlot(
+        state.streamPreviewSlots,
+        StreamPreviewSlot(
+          imageNumber: event.imageNumber,
+          totalImages: event.totalImages,
+          progress: event.progress,
+          previewBytes: event.bytes,
+          focusedPreviewPlacement: event.focusedPreviewPlacement,
+        ),
+      ),
+    );
+    decoded.releaseAfterFrame();
   }
 
   // 预览帧字节由解码与协调层逐帧新建，不会被复用，直接持有即可。
@@ -1028,6 +1068,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
     final runId = _activeRunId;
     _activeInvocationId = 0;
+    _latestPreview = null;
     _activeComparisonSource = null;
     final coordinator = _coordinator;
     final handle = _activeRun;

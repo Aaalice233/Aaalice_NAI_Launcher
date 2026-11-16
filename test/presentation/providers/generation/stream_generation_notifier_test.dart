@@ -9,10 +9,14 @@ import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/providers/generation/stream_generation_notifier.dart';
+import 'package:nai_launcher/presentation/providers/generation/stream_preview_decode.dart';
+
+import '../../../helpers/controlled_preview_images.dart';
 
 class _MockApiService extends Mock implements NAIImageGenerationApiService {}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() {
     registerFallbackValue(const ImageParams());
   });
@@ -64,6 +68,9 @@ void main() {
       when(() => apiService.cancelGeneration(any())).thenReturn(null);
       container = ProviderContainer(
         overrides: [
+          streamPreviewImageResolverProvider.overrideWithValue(
+            resolvedPreviewImage,
+          ),
           naiImageGenerationApiServiceProvider.overrideWithValue(apiService),
         ],
       );
