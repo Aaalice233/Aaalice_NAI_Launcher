@@ -8,6 +8,14 @@ class ControlledPreviewImages {
   final _completers = <Uint8List, _Completer>{};
   final _images = <ui.Image>[];
 
+  // 缓存自身会为未完成解码保留一个监听，这里只统计缓存之外的持有者。
+  int get listeners => _completers.entries.fold(0, (count, entry) {
+    final pending = PaintingBinding.instance.imageCache
+        .statusForKey(MemoryImage(entry.key))
+        .pending;
+    return count + entry.value.listeners - (pending ? 1 : 0);
+  });
+
   ImageStream resolve(Uint8List bytes) {
     requests.add(bytes);
     final completer = PaintingBinding.instance.imageCache.putIfAbsent(
@@ -44,6 +52,20 @@ class ControlledPreviewImages {
 }
 
 class _Completer extends ImageStreamCompleter {
+  var listeners = 0;
+
+  @override
+  void addListener(ImageStreamListener listener) {
+    listeners++;
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(ImageStreamListener listener) {
+    listeners--;
+    super.removeListener(listener);
+  }
+
   void publish(ui.Image image) => setImage(ImageInfo(image: image));
 }
 

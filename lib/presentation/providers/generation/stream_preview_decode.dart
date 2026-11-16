@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/painting.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/models/image/image_stream_chunk.dart';
@@ -36,11 +35,7 @@ class StreamPreviewDecode {
     for (final image in _images) {
       image.dispose();
     }
-  }
-
-  void releaseAfterFrame() {
-    // 活跃监听器不受 LRU 容量淘汰影响，等消费者在本帧挂上监听后再交出所有权。
-    SchedulerBinding.instance.addPostFrameCallback((_) => dispose());
+    _images.clear();
   }
 }
 
@@ -65,5 +60,8 @@ class _DecodedImage {
 
   Future<void> get ready => _ready.future;
 
-  void dispose() => _stream.removeListener(_listener);
+  void dispose() {
+    _stream.removeListener(_listener);
+    if (!_ready.isCompleted) _ready.complete();
+  }
 }

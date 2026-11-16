@@ -11,6 +11,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../data/models/image/image_stream_chunk.dart';
 import '../generation/stream_preview_decode.dart';
+import '../generation/stream_preview_publication.dart';
 
 part 'comfyui_provider.g.dart';
 
@@ -165,6 +166,7 @@ class ComfyUIWorkflows extends _$ComfyUIWorkflows {
 @riverpod
 class ComfyUITask extends _$ComfyUITask {
   static const String _tag = 'ComfyUI-Task';
+  late StreamPreviewPublication _previewPublication;
 
   int _cancellationGeneration = 0;
 
@@ -179,7 +181,14 @@ class ComfyUITask extends _$ComfyUITask {
   }
 
   @override
-  ComfyUITaskState build() => const ComfyUITaskState();
+  ComfyUITaskState build() {
+    _previewPublication = StreamPreviewPublication(
+      resolve: ref.read(streamPreviewImageResolverProvider),
+      lifecycle: ref.read(streamPreviewLifecycleReaderProvider),
+    );
+    ref.onDispose(_previewPublication.clear);
+    return const ComfyUITaskState();
+  }
 
   /// 执行工作流
   ///
@@ -210,6 +219,7 @@ class ComfyUITask extends _$ComfyUITask {
     required Map<String, dynamic> paramValues,
   }) async {
     final cancellationGeneration = _cancellationGeneration;
+    _previewPublication.clear();
     final connNotifier = ref.read(comfyUIConnectionProvider.notifier);
     final connStatus = ref.read(comfyUIConnectionProvider);
     final workflows = ref.read(comfyUIWorkflowsProvider.notifier);
@@ -395,20 +405,11 @@ class ComfyUITask extends _$ComfyUITask {
   ) async {
     final images = <Uint8List>[];
     final completer = Completer<List<Uint8List>>();
-    Uint8List? pendingPreview;
 
     final imageSub = conn.ws!.imageStream.listen((ComfyUIImageFrame frame) {
       if (frame.isPreview) {
-        pendingPreview = frame.data;
-        unawaited(
-          _publishPreview(
-            frame.data,
-            promptId,
-            () => identical(pendingPreview, frame.data),
-          ),
-        );
+        _publishPreview(frame.data, promptId);
       } else {
-        pendingPreview = null;
         images.add(frame.data);
         AppLogger.d(
           'Received final WS image: ${frame.data.length} bytes',
@@ -427,7 +428,7 @@ class ComfyUITask extends _$ComfyUITask {
       );
 
       if (progress.status == ComfyUITaskStatus.completed) {
-        pendingPreview = null;
+        _previewPublication.closeSlot(promptId);
         if (!completer.isCompleted) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (!completer.isCompleted) {
@@ -436,7 +437,7 @@ class ComfyUITask extends _$ComfyUITask {
           });
         }
       } else if (progress.status == ComfyUITaskStatus.failed) {
-        pendingPreview = null;
+        _previewPublication.closeSlot(promptId);
         if (!completer.isCompleted) {
           completer.completeError(
             _ComfyUITaskLocalizedException(
@@ -472,7 +473,7 @@ class ComfyUITask extends _$ComfyUITask {
       );
       return result;
     } finally {
-      pendingPreview = null;
+      _previewPublication.closeSlot(promptId);
       await imageSub.cancel();
       await progressSub.cancel();
     }
@@ -484,20 +485,10 @@ class ComfyUITask extends _$ComfyUITask {
     Set<String> outputNodeIds,
   ) async {
     final completer = Completer<void>();
-    Uint8List? pendingPreview;
 
     final imageSub = conn.ws!.imageStream.listen((ComfyUIImageFrame frame) {
       if (frame.isPreview) {
-        pendingPreview = frame.data;
-        unawaited(
-          _publishPreview(
-            frame.data,
-            promptId,
-            () => identical(pendingPreview, frame.data),
-          ),
-        );
-      } else {
-        pendingPreview = null;
+        _publishPreview(frame.data, promptId);
       }
     });
 
@@ -511,10 +502,10 @@ class ComfyUITask extends _$ComfyUITask {
       );
 
       if (progress.status == ComfyUITaskStatus.completed) {
-        pendingPreview = null;
+        _previewPublication.closeSlot(promptId);
         if (!completer.isCompleted) completer.complete();
       } else if (progress.status == ComfyUITaskStatus.failed) {
-        pendingPreview = null;
+        _previewPublication.closeSlot(promptId);
         if (!completer.isCompleted) {
           completer.completeError(
             _ComfyUITaskLocalizedException(
@@ -552,35 +543,27 @@ class ComfyUITask extends _$ComfyUITask {
       );
       return images;
     } finally {
-      pendingPreview = null;
+      _previewPublication.closeSlot(promptId);
       await imageSub.cancel();
       await progressSub.cancel();
     }
   }
 
-  Future<void> _publishPreview(
-    Uint8List bytes,
-    String promptId,
-    bool Function() isCurrent,
-  ) async {
-    final decoded = StreamPreviewDecode(
-      StreamPreviewFrame(bytes: bytes),
-      ref.read(streamPreviewImageResolverProvider),
+  void _publishPreview(Uint8List bytes, String promptId) {
+    _previewPublication.add(
+      slot: promptId,
+      frame: StreamPreviewFrame(bytes: bytes),
+      isCurrent: () =>
+          ref.mounted &&
+          state.promptId == promptId &&
+          state.status == ComfyUITaskStatus.running,
+      publish: (_) => state = state.copyWith(previewImage: bytes),
     );
-    await decoded.ready;
-    if (!ref.mounted ||
-        state.promptId != promptId ||
-        state.status != ComfyUITaskStatus.running ||
-        !isCurrent()) {
-      decoded.dispose();
-      return;
-    }
-    state = state.copyWith(previewImage: bytes);
-    decoded.releaseAfterFrame();
   }
 
   void cancel() {
     _cancellationGeneration++;
+    _previewPublication.clear();
     final conn = ref.read(comfyUIConnectionProvider.notifier).manager;
     conn?.api?.interrupt();
     state = state.copyWith(status: ComfyUITaskStatus.cancelled);
