@@ -11,6 +11,7 @@ import 'generation_models.dart';
 import 'generation_settings_notifiers.dart';
 import 'image_generation_service.dart';
 import 'stream_preview_decode.dart';
+import 'stream_preview_publication.dart';
 import '../dlss_provider.dart';
 
 part 'batch_generation_notifier.g.dart';
@@ -192,10 +193,14 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
   final Set<ImageGenerationService> _activeServices = {};
   int _epoch = 0;
   int? _cancelledEpoch;
-  Uint8List? _latestPreview;
+  late StreamPreviewPublication _previewPublication;
 
   @override
   BatchGenerationState build() {
+    _previewPublication = StreamPreviewPublication(
+      resolve: ref.read(streamPreviewImageResolverProvider),
+      lifecycle: ref.read(streamPreviewLifecycleReaderProvider),
+    );
     ref.onDispose(_invalidateActiveTasks);
     return const BatchGenerationState();
   }
@@ -209,7 +214,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
 
   void _invalidateActiveTasks() {
     _epoch++;
-    _latestPreview = null;
+    _previewPublication.clear();
     for (final service in _activeServices.toList()) {
       service.cancel();
     }
@@ -293,7 +298,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
         clearStreamPreview: true,
         errorMessage: failed == count ? '所有生成任务失败' : null,
       );
-      _latestPreview = null;
+      _previewPublication.clear();
 
       AppLogger.d(
         'Batch generation completed: completed=$completed, failed=$failed',
@@ -413,57 +418,38 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     );
     final service = createService();
     _activeServices.add(service);
-    Uint8List? pendingPreview;
     try {
       return await service.generateSingle(
         singleParams,
         onProgress: (current, total, progress, {previewImage}) {
           if (!_isCurrent(epoch)) return;
-          pendingPreview = previewImage;
-          _latestPreview = previewImage;
-          unawaited(
-            _publishProgress(
-              index,
-              total,
-              progress,
-              previewImage,
-              () =>
-                  _isCurrent(epoch) &&
-                  _cancelledEpoch != epoch &&
-                  identical(pendingPreview, previewImage),
-            ),
+          _previewPublication.add(
+            slot: service,
+            frame: previewImage == null
+                ? null
+                : StreamPreviewFrame(bytes: previewImage),
+            isCurrent: () => _isCurrent(epoch) && _cancelledEpoch != epoch,
+            publish: (latest) =>
+                _publishProgress(index, total, progress, previewImage, latest),
           );
         },
-        onCompleting: () => pendingPreview = null,
+        onCompleting: () => _previewPublication.closeSlot(service),
       );
     } finally {
-      pendingPreview = null;
+      _previewPublication.closeSlot(service);
       _activeServices.remove(service);
     }
   }
 
-  Future<void> _publishProgress(
+  void _publishProgress(
     int index,
     int total,
     double progress,
     Uint8List? preview,
-    bool Function() isCurrent,
-  ) async {
-    StreamPreviewDecode? decoded;
-    if (preview != null) {
-      decoded = StreamPreviewDecode(
-        StreamPreviewFrame(bytes: preview),
-        ref.read(streamPreviewImageResolverProvider),
-      );
-      await decoded.ready;
-    }
-    if (!isCurrent()) {
-      decoded?.dispose();
-      return;
-    }
+    bool latest,
+  ) {
     final items = List<BatchGenerationItem>.of(state.items);
     items[index] = items[index].copyWith(progress: progress);
-    final latest = identical(_latestPreview, preview);
     state = state.copyWith(
       items: items,
       overallProgress: latest
@@ -471,7 +457,6 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
           : state.overallProgress,
       streamPreview: latest ? preview : state.streamPreview,
     );
-    decoded?.releaseAfterFrame();
   }
 
   /// 更新单个项目（使用原子更新模式避免竞态条件）
@@ -498,7 +483,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
     // Keep this epoch while completed network images finish cancellation of NR.
     // Starting another batch still invalidates the old epoch normally.
     _cancelledEpoch = _epoch;
-    _latestPreview = null;
+    _previewPublication.clear();
     for (final service in _activeServices) {
       service.cancel();
     }
@@ -518,7 +503,7 @@ class BatchGenerationNotifier extends _$BatchGenerationNotifier {
   void reset() {
     // reset 只清空本地状态，不应把仍由服务端处理的请求解释为用户取消。
     _epoch++;
-    _latestPreview = null;
+    _previewPublication.clear();
     state = const BatchGenerationState();
   }
 

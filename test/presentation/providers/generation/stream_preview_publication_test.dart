@@ -14,6 +14,7 @@ import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/generation/stream_preview_decode.dart';
+import 'package:nai_launcher/presentation/providers/generation/stream_preview_publication.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel/history_image_card.dart';
@@ -42,6 +43,7 @@ class _Harness {
         authNotifierProvider.overrideWith(AuthenticatedAuthNotifier.new),
         naiImageGenerationApiServiceProvider.overrideWithValue(api),
         streamPreviewImageResolverProvider.overrideWithValue(images.resolve),
+        streamPreviewLifecycleReaderProvider.overrideWithValue(() => lifecycle),
       ],
     );
   }
@@ -50,6 +52,7 @@ class _Harness {
   final images = ControlledPreviewImages();
   final streams = <StreamController<ImageStreamChunk>>[];
   late final ProviderContainer container;
+  AppLifecycleState? lifecycle = AppLifecycleState.resumed;
 
   ImageGenerationNotifier get notifier =>
       container.read(imageGenerationNotifierProvider.notifier);
@@ -144,6 +147,43 @@ void main() {
     await generation;
     await tester.pump(Duration.zero);
   });
+
+  testWidgets(
+    'slow decodes keep advancing progress and pixels on every completion',
+    (tester) async {
+      final harness = await createHarness(tester);
+      final stream = StreamController<ImageStreamChunk>();
+      final generation = harness.start(stream);
+      await tester.idle();
+      await tester.pumpWidget(_app(harness.container));
+      stream
+        ..add(_chunk(0.1))
+        ..add(_chunk(0.2))
+        ..add(_chunk(0.3));
+      await tester.idle();
+      expect(harness.images.requests, hasLength(2));
+      for (var index = 0; index < 4; index++) {
+        final image = harness.images.complete(index);
+        await tester.idle();
+        await tester.pump();
+        expect(find.text('${(index + 1) * 10}%'), findsOneWidget);
+        expect(_painter(tester).previewImage!.isCloneOf(image), isTrue);
+        expect(
+          harness.state.streamPreview,
+          same(harness.images.requests[index]),
+        );
+        expect(tester.binding.hasScheduledFrame, isFalse);
+        if (index == 0) {
+          stream.add(_chunk(0.4));
+          await tester.idle();
+        }
+      }
+      harness.notifier.cancel();
+      await stream.close();
+      await generation;
+      await tester.pump();
+    },
+  );
 
   testWidgets('focused patch waits for source and mask before its only frame', (
     tester,
@@ -287,6 +327,106 @@ void main() {
     },
   );
 
+  Future<_Harness> createProviderHarness() async {
+    final harness = _Harness();
+    addTearDown(harness.dispose);
+    await harness.container
+        .read(imageSaveSettingsNotifierProvider.notifier)
+        .setAutoSave(false);
+    return harness;
+  }
+
+  test(
+    'another slot finalizing prevents old decodes rolling back global progress',
+    () async {
+      final harness = await createProviderHarness();
+      harness.container.read(imagesPerRequestProvider.notifier).set(2);
+      final stream = StreamController<ImageStreamChunk>();
+      final generation = harness.start(stream);
+      stream
+        ..add(_chunk(0.25))
+        ..add(_chunk(0.75, sampleIndex: 1));
+      await pumpEventQueue();
+      stream.add(
+        ImageStreamChunk.complete(Uint8List.fromList([9]), sampleIndex: 1),
+      );
+      await pumpEventQueue();
+      expect(harness.state.progress, 1);
+      harness.images.complete(0);
+      await pumpEventQueue();
+      expect(harness.state.progress, 1);
+      expect(harness.state.currentImage, 2);
+      expect(
+        harness.state.streamPreviewSlots.first.previewBytes,
+        same(harness.images.requests.first),
+      );
+      harness.images.complete(1);
+      stream.add(ImageStreamChunk.complete(Uint8List.fromList([8])));
+      await stream.close();
+      await generation;
+    },
+  );
+
+  for (final ending in ['final', 'cancel']) {
+    test(
+      'thirty chunks without frames remain bounded and release on $ending',
+      () async {
+        final harness = await createProviderHarness();
+        final stream = StreamController<ImageStreamChunk>();
+        final generation = harness.start(stream);
+        for (var index = 0; index < 30; index++) {
+          stream.add(_chunk((index + 1) / 100));
+          await pumpEventQueue();
+          harness.images.complete(index);
+          await pumpEventQueue();
+          expect(harness.images.listeners, 1);
+        }
+        if (ending == 'final') {
+          stream.add(ImageStreamChunk.complete(Uint8List.fromList([9])));
+          await pumpEventQueue();
+        } else {
+          harness.notifier.cancel();
+        }
+        expect(harness.images.listeners, 0);
+        await stream.close();
+        await generation;
+        expect(harness.images.listeners, 0);
+      },
+    );
+  }
+
+  for (final lifecycle in [
+    AppLifecycleState.hidden,
+    AppLifecycleState.paused,
+    AppLifecycleState.detached,
+  ]) {
+    test('$lifecycle bypasses decoding until the next visible chunk', () async {
+      final harness = await createProviderHarness();
+      harness.lifecycle = lifecycle;
+      final stream = StreamController<ImageStreamChunk>();
+      final generation = harness.start(stream);
+      stream.add(_chunk(0.25));
+      await pumpEventQueue();
+      expect(harness.images.requests, isEmpty);
+      expect(harness.state.progress, 0.25);
+      expect(
+        harness.state.streamPreviewSlots.single.previewBytes,
+        same(harness.state.streamPreview),
+      );
+      harness.lifecycle = AppLifecycleState.resumed;
+      stream.add(_chunk(0.75));
+      await pumpEventQueue();
+      expect(harness.state.progress, 0.25);
+      harness.images.complete(0);
+      await pumpEventQueue();
+      expect(harness.state.progress, 0.75);
+      expect(harness.state.streamPreview, same(harness.images.requests.single));
+      harness.notifier.cancel();
+      await stream.close();
+      await generation;
+    });
+  }
+
   for (final ending in ['final', 'cancel', 'failure', 'restart', 'dispose']) {
     test('pending decode cannot publish after $ending', () async {
       final harness = _Harness();
@@ -324,6 +464,7 @@ void main() {
       }
       await pumpEventQueue();
       final before = ending == 'dispose' ? null : harness.state;
+      expect(harness.images.listeners, 0);
       harness.images.complete(0);
       await pumpEventQueue();
       if (ending != 'dispose') expect(harness.state, same(before));

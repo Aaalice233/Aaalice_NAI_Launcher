@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/painting.dart';
+import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/comfyui/comfyui.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/stream_preview_decode.dart';
+import 'package:nai_launcher/presentation/providers/generation/stream_preview_publication.dart';
 
 import '../../../helpers/controlled_preview_images.dart';
 
@@ -38,7 +40,7 @@ class _Workflows extends ComfyUIWorkflows {
 }
 
 class _Harness {
-  _Harness(this.wsOutput) {
+  _Harness(this.wsOutput, {StreamPreviewImageResolver? resolve}) {
     final template = WorkflowTemplate(
       id: 'test',
       name: 'test',
@@ -95,7 +97,10 @@ class _Harness {
       overrides: [
         comfyUIConnectionProvider.overrideWith(() => _Connection(manager)),
         comfyUIWorkflowsProvider.overrideWith(() => _Workflows(templates)),
-        streamPreviewImageResolverProvider.overrideWithValue(images.resolve),
+        streamPreviewImageResolverProvider.overrideWithValue(
+          resolve ?? images.resolve,
+        ),
+        streamPreviewLifecycleReaderProvider.overrideWithValue(() => lifecycle),
       ],
     );
     container.listen(comfyUITaskProvider, (_, _) {});
@@ -111,6 +116,7 @@ class _Harness {
   final images = ControlledPreviewImages();
   late final ProviderContainer container;
   var requests = 0;
+  AppLifecycleState? lifecycle = AppLifecycleState.resumed;
 
   ComfyUITask get notifier => container.read(comfyUITaskProvider.notifier);
   ComfyUITaskState get state => container.read(comfyUITaskProvider);
@@ -196,21 +202,157 @@ void main() {
       await execution;
     });
 
-    test('$mode invalidates pending preview on a final image frame', () async {
+    test(
+      '$mode slow decodes keep publishing before later arrivals finish',
+      () async {
+        final harness = _Harness(wsOutput);
+        addTearDown(harness.dispose);
+        final execution = harness.start();
+        await pumpEventQueue();
+        harness
+          ..preview(1)
+          ..preview(2)
+          ..preview(3);
+        await pumpEventQueue();
+        expect(harness.images.requests, hasLength(2));
+        for (var index = 0; index < 4; index++) {
+          harness.images.complete(index);
+          await pumpEventQueue();
+          expect(
+            harness.state.previewImage,
+            same(harness.images.requests[index]),
+          );
+          expect(harness.state.previewImage!.single, index + 1);
+          if (index == 0) {
+            harness.preview(4);
+            await pumpEventQueue();
+          }
+        }
+        harness.finish();
+        await execution;
+      },
+    );
+
+    test(
+      '$mode publishes previews after an output frame until workflow completion',
+      () async {
+        final harness = _Harness(wsOutput, resolve: resolvedPreviewImage);
+        addTearDown(harness.dispose);
+        final httpImages = Completer<List<Uint8List>>();
+        when(
+          () => harness.api.getOutputImages(any(), allowedNodeIds: {'1'}),
+        ).thenAnswer((_) => httpImages.future);
+        final timers = FakeAsync();
+        final execution = runZoned(
+          harness.start,
+          zoneSpecification: ZoneSpecification(
+            createTimer: (self, parent, zone, duration, callback) =>
+                timers.run((_) => Timer(duration, callback)),
+          ),
+        );
+        await pumpEventQueue();
+
+        harness.frames.add(ComfyUIImageFrame(data: Uint8List.fromList([8])));
+        harness.preview(1);
+        await pumpEventQueue();
+        final previewAfterOutput = harness.state.previewImage;
+
+        harness.finish();
+        await pumpEventQueue();
+        final statusBeforeResult = harness.state.status;
+        harness.preview(2);
+        await pumpEventQueue();
+        final previewAfterCompletion = harness.state.previewImage;
+
+        httpImages.complete([
+          Uint8List.fromList([9]),
+        ]);
+        timers.elapse(const Duration(milliseconds: 500));
+        final result = await execution;
+
+        expect(previewAfterOutput, [1]);
+        expect(statusBeforeResult, ComfyUITaskStatus.running);
+        expect(previewAfterCompletion, same(previewAfterOutput));
+        expect(result, [
+          if (wsOutput) [8],
+          [9],
+        ]);
+      },
+    );
+
+    for (final ending in ['final', 'cancel']) {
+      test('$mode thirty chunks without frames release on $ending', () async {
+        final harness = _Harness(wsOutput);
+        addTearDown(harness.dispose);
+        final execution = harness.start();
+        await pumpEventQueue();
+        for (var index = 0; index < 30; index++) {
+          harness.preview(index + 1);
+          await pumpEventQueue();
+          harness.images.complete(index);
+          await pumpEventQueue();
+          expect(harness.images.listeners, 1);
+        }
+        if (ending == 'final') {
+          harness.finish();
+          await pumpEventQueue();
+        } else {
+          harness.notifier.cancel();
+        }
+        expect(harness.images.listeners, 0);
+        if (ending == 'cancel') harness.finish();
+        await execution;
+        expect(harness.images.listeners, 0);
+      });
+    }
+
+    for (final lifecycle in [
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.detached,
+    ]) {
+      test(
+        '$mode $lifecycle bypasses decoding and resumes when visible',
+        () async {
+          final harness = _Harness(wsOutput);
+          addTearDown(harness.dispose);
+          harness.lifecycle = lifecycle;
+          final execution = harness.start();
+          await pumpEventQueue();
+          harness.preview(1);
+          await pumpEventQueue();
+          expect(harness.images.requests, isEmpty);
+          expect(harness.state.previewImage!.single, 1);
+          harness.lifecycle = AppLifecycleState.resumed;
+          harness.preview(2);
+          await pumpEventQueue();
+          expect(harness.state.previewImage!.single, 1);
+          harness.images.complete(0);
+          await pumpEventQueue();
+          expect(
+            harness.state.previewImage,
+            same(harness.images.requests.single),
+          );
+          harness.finish();
+          await execution;
+        },
+      );
+    }
+
+    test('$mode invalidates pending preview on completion', () async {
       final harness = _Harness(wsOutput);
       addTearDown(harness.dispose);
       final execution = harness.start();
       await pumpEventQueue();
       harness.preview(1);
       await pumpEventQueue();
-      harness.frames.add(ComfyUIImageFrame(data: Uint8List.fromList([9])));
+      harness.finish();
       await pumpEventQueue();
       final before = harness.state;
       harness.images.complete(0);
       await pumpEventQueue();
       expect(harness.state, same(before));
       expect(harness.state.previewImage, isNull);
-      harness.finish();
       await execution;
     });
 
@@ -231,6 +373,12 @@ void main() {
         await pumpEventQueue();
         expect(harness.state, same(before));
         expect(harness.state.previewImage, isNull);
+        harness.preview(2);
+        await pumpEventQueue();
+        expect(harness.images.requests, hasLength(2));
+        harness.images.complete(1);
+        await pumpEventQueue();
+        expect(harness.state.previewImage!.single, 2);
         if (wsOutput) {
           harness.frames.add(ComfyUIImageFrame(data: Uint8List.fromList([9])));
         }
@@ -291,6 +439,7 @@ void main() {
           }
         }
         final before = ending == 'dispose' ? null : harness.state;
+        expect(harness.images.listeners, 0);
         harness.images.complete(0);
         await pumpEventQueue();
         if (ending != 'dispose') expect(harness.state, same(before));
