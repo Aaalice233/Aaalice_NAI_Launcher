@@ -54,7 +54,7 @@ jobs:
         id: build-inputs
         shell: pwsh
         run: |
-          "fingerprint=${{ hashFiles('.github/workflows/windows-portable.yml', '.github/actions/prepare-flutter-build/**', 'scripts/package_windows_release.ps1', 'scripts/verify_windows_portable_package.ps1', 'scripts/verify_nuget.ps1', 'scripts/build_mcp_cli.ps1', 'pubspec.lock', 'pubspec.yaml', 'build.yaml', 'l10n.yaml', 'bin/**', 'lib/**', 'windows/**', 'assets/**', 'fonts/**') }}" >> $env:GITHUB_OUTPUT
+          "fingerprint=${{ hashFiles('.github/workflows/windows-portable.yml', '.github/actions/prepare-flutter-build/**', 'scripts/package_windows_release.ps1', 'scripts/verify_windows_portable_package.ps1', 'scripts/verify_nuget.ps1', 'scripts/build_mcp_cli.ps1', 'pubspec.lock', 'pubspec.yaml', 'build.yaml', 'l10n.yaml', 'bin/**', 'lib/**', 'windows/**', 'packages/flutter_inappwebview_windows/**', 'assets/**', 'fonts/**') }}" >> $env:GITHUB_OUTPUT
 
       - name: Restore exact portable bundle
         id: portable-cache

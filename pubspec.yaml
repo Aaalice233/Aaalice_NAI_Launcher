@@ -172,6 +172,10 @@ dependency_overrides:
   # Baseflow/flutter-permission-handler#1394 修复后移除
   permission_handler_windows:
     path: packages/permission_handler_windows
+  # 上游把 Compositor 等 WinRT 对象放在静态成员里，进程退出卸载 DLL 时释放会崩；
+  # pichillilorenzo/flutter_inappwebview#2733 修复后移除
+  flutter_inappwebview_windows:
+    path: packages/flutter_inappwebview_windows
 flutter:
   uses-material-design: true
   generate: true
