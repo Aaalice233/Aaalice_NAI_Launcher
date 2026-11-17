@@ -10,6 +10,7 @@ import 'proxy_settings_provider.dart';
 import '../constants/api_constants.dart';
 import '../storage/secure_storage_service.dart';
 import '../utils/app_logger.dart';
+import '../utils/log_url_redaction.dart';
 import 'browser_identity/accept_language.dart';
 import 'browser_identity/browser_headers_interceptor.dart';
 import 'browser_identity/chrome_identity.dart';
@@ -83,7 +84,7 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    AppLogger.d('Request to: ${options.path}', 'DIO');
+    AppLogger.d(() => 'Request to: ${redactUriForLog(options.uri)}', 'DIO');
 
     // 登录接口不需要 Token
     if (options.path.contains('/user/login')) {
@@ -265,7 +266,7 @@ class ErrorInterceptor extends Interceptor {
     final message =
         'DIO Error: ${err.type.name}\n'
         'Status: ${err.response?.statusCode}\n'
-        'URL: ${err.requestOptions.uri}\n'
+        'URL: ${redactUriForLog(err.requestOptions.uri)}\n'
         'Response Data: ${formatDioErrorResponseDataForLog(err.response?.data)}';
 
     // 非致命网络抖动降级为 warning，避免错误日志噪音

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/log_url_redaction.dart';
 import 'comfyui_models.dart';
 import 'comfyui_url_utils.dart';
 
@@ -49,7 +50,7 @@ class ComfyUIWebSocketService {
 
     final uri = buildComfyUIWebSocketUri(baseUrl: baseUrl, clientId: clientId);
 
-    AppLogger.i('Connecting to $uri', _tag);
+    AppLogger.i('Connecting to ${redactUriForLog(uri)}', _tag);
 
     try {
       _channel = WebSocketChannel.connect(uri);
