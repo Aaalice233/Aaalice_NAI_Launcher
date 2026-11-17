@@ -9,6 +9,8 @@ analyzer:
     - "android/**"
     - "windows/**"
     - "macos/**"
+    # 原样保留的上游插件副本，不按本仓库规则检查
+    - "packages/flutter_inappwebview_windows/**"
   errors:
     invalid_annotation_target: ignore
 
