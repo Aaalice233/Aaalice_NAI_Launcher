@@ -6,6 +6,8 @@ import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
+import 'log_url_redaction.dart';
+
 /// 增强版应用日志工具类
 ///
 /// 功能：
@@ -90,11 +92,14 @@ class AppLogger {
 
     return Logger(
       filter: ProductionFilter(),
-      printer: SimplePrinter(printTime: true),
+      printer: _buildPrinter(),
       level: _minimumLevel,
       output: outputs.length == 1 ? outputs.first : MultiOutput(outputs),
     );
   }
+
+  static LogPrinter _buildPrinter() =>
+      _UrlRedactingPrinter(SimplePrinter(printTime: true));
 
   static Level get _minimumLevel {
     return _minimumLevelOverride ??
@@ -414,7 +419,7 @@ class AppLogger {
       // 未初始化时使用简洁格式，与初始化后保持一致
       _logger ??= Logger(
         filter: ProductionFilter(),
-        printer: SimplePrinter(printTime: true),
+        printer: _buildPrinter(),
         level: _minimumLevel,
         output: ConsoleOutput(),
       );
@@ -600,6 +605,22 @@ class AppLogger {
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength)}... (truncated)';
   }
+}
+
+class _UrlRedactingPrinter extends LogPrinter {
+  _UrlRedactingPrinter(this._printer);
+
+  final LogPrinter _printer;
+
+  @override
+  Future<void> init() => _printer.init();
+
+  @override
+  List<String> log(LogEvent event) =>
+      _printer.log(event).map(redactUrlsInLogText).toList();
+
+  @override
+  Future<void> destroy() => _printer.destroy();
 }
 
 /// 文件日志输出：日志先进内存缓冲，再经串行写队列追加到文件。

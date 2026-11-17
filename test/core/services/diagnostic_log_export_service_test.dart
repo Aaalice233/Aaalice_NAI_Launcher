@@ -34,6 +34,10 @@ void main() {
           'Authorization: Basic dXNlcjpwYXNz\n'
           'Bearer secret-token-value\n'
           'api_key=secret-api-key\n'
+          'https://cdn.discordapp.com/attachments/111/222/image.png'
+          '?ex=6a1b2c3d&is=6a1a0000&hm=0123456789abcdef#frag\n'
+          'https://danbooru.donmai.us/posts.json'
+          '?api_key=xyz&login=bob&tags=secret\n'
           'Cookie: sessionid=live-session-secret\n'
           'cookie=raw-cookie-value session_key=raw-session-key\n'
           'unlabelled=ghp_12345678901234567890\n'
@@ -78,6 +82,16 @@ void main() {
       archive.findFile('logs/app.log')!.content as List<int>,
     );
     expect(exportedLog, contains('request failed'));
+    expect(
+      exportedLog,
+      contains('https://cdn.discordapp.com/attachments/111/222/image.png'),
+    );
+    expect(exportedLog, contains('https://danbooru.donmai.us/posts.json'));
+    expect(exportedLog, isNot(contains('ex=')));
+    expect(exportedLog, isNot(contains('hm=')));
+    expect(exportedLog, isNot(contains('xyz')));
+    expect(exportedLog, isNot(contains('bob')));
+    expect(exportedLog, isNot(contains('secret')));
     expect(exportedLog, contains('[absolute path]'));
     expect(exportedLog, isNot(contains('dXNlcjpwYXNz')));
     expect(exportedLog, isNot(contains('secret-token-value')));

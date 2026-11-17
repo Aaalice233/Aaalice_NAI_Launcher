@@ -69,6 +69,34 @@ void main() {
     },
   );
 
+  test('writeSync removes signed URL queries from error text', () async {
+    await FatalDiagnostics.initialize(directory: tempDir);
+    final file = FatalDiagnostics.writeSync(
+      HttpException(
+        'closed',
+        uri: Uri.parse(
+          'https://user:password@cdn.discordapp.com/attachments/111/222/image.png'
+          '?ex=6a1b2c3d&is=6a1a0000&hm=0123456789abcdef#frag',
+        ),
+      ),
+      StackTrace.empty,
+      source: 'test',
+    );
+
+    expect(file, isNotNull);
+    final content = await file!.readAsString();
+    expect(
+      content,
+      contains('https://cdn.discordapp.com/attachments/111/222/image.png'),
+    );
+    expect(content, isNot(contains('?')));
+    expect(content, isNot(contains('ex=')));
+    expect(content, isNot(contains('is=')));
+    expect(content, isNot(contains('hm=')));
+    expect(content, isNot(contains('#frag')));
+    expect(content, isNot(contains('user:password@')));
+  });
+
   test('truncates unusually large crash diagnostics', () async {
     await FatalDiagnostics.initialize(directory: tempDir);
     final oversized = List.filled(
