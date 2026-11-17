@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_logger.dart';
+import 'log_url_redaction.dart';
 
 /// Writes crash-startup diagnostics independently of the optional app log file.
 class FatalDiagnostics {
@@ -55,7 +56,9 @@ class FatalDiagnostics {
       final boundedContent = wasTruncated
           ? rawContent.substring(0, maxFileCharacters)
           : rawContent;
-      final redactedContent = redactSensitiveText(boundedContent);
+      final redactedContent = redactSensitiveText(
+        redactUrlsInLogText(boundedContent),
+      );
       final content = wasTruncated
           ? '$redactedContent\n[TRUNCATED DIAGNOSTIC]'
           : redactedContent;

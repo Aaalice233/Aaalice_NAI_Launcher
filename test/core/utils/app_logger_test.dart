@@ -87,6 +87,47 @@ void main() {
       expect(content, contains('[TestTag]'));
     });
 
+    test('文本、异常对象和认证日志中的网址统一脱敏后落盘', () async {
+      await AppLogger.initialize(isTestEnvironment: true);
+
+      AppLogger.w(
+        'warning https://warn-user:warn-pass@example.test/warning?ex=123#frag',
+      );
+      AppLogger.e(
+        'request failed',
+        HttpException(
+          'closed',
+          uri: Uri.parse(
+            'https://error-user:error-pass@example.test/error?hm=456#frag',
+          ),
+        ),
+      );
+      AppLogger.auth(
+        'connect https://auth-user:auth-pass@example.test/auth?login=bob#frag',
+      );
+      await AppLogger.flush();
+
+      final content = await File(AppLogger.currentLogFile!).readAsString();
+      expect(content, contains('https://example.test/warning'));
+      expect(content, contains('https://example.test/error'));
+      expect(content, contains('https://example.test/auth'));
+      for (final privateText in [
+        '?',
+        '#frag',
+        'warn-user',
+        'warn-pass',
+        'error-user',
+        'error-pass',
+        'auth-user',
+        'auth-pass',
+        'ex=',
+        'hm=',
+        'bob',
+      ]) {
+        expect(content, isNot(contains(privateText)));
+      }
+    });
+
     test('错误日志之后紧跟的日志不会丢失', () async {
       await AppLogger.initialize(isTestEnvironment: true);
 

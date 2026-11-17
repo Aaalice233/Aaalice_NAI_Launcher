@@ -11,6 +11,7 @@ import '../agent/private_data_guard.dart';
 import '../constants/app_version.dart';
 import '../utils/app_logger.dart';
 import '../utils/fatal_diagnostics.dart';
+import '../utils/log_url_redaction.dart';
 import 'diagnostic_agent_audit.dart';
 import 'file_export_service.dart';
 import 'update_installer_service.dart';
@@ -377,7 +378,9 @@ class DiagnosticLogExportService {
   );
 
   static String _sanitize(String value) {
-    final credentialsRedacted = FatalDiagnostics.redactSensitiveText(value);
+    final credentialsRedacted = FatalDiagnostics.redactSensitiveText(
+      redactUrlsInLogText(value),
+    );
     final pathsRedacted = PrivateDataGuard.redactAbsolutePaths(
       credentialsRedacted,
     );
