@@ -5,6 +5,7 @@
 #include <string>
 
 #include "flutter_window.h"
+#include "task_runner_window_lookup.h"
 #include "utils.h"
 
 // 单实例互斥体名称（使用应用唯一标识）
@@ -216,6 +217,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                 MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND);
     return EXIT_SUCCESS;
   }
+
+  // 必须在插件第一次嵌套等待之前安装。
+  InstallTaskRunnerWindowLookup();
 
   // Initialize COM, so that it is available for use in the library and/or
   // plugins.
