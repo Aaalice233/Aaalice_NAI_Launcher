@@ -115,6 +115,25 @@ void main() {
     });
   });
 
+  test('incompatible endpoint text removes userInfo and query', () {
+    const probedUrl =
+        'https://user:password@relay.example/ai/generate-image?key=private-key';
+    const error = NaiEndpointIncompatibleException(
+      probedUrl: probedUrl,
+      statusCode: 404,
+    );
+
+    expect(error.probedUrl, probedUrl);
+    expect(
+      error.toString(),
+      'NaiEndpointIncompatibleException(status: 404, '
+      'url: https://relay.example/ai/generate-image)',
+    );
+    expect(error.toString(), isNot(contains('user:password@')));
+    expect(error.toString(), isNot(contains('?key=')));
+    expect(error.toString(), isNot(contains('private-key')));
+  });
+
   group('third-party subscription fallback', () {
     final endpoint = NaiApiEndpointConfig.fromInput(
       mainBaseUrl: 'https://relay.example',

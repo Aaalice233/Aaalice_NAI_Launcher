@@ -12,6 +12,7 @@ import '../../core/services/auth_error_service.dart';
 import '../../core/storage/secure_storage_service.dart';
 import '../../core/storage/secure_storage_unavailable_exception.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/log_url_redaction.dart';
 import '../datasources/remote/nai_auth_api_service.dart';
 import '../models/auth/saved_account.dart';
 import 'account_manager_provider.dart';
@@ -693,7 +694,7 @@ class AuthNotifier extends _$AuthNotifier {
       final storage = ref.read(secureStorageServiceProvider);
 
       AppLogger.auth(
-        'Validating third-party token at ${apiEndpoint.mainBaseUrl}...',
+        'Validating third-party token at ${redactUrlsInLogText(apiEndpoint.mainBaseUrl)}...',
       );
       final validation = await apiService.validateToken(
         normalizedToken,

@@ -144,7 +144,7 @@ class ProxyService {
       AppLogger.d('Linux proxy detected: $hostPort', 'PROXY');
       return hostPort;
     } catch (e) {
-      AppLogger.w('Failed to parse Linux proxy URL: $proxyUrl', 'PROXY');
+      AppLogger.w('Failed to parse Linux proxy URL: ${e.runtimeType}', 'PROXY');
       return null;
     }
   }

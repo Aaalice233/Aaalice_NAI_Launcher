@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/log_url_redaction.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'assistant_cancellation.dart';
 import 'assistant_request_scheduler.dart';
@@ -146,7 +147,7 @@ class PromptAssistantApiClient {
   ) {
     final response = error.response;
     final status = response?.statusCode;
-    final target = _safeRequestTarget(response?.requestOptions);
+    final requestOptions = response?.requestOptions;
     final detail =
         _extractDioErrorDetail(response?.data) ??
         error.message ??
@@ -160,7 +161,8 @@ class PromptAssistantApiClient {
       if (error.type == DioExceptionType.receiveTimeout)
         'response wait timeout=${request.responseTimeout.inSeconds}s; '
             'adjust Settings > Prompt Assistant > Response wait timeout',
-      if (target != null) 'endpoint=$target',
+      if (requestOptions != null)
+        'endpoint=${redactUriForLog(requestOptions.uri)}',
       if (detail != null && detail.trim().isNotEmpty) detail.trim(),
     ].join(': ');
   }
@@ -193,18 +195,6 @@ class PromptAssistantApiClient {
     } catch (_) {
       return data.toString();
     }
-  }
-
-  String? _safeRequestTarget(RequestOptions? options) {
-    if (options == null) return null;
-    final uri = options.uri;
-    if (uri.hasScheme && uri.host.isNotEmpty) {
-      final port = uri.hasPort ? ':${uri.port}' : '';
-      final query = uri.hasQuery ? '?<redacted>' : '';
-      return '${uri.scheme}://${uri.host}$port${uri.path}$query';
-    }
-    final query = uri.hasQuery ? '?<redacted>' : '';
-    return '${uri.path}$query';
   }
 }
 

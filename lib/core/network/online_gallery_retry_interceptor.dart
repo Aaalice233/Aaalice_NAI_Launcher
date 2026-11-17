@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/log_url_redaction.dart';
 
 /// 在线画廊重试拦截器
 ///
@@ -61,7 +62,7 @@ class OnlineGalleryRetryInterceptor extends Interceptor {
 
     AppLogger.d(
       'OnlineGalleryRetryInterceptor: Retrying request '
-          '(attempt $newAttemptCount/$_maxRetries) to ${options.path}',
+          '(attempt $newAttemptCount/$_maxRetries) to ${redactUriForLog(options.uri)}',
       'NETWORK',
     );
 
@@ -95,7 +96,7 @@ class OnlineGalleryRetryInterceptor extends Interceptor {
     } on OperationCancelledError {
       // 延迟期间被取消
       AppLogger.d(
-        'OnlineGalleryRetryInterceptor: Retry cancelled during delay for ${options.path}',
+        'OnlineGalleryRetryInterceptor: Retry cancelled during delay for ${redactUriForLog(options.uri)}',
         'NETWORK',
       );
       handler.next(err);
@@ -103,14 +104,14 @@ class OnlineGalleryRetryInterceptor extends Interceptor {
       // 重试请求失败
       if (retryError is DioException) {
         AppLogger.w(
-          'OnlineGalleryRetryInterceptor: Retry failed for ${options.path}: ${retryError.type.name}',
+          'OnlineGalleryRetryInterceptor: Retry failed for ${redactUriForLog(options.uri)}: ${retryError.type.name}',
           'NETWORK',
         );
         // 递归处理重试错误
         onError(retryError, handler);
       } else {
         AppLogger.e(
-          'OnlineGalleryRetryInterceptor: Unexpected retry error for ${options.path}',
+          'OnlineGalleryRetryInterceptor: Unexpected retry error for ${redactUriForLog(options.uri)}',
           retryError,
           null,
           'NETWORK',

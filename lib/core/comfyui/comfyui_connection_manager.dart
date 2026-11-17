@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/log_url_redaction.dart';
 import 'comfyui_api_service.dart';
 import 'comfyui_models.dart';
 import 'comfyui_url_utils.dart';
@@ -77,7 +78,10 @@ class ComfyUIConnectionManager {
 
       _startHeartbeat();
       _setStatus(ComfyUIConnectionStatus.connected);
-      AppLogger.i('Connected to ComfyUI at $_serverUrl', _tag);
+      AppLogger.i(
+        'Connected to ComfyUI at ${redactUrlsInLogText(_serverUrl)}',
+        _tag,
+      );
       return true;
     } catch (e) {
       AppLogger.e('Failed to connect: $e', _tag);

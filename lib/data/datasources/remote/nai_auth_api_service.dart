@@ -5,6 +5,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/nai_api_endpoint.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/log_url_redaction.dart';
 
 part 'nai_auth_api_service.g.dart';
 
@@ -37,7 +38,7 @@ class NaiEndpointIncompatibleException implements Exception {
 
   @override
   String toString() =>
-      'NaiEndpointIncompatibleException(status: $statusCode, url: $probedUrl)';
+      'NaiEndpointIncompatibleException(status: $statusCode, url: ${redactUrlsInLogText(probedUrl)})';
 }
 
 /// NovelAI Authentication API 服务
@@ -167,7 +168,10 @@ class NAIAuthApiService {
     String authHeader,
   ) async {
     final probeUrl = endpoint.imageUrl(ApiConstants.generateImageEndpoint);
-    AppLogger.i('Probing third-party auth via $probeUrl', 'NAIAuth');
+    AppLogger.i(
+      'Probing third-party auth via ${redactUrlsInLogText(probeUrl)}',
+      'NAIAuth',
+    );
 
     final response = await _dio.post<dynamic>(
       probeUrl,
@@ -205,7 +209,7 @@ class NAIAuthApiService {
         (status >= 400 && status != 404 && status != 405);
     if (!routeExists) {
       AppLogger.w(
-        'No NAI-compatible image endpoint at $probeUrl (status=$status)',
+        'No NAI-compatible image endpoint at ${redactUrlsInLogText(probeUrl)} (status=$status)',
         'NAIAuth',
       );
       throw NaiEndpointIncompatibleException(
