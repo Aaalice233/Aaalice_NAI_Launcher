@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../helpers/log_capture.dart';
 import '../../helpers/novelai_exif_fixture.dart';
 import '../../helpers/novelai_jpeg_layout_fixture.dart';
 import '../../helpers/novelai_webp_layout_fixture.dart';
@@ -171,6 +172,38 @@ void main() {
         'height': '512',
       });
     });
+
+    for (final metadataOnly in [true, false]) {
+      test('404 日志去除签名和片段，metadataOnly=$metadataOnly', () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        final subscription = server.listen((request) async {
+          request.response.statusCode = HttpStatus.notFound;
+          await request.response.close();
+        });
+        addTearDown(subscription.cancel);
+        final uri = Uri.parse(
+          'http://${server.address.address}:${server.port}'
+          '/attachments/111/222/image.png'
+          '?ex=6a1b2c3d&is=6a1a0000&hm=0123456789abcdef#frag',
+        );
+
+        final logs = await captureLogs(() async {
+          final result = metadataOnly
+              ? await DroppedFileReader.downloadRemoteMetadataPrefix(uri)
+              : await DroppedFileReader.downloadRemoteImage(uri);
+          expect(result, isNull);
+        });
+
+        final text = logs.join('\n');
+        expect(text, contains(uri.path));
+        expect(text, isNot(contains('?')));
+        expect(text, isNot(contains('ex=')));
+        expect(text, isNot(contains('is=')));
+        expect(text, isNot(contains('hm=')));
+        expect(text, isNot(contains('#frag')));
+      });
+    }
 
     test('remote metadata probe requests and caps the byte prefix', () async {
       final sourceBytes = Uint8List.fromList(

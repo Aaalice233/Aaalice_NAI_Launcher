@@ -9,6 +9,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/exif_container.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../../core/utils/isolate_pool.dart';
+import '../../core/utils/log_url_redaction.dart';
 import '../../core/utils/share_temp_directories.dart';
 import '../../core/utils/vibe_file_parser.dart';
 import 'dropped_data_request.dart';
@@ -532,7 +533,7 @@ class DroppedFileReader {
           response.statusCode != HttpStatus.partialContent) {
         AppLogger.w(
           'Dropped image metadata probe failed: '
-          '${_uriWithoutQuery(normalizedUri)} status=${response.statusCode}',
+          '${redactUriForLog(normalizedUri)} status=${response.statusCode}',
           logTag,
         );
         await response.drain<void>();
@@ -543,7 +544,7 @@ class DroppedFileReader {
       if (!_isImageResponse(normalizedUri, contentType, null)) {
         AppLogger.w(
           'Dropped image metadata probe returned non-image content: '
-          '${_uriWithoutQuery(normalizedUri)} contentType=$contentType',
+          '${redactUriForLog(normalizedUri)} contentType=$contentType',
           logTag,
         );
         await response.drain<void>();
@@ -575,14 +576,14 @@ class DroppedFileReader {
       }
       AppLogger.d(
         'Read dropped image metadata prefix: bytes=${bytes.length}, '
-        'uri=${_uriWithoutQuery(normalizedUri)}',
+        'uri=${redactUriForLog(normalizedUri)}',
         logTag,
       );
       return bytes;
     } catch (e) {
       AppLogger.w(
         'Failed to read dropped image metadata prefix: '
-        '${_uriWithoutQuery(normalizedUri)}, error=$e',
+        '${redactUriForLog(normalizedUri)}, error=$e',
         logTag,
       );
       return null;
@@ -606,7 +607,7 @@ class DroppedFileReader {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         AppLogger.w(
-          'Dropped remote image request failed: ${_uriWithoutQuery(uri)} '
+          'Dropped remote image request failed: ${redactUriForLog(uri)} '
           'status=${response.statusCode}',
           logTag,
         );
@@ -621,7 +622,7 @@ class DroppedFileReader {
           : uri;
       if (!_isImageResponse(effectiveUri, contentType, contentDisposition)) {
         AppLogger.w(
-          'Dropped remote URL is not an image: ${_uriWithoutQuery(uri)} '
+          'Dropped remote URL is not an image: ${redactUriForLog(uri)} '
           'contentType=$contentType',
           logTag,
         );
@@ -650,7 +651,7 @@ class DroppedFileReader {
       final bytes = builder.takeBytes();
       if (bytes.isEmpty) {
         AppLogger.w(
-          'Dropped remote image is empty: ${_uriWithoutQuery(uri)}',
+          'Dropped remote image is empty: ${redactUriForLog(uri)}',
           logTag,
         );
         return null;
@@ -658,14 +659,14 @@ class DroppedFileReader {
 
       AppLogger.i(
         'Downloaded dropped remote image: $fileName, bytes=${bytes.length}, '
-        'uri=${_uriWithoutQuery(uri)}',
+        'uri=${redactUriForLog(uri)}',
         logTag,
       );
       return DroppedFileData(fileName: fileName, bytes: bytes, sourceUri: uri);
     } catch (e) {
       AppLogger.w(
         'Failed to download dropped remote image: '
-        '${_uriWithoutQuery(uri)}, error=$e',
+        '${redactUriForLog(uri)}, error=$e',
         logTag,
       );
       return null;
@@ -673,8 +674,6 @@ class DroppedFileReader {
       client.close(force: true);
     }
   }
-
-  static Uri _uriWithoutQuery(Uri uri) => uri.replace(query: null);
 
   static bool _isImageResponse(
     Uri uri,
