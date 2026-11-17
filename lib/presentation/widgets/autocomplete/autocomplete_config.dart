@@ -10,7 +10,6 @@ class AutocompleteConfig {
     this.debounceDelay = const Duration(milliseconds: 150),
     this.minQueryLength = 2,
     this.autoInsertComma = true,
-    this.replaceUnderscoreWithSpace = false,
     this.treatSpacesAsSeparators = false,
   });
 
@@ -23,6 +22,9 @@ class AutocompleteConfig {
   final Duration debounceDelay;
   final int minQueryLength;
   final bool autoInsertComma;
-  final bool replaceUnderscoreWithSpace;
   final bool treatSpacesAsSeparators;
+
+  /// A spaced tag would split into separate terms in space-separated fields.
+  bool insertsSpacedTags({required bool userPreference}) =>
+      !treatSpacesAsSeparators && userPreference;
 }

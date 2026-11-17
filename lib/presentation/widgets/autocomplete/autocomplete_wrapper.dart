@@ -734,9 +734,8 @@ class _AutocompleteWrapperState extends ConsumerState<AutocompleteWrapper> {
       canonicalTag: candidate.canonicalTag,
       autoInsertComma:
           settings.autoInsertComma && (widget.config?.autoInsertComma ?? true),
-      replaceUnderscores:
-          settings.replaceUnderscores ||
-          (widget.config?.replaceUnderscoreWithSpace ?? false),
+      replaceUnderscores: (widget.config ?? const AutocompleteConfig())
+          .insertsSpacedTags(userPreference: settings.replaceUnderscores),
     );
     _applyingSuggestion = true;
     widget.controller.value = TextEditingValue(

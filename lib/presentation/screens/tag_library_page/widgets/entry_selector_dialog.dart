@@ -83,16 +83,8 @@ class _EntrySelectorDialogState extends ConsumerState<EntrySelectorDialog> {
     setState(() => _searchQuery = value);
   }
 
-  List<TagLibraryEntry> get _filteredEntries {
-    if (_searchQuery.isEmpty) return widget.entries;
-
-    final query = _searchQuery.toLowerCase();
-    return widget.entries.where((entry) {
-      return entry.name.toLowerCase().contains(query) ||
-          entry.content.toLowerCase().contains(query) ||
-          entry.tags.any((tag) => tag.toLowerCase().contains(query));
-    }).toList();
-  }
+  List<TagLibraryEntry> get _filteredEntries =>
+      widget.entries.search(_searchQuery);
 
   String _getCategoryName(BuildContext context, String? categoryId) {
     if (categoryId == null) return context.l10n.tagLibrary_rootCategory;
