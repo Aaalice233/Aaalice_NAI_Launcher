@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/utils/tag_normalizer.dart';
+
 part 'tag_library_entry.freezed.dart';
 part 'tag_library_entry.g.dart';
 
@@ -310,15 +312,13 @@ extension TagLibraryEntryListExtension on List<TagLibraryEntry> {
     return result != 0 ? result : _compareByOrder(a, b);
   });
 
-  /// 搜索
+  /// 搜索名称、内容与标签，下划线与空格视为等价
   List<TagLibraryEntry> search(String query) {
     if (query.isEmpty) return this;
-    final lowerQuery = query.toLowerCase();
+    final foldedQuery = _foldSearchText(query);
+    bool matches(String value) => _foldSearchText(value).contains(foldedQuery);
     return where(
-      (e) =>
-          e.name.toLowerCase().contains(lowerQuery) ||
-          e.content.toLowerCase().contains(lowerQuery) ||
-          e.tags.any((t) => t.toLowerCase().contains(lowerQuery)),
+      (e) => matches(e.name) || matches(e.content) || e.tags.any(matches),
     ).toList();
   }
 
@@ -344,3 +344,7 @@ int _compareByOrder(TagLibraryEntry a, TagLibraryEntry b) {
   final byCreated = a.createdAt.compareTo(b.createdAt);
   return byCreated != 0 ? byCreated : a.id.compareTo(b.id);
 }
+
+// 内容可能按空格偏好保存，搜索框补全插入的却是下划线写法
+String _foldSearchText(String value) =>
+    TagNormalizer.toDisplay(value.toLowerCase());

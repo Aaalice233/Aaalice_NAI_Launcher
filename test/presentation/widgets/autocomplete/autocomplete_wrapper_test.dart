@@ -38,6 +38,54 @@ Future<void> _typeCurrentText(
   await tester.pump(const Duration(milliseconds: 30));
 }
 
+Future<TextEditingController> _pumpFixedSettingsField(
+  WidgetTester tester,
+  AutocompleteConfig config,
+) async {
+  final controller = TextEditingController(text: 'blu');
+  controller.selection = const TextSelection.collapsed(offset: 3);
+  final focusNode = FocusNode();
+  addTearDown(() {
+    controller.dispose();
+    focusNode.dispose();
+  });
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        autocompleteSettingsProvider.overrideWith(
+          _FixedAutocompleteSettingsNotifier.new,
+        ),
+        autocompleteServicesProvider.overrideWithValue(
+          AutocompleteServices(
+            localSources: [_TranslatedBaseSource()],
+            dictionaryTranslations: const _NoTranslations(),
+            llmTranslations: const _NoTranslations(),
+            danbooru: _NoDanbooru(),
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: AutocompleteWrapper(
+            controller: controller,
+            focusNode: focusNode,
+            config: config,
+            child: TextField(controller: controller, focusNode: focusNode),
+          ),
+        ),
+      ),
+    ),
+  );
+  focusNode.requestFocus();
+  await tester.pump();
+  await _typeCurrentText(tester, controller);
+  return controller;
+}
+
 void main() {
   late String hivePath;
 
@@ -797,51 +845,10 @@ void main() {
   testWidgets('global insertion and translation settings remain effective', (
     tester,
   ) async {
-    final controller = TextEditingController(text: 'blu');
-    controller.selection = const TextSelection.collapsed(offset: 3);
-    final focusNode = FocusNode();
-    addTearDown(() {
-      controller.dispose();
-      focusNode.dispose();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          autocompleteSettingsProvider.overrideWith(
-            _FixedAutocompleteSettingsNotifier.new,
-          ),
-          autocompleteServicesProvider.overrideWithValue(
-            AutocompleteServices(
-              localSources: [_TranslatedBaseSource()],
-              dictionaryTranslations: const _NoTranslations(),
-              llmTranslations: const _NoTranslations(),
-              danbooru: _NoDanbooru(),
-            ),
-          ),
-        ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: AutocompleteWrapper(
-              controller: controller,
-              focusNode: focusNode,
-              config: const AutocompleteConfig(
-                showTranslation: true,
-                autoInsertComma: true,
-                replaceUnderscoreWithSpace: false,
-              ),
-              child: TextField(controller: controller, focusNode: focusNode),
-            ),
-          ),
-        ),
-      ),
+    final controller = await _pumpFixedSettingsField(
+      tester,
+      const AutocompleteConfig(showTranslation: true, autoInsertComma: true),
     );
-    focusNode.requestFocus();
-    await tester.pump();
-    await _typeCurrentText(tester, controller);
 
     expect(find.text('蓝眼睛'), findsNothing);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -849,6 +856,24 @@ void main() {
 
     expect(controller.text, 'blue eyes');
   });
+
+  testWidgets(
+    'space-separated fields keep canonical tags under the space preference',
+    (tester) async {
+      final controller = await _pumpFixedSettingsField(
+        tester,
+        const AutocompleteConfig(
+          autoInsertComma: false,
+          treatSpacesAsSeparators: true,
+        ),
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      expect(controller.text, 'blue_eyes');
+    },
+  );
 
   testWidgets('does not query while an IME composition is active', (
     tester,
