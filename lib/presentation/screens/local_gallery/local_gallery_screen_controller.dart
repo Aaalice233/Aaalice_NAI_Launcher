@@ -147,7 +147,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
   }
 
   void clearFilters() {
-    _ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+    _ref.read(localGalleryNotifierProvider.notifier).clearFiltersWithinScope();
   }
 
   Future<void> runPacking(Future<void> Function() action) async {
@@ -393,6 +393,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
     final categoryState = _ref.read(galleryCategoryNotifierProvider);
     final category = id != null ? categoryState.categories.findById(id) : null;
     if (id == 'favorites') {
+      await gallery.setSelectedCategory(null, null);
       await gallery.setShowFavoritesOnly(true);
     } else if (id != null && category != null) {
       await gallery.setShowFavoritesOnly(false);

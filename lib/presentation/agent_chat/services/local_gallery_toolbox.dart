@@ -55,7 +55,7 @@ class LocalGalleryToolbox {
     executeFn: (_, params) async {
       final notifier = _ref.read(localGalleryNotifierProvider.notifier);
       await notifier.initialize();
-      await notifier.clearAllFilters();
+      await notifier.clearFiltersWithinScope();
       await notifier.setSearchQuery(params['query'] as String? ?? '');
       await notifier.setSelectedTags(toolboxStrings(params['tags']));
       await notifier.setShowFavoritesOnly(params['favorites_only'] == true);

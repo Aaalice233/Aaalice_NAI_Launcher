@@ -313,9 +313,16 @@ class _LocalGalleryShell extends ConsumerWidget {
       return const GalleryLoadingView();
     }
     if (images.isEmpty) {
-      return gallery.hasFilters
-          ? const GalleryNoResultsView()
-          : const GalleryEmptyView();
+      if (gallery.filterCriteria.hasClearableFilters) {
+        return const GalleryNoResultsView();
+      }
+      if (gallery.filterCriteria.hasBrowsingScope) {
+        return GalleryEmptyView(
+          title: context.l10n.localGallery_emptyScopeTitle,
+          subtitle: '',
+        );
+      }
+      return const GalleryEmptyView();
     }
 
     return LocalGalleryContentView(

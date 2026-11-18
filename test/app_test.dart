@@ -2613,7 +2613,7 @@ class _FakeLocalGalleryNotifier extends LocalGalleryNotifier {
   Future<void> setSearchQuery(String query) async {}
 
   @override
-  Future<void> clearAllFilters() async {}
+  Future<void> clearFiltersWithinScope() async {}
 }
 
 class _FakeShortcutConfigNotifier extends ShortcutConfigNotifier {

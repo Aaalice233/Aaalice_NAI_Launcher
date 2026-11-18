@@ -892,8 +892,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// [categoryFolderPath] 分类的文件夹路径
   Future<void> setSelectedCategory(
     String? categoryId,
-    String? categoryFolderPath,
-  ) async {
+    String? categoryFolderPath, {
+    bool refreshFiles = false,
+  }) async {
     final criteria = state.filterCriteria;
 
     // 检查是否有变化
@@ -914,7 +915,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       ),
     );
 
-    await _applyFilters();
+    if (refreshFiles) {
+      await refresh(scan: false);
+    } else {
+      await _applyFilters();
+    }
   }
 
   /// 设置选中的相簿
@@ -976,7 +981,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
 
       _setState(
-        state.copyWith(groupedImages: allRecords, isGroupedLoading: false, error: null),
+        state.copyWith(
+          groupedImages: allRecords,
+          isGroupedLoading: false,
+          error: null,
+        ),
       );
     } catch (e) {
       AppLogger.e(
@@ -989,9 +998,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
-  Future<void> clearAllFilters() async {
+  Future<void> clearFiltersWithinScope() async {
     _setState(
-      state.copyWith(filterCriteria: const FilterCriteria(), currentPage: 0),
+      state.copyWith(
+        filterCriteria: state.filterCriteria.browsingScope,
+        currentPage: 0,
+      ),
     );
     await _applyFilters();
   }

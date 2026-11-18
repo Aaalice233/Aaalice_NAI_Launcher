@@ -2731,6 +2731,7 @@
   },
   "localGallery_indexingLocalImages": "Indexing local images...",
   "localGallery_emptyTitle": "No local images",
+  "localGallery_emptyScopeTitle": "No images here yet",
   "localGallery_emptySubtitle": "Generated images will be saved here",
   "localGallery_noMatchingResults": "No matching results",
   "localGallery_loadingGroupedImages": "Loading grouped images...",

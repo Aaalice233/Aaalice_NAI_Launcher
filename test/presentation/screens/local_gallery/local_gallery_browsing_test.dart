@@ -2,10 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_album.dart';
+import 'package:nai_launcher/data/models/gallery/gallery_category.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
@@ -16,6 +20,7 @@ import 'package:nai_launcher/presentation/providers/gallery_album_provider.dart'
 import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_screen.dart';
+import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_category_panel.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_state_views.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
@@ -29,8 +34,14 @@ class _Gallery extends Fake implements LocalGalleryService {
   @override
   FilterCriteria currentFilter = const FilterCriteria();
 
-  Iterable<LocalImageRecord> get matches =>
-      records.where((image) => image.path.contains(currentFilter.searchQuery));
+  Iterable<LocalImageRecord> get matches => records.where((image) {
+    final filter = currentFilter;
+    return image.path.contains(filter.searchQuery) &&
+        (filter.categoryFolderPath == null ||
+            image.path.startsWith('${filter.categoryFolderPath}/')) &&
+        (filter.albumId == null || image.path.endsWith('album.png')) &&
+        (!filter.showFavoritesOnly || image.path.endsWith('star.png'));
+  });
 
   @override
   Future<List<File>> initialize() async =>
@@ -42,7 +53,8 @@ class _Gallery extends Fake implements LocalGalleryService {
   @override
   int get filteredCount => matches.length;
   @override
-  Future<int> getFavoriteCount() async => 0;
+  Future<int> getFavoriteCount() async =>
+      records.where((r) => r.path.endsWith('star.png')).length;
   @override
   Future<void> applyFilter(FilterCriteria criteria) async =>
       currentFilter = criteria;
@@ -94,14 +106,39 @@ Future<ProviderContainer> _pumpGallery(
   addTearDown(router.dispose);
   final container = ProviderContainer(
     overrides: [
+      autocompleteSettingsProvider.overrideWithBuild(
+        (_, _) => const AutocompleteSettings(
+          enabled: false,
+          zhInstallPromptDismissed: true,
+        ),
+      ),
       galleryServiceProvider.overrideWith(
         () => GalleryService(createService: () => service),
       ),
       galleryCategoryNotifierProvider.overrideWithBuild(
-        (_, _) => const GalleryCategoryState(),
+        (_, _) => GalleryCategoryState(
+          categories: [
+            GalleryCategory(
+              id: 'folder',
+              name: 'Folder',
+              folderPath: 'folder',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+          ],
+        ),
       ),
       galleryAlbumNotifierProvider.overrideWithBuild(
-        (_, _) => const GalleryAlbumState(),
+        (_, _) => GalleryAlbumState(
+          albums: [
+            GalleryAlbum(
+              id: 'album',
+              name: 'Album',
+              createdAt: DateTime(2026),
+              updatedAt: DateTime(2026),
+            ),
+          ],
+        ),
       ),
     ],
   );
@@ -123,6 +160,105 @@ Future<ProviderContainer> _pumpGallery(
 }
 
 void main() {
+  for (final scope in ['folder', 'album', 'favorites']) {
+    testWidgets('$scope 范围通过工具栏、快捷键和无结果页清除条件后保留', (tester) async {
+      final service = _Gallery()
+        ..records.addAll([
+          _record('folder/entry.png'),
+          _record('other/album.png'),
+          _record('other/star.png'),
+        ]);
+      final container = await _pumpGallery(tester, service);
+      LocalGalleryCategoryPanel panel() =>
+          tester.widget(find.byType(LocalGalleryCategoryPanel));
+      if (scope == 'folder') {
+        panel().onCategorySelected(scope);
+      } else {
+        panel().onAlbumSelected(scope);
+      }
+      await tester.pump();
+      final expected = {
+        'folder': 'folder/entry.png',
+        'album': 'other/album.png',
+        'favorites': 'other/star.png',
+      }[scope];
+      void checkScope() {
+        expect(
+          panel().categoryState.selectedCategoryId,
+          scope == 'folder' ? scope : null,
+        );
+        expect(
+          panel().albumState.selectedAlbumId,
+          scope == 'folder' ? null : scope,
+        );
+        expect(find.text('1/3'), findsOneWidget);
+        expect(find.byIcon(Icons.filter_alt_off), findsNothing);
+        expect(
+          tester
+              .widget<LocalImageCard3D>(find.byType(LocalImageCard3D))
+              .record
+              .path,
+          expected,
+        );
+        expect(
+          tester
+              .widget<EditableText>(find.byType(EditableText))
+              .controller
+              .text,
+          isEmpty,
+        );
+      }
+
+      checkScope();
+      final gallery = container.read(localGalleryNotifierProvider.notifier);
+      for (final entry in ['toolbar', 'shortcut', 'empty']) {
+        await gallery.setSearchQuery('unmatched');
+        await tester.pump();
+        expect(find.text('0/3'), findsOneWidget);
+        switch (entry) {
+          case 'toolbar':
+            await tester.tap(
+              find.descendant(
+                of: find.byKey(const Key('local-gallery-toolbar')),
+                matching: find.byIcon(Icons.filter_alt_off),
+              ),
+            );
+          case 'shortcut':
+            await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+            await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+            await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+            await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+            await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+          case 'empty':
+            await tester.tap(
+              find.descendant(
+                of: find.byType(GalleryNoResultsView),
+                matching: find.text('清除筛选'),
+              ),
+            );
+        }
+        await tester.pump();
+        checkScope();
+      }
+      await tester.enterText(find.byType(EditableText), 'pending');
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.filter_alt_off));
+      await tester.pump(const Duration(milliseconds: 301));
+      checkScope();
+    });
+  }
+  testWidgets('只有浏览范围时空态无清除按钮', (tester) async {
+    await _pumpGallery(tester, _Gallery());
+    tester
+        .widget<LocalGalleryCategoryPanel>(
+          find.byType(LocalGalleryCategoryPanel),
+        )
+        .onCategorySelected('folder');
+    await tester.pump();
+    expect(find.text('这里还没有图片'), findsOneWidget);
+    expect(find.byIcon(Icons.filter_alt_off), findsNothing);
+    expect(find.byType(GalleryNoResultsView), findsNothing);
+  });
   testWidgets('网格零结果后切换日期分组并清除条件可见卡片', (tester) async {
     final service = _Gallery()..records.add(_record('one.png'));
     final container = await _pumpGallery(tester, service);

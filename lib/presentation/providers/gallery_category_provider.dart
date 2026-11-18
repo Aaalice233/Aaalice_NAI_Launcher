@@ -8,6 +8,7 @@ import '../../data/models/gallery/gallery_tree_drop_slot.dart';
 import '../../data/models/gallery/library_tree_order.dart';
 import '../../data/repositories/gallery_category_repository.dart';
 import 'category_operation_error.dart';
+import 'local_gallery_provider.dart';
 
 part 'gallery_category_provider.freezed.dart';
 part 'gallery_category_provider.g.dart';
@@ -135,6 +136,25 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
     state = state.copyWith(selectedCategoryId: categoryId);
   }
 
+  Future<void> _publishCategoryTree(GalleryCategoryState updated) async {
+    final previous = state.selectedCategory;
+    final selected = previous == null
+        ? null
+        : updated.categories.findById(previous.id);
+    if (previous?.folderPath == selected?.folderPath) {
+      state = updated;
+      return;
+    }
+    state = updated.copyWith(selectedCategoryId: selected?.id);
+    await ref
+        .read(localGalleryNotifierProvider.notifier)
+        .setSelectedCategory(
+          selected?.id,
+          selected?.folderPath,
+          refreshFiles: true,
+        );
+  }
+
   /// 创建新分类
   Future<GalleryCategory?> createCategory(
     String name, {
@@ -207,7 +227,9 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
 
         await _repository.saveCategories(updatedCategories);
 
-        state = state.copyWith(categories: updatedCategories);
+        await _publishCategoryTree(
+          state.copyWith(categories: updatedCategories),
+        );
         return renamed;
       }
 
@@ -274,7 +296,9 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
 
         await _repository.saveCategories(updatedCategories);
 
-        state = state.copyWith(categories: updatedCategories);
+        await _publishCategoryTree(
+          state.copyWith(categories: updatedCategories),
+        );
         return moved;
       }
 
@@ -408,21 +432,27 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
             '分类目录回滚失败，已按实际目录状态补写配置: ${category.name}',
             'GalleryCategory',
           );
-          state = state.copyWith(categories: working, error: null);
+          await _publishCategoryTree(
+            state.copyWith(categories: working, error: null),
+          );
           return true;
         }
-        state = state.copyWith(
-          categories: rolledBack ? state.categories : working,
-          error: CategoryOperationError(
-            CategoryOperationErrorCode.moveFailed,
-            details: rolledBack
-                ? 'Category metadata persistence failed'
-                : 'Category metadata persistence and directory rollback failed',
+        await _publishCategoryTree(
+          state.copyWith(
+            categories: rolledBack ? state.categories : working,
+            error: CategoryOperationError(
+              CategoryOperationErrorCode.moveFailed,
+              details: rolledBack
+                  ? 'Category metadata persistence failed'
+                  : 'Category metadata persistence and directory rollback failed',
+            ),
           ),
         );
         return false;
       }
-      state = state.copyWith(categories: working, error: null);
+      await _publishCategoryTree(
+        state.copyWith(categories: working, error: null),
+      );
       return true;
     } catch (e) {
       final rolledBack = await _rollbackPhysicalMove(
@@ -431,11 +461,15 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
         working,
       );
       AppLogger.e('槽位移动分类失败', e, null, 'GalleryCategory');
-      state = state.copyWith(
-        categories: rolledBack ? state.categories : working,
-        error: CategoryOperationError(
-          CategoryOperationErrorCode.moveFailed,
-          details: rolledBack ? e.toString() : '$e; directory rollback failed',
+      await _publishCategoryTree(
+        state.copyWith(
+          categories: rolledBack ? state.categories : working,
+          error: CategoryOperationError(
+            CategoryOperationErrorCode.moveFailed,
+            details: rolledBack
+                ? e.toString()
+                : '$e; directory rollback failed',
+          ),
         ),
       );
       return false;
@@ -520,17 +554,8 @@ class GalleryCategoryNotifier extends _$GalleryCategoryNotifier {
 
         await _repository.saveCategories(updatedCategories);
 
-        // 如果删除的是当前选中的分类，切换到"全部"
-        final newSelectedId =
-            state.selectedCategoryId == categoryId ||
-                (state.selectedCategoryId != null &&
-                    categoryIds.contains(state.selectedCategoryId))
-            ? null
-            : state.selectedCategoryId;
-
-        state = state.copyWith(
-          categories: updatedCategories,
-          selectedCategoryId: newSelectedId,
+        await _publishCategoryTree(
+          state.copyWith(categories: updatedCategories),
         );
 
         return true;

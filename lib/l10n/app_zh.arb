@@ -2726,6 +2726,7 @@
   },
   "localGallery_indexingLocalImages": "索引本地图片中...",
   "localGallery_emptyTitle": "暂无本地图片",
+  "localGallery_emptyScopeTitle": "这里还没有图片",
   "localGallery_emptySubtitle": "生成的图片将保存在此处",
   "localGallery_noMatchingResults": "无匹配结果",
   "localGallery_loadingGroupedImages": "加载分组图片中...",

@@ -10809,6 +10809,12 @@ abstract class AppLocalizations {
   /// **'No local images'**
   String get localGallery_emptyTitle;
 
+  /// No description provided for @localGallery_emptyScopeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No images here yet'**
+  String get localGallery_emptyScopeTitle;
+
   /// No description provided for @localGallery_emptySubtitle.
   ///
   /// In en, this message translates to:

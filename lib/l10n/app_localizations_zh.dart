@@ -5860,6 +5860,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_emptyTitle => '暂无本地图片';
 
   @override
+  String get localGallery_emptyScopeTitle => '这里还没有图片';
+
+  @override
   String get localGallery_emptySubtitle => '生成的图片将保存在此处';
 
   @override
@@ -21541,6 +21544,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_emptyTitle => '暫無本地圖片';
+
+  @override
+  String get localGallery_emptyScopeTitle => '這裡還沒有圖片';
 
   @override
   String get localGallery_emptySubtitle => '生成的圖片將儲存在此處';
