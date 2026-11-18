@@ -65,7 +65,6 @@ void main() {
                 onAddSubCategory: (_) async {},
                 onCategoryMove: (_, _) async {},
                 onImagesDrop: (_, _) async {},
-                onSyncWithFileSystem: () async {},
                 onCreateAlbum: (_) async {},
                 onAlbumSelected: onAlbumSelected ?? (_) {},
                 onAlbumRename: (_, _) async {},

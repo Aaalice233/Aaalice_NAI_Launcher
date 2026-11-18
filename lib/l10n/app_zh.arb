@@ -2786,7 +2786,6 @@
   "localGallery_confirmMoveImageContent": "将把图片移动到目标分类文件夹。请确认不是误拖拽。",
   "localGallery_confirmMove": "确认移动",
   "localGallery_imageMovedToCategory": "图片已移动到分类",
-  "localGallery_categoriesSynced": "分类已与文件夹同步",
   "localGallery_saveDirectoryNotSet": "未设置保存目录",
   "localGallery_folderNotFound": "文件夹不存在",
   "localGallery_openFolderFailed": "打开文件夹失败: {error}",

@@ -11073,12 +11073,6 @@ abstract class AppLocalizations {
   /// **'Image moved to category'**
   String get localGallery_imageMovedToCategory;
 
-  /// No description provided for @localGallery_categoriesSynced.
-  ///
-  /// In en, this message translates to:
-  /// **'Categories synced with folders'**
-  String get localGallery_categoriesSynced;
-
   /// No description provided for @localGallery_saveDirectoryNotSet.
   ///
   /// In en, this message translates to:

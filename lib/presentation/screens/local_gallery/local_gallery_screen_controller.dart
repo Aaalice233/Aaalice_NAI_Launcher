@@ -76,6 +76,7 @@ class LocalGalleryScreenController extends ChangeNotifier {
   Timer? _refreshDebounceTimer;
   Completer<void>? _refreshCompleter;
   DateTime? _lastRefreshTime;
+  bool _refreshAfterScan = false;
   bool _showCategoryPanel = true;
   bool _isPackingImages = false;
 
@@ -83,6 +84,15 @@ class LocalGalleryScreenController extends ChangeNotifier {
   bool get isPackingImages => _isPackingImages;
 
   void start() {
+    _ref.listenManual(galleryScanProgressProvider.select((s) => s.isScanning), (
+      _,
+      scanning,
+    ) {
+      if (!scanning && _refreshAfterScan) {
+        _refreshAfterScan = false;
+        unawaited(_autoRefreshNow(afterScan: true));
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissionsAndScan();
       await _showFirstTimeTip();
@@ -136,8 +146,10 @@ class LocalGalleryScreenController extends ChangeNotifier {
     }
   }
 
-  void refreshGallery() {
-    _ref.read(localGalleryNotifierProvider.notifier).refresh();
+  Future<void> refreshGallery({bool scan = true}) async {
+    final categories = _ref.read(galleryCategoryNotifierProvider.notifier);
+    await _ref.read(localGalleryNotifierProvider.notifier).refresh(scan: scan);
+    await categories.syncWithFileSystem();
   }
 
   void focusSearch() => searchFocusNode.requestFocus();
@@ -173,55 +185,37 @@ class LocalGalleryScreenController extends ChangeNotifier {
   Future<void> autoRefresh() {
     _refreshDebounceTimer?.cancel();
     final completer = _refreshCompleter ??= Completer<void>();
-    _refreshDebounceTimer = Timer(_refreshDebounce, () async {
+    _refreshDebounceTimer = Timer(_refreshDebounce, () {
       _refreshDebounceTimer = null;
       if (identical(_refreshCompleter, completer)) {
         _refreshCompleter = null;
       }
-      try {
-        if (!_mounted()) return;
-        final router = GoRouter.of(_context());
-        final currentPath = router.routeInformationProvider.value.uri.path;
-        if (currentPath != '/local-gallery') {
-          AppLogger.d(
-            '[AutoRefresh] Skipped: not on local gallery page (current: $currentPath)',
-            'LocalGalleryScreen',
-          );
-          return;
-        }
-
-        final now = DateTime.now();
-        final lastRefreshTime =
-            _lastRefreshTime ??
-            _ref.read(localGalleryNotifierProvider.notifier).lastSynchronizedAt;
-        if (lastRefreshTime != null &&
-            now.difference(lastRefreshTime) < _minimumRefreshInterval) {
-          AppLogger.d(
-            '[AutoRefresh] Skipped: too frequent',
-            'LocalGalleryScreen',
-          );
-          return;
-        }
-        if (_ref.read(galleryScanProgressProvider).isScanning) {
-          AppLogger.d(
-            '[AutoRefresh] Skipped: scan in progress',
-            'LocalGalleryScreen',
-          );
-          return;
-        }
-
-        _lastRefreshTime = now;
-        await _ref
-            .read(localGalleryNotifierProvider.notifier)
-            .refresh(scan: false);
-        await _ref
-            .read(galleryCategoryNotifierProvider.notifier)
-            .syncWithFileSystem();
-      } finally {
-        if (!completer.isCompleted) completer.complete();
-      }
+      completer.complete(_autoRefreshNow());
     });
     return completer.future;
+  }
+
+  Future<void> _autoRefreshNow({bool afterScan = false}) async {
+    if (!_mounted() ||
+        GoRouter.of(_context()).routeInformationProvider.value.uri.path !=
+            '/local-gallery') {
+      return;
+    }
+    if (_ref.read(galleryScanProgressProvider).isScanning) {
+      _refreshAfterScan = true;
+      return;
+    }
+    final now = DateTime.now();
+    final last =
+        _lastRefreshTime ??
+        _ref.read(localGalleryNotifierProvider.notifier).lastSynchronizedAt;
+    if (!afterScan &&
+        last != null &&
+        now.difference(last) < _minimumRefreshInterval) {
+      return;
+    }
+    _lastRefreshTime = now;
+    await refreshGallery(scan: false);
   }
 
   Future<void> showCategoryPanelSheet() {
@@ -277,7 +271,6 @@ class LocalGalleryScreenController extends ChangeNotifier {
           .read(librarySidebarMoveServiceProvider)
           .moveFolder(id, targetId, slot),
       onImagesDrop: handleImagesDrop,
-      onSyncWithFileSystem: handleSyncWithFileSystem,
       onCreateAlbum: (parentId) => createAlbum(parentId),
       onAlbumSelected: (id) => unawaited(handleAlbumSelected(id)),
       onAlbumRename: (id, newName) => _ref
@@ -465,18 +458,6 @@ class LocalGalleryScreenController extends ChangeNotifier {
       }
     });
     result.requireComplete();
-  }
-
-  Future<void> handleSyncWithFileSystem() async {
-    await _ref
-        .read(galleryCategoryNotifierProvider.notifier)
-        .syncWithFileSystem();
-    if (_mounted()) {
-      AppToast.success(
-        _context(),
-        _context().l10n.localGallery_categoriesSynced,
-      );
-    }
   }
 
   Future<void> openGalleryFolder() async {

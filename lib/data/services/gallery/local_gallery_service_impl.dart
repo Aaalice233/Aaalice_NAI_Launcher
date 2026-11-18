@@ -75,6 +75,8 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   @override
   int get filteredCount => _query.filteredCount;
   @override
+  int imageCountInFolder(String path) => _query.folderCounts.countIn(path);
+  @override
   int get totalCount => _query.totalCount;
   @override
   FilterCriteria get currentFilter => _query.currentFilter;

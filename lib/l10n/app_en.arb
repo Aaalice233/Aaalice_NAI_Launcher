@@ -2791,7 +2791,6 @@
   "localGallery_confirmMoveImageContent": "This will move the image to the target category folder. Confirm this was not an accidental drag.",
   "localGallery_confirmMove": "Confirm Move",
   "localGallery_imageMovedToCategory": "Image moved to category",
-  "localGallery_categoriesSynced": "Categories synced with folders",
   "localGallery_saveDirectoryNotSet": "Save directory is not set",
   "localGallery_folderNotFound": "Folder not found",
   "localGallery_openFolderFailed": "Failed to open folder: {error}",

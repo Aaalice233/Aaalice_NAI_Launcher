@@ -6274,9 +6274,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_imageMovedToCategory => 'Image moved to category';
 
   @override
-  String get localGallery_categoriesSynced => 'Categories synced with folders';
-
-  @override
   String get localGallery_saveDirectoryNotSet => 'Save directory is not set';
 
   @override

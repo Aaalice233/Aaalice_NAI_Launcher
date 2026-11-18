@@ -9,19 +9,24 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
 import 'package:nai_launcher/data/services/gallery/unified_gallery_service.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
+import '../../helpers/gallery_folder_notifications.dart';
 
 import '../../helpers/gallery_statistics_probe.dart';
 
 void main() {
   late _RecordingGalleryService service;
+  late RecordingGalleryFolders folders;
 
   setUp(() {
     service = _RecordingGalleryService();
+    folders = RecordingGalleryFolders();
   });
 
   ProviderContainer createContainer({Future<void>? gate}) {
     final container = ProviderContainer(
       overrides: [
+        galleryCategoryNotifierProvider.overrideWith(() => folders),
         galleryServiceProvider.overrideWith(
           () => _StubGalleryService(service, gate: gate),
         ),
@@ -57,6 +62,7 @@ void main() {
     expect(admission, GalleryIndexAdmission.added);
     expect(service.admitted, [r'G:\gallery\new.png']);
     expect(service.loadedPages, isEmpty);
+    expect(folders.notifications, [service.admitted]);
     expect(container.read(localGalleryNotifierProvider).totalCount, 1);
   });
 
@@ -79,6 +85,7 @@ void main() {
     await favorite;
 
     expect(service.admitted, [r'G:\gallery\new.png']);
+    expect(folders.notifications, [service.admitted]);
   });
 
   test('服务与页面都未初始化时保存的新图，首次初始化后不会丢', () async {

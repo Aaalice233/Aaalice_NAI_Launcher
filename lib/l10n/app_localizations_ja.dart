@@ -6111,9 +6111,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_imageMovedToCategory => '画像がカテゴリに移動されました';
 
   @override
-  String get localGallery_categoriesSynced => 'カテゴリとフォルダーが同期されました';
-
-  @override
   String get localGallery_saveDirectoryNotSet => '保存ディレクトリが設定されていません';
 
   @override

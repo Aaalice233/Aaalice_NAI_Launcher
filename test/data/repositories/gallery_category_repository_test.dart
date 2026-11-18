@@ -77,20 +77,27 @@ void main() {
     );
 
     final deleted = await repository.deleteCategory(
+      galleryRoot.path,
       category,
       [category],
       deleteFolder: false,
     );
     expect(deleted, isTrue);
 
-    final syncedCategories = await repository.syncWithFileSystem(const []);
+    final syncedCategories = await repository.syncWithFileSystem(
+      galleryRoot.path,
+      const [],
+    );
 
     expect(syncedCategories, isEmpty);
     expect(await folder.exists(), isTrue);
   });
 
   test('new category folder matches the name Windows keeps on disk', () async {
-    final category = await repository.createCategory(name: 'summer\ntrip. ');
+    final category = await repository.createCategory(
+      rootPath: galleryRoot.path,
+      name: 'summer\ntrip. ',
+    );
 
     expect(category?.folderPath, 'summer trip');
     expect(

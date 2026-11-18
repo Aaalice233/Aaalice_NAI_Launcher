@@ -2756,7 +2756,6 @@
   "localGallery_confirmMoveImageContent": "これにより、画像がターゲット カテゴリ フォルダーに移動されます。これが誤ってドラッグされたものではないことを確認します。",
   "localGallery_confirmMove": "移動の確認",
   "localGallery_imageMovedToCategory": "画像がカテゴリに移動されました",
-  "localGallery_categoriesSynced": "カテゴリとフォルダーが同期されました",
   "localGallery_saveDirectoryNotSet": "保存ディレクトリが設定されていません",
   "localGallery_folderNotFound": "フォルダーが見つかりません",
   "localGallery_openFolderFailed": "フォルダーを開けませんでした: {error}",

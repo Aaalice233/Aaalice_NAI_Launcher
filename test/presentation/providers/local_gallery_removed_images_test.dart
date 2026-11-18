@@ -7,17 +7,22 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
 import 'package:nai_launcher/data/services/gallery/unified_gallery_service.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
+import '../../helpers/gallery_folder_notifications.dart';
 
 void main() {
   late _RecordingGalleryService service;
+  late RecordingGalleryFolders folders;
 
   setUp(() {
     service = _RecordingGalleryService(total: 3);
+    folders = RecordingGalleryFolders();
   });
 
   ProviderContainer createContainer() {
     final container = ProviderContainer(
       overrides: [
+        galleryCategoryNotifierProvider.overrideWith(() => folders),
         galleryServiceProvider.overrideWith(() => _StubGalleryService(service)),
       ],
     );
@@ -41,6 +46,7 @@ void main() {
         [r'G:\gallery\a.png'],
       ]);
       expect(service.refreshCalls, 0);
+      expect(folders.notifications, service.removed);
       expect(service.loadedPages, [0]);
       expect(container.read(localGalleryNotifierProvider).totalCount, 2);
     });
@@ -72,6 +78,7 @@ void main() {
       await notifier.initialize();
 
       expect(service.admitted, [r'G:\gallery\b.png']);
+      expect(folders.notifications, [service.admitted, ...service.removed]);
       expect(service.removed, [
         [r'G:\gallery\a.png'],
       ]);

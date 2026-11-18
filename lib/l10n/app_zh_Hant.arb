@@ -2806,7 +2806,6 @@
   "localGallery_confirmMoveImageContent": "將把圖片移動到目標分類資料夾。請確認不是誤拖拽。",
   "localGallery_confirmMove": "確認移動",
   "localGallery_imageMovedToCategory": "圖片已移動到分類",
-  "localGallery_categoriesSynced": "分類已與資料夾同步",
   "localGallery_saveDirectoryNotSet": "未設定儲存目錄",
   "localGallery_folderNotFound": "資料夾不存在",
   "localGallery_openFolderFailed": "開啟資料夾失敗: {error}",

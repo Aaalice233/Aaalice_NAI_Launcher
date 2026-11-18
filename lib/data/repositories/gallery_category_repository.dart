@@ -12,12 +12,16 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../models/gallery/gallery_category.dart';
 import '../services/gallery/gallery_image_files.dart';
+import '../services/gallery/gallery_folder_counts.dart';
+import '../services/gallery/gallery_path_utils.dart';
 
 /// 画廊分类仓库
 class GalleryCategoryRepository {
-  GalleryCategoryRepository._();
-  static final GalleryCategoryRepository instance =
-      GalleryCategoryRepository._();
+  GalleryCategoryRepository({
+    GalleryImageFiles images = const GalleryImageFiles(),
+  }) : _images = images;
+  final GalleryImageFiles _images;
+  static final GalleryCategoryRepository instance = GalleryCategoryRepository();
 
   final _localStorage = LocalStorageService();
   final _categorySaveLock = Lock();
@@ -42,65 +46,62 @@ class GalleryCategoryRepository {
     return p.join(appDir.path, 'NAI_Launcher', 'images');
   }
 
-  Future<String?> _getCategoriesFilePath() async {
-    final rootPath = await getRootPath();
-    return rootPath != null ? p.join(rootPath, _categoriesFileName) : null;
-  }
-
-  Future<String?> _getSuppressedCategoriesFilePath() async {
-    final rootPath = await getRootPath();
-    return rootPath != null
-        ? p.join(rootPath, _suppressedCategoriesFileName)
-        : null;
-  }
-
-  Future<List<GalleryCategory>> loadCategories() async {
-    final filePath = await _getCategoriesFilePath();
-    if (filePath == null) return [];
-
+  Future<List<GalleryCategory>> loadCategories(String rootPath) async {
+    final filePath = p.join(rootPath, _categoriesFileName);
     final file = File(filePath);
     final backupFile = File('$filePath.bak');
     try {
-      if (await file.exists()) {
-        try {
-          final categories = await _readCategories(file);
+      try {
+        final categories = await _readCategories(file);
+        if (categories != null) {
           await _deleteIfPresent(backupFile);
-          return categories;
-        } catch (primaryError) {
-          if (!await backupFile.exists()) rethrow;
-          final categories = await _readCategories(backupFile);
-          await backupFile.copy(file.path);
-          await _deleteIfPresent(backupFile);
-          AppLogger.w('分类配置损坏，已从备份恢复: $primaryError');
           return categories;
         }
+      } catch (primaryError) {
+        final categories = await _readCategories(backupFile);
+        if (categories == null) rethrow;
+        await backupFile.copy(file.path);
+        await _deleteIfPresent(backupFile);
+        AppLogger.w('分类配置损坏，已从备份恢复: $primaryError');
+        return categories;
       }
-      if (!await backupFile.exists()) return [];
 
       final categories = await _readCategories(backupFile);
+      if (categories == null) return [];
       await backupFile.copy(file.path);
       await _deleteIfPresent(backupFile);
       AppLogger.w('分类配置提交中断，已从备份恢复');
       return categories;
     } catch (e) {
       AppLogger.e('加载分类配置失败', e);
-      return [];
+      rethrow;
     }
   }
 
-  Future<List<GalleryCategory>> _readCategories(File file) async {
-    final jsonList = jsonDecode(await file.readAsString()) as List;
+  Future<String?> _readConfigIfPresent(File file) async {
+    try {
+      return await file.readAsString();
+    } on PathNotFoundException {
+      return null;
+    }
+  }
+
+  Future<List<GalleryCategory>?> _readCategories(File file) async {
+    final contents = await _readConfigIfPresent(file);
+    if (contents == null) return null;
+    final jsonList = jsonDecode(contents) as List;
     return jsonList
         .map((json) => GalleryCategory.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
   /// 保存所有分类
-  Future<bool> saveCategories(List<GalleryCategory> categories) {
+  Future<bool> saveCategories(
+    String rootPath,
+    List<GalleryCategory> categories,
+  ) {
     return _categorySaveLock.synchronized(() async {
-      final filePath = await _getCategoriesFilePath();
-      if (filePath == null) return false;
-
+      final filePath = p.join(rootPath, _categoriesFileName);
       final file = File(filePath);
       final temporaryFile = File('$filePath.tmp');
       final backupFile = File('$filePath.bak');
@@ -142,15 +143,16 @@ class GalleryCategoryRepository {
     }
   }
 
-  Future<Set<String>> _loadSuppressedFolderPaths() async {
+  Future<Set<String>> _loadSuppressedFolderPaths(String rootPath) async {
     try {
-      final filePath = await _getSuppressedCategoriesFilePath();
-      if (filePath == null) return {};
-
-      final file = File(filePath);
-      if (!await file.exists()) return {};
-
-      final jsonList = jsonDecode(await file.readAsString()) as List;
+      final contents = await _readConfigIfPresent(
+        File(p.join(rootPath, _suppressedCategoriesFileName)),
+      );
+      if (contents == null) return {};
+      final jsonList = jsonDecode(contents);
+      if (jsonList is! List) {
+        throw const FormatException('Invalid hidden paths');
+      }
       return jsonList
           .whereType<String>()
           .map(_normalizeCategoryPath)
@@ -158,16 +160,16 @@ class GalleryCategoryRepository {
           .toSet();
     } catch (e) {
       AppLogger.e('加载隐藏分类路径失败', e);
-      return {};
+      rethrow;
     }
   }
 
-  Future<void> _saveSuppressedFolderPaths(Set<String> paths) async {
+  Future<void> _saveSuppressedFolderPaths(
+    String rootPath,
+    Set<String> paths,
+  ) async {
     try {
-      final filePath = await _getSuppressedCategoriesFilePath();
-      if (filePath == null) return;
-
-      final file = File(filePath);
+      final file = File(p.join(rootPath, _suppressedCategoriesFileName));
       final parent = file.parent;
       if (!await parent.exists()) {
         await parent.create(recursive: true);
@@ -195,11 +197,12 @@ class GalleryCategoryRepository {
   }
 
   Future<void> _suppressCategoryFolderPaths(
+    String rootPath,
     GalleryCategory category,
     List<GalleryCategory> allCategories, {
     required bool recursive,
   }) async {
-    final suppressedPaths = await _loadSuppressedFolderPaths();
+    final suppressedPaths = await _loadSuppressedFolderPaths(rootPath);
     final categoryIds = {
       category.id,
       if (recursive) ...allCategories.getDescendantIds(category.id),
@@ -211,55 +214,23 @@ class GalleryCategoryRepository {
       }
     }
 
-    await _saveSuppressedFolderPaths(suppressedPaths);
-  }
-
-  Future<void> _unsuppressCategoryFolderPath(String folderPath) async {
-    final suppressedPaths = await _loadSuppressedFolderPaths();
-    final normalizedPath = _normalizeCategoryPath(folderPath);
-    final removed = suppressedPaths.remove(normalizedPath);
-    if (removed) {
-      await _saveSuppressedFolderPaths(suppressedPaths);
-    }
-  }
-
-  Future<Set<String>> _pruneSuppressedFolderPaths(
-    String rootPath,
-    Set<String> suppressedPaths,
-  ) async {
-    final retained = <String>{};
-    for (final relativePath in suppressedPaths) {
-      final absolutePath = _absolutePathFromNormalized(rootPath, relativePath);
-      if (await Directory(absolutePath).exists()) {
-        retained.add(relativePath);
-      }
-    }
-
-    if (retained.length != suppressedPaths.length) {
-      await _saveSuppressedFolderPaths(retained);
-    }
-
-    return retained;
+    await _saveSuppressedFolderPaths(rootPath, suppressedPaths);
   }
 
   String _normalizeCategoryPath(String pathValue) {
-    final normalized = p.normalize(pathValue).replaceAll('\\', '/');
+    final normalized = galleryFilePathKey(
+      p.normalize(pathValue),
+    ).replaceAll('\\', '/');
     return normalized == '.' ? '' : normalized.replaceAll(RegExp(r'/+$'), '');
-  }
-
-  String _absolutePathFromNormalized(String rootPath, String normalizedPath) {
-    return p.joinAll([rootPath, ...normalizedPath.split('/')]);
   }
 
   /// 创建分类（同时创建文件夹）
   Future<GalleryCategory?> createCategory({
+    required String rootPath,
     required String name,
     String? parentId,
     List<GalleryCategory> existingCategories = const [],
   }) async {
-    final rootPath = await getRootPath();
-    if (rootPath == null) return null;
-
     final cleanName = _sanitizeFolderName(name);
     if (cleanName.isEmpty) return null;
 
@@ -271,8 +242,8 @@ class GalleryCategoryRepository {
 
     final dir = Directory(absolutePath);
     if (await dir.exists()) {
-      final suppressedPaths = await _loadSuppressedFolderPaths();
-      if (suppressedPaths.contains(_normalizeCategoryPath(relativePath))) {
+      final suppressedPaths = await _loadSuppressedFolderPaths(rootPath);
+      if (suppressedPaths.remove(_normalizeCategoryPath(relativePath))) {
         final siblings = existingCategories.where(
           (c) => c.parentId == parentId,
         );
@@ -282,7 +253,7 @@ class GalleryCategoryRepository {
           parentId: parentId,
           sortOrder: siblings.length,
         ).updateImageCount(await _countImagesInFolder(rootPath, absolutePath));
-        await _unsuppressCategoryFolderPath(relativePath);
+        await _saveSuppressedFolderPaths(rootPath, suppressedPaths);
         AppLogger.i('恢复隐藏分类成功: ${category.name} -> $absolutePath');
         return category;
       }
@@ -327,13 +298,11 @@ class GalleryCategoryRepository {
 
   /// 重命名分类（同时重命名文件夹）
   Future<GalleryCategory?> renameCategory(
+    String rootPath,
     GalleryCategory category,
     String newName,
     List<GalleryCategory> allCategories,
   ) async {
-    final rootPath = await getRootPath();
-    if (rootPath == null) return null;
-
     final cleanName = _sanitizeFolderName(newName);
     if (cleanName.isEmpty) return null;
 
@@ -388,13 +357,11 @@ class GalleryCategoryRepository {
 
   /// 移动分类到新父级（同时移动文件夹）
   Future<GalleryCategory?> moveCategory(
+    String rootPath,
     GalleryCategory category,
     String? newParentId,
     List<GalleryCategory> allCategories,
   ) async {
-    final rootPath = await getRootPath();
-    if (rootPath == null) return null;
-
     if (newParentId != null &&
         allCategories.wouldCreateCycle(category.id, newParentId)) {
       AppLogger.w('移动会造成循环引用');
@@ -463,14 +430,12 @@ class GalleryCategoryRepository {
 
   /// 删除分类
   Future<bool> deleteCategory(
+    String rootPath,
     GalleryCategory category,
     List<GalleryCategory> allCategories, {
     bool deleteFolder = true,
     bool recursive = false,
   }) async {
-    final rootPath = await getRootPath();
-    if (rootPath == null) return false;
-
     final children = allCategories.getChildren(category.id);
     if (children.isNotEmpty && !recursive) {
       AppLogger.w('分类包含子分类，无法删除: ${category.name}');
@@ -491,6 +456,7 @@ class GalleryCategoryRepository {
         }
       } else {
         await _suppressCategoryFolderPaths(
+          rootPath,
           category,
           allCategories,
           recursive: recursive,
@@ -583,17 +549,13 @@ class GalleryCategoryRepository {
   }
 
   /// 统计分类内的图片数量
-  Future<int> countImagesInCategory(
-    GalleryCategory category, {
-    bool includeDescendants = true,
-  }) async {
+  Future<int> countImagesInCategory(GalleryCategory category) async {
     final rootPath = await getRootPath();
     if (rootPath == null) return 0;
 
     return _countImagesInFolder(
       rootPath,
       p.join(rootPath, category.folderPath),
-      recursive: includeDescendants,
     );
   }
 
@@ -604,123 +566,138 @@ class GalleryCategoryRepository {
     return p.join(rootPath, category.folderPath);
   }
 
-  /// 同步分类与文件系统
-  ///
-  /// 扫描文件系统中的文件夹，创建缺失的分类
-  /// 删除不存在的分类
   Future<List<GalleryCategory>> syncWithFileSystem(
-    List<GalleryCategory> existingCategories,
+    String root,
+    List<GalleryCategory> existing,
   ) async {
-    final rootPath = await getRootPath();
-    if (rootPath == null) return existingCategories;
+    final directory = Directory(root);
+    if (!await directory.exists()) return existing;
+    final paths = <String, String>{};
+    final incomplete = <String>{};
+    final counts = GalleryFolderCounts();
+    await _images
+        .list(
+          directory,
+          onDirectory: (folder, direct) {
+            counts.addToFolder(folder.path, direct);
+            if (p.equals(root, folder.path)) return;
+            final path = p.relative(folder.path, from: root);
+            paths[_normalizeCategoryPath(path)] = path;
+          },
+          onIncompleteDirectory: (folder) => incomplete.add(
+            _normalizeCategoryPath(p.relative(folder.path, from: root)),
+          ),
+        )
+        .drain<void>();
 
-    final updatedCategories = <GalleryCategory>[];
-    final existingPaths = existingCategories
-        .map((c) => _normalizeCategoryPath(c.folderPath))
-        .toSet();
-    final suppressedPaths = await _pruneSuppressedFolderPaths(
-      rootPath,
-      await _loadSuppressedFolderPaths(),
-    );
+    bool isIncomplete(String key) =>
+        incomplete.any((folder) => key == folder || key.startsWith('$folder/'));
+    bool retain(String key) => paths.containsKey(key) || isIncomplete(key);
 
-    // 检查现有分类的文件夹是否存在
-    for (final category in existingCategories) {
-      final folderPath = p.join(rootPath, category.folderPath);
-      if (await Directory(folderPath).exists()) {
-        // 更新图片数量
-        final imageCount = await _countImagesInFolder(rootPath, folderPath);
-        updatedCategories.add(category.updateImageCount(imageCount));
-      }
-      // 如果文件夹不存在，则不添加到更新列表（相当于删除）
+    // 可读祖先的汇总沿用最外层未读子树的旧计数。
+    for (final key in incomplete) {
+      if (isIncomplete(p.posix.dirname(key))) continue;
+      final previous = existing
+          .where((c) => _normalizeCategoryPath(c.folderPath) == key)
+          .firstOrNull;
+      if (previous == null) continue;
+      final absolute = p.join(root, paths[key]!);
+      counts.addToFolder(
+        absolute,
+        previous.imageCount - counts.countIn(absolute),
+      );
     }
 
-    // 扫描文件系统中的新文件夹
-    await _scanAndAddNewFolders(
-      rootPath,
-      rootPath,
-      null,
-      existingPaths,
-      suppressedPaths,
-      updatedCategories,
+    final suppressed = await _loadSuppressedFolderPaths(root);
+    final retained = suppressed.where(retain).toSet();
+    if (retained.length != suppressed.length) {
+      await _saveSuppressedFolderPaths(root, retained);
+    }
+    final present = existing
+        .where((c) => retain(_normalizeCategoryPath(c.folderPath)))
+        .toList();
+    return _mergeFolderCounts(
+      root,
+      present,
+      paths.entries
+          .where((entry) => !isIncomplete(entry.key))
+          .map((entry) => entry.value),
+      retained,
+      counts.countIn,
     );
-
-    return updatedCategories;
   }
 
-  /// 递归扫描并添加新文件夹
-  Future<void> _scanAndAddNewFolders(
-    String rootPath,
-    String currentPath,
-    String? parentId,
-    Set<String> existingPaths,
-    Set<String> suppressedPaths,
-    List<GalleryCategory> categories,
+  Future<List<GalleryCategory>> updateForImagePaths(
+    String root,
+    List<GalleryCategory> existing,
+    Iterable<String> files,
+    int Function(String) countIn,
   ) async {
-    final dir = Directory(currentPath);
-    if (!await dir.exists()) return;
-
-    try {
-      await for (final entity in dir.list(followLinks: false)) {
-        if (entity is Directory) {
-          final folderName = p.basename(entity.path);
-          // 跳过隐藏文件夹
-          if (folderName.startsWith('.')) continue;
-
-          final relativePath = p.relative(entity.path, from: rootPath);
-          final normalizedRelativePath = _normalizeCategoryPath(relativePath);
-
-          if (suppressedPaths.contains(normalizedRelativePath)) {
-            continue;
-          }
-
-          if (!existingPaths.contains(normalizedRelativePath)) {
-            // 新文件夹，创建分类
-            final imageCount = await _countImagesInFolder(rootPath, entity.path);
-            final category = GalleryCategory.create(
-              name: folderName,
-              folderPath: relativePath,
-              parentId: parentId,
-              sortOrder: categories.where((c) => c.parentId == parentId).length,
-            ).updateImageCount(imageCount);
-
-            categories.add(category);
-            existingPaths.add(normalizedRelativePath);
-
-            // 递归扫描子文件夹
-            await _scanAndAddNewFolders(
-              rootPath,
-              entity.path,
-              category.id,
-              existingPaths,
-              suppressedPaths,
-              categories,
-            );
-          } else {
-            // 已存在的分类，查找其ID并递归扫描子文件夹
-            final existingCategory = categories
-                .where(
-                  (c) =>
-                      _normalizeCategoryPath(c.folderPath) ==
-                      normalizedRelativePath,
-                )
-                .firstOrNull;
-
-            if (existingCategory != null) {
-              await _scanAndAddNewFolders(
-                rootPath,
-                entity.path,
-                existingCategory.id,
-                existingPaths,
-                suppressedPaths,
-                categories,
-              );
-            }
-          }
-        }
+    final paths = <String, String>{};
+    for (final file in files) {
+      if (!GalleryImageFiles.accepts(root, file)) continue;
+      final parent = p.dirname(file);
+      if (p.equals(root, parent)) continue;
+      var prefix = '';
+      for (final segment in p.split(p.relative(parent, from: root))) {
+        prefix = p.join(prefix, segment);
+        paths[_normalizeCategoryPath(prefix)] = prefix;
       }
-    } catch (e) {
-      AppLogger.e('扫描文件夹失败: $currentPath', e);
     }
+    if (paths.isEmpty) return existing;
+    final suppressed = await _loadSuppressedFolderPaths(root);
+    return _mergeFolderCounts(
+      root,
+      existing,
+      paths.values,
+      suppressed,
+      countIn,
+      checkNewFolders: true,
+    );
+  }
+
+  Future<List<GalleryCategory>> _mergeFolderCounts(
+    String root,
+    List<GalleryCategory> existing,
+    Iterable<String> paths,
+    Set<String> suppressed,
+    int Function(String) countIn, {
+    bool checkNewFolders = false,
+  }) async {
+    final byPath = {
+      for (final c in existing) _normalizeCategoryPath(c.folderPath): c,
+    };
+    final blocked = {...suppressed};
+    for (final path in paths) {
+      final key = _normalizeCategoryPath(path);
+      final parentKey = _normalizeCategoryPath(p.dirname(path));
+      if (blocked.contains(key) || blocked.contains(parentKey)) {
+        blocked.add(key);
+        continue;
+      }
+      final absolute = p.join(root, path);
+      final previous = byPath[key];
+      if (previous == null &&
+          checkNewFolders &&
+          !await Directory(absolute).exists()) {
+        continue;
+      }
+      final count = countIn(absolute);
+      if (previous != null) {
+        if (previous.imageCount != count) {
+          byPath[key] = previous.updateImageCount(count);
+        }
+      } else {
+        final parentId = byPath[parentKey]?.id;
+        byPath[key] = GalleryCategory.create(
+          name: p.basename(path),
+          folderPath: path,
+          parentId: parentId,
+          sortOrder: byPath.values.where((c) => c.parentId == parentId).length,
+        ).updateImageCount(count);
+      }
+    }
+    return byPath.values.toList();
   }
 
   String _sanitizeFolderName(String name) =>
@@ -734,15 +711,6 @@ class GalleryCategoryRepository {
     }
   }
 
-  Future<int> _countImagesInFolder(
-    String rootPath,
-    String folderPath, {
-    bool recursive = false,
-  }) => const GalleryImageFiles()
-      .list(
-        Directory(rootPath),
-        folder: Directory(folderPath),
-        recursive: recursive,
-      )
-      .length;
+  Future<int> _countImagesInFolder(String rootPath, String folderPath) =>
+      _images.list(Directory(rootPath), folder: Directory(folderPath)).length;
 }
