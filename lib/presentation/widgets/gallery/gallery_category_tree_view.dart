@@ -46,7 +46,6 @@ class GalleryCategoryTreeView extends StatefulWidget {
   onCategoryMoveToSlot;
   final Future<void> Function(List<String> imagePaths, String? categoryId)?
   onImagesDrop;
-  final VoidCallback? onSyncWithFileSystem;
 
   /// 是否渲染顶部固定的「全部图片 / 收藏」节点；
   /// 与相簿区并列展示时传 false 避免入口重复。
@@ -69,7 +68,6 @@ class GalleryCategoryTreeView extends StatefulWidget {
     this.onCategoryMove,
     this.onCategoryMoveToSlot,
     this.onImagesDrop,
-    this.onSyncWithFileSystem,
     this.includeRootNodes = true,
     this.embedded = false,
     this.showScanProgress = true,

@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:path/path.dart' as p;
 
 import '../../../core/exceptions/gallery_exceptions.dart';
 import '../../models/gallery/local_image_record.dart';
 import 'gallery_filter_service.dart';
+import 'gallery_folder_counts.dart';
 import 'gallery_path_utils.dart';
 import 'local_gallery_repository.dart';
 import 'local_gallery_service.dart';
@@ -30,6 +32,7 @@ class LocalGalleryQuery {
   final GalleryFilterService _filterService;
 
   List<File> _allFiles = [];
+  final folderCounts = GalleryFolderCounts();
   List<File> _filteredFiles = [];
   FilterCriteria _currentFilter = const FilterCriteria();
   int _fileListGeneration = 0;
@@ -51,6 +54,7 @@ class LocalGalleryQuery {
 
   void replaceAll(List<File> files) {
     _allFiles = files;
+    folderCounts.replaceFiles(files);
     _fileListGeneration++;
     if (!_currentFilter.hasFilters) _filteredFiles = files;
   }
@@ -73,6 +77,7 @@ class LocalGalleryQuery {
     if (containsPath(file.path)) return;
     // 异步查询仍持有旧版本的列表。
     _allFiles = [file, ..._allFiles];
+    folderCounts.addToFolder(p.dirname(file.path), 1);
     _fileListGeneration++;
   }
 
@@ -94,6 +99,7 @@ class LocalGalleryQuery {
     for (final file in _allFiles) {
       if (keys.contains(galleryFilePathKey(file.path))) {
         removed.add(file.path);
+        folderCounts.addToFolder(p.dirname(file.path), -1);
       } else {
         remaining.add(file);
       }
@@ -250,6 +256,7 @@ class LocalGalleryQuery {
     if (operationId != null) _filterService.cancelFilter(operationId);
     _activeFilterOperationId = null;
     _allFiles = [];
+    folderCounts.replaceFiles(const []);
     _filteredFiles = [];
     _fileListGeneration++;
     _currentFilter = const FilterCriteria();

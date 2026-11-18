@@ -19,6 +19,8 @@ import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/gallery_album_provider.dart';
 import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/gallery_scan_progress_provider.dart';
+import '../../../helpers/gallery_folder_notifications.dart';
 import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_screen.dart';
 import 'package:nai_launcher/presentation/screens/local_gallery/local_gallery_category_panel.dart';
 import 'package:nai_launcher/presentation/widgets/common/pagination_bar.dart';
@@ -30,6 +32,9 @@ import 'package:visibility_detector/visibility_detector.dart';
 class _Gallery extends Fake implements LocalGalleryService {
   final records = <LocalImageRecord>[];
   Completer<void>? readGate;
+  final refreshes = <bool>[];
+  @override
+  Future<void> refresh({bool scan = true}) async => refreshes.add(scan);
 
   @override
   FilterCriteria currentFilter = const FilterCriteria();
@@ -80,10 +85,19 @@ class _Gallery extends Fake implements LocalGalleryService {
 LocalImageRecord _record(String path) =>
     LocalImageRecord(path: path, modifiedAt: DateTime(2026, 11, 18), size: 1);
 
+class _Scan extends GalleryScanProgressNotifier {
+  _Scan(this.scanning);
+  final bool scanning;
+  @override
+  ScanProgressState build() => ScanProgressState(isScanning: scanning);
+  void finish() => state = const ScanProgressState();
+}
+
 Future<ProviderContainer> _pumpGallery(
   WidgetTester tester,
-  _Gallery service,
-) async {
+  _Gallery service, {
+  bool scanning = false,
+}) async {
   SharedPreferences.setMockInitialValues({
     StorageKeys.hasSeenLocalGalleryTip: true,
   });
@@ -106,6 +120,7 @@ Future<ProviderContainer> _pumpGallery(
   addTearDown(router.dispose);
   final container = ProviderContainer(
     overrides: [
+      galleryScanProgressProvider.overrideWith(() => _Scan(scanning)),
       autocompleteSettingsProvider.overrideWithBuild(
         (_, _) => const AutocompleteSettings(
           enabled: false,
@@ -115,17 +130,19 @@ Future<ProviderContainer> _pumpGallery(
       galleryServiceProvider.overrideWith(
         () => GalleryService(createService: () => service),
       ),
-      galleryCategoryNotifierProvider.overrideWithBuild(
-        (_, _) => GalleryCategoryState(
-          categories: [
-            GalleryCategory(
-              id: 'folder',
-              name: 'Folder',
-              folderPath: 'folder',
-              createdAt: DateTime(2026),
-              updatedAt: DateTime(2026),
-            ),
-          ],
+      galleryCategoryNotifierProvider.overrideWith(
+        () => RecordingGalleryFolders(
+          GalleryCategoryState(
+            categories: [
+              GalleryCategory(
+                id: 'folder',
+                name: 'Folder',
+                folderPath: 'folder',
+                createdAt: DateTime(2026),
+                updatedAt: DateTime(2026),
+              ),
+            ],
+          ),
         ),
       ),
       galleryAlbumNotifierProvider.overrideWithBuild(
@@ -160,6 +177,30 @@ Future<ProviderContainer> _pumpGallery(
 }
 
 void main() {
+  testWidgets('扫描结束后补做一次侧栏同步，工具栏与刷新快捷键均同步', (tester) async {
+    final service = _Gallery();
+    final container = await _pumpGallery(tester, service, scanning: true);
+    final folders =
+        container.read(galleryCategoryNotifierProvider.notifier)
+            as RecordingGalleryFolders;
+    await tester.pump(const Duration(seconds: 1));
+    expect(folders.syncs, 0);
+    (container.read(galleryScanProgressProvider.notifier) as _Scan).finish();
+    await tester.pump();
+    expect(service.refreshes, [false]);
+    expect(folders.syncs, 1);
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('local-gallery-toolbar')),
+        matching: find.byIcon(Icons.refresh),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.f5);
+    await tester.pump();
+    expect(service.refreshes, [false, true, true]);
+    expect(folders.syncs, 3);
+  });
   for (final scope in ['folder', 'album', 'favorites']) {
     testWidgets('$scope 范围通过工具栏、快捷键和无结果页清除条件后保留', (tester) async {
       final service = _Gallery()

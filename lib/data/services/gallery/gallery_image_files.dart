@@ -33,7 +33,8 @@ class GalleryImageFiles {
   Stream<File> list(
     Directory root, {
     Directory? folder,
-    bool recursive = true,
+    void Function(Directory directory, int directImages)? onDirectory,
+    void Function(Directory directory)? onIncompleteDirectory,
   }) async* {
     final start = folder ?? root;
     if (!isVisibleDirectory(root.path, start.path)) return;
@@ -42,18 +43,19 @@ class GalleryImageFiles {
     var skippedCount = 0;
     while (pending.isNotEmpty) {
       final current = pending.removeLast();
+      var directImages = 0;
       try {
         await for (final entry in listDirectory(current)) {
           if (entry is File && _hasImageExtension(entry.path)) {
+            directImages++;
             yield entry;
-          } else if (recursive &&
-              entry is Directory &&
-              !_isHidden(p.basename(entry.path))) {
+          } else if (entry is Directory && !_isHidden(p.basename(entry.path))) {
             pending.add(entry);
           }
         }
       } on FileSystemException catch (error) {
         if (identical(current, start)) rethrow;
+        onIncompleteDirectory?.call(current);
         skippedCount++;
         skippedByError.update(
           fileSystemErrorSummary(error),
@@ -61,6 +63,7 @@ class GalleryImageFiles {
           ifAbsent: () => 1,
         );
       }
+      onDirectory?.call(current, directImages);
     }
     if (skippedCount > 0) {
       AppLogger.w(

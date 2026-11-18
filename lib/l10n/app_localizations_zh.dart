@@ -5994,9 +5994,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_imageMovedToCategory => '图片已移动到分类';
 
   @override
-  String get localGallery_categoriesSynced => '分类已与文件夹同步';
-
-  @override
   String get localGallery_saveDirectoryNotSet => '未设置保存目录';
 
   @override
@@ -21678,9 +21675,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_imageMovedToCategory => '圖片已移動到分類';
-
-  @override
-  String get localGallery_categoriesSynced => '分類已與資料夾同步';
 
   @override
   String get localGallery_saveDirectoryNotSet => '未設定儲存目錄';

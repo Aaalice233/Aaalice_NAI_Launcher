@@ -51,6 +51,7 @@ abstract class LocalGalleryService {
   /// gallery root, and returns how many tracked files were dropped.
   Future<int> removeDeletedImagesImmediately(List<String> filePaths);
   int get filteredCount;
+  int imageCountInFolder(String path);
   int get totalCount;
   FilterCriteria get currentFilter;
   Future<void> setSearchQuery(String query);

@@ -17,6 +17,7 @@ import '../../data/services/gallery/gallery_stream_scanner.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/gallery/unified_gallery_service.dart';
 import '../../l10n/app_localizations.dart';
+import 'gallery_category_provider.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
@@ -214,6 +215,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
     }
     if (addedCount > 0) GalleryCacheManager().invalidateStatistics();
+    await _updateFolders(service, filePaths);
   }
 
   /// 在途的初始化枚举可能早于删除，服务就绪后按磁盘现状再移除一次。
@@ -224,6 +226,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     _deferredRemovals.clear();
     try {
       await service.removeDeletedImagesImmediately(filePaths);
+      await _updateFolders(service, filePaths);
     } catch (e, stackTrace) {
       AppLogger.e(
         '[RemoveDeletedImages] Failed to apply deferred removals',
@@ -540,8 +543,17 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return GalleryIndexAdmission.deferred;
     }
 
-    return _admitImmediately(service, filePaths);
+    final admission = await _admitImmediately(service, filePaths);
+    await _updateFolders(service, filePaths);
+    return admission;
   }
+
+  Future<void> _updateFolders(
+    LocalGalleryService service,
+    List<String> paths,
+  ) => ref
+      .read(galleryCategoryNotifierProvider.notifier)
+      .updateForImagePaths(paths, service.imageCountInFolder);
 
   /// 文件已从磁盘删掉后调用：直接移出列表，不为几张图重新枚举整个图库根目录。
   Future<void> removeDeletedImages(List<String> filePaths) async {
@@ -561,6 +573,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       final removedCount = await service.removeDeletedImagesImmediately(
         filePaths,
       );
+      await _updateFolders(service, filePaths);
       if (removedCount == 0) return;
       _favoriteCountLoad = null;
       _setState(

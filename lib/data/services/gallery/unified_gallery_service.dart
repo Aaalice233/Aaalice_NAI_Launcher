@@ -126,6 +126,9 @@ class ErrorGalleryService implements LocalGalleryService {
   Never _throwError() => throw GalleryDatabaseException(message: error);
 
   @override
+  int imageCountInFolder(String path) => _throwError();
+
+  @override
   Future<List<File>> initialize() => _throwError();
   @override
   Future<List<LocalImageRecord>> getPage(int page, {int? pageSize}) =>
@@ -179,6 +182,8 @@ class ErrorGalleryService implements LocalGalleryService {
 }
 
 class _PlaceholderGalleryService implements LocalGalleryService {
+  @override
+  int imageCountInFolder(String path) => _throwNotInitialized();
   @override
   bool get isInitialized => false;
   @override

@@ -100,7 +100,6 @@ Future<List<(String, String, String)>> _pumpGallery(WidgetTester tester) async {
                       onAddSubCategory: (_) async {},
                       onCategoryMove: (_, _) async {},
                       onImagesDrop: (_, _) async {},
-                      onSyncWithFileSystem: () async {},
                       onCreateAlbum: (_) async {},
                       onAlbumSelected: (_) {},
                       onAlbumRename: (id, name) async =>
