@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:synchronized/synchronized.dart';
 
@@ -192,7 +193,7 @@ class GalleryStreamScanner {
     // change either the total or the files processed by this scan.
     final suppliedSnapshot = fileSnapshot == null
         ? null
-        : _freezeFileSnapshot(rootDir, fileSnapshot);
+        : freezeFileSnapshot(rootDir, fileSnapshot);
 
     // 使用互斥锁防止并发扫描
     return _scanLock.synchronized(() async {
@@ -231,7 +232,7 @@ class GalleryStreamScanner {
         // 3. Enumerate once, freeze the result, and only reorder entries that
         // are already in that snapshot. File-system changes after this point
         // are deliberately deferred to the next scan.
-        final snapshot = suppliedSnapshot ?? await _createFileSnapshot(rootDir);
+        final snapshot = suppliedSnapshot ?? await createFileSnapshot(rootDir);
         final filesToScan = _prioritizeSnapshot(snapshot, retryPriorityPaths);
         final totalFiles = filesToScan.length;
         AppLogger.i(
@@ -724,13 +725,15 @@ class GalleryStreamScanner {
     );
   }
 
-  Future<List<File>> _createFileSnapshot(Directory rootDir) async {
+  @visibleForTesting
+  Future<List<File>> createFileSnapshot(Directory rootDir) async {
     final files = await const GalleryImageFiles().list(rootDir.absolute);
     if (_shouldCancel) return const [];
-    return files;
+    return freezeFileSnapshot(rootDir, files);
   }
 
-  List<File> _freezeFileSnapshot(Directory rootDir, Iterable<File> files) {
+  @visibleForTesting
+  List<File> freezeFileSnapshot(Directory rootDir, Iterable<File> files) {
     final rootPath = p.normalize(p.absolute(rootDir.path));
     final seen = <String>{};
     final snapshot = <File>[];
