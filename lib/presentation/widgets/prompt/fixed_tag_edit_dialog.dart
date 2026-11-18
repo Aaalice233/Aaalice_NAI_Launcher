@@ -293,6 +293,16 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
     ),
     child: PromptEditorControlRow(
       sessionId: _modeId,
+      assistant: PromptAssistantOverlay(
+        placement: PromptAssistantPlacement.inline,
+        sessionId: _assistantSessionId,
+        controller: _contentController,
+        iconOnly: true,
+        tagModeSessionId: _modeId,
+        supportsTagMode: true,
+        stripFixedTagsFromInput: false,
+        onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+      ),
       leading: Text(
         context.l10n.fixedTags_syntaxHelp,
         maxLines: 1,
@@ -371,18 +381,6 @@ class _FixedTagEditDialogState extends ConsumerState<FixedTagEditDialog> {
       sessionId: _modeId,
       bottomPadding: 12,
       showModeSwitch: false,
-      assistant: Positioned.fill(
-        child: PromptAssistantOverlay(
-          placement: PromptAssistantPlacement.viewport,
-          sessionId: _assistantSessionId,
-          controller: _contentController,
-          iconOnly: true,
-          tagModeSessionId: _modeId,
-          supportsTagMode: true,
-          stripFixedTagsFromInput: false,
-          onOpenSettings: () => PromptAssistantQuickSettings.show(context),
-        ),
-      ),
       controller: _contentController,
       sourceFocusNode: _contentFocusNode,
       child: promptEditor,

@@ -8,6 +8,8 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart'
     show ImageParamsExtension;
 import '../../../providers/image_generation_provider.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_dock.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../widgets/prompt/prompt_token_count_bar.dart';
 import '../../../widgets/common/translated_tag_text.dart';
@@ -21,11 +23,15 @@ class PromptInputFooter extends ConsumerWidget {
     required this.target,
     required this.topPadding,
     this.leading,
+    this.assistant,
   });
 
   final PromptTokenCountTarget target;
   final double topPadding;
   final Widget? leading;
+
+  /// Inline assistant docked beside the count; expanding covers the actions.
+  final PromptAssistantOverlay? assistant;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -154,35 +160,37 @@ class PromptInputFooter extends ConsumerWidget {
       ],
     );
 
+    final actionStrip = LayoutBuilder(
+      builder: (context, constraints) => HorizontalActionStrip(
+        scrollKey: const ValueKey('generation_prompt_footer_actions_scroll'),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              leadingControls,
+              if (leading != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: leading,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final assistant = this.assistant;
+
     final supportingContent = KeyedSubtree(
       key: const ValueKey('generation_prompt_footer_supporting'),
       child: Row(
         children: [
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) => HorizontalActionStrip(
-                scrollKey: const ValueKey(
-                  'generation_prompt_footer_actions_scroll',
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      leadingControls,
-                      if (leading != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: leading,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            child: assistant == null
+                ? actionStrip
+                : PromptAssistantDock(assistant: assistant, child: actionStrip),
           ),
           const SizedBox(width: 8),
-
           tokenCount,
         ],
       ),

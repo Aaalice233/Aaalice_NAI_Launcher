@@ -76,8 +76,11 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// 输入框会话标识（用于历史栈隔离）
   final String? sessionId;
 
-  /// 是否显示右下角助手
+  /// 是否启用助手（输入框快捷键与内置入口）
   final bool enableAssistant;
+
+  /// 是否在输入框右下角挂内置入口；宿主把助手放进自己的控件栏时关闭
+  final bool showAssistantEntry;
   final bool showTagModeSwitch;
   final Object? assistantTapRegionGroupId;
 
@@ -107,6 +110,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
     this.fitContent = false,
     this.sessionId,
     this.enableAssistant = true,
+    this.showAssistantEntry = true,
     this.showTagModeSwitch = true,
     this.assistantTapRegionGroupId,
     this.onOpenAssistantSettings,
@@ -544,7 +548,7 @@ class _UnifiedPromptInputState extends ConsumerState<UnifiedPromptInput> {
       config: widget.config,
       fitContent: widget.fitContent,
       expands: widget.expands,
-      enableAssistant: widget.enableAssistant,
+      showAssistantEntry: widget.enableAssistant && widget.showAssistantEntry,
       showTagModeSwitch: widget.showTagModeSwitch,
       modeId: _modeId,
       sessionId: _sessionId,

@@ -12,6 +12,8 @@ class PromptTagModeToggle extends ConsumerWidget {
     this.enabled = true,
   });
 
+  static const double width = 88;
+
   final Object sessionId;
   final bool enabled;
 
@@ -39,7 +41,7 @@ class PromptTagModeToggle extends ConsumerWidget {
                       .setEnabled(!enabled);
                 }
               : null,
-          style: PromptFooterStyle.button(context, width: 88).copyWith(
+          style: PromptFooterStyle.button(context, width: width).copyWith(
             padding: const WidgetStatePropertyAll(EdgeInsets.all(3)),
             backgroundColor: WidgetStatePropertyAll(
               colors.surfaceContainerHigh,

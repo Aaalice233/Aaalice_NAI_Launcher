@@ -99,8 +99,20 @@ void main() {
       lessThanOrEqualTo(tester.getRect(count).left),
     );
     expect(
-      tester.getRect(assistant).bottom,
-      lessThanOrEqualTo(tester.getRect(input).bottom),
+      tester.getRect(assistant).top,
+      greaterThanOrEqualTo(tester.getRect(input).bottom),
+    );
+    expect(
+      tester.getRect(assistant).right,
+      lessThanOrEqualTo(tester.getRect(count).left),
+    );
+    expect(
+      tester.getRect(transparent).right,
+      lessThanOrEqualTo(tester.getRect(assistant).left),
+    );
+    expect(
+      tester.getCenter(assistant).dy,
+      closeTo(tester.getCenter(count).dy, 0.5),
     );
     expect(tester.takeException(), isNull);
   });
@@ -161,7 +173,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('紧凑输入助手位于编辑面内且底栏保留完整触控区域', (tester) async {
+  testWidgets('紧凑输入助手停靠在底栏计数左侧且保留完整触控区域', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -207,6 +219,7 @@ void main() {
     );
     final fullscreenButton = find.widgetWithIcon(IconButton, Icons.fullscreen);
     final clearButton = find.widgetWithIcon(IconButton, Icons.clear);
+    final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
     final assistantRect = tester.getRect(assistantButton);
     final fullscreenRect = tester.getRect(fullscreenButton);
     final clearRect = tester.getRect(clearButton);
@@ -214,8 +227,9 @@ void main() {
     expect(assistantButton, findsOneWidget);
     expect(fullscreenButton, findsOneWidget);
     expect(clearButton, findsOneWidget);
-    expect(assistantRect.top, greaterThanOrEqualTo(inputRect.top));
-    expect(assistantRect.bottom, lessThanOrEqualTo(inputRect.bottom));
+    expect(assistantRect.top, greaterThanOrEqualTo(inputRect.bottom));
+    expect(assistantRect.right, lessThanOrEqualTo(tester.getRect(count).left));
+    expect(clearRect.right, lessThanOrEqualTo(assistantRect.left));
     expect(fullscreenRect.top, greaterThanOrEqualTo(inputRect.bottom));
     expect(clearRect.top, greaterThanOrEqualTo(inputRect.bottom));
     expect(assistantRect.size, const Size(48, 48));
@@ -233,6 +247,14 @@ void main() {
       ),
       inputRect,
     );
+    expect(count.hitTestable(), findsOneWidget);
+    final expanded = tester.getRect(
+      find.byKey(
+        const ValueKey('prompt_assistant_toolbar_generation_prompt_main'),
+      ),
+    );
+    expect(expanded.right, closeTo(assistantRect.right, 0.1));
+    expect(expanded.top, greaterThanOrEqualTo(inputRect.bottom));
     expect(tester.takeException(), isNull);
   });
 

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart' show kMinInteractiveDimensionCupertino;
 import 'package:flutter/material.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,8 @@ import '../../../data/models/image/image_params.dart' show ImageParamsExtension;
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import '../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
+import '../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../prompt/prompt_editor_control_row.dart';
 import '../../providers/character_prompt_provider.dart';
 import '../../providers/generation/character_editor_layout_provider.dart';
@@ -51,6 +54,7 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
   );
   final FocusNode _promptFocusNode = FocusNode();
   final FocusNode _negativeFocusNode = FocusNode();
+  final _tabsKey = GlobalKey(debugLabel: 'character-prompt-tabs');
 
   /// 0 = 正向提示词，1 = 负向提示词
   int _tabIndex = 0;
@@ -109,6 +113,21 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
     ref.read(characterPromptNotifierProvider.notifier).updateCharacter(updated);
   }
 
+  void _updatePrompt(String value) =>
+      _updateCharacter(widget.character.copyWith(prompt: value));
+
+  void _updateNegativePrompt(String value) =>
+      _updateCharacter(widget.character.copyWith(negativePrompt: value));
+
+  // 模型固定生成参数时角色负向提示词不会发送，只读保留。
+  bool _watchNegativeLocked() =>
+      _tabIndex == 1 &&
+      ref.watch(
+        generationParamsNotifierProvider.select(
+          (params) => params.usesFixedSettings,
+        ),
+      );
+
   Future<void> _clearCurrentPrompt() async {
     final controller = _tabIndex == 0 ? _promptController : _negativeController;
     if (controller.text.isEmpty) return;
@@ -152,30 +171,43 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
             controller: _promptController,
             focusNode: _promptFocusNode,
             hintText: l10n.characterEditor_promptHint,
-            onChanged: (value) =>
-                _updateCharacter(widget.character.copyWith(prompt: value)),
+            onChanged: _updatePrompt,
           )
         else
           _buildPromptEditor(
             controller: _negativeController,
             focusNode: _negativeFocusNode,
             hintText: l10n.characterEditor_negativePromptHint,
-            onChanged: (value) => _updateCharacter(
-              widget.character.copyWith(negativePrompt: value),
-            ),
+            onChanged: _updateNegativePrompt,
           ),
       ],
     );
   }
 
   Widget _buildEditorHeader(AppLocalizations l10n, String sessionId) {
+    const tabGap = 6.0;
     final positive = _tabIndex == 0;
     final currentController = positive
         ? _promptController
         : _negativeController;
     return PromptEditorControlRow(
       sessionId: sessionId,
+      minimumLeadingWidth: 2 * kMinInteractiveDimensionCupertino + tabGap,
+      assistant: PromptAssistantOverlay(
+        placement: PromptAssistantPlacement.inline,
+        iconOnly: true,
+        supportsTagMode: true,
+        enabled: !_watchNegativeLocked(),
+        sessionId: sessionId,
+        controller: currentController,
+        onChanged: positive ? _updatePrompt : _updateNegativePrompt,
+        tapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
+          widget.character.id,
+        ),
+        onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+      ),
       leading: Row(
+        key: _tabsKey,
         children: [
           Flexible(
             child: _EditorTab(
@@ -187,7 +219,7 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
               },
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: tabGap),
           Flexible(
             child: _EditorTab(
               label: l10n.prompt_negativePrompt,
@@ -230,14 +262,7 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
     final replaceUnderscores = ref.watch(replaceUnderscoresPreferenceProvider);
 
     final isNegative = _tabIndex == 1;
-    // 模型固定生成参数时角色负向提示词不会发送，只读保留。
-    final negativeLocked =
-        isNegative &&
-        ref.watch(
-          generationParamsNotifierProvider.select(
-            (params) => params.usesFixedSettings,
-          ),
-        );
+    final negativeLocked = _watchNegativeLocked();
     final inputConfig = UnifiedPromptConfig.compactMode.copyWith(
       readOnly: negativeLocked,
       hintText: hintText,
@@ -285,10 +310,8 @@ class _CharacterPromptEditorState extends ConsumerState<CharacterPromptEditor> {
                 ? PromptHistorySessionIds.characterNegative(widget.character.id)
                 : PromptHistorySessionIds.characterPrompt(widget.character.id),
             enableAssistant: !negativeLocked,
+            showAssistantEntry: false,
             showTagModeSwitch: false,
-            assistantTapRegionGroupId: CharacterPromptEditor.tapRegionGroupId(
-              widget.character.id,
-            ),
             onChanged: onChanged,
             onCleared: () => onChanged(''),
             expands: true,

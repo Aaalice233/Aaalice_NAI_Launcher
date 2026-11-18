@@ -348,19 +348,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                       sessionId: _modeId,
                       fitContent: true,
                       showModeSwitch: false,
-                      assistant: Positioned.fill(
-                        child: PromptAssistantOverlay(
-                          placement: PromptAssistantPlacement.viewport,
-                          sessionId: _assistantSessionId,
-                          controller: _contentController,
-                          iconOnly: true,
-                          tagModeSessionId: _modeId,
-                          supportsTagMode: true,
-                          stripFixedTagsFromInput: false,
-                          onOpenSettings: () =>
-                              PromptAssistantQuickSettings.show(context),
-                        ),
-                      ),
+                      bottomPadding: 12,
                       controller: _contentController,
                       sourceFocusNode: _contentFocusNode,
                       child: PromptFormatterWrapper(
@@ -393,12 +381,7 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
                             focusNode: _contentFocusNode,
                             decoration: InputDecoration(
                               hintText: context.l10n.tagLibrary_contentHint,
-                              contentPadding: const EdgeInsets.fromLTRB(
-                                12,
-                                12,
-                                12,
-                                60,
-                              ),
+                              contentPadding: const EdgeInsets.all(12),
                             ),
                             maxLines: null,
                             minLines: 4,
@@ -462,6 +445,16 @@ class _EntryAddDialogState extends ConsumerState<EntryAddDialog> {
     ),
     child: PromptEditorControlRow(
       sessionId: _modeId,
+      assistant: PromptAssistantOverlay(
+        placement: PromptAssistantPlacement.inline,
+        sessionId: _assistantSessionId,
+        controller: _contentController,
+        iconOnly: true,
+        tagModeSessionId: _modeId,
+        supportsTagMode: true,
+        stripFixedTagsFromInput: false,
+        onOpenSettings: () => PromptAssistantQuickSettings.show(context),
+      ),
       leading: Text(
         context.l10n.tagLibrary_characterNegativeSyntaxHelp,
         maxLines: 1,

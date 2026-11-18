@@ -469,7 +469,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('角色助手在编辑区内展开且不挤动页签和清空入口', (tester) async {
+  testWidgets('角色助手停靠在页签行末且展开时接管整行', (tester) async {
     final container = createContainer();
     container.read(localStorageServiceProvider).setAutoFormatPrompt(false);
     await tester.pumpWidget(
@@ -504,12 +504,17 @@ void main() {
       const ValueKey('character-prompt-editor-area-positive'),
     );
     final clear = find.byKey(const ValueKey('character-prompt-clear-button'));
+    final modeSwitch = find.byKey(const ValueKey('tag-mode-button'));
     final originalArea = tester.getRect(area);
     final originalClear = tester.getRect(clear);
+    final originalSwitch = tester.getRect(modeSwitch);
     final collapsedRect = tester.getRect(toolbar);
     expect(collapsedRect.size, const Size(44, 44));
-    expect(originalArea.contains(collapsedRect.topLeft), isTrue);
-    expect(originalArea.contains(collapsedRect.bottomRight), isTrue);
+    expect(collapsedRect.bottom, lessThanOrEqualTo(originalArea.top));
+    expect(collapsedRect.right, closeTo(originalArea.right, 0.1));
+    expect(collapsedRect.left, greaterThanOrEqualTo(originalClear.right));
+    expect(originalSwitch.right, lessThanOrEqualTo(originalClear.left));
+    expect(collapsedRect.center.dy, closeTo(originalSwitch.center.dy, 0.5));
     expect(originalClear.bottom, lessThanOrEqualTo(originalArea.top));
     expect(find.text('助手'), findsNothing);
 
@@ -521,10 +526,14 @@ void main() {
     final expandedRect = tester.getRect(toolbar);
     expect(tester.getRect(area), originalArea);
     expect(tester.getRect(clear), originalClear);
+    expect(tester.getRect(modeSwitch), originalSwitch);
     expect(expandedRect.right, closeTo(collapsedRect.right, 0.1));
-    expect(expandedRect.bottom, closeTo(collapsedRect.bottom, 0.1));
+    expect(expandedRect.top, closeTo(collapsedRect.top, 0.1));
+    expect(expandedRect.bottom, lessThanOrEqualTo(originalArea.top));
     expect(expandedRect.left, greaterThanOrEqualTo(originalArea.left));
     for (final icon in [
+      Icons.undo,
+      Icons.redo,
       Icons.translate,
       Icons.auto_fix_high,
       Icons.tune_rounded,
@@ -537,8 +546,8 @@ void main() {
         findsOneWidget,
       );
     }
-    expect(find.text('正向提示词').hitTestable(), findsOneWidget);
-    expect(find.text('负向提示词').hitTestable(), findsOneWidget);
+    expect(modeSwitch.hitTestable(), findsNothing);
+    expect(clear.hitTestable(), findsNothing);
 
     await tester.tap(
       find.byIcon(Icons.keyboard_arrow_down_rounded),
@@ -547,6 +556,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
     expect(tester.getRect(toolbar), collapsedRect);
+    expect(find.text('正向提示词').hitTestable(), findsOneWidget);
+    expect(find.text('负向提示词').hitTestable(), findsOneWidget);
+    expect(modeSwitch.hitTestable(), findsOneWidget);
 
     await tester.tap(clear, kind: PointerDeviceKind.mouse);
     await tester.pumpAndSettle();
@@ -611,7 +623,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('窄屏角色助手完整显示且 resize 受视口上限约束', (tester) async {
+  testWidgets('窄屏角色助手在页签行完整显示且 resize 受视口上限约束', (tester) async {
     await tester.binding.setSurfaceSize(const Size(320, 640));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final container = createContainer();
@@ -650,6 +662,22 @@ void main() {
     );
     expect(tester.getSize(clearButton), const Size(48, 48));
     expect(
+      tester.getRect(slot).left,
+      greaterThanOrEqualTo(tester.getRect(clearButton).right),
+    );
+    expect(
+      tester.getRect(slot).bottom,
+      lessThanOrEqualTo(
+        tester
+            .getRect(
+              find.byKey(
+                const ValueKey('character-prompt-editor-area-positive'),
+              ),
+            )
+            .top,
+      ),
+    );
+    expect(
       tester.getRect(clearButton).bottom,
       lessThanOrEqualTo(
         tester
@@ -662,8 +690,7 @@ void main() {
       ),
     );
     await tester.tap(find.byIcon(Icons.auto_awesome_rounded));
-    await tester.pump();
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     final toolbar = find.byKey(
       const ValueKey(
@@ -683,7 +710,7 @@ void main() {
       Icons.keyboard_arrow_down_rounded,
     ]) {
       expect(
-        find.descendant(of: toolbar, matching: find.byIcon(icon)),
+        find.descendant(of: toolbar, matching: find.byIcon(icon)).hitTestable(),
         findsOneWidget,
       );
     }

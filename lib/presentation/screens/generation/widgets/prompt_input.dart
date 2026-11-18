@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/localization_extension.dart';
+import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../providers/pending_prompt_provider.dart';
 import '../../../providers/prompt_maximize_provider.dart';
 import '../../../providers/prompt_token_counter_provider.dart';
 import '../../../providers/queue_execution_provider.dart';
 import '../../../widgets/prompt/prompt_footer_style.dart';
+import 'prompt_input_assistant.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_input_coordinator.dart';
 import 'prompt_input_editor.dart';
@@ -50,6 +52,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   late final bool _ownsController;
   late final PromptInputCoordinator _coordinator;
   final _editorKey = GlobalKey(debugLabel: 'generation-prompt-editor');
+  final _assistantKey = GlobalKey(debugLabel: 'generation-prompt-assistant');
 
   @override
   void initState() {
@@ -183,10 +186,17 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
           widget.onToggleMaximize ??
           () => ref.read(promptMaximizeNotifierProvider.notifier).toggle(),
     );
+    final assistant = buildPromptInputAssistant(
+      ref,
+      key: _assistantKey,
+      controller: _controller,
+      commands: commands,
+    );
 
     if (widget.compact) {
       return _CompactPromptInput(
         editorKey: _editorKey,
+        assistant: assistant,
         controller: _controller,
         commands: commands,
         viewData: viewData,
@@ -194,6 +204,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
     }
     return _FullPromptInput(
       editorKey: _editorKey,
+      assistant: assistant,
       controller: _controller,
       commands: commands,
       viewData: viewData,
@@ -201,21 +212,23 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
   }
 }
 
-class _FullPromptInput extends ConsumerWidget {
+class _FullPromptInput extends StatelessWidget {
   const _FullPromptInput({
     required this.editorKey,
+    required this.assistant,
     required this.controller,
     required this.commands,
     required this.viewData,
   });
 
   final GlobalKey editorKey;
+  final PromptAssistantOverlay assistant;
   final PromptInputController controller;
   final PromptInputCommands commands;
   final PromptInputViewData viewData;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final negative = controller.isNegativeMode;
     final editor = PromptInputEditor(
       key: editorKey,
@@ -229,6 +242,7 @@ class _FullPromptInput extends ConsumerWidget {
               ? PromptTokenCountTarget.negative
               : PromptTokenCountTarget.positive,
           topPadding: 6,
+          assistant: assistant,
           leading: includeBottomActions
               ? PromptInputBottomActions(
                   controller: controller,
@@ -360,21 +374,23 @@ class _CompactPromptModeSwitch extends StatelessWidget {
   }
 }
 
-class _CompactPromptInput extends ConsumerWidget {
+class _CompactPromptInput extends StatelessWidget {
   const _CompactPromptInput({
     required this.editorKey,
+    required this.assistant,
     required this.controller,
     required this.commands,
     required this.viewData,
   });
 
   final GlobalKey editorKey;
+  final PromptAssistantOverlay assistant;
   final PromptInputController controller;
   final PromptInputCommands commands;
   final PromptInputViewData viewData;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => LayoutBuilder(
+  Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final negative = controller.isNegativeMode;
 
@@ -423,6 +439,7 @@ class _CompactPromptInput extends ConsumerWidget {
                     ? PromptTokenCountTarget.negative
                     : PromptTokenCountTarget.positive,
                 topPadding: 4,
+                assistant: assistant,
                 leading: Row(
                   key: const ValueKey('generation_prompt_compact_actions'),
                   mainAxisSize: MainAxisSize.min,

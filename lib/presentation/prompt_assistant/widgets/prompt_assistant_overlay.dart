@@ -123,7 +123,8 @@ class _PromptAssistantOverlayState
   void didUpdateWidget(PromptAssistantOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.sessionId != widget.sessionId ||
-        oldWidget.controller != widget.controller) {
+        oldWidget.controller != widget.controller ||
+        (oldWidget.enabled && !widget.enabled)) {
       _operation++;
       _abandonOperation?.call();
       _abandonOperation = null;
