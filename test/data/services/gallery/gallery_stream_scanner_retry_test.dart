@@ -452,7 +452,7 @@ void main() {
     });
 
     test('snapshot and scanning share the gallery file policy', () async {
-      final cacheDir = Directory(p.join(tempDir.path, 'cache'));
+      final cacheDir = Directory(p.join(tempDir.path, '.thumbs'));
       await cacheDir.create();
       final excluded = await _createWrappedNovelAiPng(
         cacheDir,
@@ -479,7 +479,7 @@ void main() {
       await scanner.startScanning(
         tempDir,
         retryMissingMetadata: true,
-        fileSnapshot: [included],
+        fileSnapshot: [included, excluded],
       );
 
       expect(await dataSource.getImageIdByPath(included.path), isNotNull);

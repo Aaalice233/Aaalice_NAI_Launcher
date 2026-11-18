@@ -589,7 +589,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     LocalGalleryService service,
     List<String> filePaths,
   ) async {
-    var admission = GalleryIndexAdmission.alreadyIndexed;
+    var admission = GalleryIndexAdmission.excluded;
     var anyIndexed = false;
     var addedCount = 0;
 

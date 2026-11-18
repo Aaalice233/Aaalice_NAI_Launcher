@@ -169,6 +169,9 @@ class GalleryDataSource extends EnhancedBaseDataSource {
       _images.countImages(includeDeleted: includeDeleted);
   Future<Map<String, int>> countImagesByMetadataStatus() =>
       _images.countImagesByMetadataStatus();
+  Future<({int total, int unparsed})> countImagesForPaths(
+    bool Function(String path) accepts,
+  ) => _images.countImagesForPaths(accepts);
 
   Future<void> upsertMetadata(int imageId, NaiImageMetadata metadata) =>
       _metadata.upsertMetadata(imageId, metadata);

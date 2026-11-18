@@ -5,12 +5,15 @@ import 'package:hive_ce/hive_ce.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
+import 'package:nai_launcher/core/save_naming/image_save_naming.dart';
+import 'package:nai_launcher/core/services/system_gallery_publisher.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
 import 'package:nai_launcher/data/services/gallery/local_gallery_repository.dart';
 import 'package:nai_launcher/data/services/gallery/unified_gallery_service.dart';
+import 'package:nai_launcher/presentation/screens/generation/services/generation_result_saver.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../helpers/gallery_database_sandbox.dart';
@@ -92,6 +95,49 @@ void main() {
     expect(repository.admittedPaths, isEmpty);
     expect(repository.enumerations, 1);
   });
+
+  test('点目录里的生成图保存成功且不进入图库快照', () async {
+    late GalleryIndexAdmission admission;
+    final saver = GenerationResultSaver(
+      resolveGalleryRootPath: () async => galleryRoot.path,
+      naming: const ImageSaveNaming(folderTemplate: '.private'),
+      systemGallery: SystemGalleryPublisher(syncEnabled: false),
+      recordSavedPath: (_, path) => expect(File(path).existsSync(), isTrue),
+      addGalleryImages: (paths) async =>
+          admission = await service.addNewImageImmediately(paths.single),
+    );
+    final saved = await saver.save(
+      GenerationResultSaveRequest(
+        imageId: 'new',
+        bytes: png,
+        preserveOriginalBytes: true,
+        createdAt: DateTime.utc(2026, 11, 21),
+      ),
+    );
+
+    expect(saved, isA<GenerationResultNewlySaved>());
+    expect(p.basename(p.dirname(saved!.path)), '.private');
+    expect(await File(saved.path).readAsBytes(), png);
+    expect(admission, GalleryIndexAdmission.excluded);
+    expect(admission.isIndexed, isFalse);
+    expect(repository.admittedPaths, isEmpty);
+    expect(await service.getFilteredImagePaths(), [
+      p.join(galleryRoot.path, 'existing.png'),
+    ]);
+  });
+
+  test('收藏与取消收藏都不会把点目录图片插入到图库快照', () async {
+    await Directory(p.join(galleryRoot.path, '.private')).create();
+    final image = await writeImage(p.join('.private', 'saved.png'));
+
+    expect(await service.toggleFavorite(image.path), isTrue);
+    expect(await service.isFavorite(image.path), isTrue);
+    expect(await service.getFilteredImagePaths(), isNot(contains(image.path)));
+
+    expect(await service.toggleFavorite(image.path), isFalse);
+    expect(await service.isFavorite(image.path), isFalse);
+    expect(await service.getFilteredImagePaths(), isNot(contains(image.path)));
+  });
 }
 
 class _FlakyRepository extends LocalGalleryRepository {
@@ -103,9 +149,9 @@ class _FlakyRepository extends LocalGalleryRepository {
   final admittedPaths = <String>[];
 
   @override
-  Future<List<File>> findGalleryFiles() {
+  Future<List<File>> findGalleryFiles([String? rootPath]) {
     enumerations++;
-    return super.findGalleryFiles();
+    return super.findGalleryFiles(rootPath);
   }
 
   @override

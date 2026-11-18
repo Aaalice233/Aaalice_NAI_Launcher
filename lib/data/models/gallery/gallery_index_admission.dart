@@ -11,6 +11,9 @@ enum GalleryIndexAdmission {
 
   /// 文件不存在，或单张重试后仍写不进索引；图库要等下次扫描才会出现这张图。
   failed,
+
+  /// 文件已保存，路径不属于当前本地图库。
+  excluded,
 }
 
 extension GalleryIndexAdmissionOutcome on GalleryIndexAdmission {
@@ -19,15 +22,16 @@ extension GalleryIndexAdmissionOutcome on GalleryIndexAdmission {
       this == GalleryIndexAdmission.added ||
       this == GalleryIndexAdmission.alreadyIndexed;
 
-  /// 批量结果取最坏的一项：失败 > 延后 > 新增 > 已存在。
+  /// 批量结果按失败、延后、新增、已存在、排除的优先级汇总。
   GalleryIndexAdmission merge(GalleryIndexAdmission other) {
     for (final severity in const [
       GalleryIndexAdmission.failed,
       GalleryIndexAdmission.deferred,
       GalleryIndexAdmission.added,
+      GalleryIndexAdmission.alreadyIndexed,
     ]) {
       if (this == severity || other == severity) return severity;
     }
-    return GalleryIndexAdmission.alreadyIndexed;
+    return GalleryIndexAdmission.excluded;
   }
 }

@@ -11,6 +11,7 @@ import '../../core/storage/local_storage_service.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/file_name_sanitizer.dart';
 import '../models/gallery/gallery_category.dart';
+import '../services/gallery/gallery_image_files.dart';
 
 /// 画廊分类仓库
 class GalleryCategoryRepository {
@@ -24,7 +25,6 @@ class GalleryCategoryRepository {
   static const _categoriesFileName = '.gallery_categories.json';
   static const _suppressedCategoriesFileName =
       '.gallery_category_suppressed_paths.json';
-  static const _supportedExtensions = {'.png', '.jpg', '.jpeg', '.webp'};
 
   /// 获取图片保存根路径
   ///
@@ -281,7 +281,7 @@ class GalleryCategoryRepository {
           folderPath: relativePath,
           parentId: parentId,
           sortOrder: siblings.length,
-        ).updateImageCount(await _countImagesInFolder(absolutePath));
+        ).updateImageCount(await _countImagesInFolder(rootPath, absolutePath));
         await _unsuppressCategoryFolderPath(relativePath);
         AppLogger.i('恢复隐藏分类成功: ${category.name} -> $absolutePath');
         return category;
@@ -588,6 +588,7 @@ class GalleryCategoryRepository {
     if (rootPath == null) return 0;
 
     return _countImagesInFolder(
+      rootPath,
       p.join(rootPath, category.folderPath),
       recursive: includeDescendants,
     );
@@ -624,7 +625,7 @@ class GalleryCategoryRepository {
       final folderPath = p.join(rootPath, category.folderPath);
       if (await Directory(folderPath).exists()) {
         // 更新图片数量
-        final imageCount = await _countImagesInFolder(folderPath);
+        final imageCount = await _countImagesInFolder(rootPath, folderPath);
         updatedCategories.add(category.updateImageCount(imageCount));
       }
       // 如果文件夹不存在，则不添加到更新列表（相当于删除）
@@ -671,7 +672,7 @@ class GalleryCategoryRepository {
 
           if (!existingPaths.contains(normalizedRelativePath)) {
             // 新文件夹，创建分类
-            final imageCount = await _countImagesInFolder(entity.path);
+            final imageCount = await _countImagesInFolder(rootPath, entity.path);
             final category = GalleryCategory.create(
               name: folderName,
               folderPath: relativePath,
@@ -731,27 +732,14 @@ class GalleryCategoryRepository {
   }
 
   Future<int> _countImagesInFolder(
+    String rootPath,
     String folderPath, {
     bool recursive = false,
-  }) async {
-    int count = 0;
-    try {
-      await for (final entity in Directory(
-        folderPath,
-      ).list(recursive: recursive, followLinks: false)) {
-        if (entity is File &&
-            _supportedExtensions.contains(
-              p.extension(entity.path).toLowerCase(),
-            )) {
-          count++;
-        }
-      }
-    } catch (e) {
-      AppLogger.w(
-        'Failed to get total image count',
-        'GalleryCategoryRepository',
-      );
-    }
-    return count;
-  }
+  }) => const GalleryImageFiles()
+      .list(
+        Directory(rootPath),
+        folder: Directory(folderPath),
+        recursive: recursive,
+      )
+      .length;
 }

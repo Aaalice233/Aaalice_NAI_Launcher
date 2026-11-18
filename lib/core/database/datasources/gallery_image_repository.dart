@@ -56,6 +56,9 @@ abstract interface class GalleryImageRepository {
   Future<void> batchMarkAsDeleted(List<String> filePaths);
   Future<int> countImages({bool includeDeleted = false});
   Future<Map<String, int>> countImagesByMetadataStatus();
+  Future<({int total, int unparsed})> countImagesForPaths(
+    bool Function(String path) accepts,
+  );
 }
 
 class SqliteGalleryImageRepository implements GalleryImageRepository {
@@ -663,6 +666,29 @@ class SqliteGalleryImageRepository implements GalleryImageRepository {
       }
     });
   }
+
+  @override
+  Future<({int total, int unparsed})> countImagesForPaths(
+    bool Function(String path) accepts,
+  ) => gateway.execute('countImagesForPaths', (db) async {
+    final rows = await db.query(
+      GalleryTables.images,
+      columns: ['file_path', 'metadata_status'],
+      where: 'is_deleted = 0',
+    );
+    var total = 0;
+    var unparsed = 0;
+    for (final row in rows) {
+      if (!accepts(row['file_path'] as String)) continue;
+      total++;
+      final status = row['metadata_status'];
+      if (status != MetadataStatus.success.index &&
+          status != MetadataStatus.failed.index) {
+        unparsed++;
+      }
+    }
+    return (total: total, unparsed: unparsed);
+  });
 
   /// 按元数据状态统计图片数量
   ///

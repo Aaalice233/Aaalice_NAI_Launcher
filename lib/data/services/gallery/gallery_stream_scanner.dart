@@ -10,6 +10,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
 import '../metadata/isolate_metadata_service.dart';
+import 'gallery_image_files.dart';
 import 'scan_config.dart';
 import 'scan_state_manager.dart';
 
@@ -139,7 +140,6 @@ class GalleryStreamScanner {
   final GalleryDataSource _dataSource;
   final ScanStateManager _stateManager = ScanStateManager.instance;
   final IsolateMetadataService _isolateMetadataService;
-  static const ScanConfig _scanConfig = ScanConfig();
 
   // 状态
   bool _isRunning = false;
@@ -726,14 +726,11 @@ class GalleryStreamScanner {
 
   Future<List<File>> _createFileSnapshot(Directory rootDir) async {
     final files = <File>[];
-    await for (final entity in rootDir.list(
-      recursive: true,
-      followLinks: false,
-    )) {
+    await for (final file in const GalleryImageFiles().list(rootDir.absolute)) {
       if (_shouldCancel) break;
-      if (entity is File) files.add(entity);
+      files.add(file);
     }
-    return _freezeFileSnapshot(rootDir, files);
+    return files;
   }
 
   List<File> _freezeFileSnapshot(Directory rootDir, Iterable<File> files) {
@@ -746,8 +743,7 @@ class GalleryStreamScanner {
       final pathKey = Platform.isWindows
           ? absolutePath.toLowerCase()
           : absolutePath;
-      if (!p.isWithin(rootPath, absolutePath) ||
-          !_scanConfig.acceptsGalleryImagePath(absolutePath) ||
+      if (!GalleryImageFiles.accepts(rootPath, absolutePath) ||
           !seen.add(pathKey)) {
         continue;
       }
