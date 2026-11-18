@@ -725,11 +725,8 @@ class GalleryStreamScanner {
   }
 
   Future<List<File>> _createFileSnapshot(Directory rootDir) async {
-    final files = <File>[];
-    await for (final file in const GalleryImageFiles().list(rootDir.absolute)) {
-      if (_shouldCancel) break;
-      files.add(file);
-    }
+    final files = await const GalleryImageFiles().list(rootDir.absolute);
+    if (_shouldCancel) return const [];
     return files;
   }
 

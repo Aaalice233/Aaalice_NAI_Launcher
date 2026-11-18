@@ -575,20 +575,18 @@ class GalleryCategoryRepository {
     final paths = <String, String>{};
     final incomplete = <String>{};
     final counts = GalleryFolderCounts();
-    await _images
-        .list(
-          directory,
-          onDirectory: (folder, direct) {
-            counts.addToFolder(folder.path, direct);
-            if (p.equals(root, folder.path)) return;
-            final path = p.relative(folder.path, from: root);
-            paths[_normalizeCategoryPath(path)] = path;
-          },
-          onIncompleteDirectory: (folder) => incomplete.add(
-            _normalizeCategoryPath(p.relative(folder.path, from: root)),
-          ),
-        )
-        .drain<void>();
+    await _images.list(
+      directory,
+      onDirectory: (folder, direct) {
+        counts.addToFolder(folder.path, direct);
+        if (p.equals(root, folder.path)) return;
+        final path = p.relative(folder.path, from: root);
+        paths[_normalizeCategoryPath(path)] = path;
+      },
+      onIncompleteDirectory: (folder) => incomplete.add(
+        _normalizeCategoryPath(p.relative(folder.path, from: root)),
+      ),
+    );
 
     bool isIncomplete(String key) =>
         incomplete.any((folder) => key == folder || key.startsWith('$folder/'));
@@ -711,6 +709,11 @@ class GalleryCategoryRepository {
     }
   }
 
-  Future<int> _countImagesInFolder(String rootPath, String folderPath) =>
-      _images.list(Directory(rootPath), folder: Directory(folderPath)).length;
+  Future<int> _countImagesInFolder(String rootPath, String folderPath) async {
+    final files = await _images.list(
+      Directory(rootPath),
+      folder: Directory(folderPath),
+    );
+    return files.length;
+  }
 }
