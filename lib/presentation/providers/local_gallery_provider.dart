@@ -406,6 +406,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       _setState(
         state.copyWith(
           currentImages: records,
+          error: null,
           currentPage: normalizedPage,
           totalPages: totalPages,
           filteredCount: service.filteredCount,
@@ -463,14 +464,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   ///
   /// 执行增量扫描，更新文件列表和索引
   Future<void> refresh({bool scan = true}) async {
+    _setState(state.copyWith(isLoading: true, error: null));
     if (!state.isInitialized) {
       // 共享服务已被别处初始化时，页面初始化只读它的内存列表，还得真正刷一次磁盘。
       final serviceWasReady = ref.read(galleryServiceProvider).isInitialized;
       await initialize();
       if (!serviceWasReady || !state.isInitialized) return;
     }
-
-    _setState(state.copyWith(isLoading: true));
 
     try {
       final service = await getService();
@@ -976,7 +976,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
 
       _setState(
-        state.copyWith(groupedImages: allRecords, isGroupedLoading: false),
+        state.copyWith(groupedImages: allRecords, isGroupedLoading: false, error: null),
       );
     } catch (e) {
       AppLogger.e(
