@@ -358,7 +358,6 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
     _debounceTimer?.cancel();
     setState(_searchController.clear);
     ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
-    setState(() {});
   }
 
   /// Build search field
