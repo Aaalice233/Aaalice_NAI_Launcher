@@ -245,7 +245,8 @@ class _LocalGalleryShell extends ConsumerWidget {
             : null,
         body: _buildBody(context, ref),
         footer:
-            !gallery.isIndexing &&
+            !gallery.isGroupedView &&
+                !gallery.isIndexing &&
                 gallery.currentImages.isNotEmpty &&
                 gallery.totalPages > 0
             ? PaginationBar(
@@ -302,10 +303,16 @@ class _LocalGalleryShell extends ConsumerWidget {
             ref.read(localGalleryNotifierProvider.notifier).refresh(),
       );
     }
-    if (gallery.isLoading && gallery.currentImages.isEmpty) {
+    final images = gallery.isGroupedView
+        ? gallery.groupedImages
+        : gallery.currentImages;
+    final loading = gallery.isGroupedView
+        ? gallery.isGroupedLoading
+        : gallery.isLoading;
+    if (loading && images.isEmpty) {
       return const GalleryLoadingView();
     }
-    if (gallery.currentImages.isEmpty) {
+    if (images.isEmpty) {
       return gallery.hasFilters
           ? const GalleryNoResultsView()
           : const GalleryEmptyView();
