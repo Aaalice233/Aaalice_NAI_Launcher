@@ -1,6 +1,6 @@
 library;
 
-export 'scan_config.dart' show ScanPriority, ScanConfig, ScanType, ScanPhase;
+export 'scan_config.dart' show ScanType, ScanPhase;
 export 'scan_state_manager.dart'
     show ScanStateManager, ScanStatus, ScanProgressCallback, ScanProgressInfo;
 export 'gallery_stream_scanner.dart'

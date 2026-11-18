@@ -10,7 +10,9 @@ import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/gallery_index_admission.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
+import '../../repositories/gallery_folder_repository.dart';
 import 'gallery_filter_service.dart';
+import 'gallery_image_files.dart';
 import 'gallery_path_utils.dart';
 import 'gallery_scan_coordinator.dart';
 import 'local_gallery_query.dart';
@@ -184,7 +186,8 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     try {
       final resolvedPath = _query.resolveTrackedPath(filePath);
       final isFavorite = await _repository.toggleFavorite(resolvedPath);
-      if (isFavorite || await File(resolvedPath).exists()) {
+      if ((isFavorite || await File(resolvedPath).exists()) &&
+          await _accepts(resolvedPath)) {
         await _query.syncAfterMutation(File(resolvedPath));
       }
       return isFavorite;
@@ -283,6 +286,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       );
       return GalleryIndexAdmission.failed;
     }
+    if (!await _accepts(file.path)) return GalleryIndexAdmission.excluded;
     if (_query.containsPath(file.path)) {
       AppLogger.d(
         '[AddNewImage] File already exists in gallery: $filePath',
@@ -293,6 +297,14 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     await _repository.addImage(file, metadata: metadata);
     await _query.syncAfterMutation(file);
     return GalleryIndexAdmission.added;
+  }
+
+  Future<bool> _accepts(String filePath) async {
+    final rootPath = await GalleryFolderRepository.instance.getRootPath();
+    return GalleryImageFiles.accepts(
+      normalizeGalleryFilePath(rootPath!),
+      filePath,
+    );
   }
 
   @override
