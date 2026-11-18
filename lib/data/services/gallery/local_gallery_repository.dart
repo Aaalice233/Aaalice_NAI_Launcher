@@ -38,7 +38,7 @@ class LocalGalleryRepository {
     }
 
     try {
-      final files = await const GalleryImageFiles().list(rootDir).toList();
+      final files = await const GalleryImageFiles().list(rootDir);
 
       const statBatchSize = 32;
       final validStats = <({File file, FileStat stat})>[];

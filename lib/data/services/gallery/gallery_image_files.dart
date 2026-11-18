@@ -30,14 +30,15 @@ class GalleryImageFiles {
   static bool accepts(String root, String path) =>
       _hasImageExtension(path) && isVisibleDirectory(root, p.dirname(path));
 
-  Stream<File> list(
+  Future<List<File>> list(
     Directory root, {
     Directory? folder,
     void Function(Directory directory, int directImages)? onDirectory,
     void Function(Directory directory)? onIncompleteDirectory,
-  }) async* {
+  }) async {
+    final files = <File>[];
     final start = folder ?? root;
-    if (!isVisibleDirectory(root.path, start.path)) return;
+    if (!isVisibleDirectory(root.path, start.path)) return files;
     final pending = [start];
     final skippedByError = <String, int>{};
     var skippedCount = 0;
@@ -48,7 +49,7 @@ class GalleryImageFiles {
         await for (final entry in listDirectory(current)) {
           if (entry is File && _hasImageExtension(entry.path)) {
             directImages++;
-            yield entry;
+            files.add(entry);
           } else if (entry is Directory && !_isHidden(p.basename(entry.path))) {
             pending.add(entry);
           }
@@ -71,5 +72,6 @@ class GalleryImageFiles {
         'GalleryImageFiles',
       );
     }
+    return files;
   }
 }

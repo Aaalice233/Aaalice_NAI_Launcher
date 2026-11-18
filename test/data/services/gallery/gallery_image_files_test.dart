@@ -38,7 +38,7 @@ void main() {
     Logger.addLogListener(capture);
     addTearDown(() => Logger.removeLogListener(capture));
 
-    await images.list(temp).drain<void>();
+    await images.list(temp);
 
     final warning = warnings.single;
     expect(warning, contains('跳过 3 个无法读取的图库目录'));
@@ -71,11 +71,21 @@ void main() {
         },
       );
 
-      final files = await images
-          .list(root)
-          .map((f) => p.basename(f.path))
-          .toList();
-      expect(files, unorderedEquals(['a.PNG', 'b.jpg']));
+      final counts = <String, int>{};
+      final files = await images.list(
+        root,
+        onDirectory: (dir, count) => counts[dir.path] = count,
+      );
+      expect(
+        files.map((file) => p.basename(file.path)),
+        unorderedEquals(['a.PNG', 'b.jpg']),
+      );
+      expect(counts, {
+        root.path: 0,
+        bad.path: 0,
+        sibling.path: 1,
+        nested.path: 1,
+      });
       expect(
         visits,
         unorderedEquals([root.path, bad.path, sibling.path, nested.path]),
@@ -86,6 +96,6 @@ void main() {
   test('a failed starting directory propagates the listing error', () async {
     final error = FileSystemException('gone', root.path);
     final images = GalleryImageFiles(listDirectory: (_) => Stream.error(error));
-    await expectLater(images.list(root).toList(), throwsA(same(error)));
+    await expectLater(images.list(root), throwsA(same(error)));
   });
 }
