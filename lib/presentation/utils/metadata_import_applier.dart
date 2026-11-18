@@ -56,7 +56,12 @@ class MetadataImportApplier {
     required MetadataImportOptions options,
     required MetadataImportTarget target,
   }) {
-    var count = 0;
+    // 切模型会为旧模型存档当前参数，导入值必须在切换之后写入。
+    var count = _applyValue<String>(
+      options.importModel,
+      resolveImportableModel(metadata),
+      target.updateModel,
+    );
 
     if (options.importPrompt && metadata.prompt.isNotEmpty) {
       target.updatePrompt(
@@ -107,11 +112,6 @@ class MetadataImportApplier {
       options.importSampler,
       metadata.sampler,
       target.updateSampler,
-    );
-    count += _applyValue<String>(
-      options.importModel,
-      resolveImportableModel(metadata),
-      target.updateModel,
     );
     count += _applyValue<bool>(
       options.importSmea,

@@ -212,6 +212,9 @@ class StorageKeys {
   static const String lastE2eUpscale = 'last_e2e_upscale';
   static const String imageModelMode = 'image_model_mode';
 
+  /// 按模型记住的采样参数（JSON 字符串，键为下拉框模型 ID），仅本机。
+  static const String modelSamplingParams = 'model_sampling_params';
+
   // Gallery Keys (画廊相关)
   static const String generationHistory = 'generation_history';
   static const String historyIndex = 'history_index';

@@ -226,6 +226,20 @@ void main() {
     expect(settingProperties['sampler'], contains('enum'));
   });
 
+  test('documents how model switching affects persistent settings', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final tool = GenerationToolbox(
+      _makeRef(container),
+    ).tools().firstWhere((tool) => tool.name == 'update_generation_settings');
+
+    expect(tool.description, contains('last-used sampling parameters'));
+    expect(
+      tool.description,
+      contains('Explicitly provided fields in the same call take precedence.'),
+    );
+  });
+
   test('queue_image_task rejects empty prompt', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
