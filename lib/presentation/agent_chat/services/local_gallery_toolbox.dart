@@ -6,6 +6,8 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/agent/resources/agent_chat_resource_reference_codec.dart';
 import '../../../core/database/database_providers.dart';
+import '../../../data/services/gallery/gallery_filter_service.dart';
+import '../../../data/services/gallery/unified_gallery_service.dart';
 import '../../providers/local_gallery_provider.dart';
 import 'defined_agent_tool.dart';
 import 'toolbox_json.dart';
@@ -53,39 +55,32 @@ class LocalGalleryToolbox {
       },
     ),
     executeFn: (_, params) async {
-      final notifier = _ref.read(localGalleryNotifierProvider.notifier);
-      await notifier.initialize();
-      await notifier.clearFiltersWithinScope();
-      await notifier.setSearchQuery(params['query'] as String? ?? '');
-      await notifier.setSelectedTags(toolboxStrings(params['tags']));
-      await notifier.setShowFavoritesOnly(params['favorites_only'] == true);
-      await notifier.setDateRange(
-        _date(params['date_start']),
-        _date(params['date_end']),
-      );
-      await notifier.setFilterModel(params['model'] as String?);
-      await notifier.setFilterSampler(params['sampler'] as String?);
-      await notifier.setFilterSteps(
-        params['min_steps'] as int?,
-        params['max_steps'] as int?,
-      );
-      await notifier.setDimensionRange(
-        minWidth: params['min_width'] as int?,
-        minHeight: params['min_height'] as int?,
-        maxWidth: params['max_width'] as int?,
-        maxHeight: params['max_height'] as int?,
-      );
-      await notifier.setFileSizeRange(
-        minBytes: params['min_file_size'] as int?,
-        maxBytes: params['max_file_size'] as int?,
-      );
-      await notifier.setMetadataStatuses(
-        toolboxStrings(params['metadata_statuses']),
-      );
-      final state = _ref.read(localGalleryNotifierProvider);
-      final records = state.currentImages
-          .take((params['limit'] as int? ?? 50).clamp(1, 100))
-          .toList();
+      await _ref.read(galleryServiceProvider.notifier).ensureInitialized();
+      final page = await _ref
+          .read(galleryServiceProvider)
+          .queryPage(
+            page: 0,
+            pageSize: (params['limit'] as int? ?? 50).clamp(1, 100),
+            criteria: FilterCriteria(
+              searchQuery: (params['query'] as String? ?? '').trim(),
+              selectedTags: toolboxStrings(params['tags']),
+              showFavoritesOnly: params['favorites_only'] == true,
+              dateStart: _date(params['date_start']),
+              dateEnd: _date(params['date_end']),
+              filterModel: params['model'] as String?,
+              filterSampler: params['sampler'] as String?,
+              filterMinSteps: params['min_steps'] as int?,
+              filterMaxSteps: params['max_steps'] as int?,
+              minWidth: params['min_width'] as int?,
+              minHeight: params['min_height'] as int?,
+              maxWidth: params['max_width'] as int?,
+              maxHeight: params['max_height'] as int?,
+              minFileSize: params['min_file_size'] as int?,
+              maxFileSize: params['max_file_size'] as int?,
+              metadataStatuses: toolboxStrings(params['metadata_statuses']),
+            ),
+          );
+      final records = page.records;
       final dataSource = (await _ref.read(
         databaseManagerProvider.future,
       )).galleryDataSource;
@@ -97,9 +92,9 @@ class LocalGalleryToolbox {
       ]);
       return agentToolJsonResult({
         'ok': true,
-        'total': state.filteredCount,
-        'page': state.currentPage,
-        'page_size': state.pageSize,
+        'total': page.totalCount,
+        'page': page.page,
+        'page_size': page.pageSize,
         'items': [
           for (final record in records)
             if (ids[record.path] case final int id)

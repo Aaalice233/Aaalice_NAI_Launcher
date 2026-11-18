@@ -71,7 +71,8 @@ class LocalGalleryQuery {
 
   void addFirst(File file) {
     if (containsPath(file.path)) return;
-    _allFiles.insert(0, file);
+    // 异步查询仍持有旧版本的列表。
+    _allFiles = [file, ..._allFiles];
     _fileListGeneration++;
   }
 
@@ -179,45 +180,46 @@ class LocalGalleryQuery {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     required int pageSize,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) async {
     if (page < 0) throw RangeError.range(page, 0, null, 'page');
     if (pageSize <= 0) throw RangeError.range(pageSize, 1, null, 'pageSize');
 
-    final filesSnapshot = List<File>.unmodifiable(_allFiles);
-    // Read with the snapshot: a replaceAll during the await would key this
-    // result under a generation the snapshot never belonged to.
+    final filesSnapshot = _allFiles;
     final snapshotGeneration = _fileListGeneration;
-    final normalizedQuery = searchQuery.trim();
     var matchingFiles = filesSnapshot;
-    if (normalizedQuery.isNotEmpty) {
+    if (criteria.hasFilters) {
       final queryGeneration = ++_independentQueryGeneration;
       final result = await _filterService.applyFilters(
         filesSnapshot,
-        FilterCriteria(searchQuery: normalizedQuery),
+        criteria,
         operationId: 'local_gallery_query_$queryGeneration',
         fileListGeneration: snapshotGeneration,
       );
-      final databaseMatches = {
-        for (final file in result.files) galleryFilePathKey(file.path),
-      };
-      final normalizedText = normalizedQuery.toLowerCase();
-      matchingFiles = filesSnapshot
-          .where(
-            (file) =>
-                databaseMatches.contains(galleryFilePathKey(file.path)) ||
-                file.path.toLowerCase().contains(normalizedText),
-          )
-          .toList(growable: false);
+      matchingFiles = result.files;
+      if (includeFilePathMatches &&
+          criteria.searchQuery.isNotEmpty &&
+          !criteria.copyWith(searchQuery: '').hasFilters) {
+        final databaseMatches = {
+          for (final file in matchingFiles) galleryFilePathKey(file.path),
+        };
+        final text = criteria.searchQuery.toLowerCase();
+        matchingFiles = filesSnapshot
+            .where(
+              (file) =>
+                  databaseMatches.contains(galleryFilePathKey(file.path)) ||
+                  file.path.toLowerCase().contains(text),
+            )
+            .toList(growable: false);
+      }
     }
 
     final start = page * pageSize;
-    final pageFiles = start >= matchingFiles.length
-        ? const <File>[]
-        : matchingFiles.sublist(
-            min(start, matchingFiles.length),
-            min(start + pageSize, matchingFiles.length),
-          );
+    final pageFiles = matchingFiles.sublist(
+      min(start, matchingFiles.length),
+      min(start + pageSize, matchingFiles.length),
+    );
     final records = await _repository.loadRecords(pageFiles);
     return LocalGalleryQueryPage(
       records: records,

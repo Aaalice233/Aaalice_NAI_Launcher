@@ -531,8 +531,11 @@ class _FakeLocalGalleryService implements LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) async {
+    expect(includeFilePathMatches, isTrue);
+    final searchQuery = criteria.searchQuery;
     requests.add(_QueryRequest(page: page, searchQuery: searchQuery));
     if (delayQueries) return _delayedQuery.future;
     if (failNextQuery) {

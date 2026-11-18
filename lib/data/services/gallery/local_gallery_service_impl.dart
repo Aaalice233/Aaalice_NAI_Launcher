@@ -128,13 +128,15 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) {
     _ensureInitialized();
     return _query.queryPage(
       page: page,
       pageSize: pageSize,
-      searchQuery: searchQuery,
+      criteria: criteria,
+      includeFilePathMatches: includeFilePathMatches,
     );
   }
 

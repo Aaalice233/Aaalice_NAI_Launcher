@@ -379,16 +379,27 @@ void main() {
       ];
 
       query.replaceAll(before);
-      await query.queryPage(page: 0, pageSize: 10, searchQuery: 'needle');
+      await query.queryPage(
+        page: 0,
+        pageSize: 10,
+        criteria: const FilterCriteria(searchQuery: 'needle'),
+        includeFilePathMatches: true,
+      );
       final hitsAfterFirst = filterService.cacheStatistics['hitCount'] as int;
-      await query.queryPage(page: 0, pageSize: 10, searchQuery: 'needle');
+      await query.queryPage(
+        page: 0,
+        pageSize: 10,
+        criteria: const FilterCriteria(searchQuery: 'needle'),
+        includeFilePathMatches: true,
+      );
       final hitsAfterRepeat = filterService.cacheStatistics['hitCount'] as int;
 
       query.replaceAll(after);
       final replacedPage = await query.queryPage(
         page: 0,
         pageSize: 10,
-        searchQuery: 'needle',
+        criteria: const FilterCriteria(searchQuery: 'needle'),
+        includeFilePathMatches: true,
       );
 
       expect(hitsAfterRepeat, hitsAfterFirst + 1);
@@ -397,6 +408,16 @@ void main() {
         replacedPage.records.map((record) => record.path),
         _pathsOf(after),
       );
+      final scoped = await query.queryPage(
+        page: 0,
+        pageSize: 10,
+        criteria: const FilterCriteria(
+          searchQuery: 'needle',
+          categoryFolderPath: 'elsewhere',
+        ),
+        includeFilePathMatches: true,
+      );
+      expect(scoped.records, isEmpty);
     });
   });
 }
