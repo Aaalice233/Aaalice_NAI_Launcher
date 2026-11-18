@@ -31,7 +31,8 @@ abstract class LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   });
 
   Future<int?> getImageIdByPath(String filePath);

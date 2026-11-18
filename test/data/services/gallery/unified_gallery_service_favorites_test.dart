@@ -252,7 +252,7 @@ void main() {
         final searchPage = await service.queryPage(
           page: 0,
           pageSize: 10,
-          searchQuery: 'needle',
+          criteria: const FilterCriteria(searchQuery: 'needle'),
         );
 
         expect(historicalPage.records.map((record) => record.path), [

@@ -134,7 +134,8 @@ class ErrorGalleryService implements LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) => _throwError();
   @override
   Future<int?> getImageIdByPath(String filePath) => _throwError();
@@ -200,7 +201,8 @@ class _PlaceholderGalleryService implements LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) => _throwNotInitialized();
   @override
   Future<int?> getImageIdByPath(String filePath) => _throwNotInitialized();
