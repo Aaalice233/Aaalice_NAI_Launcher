@@ -6133,6 +6133,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_emptyTitle => 'No local images';
 
   @override
+  String get localGallery_emptyScopeTitle => 'No images here yet';
+
+  @override
   String get localGallery_emptySubtitle =>
       'Generated images will be saved here';
 

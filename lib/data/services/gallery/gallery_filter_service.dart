@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/database/utils/lru_cache.dart';
@@ -10,9 +11,17 @@ import '../../../core/exceptions/gallery_exceptions.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/isolate_pool.dart';
 import '../../../core/utils/tag_normalizer.dart';
+import '../../repositories/gallery_folder_repository.dart';
 import 'gallery_path_utils.dart';
 
 export 'gallery_filter_service.dart' show FilterCriteria;
+
+@visibleForTesting
+String joinGalleryCategoryPath(
+  p.Context paths,
+  String root,
+  String folderPath,
+) => paths.join(root, folderPath.replaceAll(r'\', paths.separator));
 
 /// 过滤条件
 @immutable
@@ -151,11 +160,25 @@ class FilterCriteria {
     );
   }
 
-  bool get hasFilters =>
+  bool get hasFilters => hasClearableFilters || hasBrowsingScope;
+
+  bool get hasBrowsingScope =>
+      categoryId != null ||
+      categoryFolderPath != null ||
+      albumId != null ||
+      showFavoritesOnly;
+
+  FilterCriteria get browsingScope => FilterCriteria(
+    categoryId: categoryId,
+    categoryFolderPath: categoryFolderPath,
+    albumId: albumId,
+    showFavoritesOnly: showFavoritesOnly,
+  );
+
+  bool get hasClearableFilters =>
       searchQuery.isNotEmpty ||
       dateStart != null ||
       dateEnd != null ||
-      showFavoritesOnly ||
       selectedTags.isNotEmpty ||
       filterModel != null ||
       filterSampler != null ||
@@ -170,10 +193,7 @@ class FilterCriteria {
       maxHeight != null ||
       minFileSize != null ||
       maxFileSize != null ||
-      metadataStatuses.isNotEmpty ||
-      categoryId != null ||
-      categoryFolderPath != null ||
-      albumId != null;
+      metadataStatuses.isNotEmpty;
 
   bool get hasMetadataFilters =>
       filterModel != null ||
@@ -282,7 +302,13 @@ class GalleryFilterService {
   // 取消令牌
   final Map<String, CancelToken> _activeFilters = {};
 
-  GalleryFilterService(this._dataSource);
+  final Future<String?> Function() _getRootPath;
+
+  GalleryFilterService(
+    this._dataSource, {
+    Future<String?> Function()? getRootPath,
+  }) : _getRootPath =
+           getRootPath ?? GalleryFolderRepository.instance.getRootPath;
 
   /// 获取缓存统计
   Map<String, dynamic> get cacheStatistics => _filterCache.statistics;
@@ -558,11 +584,17 @@ class GalleryFilterService {
 
     // 分类过滤（按文件夹路径）
     if (criteria.categoryFolderPath != null) {
-      filtered = await _filterByCategory(
-        filtered,
+      final root = await _getRootPath();
+      final folder = joinGalleryCategoryPath(
+        p.context,
+        normalizeGalleryFilePath(root!),
         criteria.categoryFolderPath!,
-        cancelToken,
       );
+      filtered = filtered
+          .where(
+            (file) => p.isWithin(folder, normalizeGalleryFilePath(file.path)),
+          )
+          .toList();
     }
 
     if (cancelToken.isCancelled) return [];
@@ -755,39 +787,6 @@ class GalleryFilterService {
     }
   }
 
-  /// 按分类路径过滤
-  ///
-  /// 根据分类的文件夹路径过滤文件
-  Future<List<File>> _filterByCategory(
-    List<File> files,
-    String categoryFolderPath,
-    CancelToken cancelToken,
-  ) async {
-    try {
-      // 规范化路径分隔符并转换为小写以便比较
-      final normalizedCategoryPath = categoryFolderPath
-          .replaceAll('\\', '/')
-          .toLowerCase();
-
-      return files.where((file) {
-        if (cancelToken.isCancelled) return false;
-
-        // 规范化文件路径
-        final normalizedFilePath = file.path
-            .replaceAll('\\', '/')
-            .toLowerCase();
-
-        // 检查文件路径是否包含分类文件夹路径
-        // 使用 / 确保精确匹配文件夹名（如 "test_batch/" 不匹配 "test_batch_2/"）
-        return normalizedFilePath.contains('$normalizedCategoryPath/') ||
-            normalizedFilePath.endsWith('/$normalizedCategoryPath');
-      }).toList();
-    } catch (e) {
-      AppLogger.w('Failed to filter by category: $e', 'GalleryFilterService');
-      return files;
-    }
-  }
-
   /// 取消过滤操作
   void cancelFilter(String operationId) {
     final token = _activeFilters[operationId];
@@ -803,11 +802,6 @@ class GalleryFilterService {
       entry.value.cancel();
     }
     AppLogger.d('All filters cancelled', 'GalleryFilterService');
-  }
-
-  /// 清空所有过滤条件
-  FilterCriteria clearAllFilters(FilterCriteria current) {
-    return const FilterCriteria();
   }
 }
 

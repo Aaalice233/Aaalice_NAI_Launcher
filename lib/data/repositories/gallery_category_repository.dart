@@ -373,9 +373,12 @@ class GalleryCategoryRepository {
     List<GalleryCategory> categories,
   ) {
     return categories.map((c) {
-      if (c.folderPath.startsWith(oldParentPath)) {
+      if (p.isWithin(oldParentPath, c.folderPath)) {
         return c.copyWith(
-          folderPath: c.folderPath.replaceFirst(oldParentPath, newParentPath),
+          folderPath: p.join(
+            newParentPath,
+            p.relative(c.folderPath, from: oldParentPath),
+          ),
           updatedAt: DateTime.now(),
         );
       }

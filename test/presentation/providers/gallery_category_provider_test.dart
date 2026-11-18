@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_category.dart';
@@ -11,6 +12,14 @@ import 'package:nai_launcher/data/models/gallery/gallery_tree_drop_slot.dart';
 import 'package:nai_launcher/data/repositories/gallery_category_repository.dart';
 import 'package:nai_launcher/presentation/providers/category_operation_error.dart';
 import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
+import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+
+class _GalleryScope extends LocalGalleryNotifier {
+  @override
+  LocalGalleryState build() => const LocalGalleryState();
+  @override
+  Future<void> refresh({bool scan = true}) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -70,7 +79,9 @@ void main() {
       jsonEncode(categories.map((category) => category.toJson()).toList()),
     );
 
-    container = ProviderContainer();
+    container = ProviderContainer(
+      overrides: [localGalleryNotifierProvider.overrideWith(_GalleryScope.new)],
+    );
     await container.read(galleryCategoryNotifierProvider.notifier).whenLoaded();
   });
 
@@ -87,6 +98,52 @@ void main() {
     ]..sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
     return categories.map((category) => category.id).toList();
   }
+
+  test('父目录改名、移动、删除后选中子分类与图库范围一致', () async {
+    final categories = container.read(galleryCategoryNotifierProvider.notifier);
+    final child = (await categories.createCategory('child', parentId: 'a'))!;
+    categories.selectCategory(child.id);
+    final gallery = container.read(localGalleryNotifierProvider.notifier);
+    await gallery.setSelectedCategory(
+      child.id,
+      child.folderPath,
+      refreshFiles: true,
+    );
+    void check(GalleryCategory? selected, String? path) {
+      expect(
+        container.read(galleryCategoryNotifierProvider).selectedCategoryId,
+        selected?.id,
+      );
+      final filter = container
+          .read(localGalleryNotifierProvider)
+          .filterCriteria;
+      expect(filter.categoryId, selected?.id);
+      expect(filter.categoryFolderPath, path);
+    }
+
+    await categories.renameCategory('a', 'renamed');
+    check(child, p.join('renamed', 'child'));
+    await categories.moveCategory('a', 'b');
+    check(child, p.join('b', 'renamed', 'child'));
+    await categories.deleteCategory('a', deleteFolder: false, recursive: true);
+    check(null, null);
+  });
+
+  test('修改 foo 的后代路径不会改写 foobar', () {
+    final original = container
+        .read(galleryCategoryNotifierProvider)
+        .categories
+        .first;
+    final changed = GalleryCategoryRepository.instance
+        .updateDescendantPaths('foo', 'renamed', [
+          original.copyWith(folderPath: p.join('foo', 'child')),
+          original.copyWith(folderPath: p.join('foobar', 'child')),
+        ]);
+    expect(changed.map((c) => c.folderPath), [
+      p.join('renamed', 'child'),
+      p.join('foobar', 'child'),
+    ]);
+  });
 
   test(
     'before slot inserts the category immediately before the target',

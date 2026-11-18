@@ -5974,6 +5974,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_emptyTitle => 'ローカル イメージがありません';
 
   @override
+  String get localGallery_emptyScopeTitle => 'ここにはまだ画像がありません';
+
+  @override
   String get localGallery_emptySubtitle => '生成された画像はここに保存されます';
 
   @override
