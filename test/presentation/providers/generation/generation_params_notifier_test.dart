@@ -1138,6 +1138,179 @@ void main() {
       expect(container.read(generationParamsNotifierProvider).scale, 5.0);
     });
   });
+
+  group('updateModel per-model sampling memory', () {
+    // 调过的值恰好等于另一模型的出厂值时，切回不能当成未调整。
+    test('switching back keeps values that equal the other model defaults', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateSteps(28);
+      notifier.updateScale(4.0);
+
+      notifier.updateModel(ImageModels.animeDiffusionV5Full);
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.steps, 28);
+      expect(params.scale, 4.0);
+    });
+
+    test('each model restores its own sampling params', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier
+        ..updateSteps(35)
+        ..updateScale(3.5)
+        ..updateCfgRescale(0.2)
+        ..updateSampler(Samplers.kDpmpp2m)
+        ..updateNoiseSchedule(NoiseSchedules.exponential);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier
+        ..updateSteps(30)
+        ..updateScale(6.0)
+        ..updateCfgRescale(0.0)
+        ..updateSampler(Samplers.kEuler)
+        ..updateNoiseSchedule(NoiseSchedules.karras);
+
+      notifier.updateModel(ImageModels.animeDiffusionV5Full);
+      var params = container.read(generationParamsNotifierProvider);
+      expect(params.steps, 35);
+      expect(params.scale, 3.5);
+      expect(params.cfgRescale, 0.2);
+      expect(params.sampler, Samplers.kDpmpp2m);
+      expect(params.noiseSchedule, NoiseSchedules.exponential);
+      final storage = LocalStorageService();
+      expect(storage.getDefaultSteps(), 35);
+      expect(storage.getDefaultScale(), 3.5);
+      expect(storage.getLastCfgRescale(), 0.2);
+      expect(storage.getDefaultSampler(), Samplers.kDpmpp2m);
+      expect(storage.getLastNoiseSchedule(), NoiseSchedules.exponential);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      params = container.read(generationParamsNotifierProvider);
+      expect(params.steps, 30);
+      expect(params.scale, 6.0);
+      expect(params.cfgRescale, 0.0);
+      expect(params.sampler, Samplers.kEuler);
+      expect(params.noiseSchedule, NoiseSchedules.karras);
+    });
+
+    test('restores the V4.5 archive after reopening settings', () async {
+      final first = ProviderContainer();
+      try {
+        first.read(generationParamsNotifierProvider.notifier)
+          ..updateModel(ImageModels.animeDiffusionV45Full)
+          ..updateSteps(31)
+          ..updateModel(ImageModels.animeDiffusionV5Full)
+          ..updateSteps(34);
+      } finally {
+        first.dispose();
+      }
+
+      await Hive.box(StorageKeys.settingsBox).close();
+      await Hive.openBox(StorageKeys.settingsBox);
+
+      final restarted = ProviderContainer();
+      addTearDown(restarted.dispose);
+      final params = restarted.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV5Full);
+      expect(params.steps, 34);
+
+      restarted
+          .read(generationParamsNotifierProvider.notifier)
+          .updateModel(ImageModels.animeDiffusionV45Full);
+
+      expect(restarted.read(generationParamsNotifierProvider).steps, 31);
+    });
+
+    test('Variety+ comes back after a round trip through V5', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateVarietyPlus(true);
+
+      notifier.updateModel(ImageModels.animeDiffusionV5Full);
+      expect(
+        container.read(generationParamsNotifierProvider).varietyPlus,
+        isFalse,
+      );
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      expect(
+        container.read(generationParamsNotifierProvider).varietyPlus,
+        isTrue,
+      );
+    });
+
+    test('metadata imports archive the old model but do not restore', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier.updateSteps(30);
+
+      notifier.updateModel(
+        ImageModels.animeDiffusionV5Full,
+        followDefaults: false,
+      );
+      expect(container.read(generationParamsNotifierProvider).steps, 30);
+      notifier.updateSteps(40);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      expect(container.read(generationParamsNotifierProvider).steps, 30);
+      notifier.updateModel(ImageModels.animeDiffusionV5Full);
+      expect(container.read(generationParamsNotifierProvider).steps, 40);
+    });
+
+    test('effort switches stay inside one memory slot', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      notifier.updateEffort(GenerationEffort.medium);
+      notifier.updateEffort(GenerationEffort.high);
+
+      expect(
+        LocalStorageService().getSetting<Object?>(
+          StorageKeys.modelSamplingParams,
+        ),
+        isNull,
+      );
+    });
+
+    test('a corrupt archive falls back to default follow-up', () async {
+      await LocalStorageService().setSetting(
+        StorageKeys.modelSamplingParams,
+        '{not json',
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+
+      final params = container.read(generationParamsNotifierProvider);
+      expect(params.steps, 23);
+      expect(params.scale, 5.0);
+    });
+  });
 }
 
 Uint8List _validPngBytes({required int width, required int height}) =>

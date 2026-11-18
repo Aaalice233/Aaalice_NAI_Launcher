@@ -418,11 +418,12 @@ class GenerationToolDefinitions {
         name: 'update_generation_settings',
         label: 'Update Generation Settings',
         description:
-            'Persistently change generation page settings. Only '
-            'provided fields are changed. Requirements: "model" accepts an '
-            'exact model id OR a friendly name like "v5", "v5 curated", '
-            '"v4.5 full", "v3" (get_generation_settings lists all); '
-            'switching model may auto-adjust scale/steps defaults. '
+            'Persistently change generation page settings. Switching models '
+            'restores the target model\'s last-used sampling parameters when '
+            'available. Explicitly provided fields in the same call take '
+            'precedence. Requirements: "model" accepts an exact model id '
+            'OR a friendly name like "v5", "v5 curated", "v4.5 full", "v3" '
+            '(get_generation_settings lists all). '
             '"effort" (V5 Full only): "medium" costs fewer Anlas and less '
             'V5 quota but always uses 14 steps, Euler Ancestral and the '
             'Heavy UC preset and does not send negative prompts, '

@@ -24,6 +24,7 @@ import '../quality_preset_provider.dart';
 import '../subscription_provider.dart';
 import '../uc_preset_provider.dart';
 import 'generation_params_persistence_service.dart';
+import 'model_sampling_memory.dart';
 import 'vibe_reference_service.dart';
 
 part 'generation_params_notifier.g.dart';
@@ -185,56 +186,80 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
 
   /// 更新模型
   ///
-  /// [followDefaults] 为 true 时，若 CFG 与步数仍停留在旧模型的出厂默认值，
-  /// 会一并切到新模型的默认值；用户手动调过的参数不会被覆盖。元数据导入等
-  /// 需要还原历史参数的场景应传 false。
+  /// 切走时为旧模型存档采样参数，切到有存档的模型时恢复，否则跟随出厂默认值。
+  /// [followDefaults] 为 false 时只换模型，供元数据导入等还原历史参数的场景使用。
   void updateModel(
     String model, {
     bool persist = true,
     bool followDefaults = true,
   }) {
-    final previousModel = state.model;
-    var next = state.copyWith(model: model);
+    final previous = state;
+    final memory = ModelSamplingMemory(_storage);
+    final switchesSlot =
+        ModelSamplingMemory.slotOf(previous.model) !=
+        ModelSamplingMemory.slotOf(model);
+    if (persist && switchesSlot) memory.remember(previous);
 
-    final followUps = followDefaults
-        ? resolveModelSwitchFollowUps(
-            from: ModelCapabilityRegistry.of(previousModel),
-            to: ModelCapabilityRegistry.of(model),
-            currentScale: state.scale,
-            currentSteps: state.steps,
-            currentNoiseSchedule: state.noiseSchedule,
-            currentVarietyPlus: state.varietyPlus,
-          )
-        : const ModelSwitchFollowUps();
-
-    if (followUps.scale != null) {
-      next = next.copyWith(scale: followUps.scale!);
-    }
-    if (followUps.steps != null) {
-      next = next.copyWith(steps: followUps.steps!);
-    }
-    if (followUps.noiseSchedule != null) {
-      next = next.copyWith(noiseSchedule: followUps.noiseSchedule!);
-    }
-    if (followUps.varietyPlus != null) {
-      next = next.copyWith(varietyPlus: followUps.varietyPlus!);
+    final remembered = followDefaults && switchesSlot
+        ? memory.recall(model)
+        : null;
+    var next = previous.copyWith(model: model);
+    if (followDefaults) {
+      next =
+          remembered?.applyTo(next) ??
+          _applyModelSwitchFollowUps(next, from: previous.model);
     }
     state = next;
 
     if (persist) {
       _storage.setDefaultModel(model);
-      if (followUps.scale != null) {
-        _storage.setDefaultScale(followUps.scale!);
-      }
-      if (followUps.steps != null) {
-        _storage.setDefaultSteps(followUps.steps!);
-      }
-      if (followUps.noiseSchedule != null) {
-        _storage.setLastNoiseSchedule(followUps.noiseSchedule!);
-      }
-      if (followUps.varietyPlus != null) {
-        _storage.setLastVarietyPlus(followUps.varietyPlus!);
-      }
+      _persistSamplingSettings(previous, next, restoreAll: remembered != null);
+    }
+  }
+
+  ImageParams _applyModelSwitchFollowUps(
+    ImageParams params, {
+    required String from,
+  }) {
+    final followUps = resolveModelSwitchFollowUps(
+      from: ModelCapabilityRegistry.of(from),
+      to: params.capabilities,
+      currentScale: params.scale,
+      currentSteps: params.steps,
+      currentNoiseSchedule: params.noiseSchedule,
+      currentVarietyPlus: params.varietyPlus,
+    );
+    return params.copyWith(
+      scale: followUps.scale ?? params.scale,
+      steps: followUps.steps ?? params.steps,
+      noiseSchedule: followUps.noiseSchedule ?? params.noiseSchedule,
+      varietyPlus: followUps.varietyPlus ?? params.varietyPlus,
+    );
+  }
+
+  /// 写回上次使用的设置，重启后与界面一致。
+  void _persistSamplingSettings(
+    ImageParams previous,
+    ImageParams next, {
+    required bool restoreAll,
+  }) {
+    if (restoreAll || next.steps != previous.steps) {
+      _storage.setDefaultSteps(next.steps);
+    }
+    if (restoreAll || next.scale != previous.scale) {
+      _storage.setDefaultScale(next.scale);
+    }
+    if (restoreAll || next.cfgRescale != previous.cfgRescale) {
+      _storage.setLastCfgRescale(next.cfgRescale);
+    }
+    if (restoreAll || next.sampler != previous.sampler) {
+      _storage.setDefaultSampler(next.sampler);
+    }
+    if (restoreAll || next.noiseSchedule != previous.noiseSchedule) {
+      _storage.setLastNoiseSchedule(next.noiseSchedule);
+    }
+    if (restoreAll || next.varietyPlus != previous.varietyPlus) {
+      _storage.setLastVarietyPlus(next.varietyPlus);
     }
   }
 
