@@ -805,10 +805,26 @@ void main() {
 
     expect(toggle, findsOneWidget);
     final footer = find.byKey(const ValueKey('generation_prompt_footer'));
+    final assistant = find.byKey(
+      const ValueKey(
+        'prompt_assistant_toolbar_${PromptHistorySessionIds.generationPrompt}',
+      ),
+    );
+    expect(find.descendant(of: footer, matching: assistant), findsOneWidget);
+    // 助手是独立组件，保持自身统一外观，不套用底栏胶囊按钮规格
+    final assistantButtons = {
+      for (final element
+          in find
+              .descendant(of: assistant, matching: find.byType(IconButton))
+              .evaluate())
+        element.widget,
+    };
     final footerButtons = find.descendant(
       of: footer,
       matching: find.byWidgetPredicate(
-        (widget) => widget is TextButton || widget is IconButton,
+        (widget) =>
+            (widget is TextButton || widget is IconButton) &&
+            !assistantButtons.contains(widget),
       ),
     );
     final surfaces = <Finder>[];
@@ -866,12 +882,21 @@ void main() {
       isFalse,
     );
 
-    final assistant = find.byKey(
-      const ValueKey(
-        'prompt_assistant_toolbar_${PromptHistorySessionIds.generationPrompt}',
-      ),
-    );
     final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
+    final collapsedAssistant = tester.getRect(assistant);
+    final collapsedFooter = tester.getRect(footer);
+    expect(
+      collapsedAssistant.top,
+      greaterThanOrEqualTo(tester.getRect(promptField).bottom),
+    );
+    expect(
+      collapsedAssistant.right,
+      closeTo(tester.getRect(count).left - 8, 0.1),
+    );
+    expect(
+      tester.getRect(toggle).right,
+      lessThanOrEqualTo(collapsedAssistant.left),
+    );
     await tester.tap(
       find.descendant(
         of: assistant,
@@ -881,15 +906,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 160));
 
     expect(toggle, findsOneWidget);
-    expect(count, findsOneWidget);
+    expect(count.hitTestable(), findsOneWidget);
+    expect(tester.getRect(footer), collapsedFooter);
+    expect(tester.getRect(assistant).right, collapsedAssistant.right);
+    expect(tester.getRect(assistant).top, collapsedAssistant.top);
     expect(
-      tester.getRect(toggle).top,
-      greaterThanOrEqualTo(tester.getRect(assistant).bottom),
+      tester.getRect(assistant).left,
+      greaterThanOrEqualTo(collapsedFooter.left),
     );
-    expect(
-      tester.getRect(count).top,
-      greaterThanOrEqualTo(tester.getRect(assistant).bottom),
-    );
+    expect(toggle.hitTestable(), findsOneWidget);
 
     await tester.tap(
       find.descendant(
@@ -960,7 +985,7 @@ void main() {
     );
   });
 
-  testWidgets('320 宽桌面侧栏可滚动到全部提示词入口且助手贴右', (tester) async {
+  testWidgets('320 宽桌面侧栏可滚动到全部提示词入口且助手贴近计数', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     try {
       await tester.pumpWidget(
@@ -1014,6 +1039,9 @@ void main() {
         const ValueKey('generation_prompt_mobile_secondary_row'),
       );
       final footer = find.byKey(const ValueKey('generation_prompt_footer'));
+      final count = find.byKey(
+        const ValueKey('generation_prompt_footer_count'),
+      );
       final assistant = find.byKey(
         const ValueKey(
           'prompt_assistant_toolbar_${PromptHistorySessionIds.generationPrompt}',
@@ -1022,9 +1050,10 @@ void main() {
       expect(tester.getSize(responsiveToolbar).width, 320);
       expect(typeSwitch, findsOneWidget);
       expect(secondary, findsOneWidget);
+      expect(find.descendant(of: footer, matching: assistant), findsOneWidget);
       expect(
         tester.getRect(assistant).right,
-        closeTo(tester.getRect(footer).right - 4, 0.1),
+        closeTo(tester.getRect(count).left - 8, 0.1),
       );
 
       for (final key in const [
@@ -1072,7 +1101,7 @@ void main() {
               ),
             )
             .right,
-        closeTo(tester.getRect(footer).right - 4, 0.1),
+        closeTo(tester.getRect(count).left - 8, 0.1),
       );
 
       final settings = find.widgetWithIcon(IconButton, Icons.settings);
@@ -1339,7 +1368,7 @@ void main() {
     }
   });
 
-  testWidgets('手机提示词助手在输入区浮层展开且不改变文本布局', (tester) async {
+  testWidgets('手机提示词助手停靠在底栏计数左侧且展开不改变文本布局', (tester) async {
     PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
       TargetPlatform.android,
     );
@@ -1426,6 +1455,8 @@ void main() {
       find.descendant(of: input, matching: find.byType(TextField)).first,
     );
 
+    final inputRect = tester.getRect(input);
+
     expect(transparent, findsOneWidget);
     expect(count, findsOneWidget);
     expect(find.text('259 / 1471'), findsOneWidget);
@@ -1436,12 +1467,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(assistant, findsOneWidget);
-    expect(toolbar, findsOneWidget);
-    expect(
-      tester.getRect(assistant).right,
-      closeTo(tester.getRect(footer).right - 4, 0.1),
-    );
+    expect(find.descendant(of: footer, matching: assistant), findsOneWidget);
     expect(textField.decoration?.contentPadding, const EdgeInsets.all(12));
     expect(
       find.descendant(
@@ -1452,29 +1478,25 @@ void main() {
     );
     expect(
       tester.getRect(transparent).top,
-      greaterThanOrEqualTo(tester.getRect(input).bottom),
+      greaterThanOrEqualTo(inputRect.bottom),
     );
-    expect(
-      tester.getRect(count).top,
-      greaterThanOrEqualTo(tester.getRect(input).bottom),
+    expect(tester.getRect(count).top, greaterThanOrEqualTo(inputRect.bottom));
+    final collapsedRect = tester.getRect(assistant);
+    expect(collapsedRect.top, greaterThanOrEqualTo(inputRect.bottom));
+    expect(collapsedRect.right, closeTo(tester.getRect(count).left - 8, 0.1));
+    expect(collapsedRect.center.dy, closeTo(tester.getCenter(count).dy, 0.5));
+    expect(tester.getSize(toolbar), const Size(48, 48));
+    final actionScroll = find.byKey(
+      const ValueKey('generation_prompt_footer_actions_scroll'),
     );
+    expect(actionScroll, findsOneWidget);
     expect(
-      tester.getRect(assistant).bottom,
-      lessThanOrEqualTo(tester.getRect(input).bottom),
-    );
-    expect(
-      find.byKey(const ValueKey('generation_prompt_footer_actions_scroll')),
-      findsOneWidget,
+      tester.getRect(actionScroll).right,
+      lessThanOrEqualTo(collapsedRect.left),
     );
     await tester.ensureVisible(transparent);
     await tester.pump();
     expect(transparent.hitTestable(), findsOneWidget);
-    expect(
-      tester.getRect(count).top - tester.getRect(assistant).bottom,
-      greaterThanOrEqualTo(0),
-    );
-    expect(tester.getSize(toolbar).width, greaterThanOrEqualTo(48));
-    expect(tester.getSize(toolbar).height, 48);
     final collapsedFooterHeight = tester.getSize(footer).height;
 
     await tester.tap(
@@ -1486,7 +1508,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 160));
 
-    expect(count, findsOneWidget);
+    expect(count.hitTestable(), findsOneWidget);
     expect(find.text('259 / 1471'), findsOneWidget);
     expect(
       find.descendant(
@@ -1495,12 +1517,14 @@ void main() {
       ),
       findsNothing,
     );
-    expect(transparent, findsOneWidget);
-    expect(assistant, findsOneWidget);
+    expect(tester.getRect(input), inputRect);
     expect(tester.getSize(footer).height, collapsedFooterHeight);
+    final expandedRect = tester.getRect(assistant);
+    expect(expandedRect.right, closeTo(collapsedRect.right, 0.1));
+    expect(expandedRect.top, closeTo(collapsedRect.top, 0.1));
     expect(
-      tester.getRect(assistant).bottom,
-      lessThanOrEqualTo(tester.getRect(input).bottom),
+      expandedRect.left,
+      greaterThanOrEqualTo(tester.getRect(footer).left),
     );
     for (final icon in [
       Icons.translate,
@@ -1515,17 +1539,18 @@ void main() {
       expect(tester.getSize(action), const Size(48, 48));
       await tester.ensureVisible(action);
       await tester.pump();
+      expect(action.hitTestable(), findsOneWidget);
       expect(
-        tester.getRect(action).bottom,
-        lessThanOrEqualTo(tester.getRect(input).bottom),
+        tester.getRect(action).top,
+        greaterThanOrEqualTo(inputRect.bottom),
       );
       expect(
         tester.getRect(action).left,
-        greaterThanOrEqualTo(tester.getRect(assistant).left),
+        greaterThanOrEqualTo(expandedRect.left - 0.1),
       );
       expect(
         tester.getRect(action).right,
-        lessThanOrEqualTo(tester.getRect(assistant).right),
+        lessThanOrEqualTo(expandedRect.right + 0.1),
       );
     }
     expect(
@@ -1534,7 +1559,7 @@ void main() {
             find.widgetWithIcon(IconButton, Icons.keyboard_arrow_down_rounded),
           )
           .right,
-      closeTo(tester.getRect(footer).right - 4, 0.1),
+      closeTo(collapsedRect.right, 0.1),
     );
 
     await tester.tap(
@@ -1553,12 +1578,11 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(transparent, findsOneWidget);
+    expect(tester.getRect(assistant), collapsedRect);
     expect(tester.getSize(footer).height, collapsedFooterHeight);
-    expect(
-      tester.getRect(count).top - tester.getRect(assistant).bottom,
-      greaterThanOrEqualTo(0),
-    );
+    await tester.ensureVisible(transparent);
+    await tester.pump();
+    expect(transparent.hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

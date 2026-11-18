@@ -43,8 +43,11 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
   /// 提示词助手的稳定会话标识
   final String? sessionId;
 
-  /// Whether the input owns its default bottom-right assistant entry.
+  /// Whether the input enables assistant shortcuts and its built-in entry.
   final bool enableAssistant;
+
+  /// Whether the built-in bottom-right entry is mounted inside the input.
+  final bool showAssistantEntry;
   final bool showTagModeSwitch;
   final Object? assistantTapRegionGroupId;
 
@@ -94,6 +97,7 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
     this.onChanged,
     this.sessionId,
     this.enableAssistant = true,
+    this.showAssistantEntry = true,
     this.showTagModeSwitch = true,
     this.assistantTapRegionGroupId,
     this.onRandomPressed,
@@ -203,6 +207,7 @@ class _PromptEditorWithToolbarState
             onChanged: widget.onChanged,
             sessionId: widget.sessionId,
             enableAssistant: widget.enableAssistant,
+            showAssistantEntry: widget.showAssistantEntry,
             showTagModeSwitch: widget.showTagModeSwitch,
             assistantTapRegionGroupId: widget.assistantTapRegionGroupId,
             maxLines: widget.maxLines,

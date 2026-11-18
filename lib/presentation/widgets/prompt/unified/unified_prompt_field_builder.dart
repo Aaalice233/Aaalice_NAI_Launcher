@@ -175,7 +175,7 @@ Widget buildUnifiedPromptEditorContainer({
   required UnifiedPromptConfig config,
   required bool fitContent,
   required bool expands,
-  required bool enableAssistant,
+  required bool showAssistantEntry,
   required bool showTagModeSwitch,
   required Object modeId,
   required String sessionId,
@@ -204,7 +204,7 @@ Widget buildUnifiedPromptEditorContainer({
     fit: fitContent ? StackFit.loose : StackFit.expand,
     children: [
       result,
-      if (enableAssistant)
+      if (showAssistantEntry)
         Positioned.fill(
           child: PromptAssistantOverlay(
             placement: PromptAssistantPlacement.viewport,

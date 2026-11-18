@@ -175,7 +175,7 @@ void main() {
         .decoration!
         .contentPadding!
         .resolve(TextDirection.ltr);
-    expect(contentPadding.bottom, 60);
+    expect(contentPadding, const EdgeInsets.all(12));
     final contentFooter = find.byKey(
       const ValueKey('entry-add-dialog-content-footer'),
     );
@@ -203,15 +203,29 @@ void main() {
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).placement,
-      PromptAssistantPlacement.viewport,
+      PromptAssistantPlacement.inline,
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
       false,
     );
     expect(
-      tester.getTopRight(toolbar).dx,
-      closeTo(tester.getTopRight(contentInput).dx - 4, 1),
+      find.descendant(of: contentFooter, matching: assistant),
+      findsOneWidget,
+    );
+    final modeSwitch = find.byKey(const ValueKey('tag-mode-button'));
+    final collapsedRect = tester.getRect(toolbar);
+    expect(
+      collapsedRect.left,
+      greaterThanOrEqualTo(tester.getRect(modeSwitch).right),
+    );
+    expect(
+      collapsedRect.right,
+      closeTo(tester.getRect(contentFooter).right - 4, 1),
+    );
+    expect(
+      collapsedRect.center.dy,
+      closeTo(tester.getCenter(modeSwitch).dy, 0.5),
     );
 
     final dialogScrollable = find
@@ -234,11 +248,29 @@ void main() {
       expandedAssistantRect.height,
       closeTo(collapsedAssistantHeight, .01),
     );
-    final footerRect = tester.getRect(contentInput);
+    final footerRect = tester.getRect(contentFooter);
     expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
     expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
     expect(expandedAssistantRect.top, greaterThanOrEqualTo(footerRect.top));
     expect(expandedAssistantRect.bottom, lessThanOrEqualTo(footerRect.bottom));
+    for (final icon in [
+      Icons.translate,
+      Icons.auto_fix_high,
+      Icons.keyboard_arrow_down_rounded,
+    ]) {
+      expect(
+        find.descendant(of: toolbar, matching: find.byIcon(icon)).hitTestable(),
+        findsOneWidget,
+      );
+    }
+    await tester.tap(
+      find.descendant(
+        of: toolbar,
+        matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(modeSwitch.hitTestable(), findsOneWidget);
 
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();

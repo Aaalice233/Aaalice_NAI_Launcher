@@ -747,15 +747,28 @@ void main() {
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).placement,
-      PromptAssistantPlacement.viewport,
+      PromptAssistantPlacement.inline,
     );
     expect(
       tester.widget<PromptAssistantOverlay>(assistant).stripFixedTagsFromInput,
       false,
     );
     expect(
+      find.descendant(of: contentFooter, matching: assistant),
+      findsOneWidget,
+    );
+    final modeSwitch = find.byKey(const ValueKey('tag-mode-button'));
+    expect(
+      tester.getRect(assistantToolbar).left,
+      greaterThanOrEqualTo(tester.getRect(modeSwitch).right),
+    );
+    expect(
       tester.getTopRight(assistantToolbar).dx,
-      closeTo(tester.getTopRight(contentInput).dx - 4, 1),
+      closeTo(tester.getTopRight(contentFooter).dx - 4, 1),
+    );
+    expect(
+      tester.getCenter(assistantToolbar).dy,
+      closeTo(tester.getCenter(modeSwitch).dy, 0.5),
     );
     await tester.tap(
       find.descendant(
@@ -770,7 +783,7 @@ void main() {
       expandedAssistantRect.height,
       closeTo(collapsedAssistantHeight, .01),
     );
-    final footerRect = tester.getRect(contentInput);
+    final footerRect = tester.getRect(contentFooter);
     expect(expandedAssistantRect.left, greaterThanOrEqualTo(footerRect.left));
     expect(expandedAssistantRect.right, lessThanOrEqualTo(footerRect.right));
     expect(expandedAssistantRect.top, greaterThanOrEqualTo(footerRect.top));

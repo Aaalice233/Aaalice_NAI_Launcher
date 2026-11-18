@@ -159,11 +159,15 @@ void main() {
           );
           expect(
             tester.getRect(assistant).bottom,
-            lessThanOrEqualTo(tester.getRect(area).bottom),
+            lessThanOrEqualTo(tester.getRect(area).top),
           );
           expect(
             tester.getRect(assistant).right,
             lessThanOrEqualTo(tester.getRect(area).right),
+          );
+          expect(
+            tester.getCenter(assistant).dy,
+            closeTo(tester.getCenter(toggle).dy, 0.5),
           );
           await tester.tap(toggle);
           await tester.pumpAndSettle();

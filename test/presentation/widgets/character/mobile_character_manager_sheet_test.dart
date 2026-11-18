@@ -6,6 +6,8 @@ import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/adaptive_presenter.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_history_provider.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/widgets/prompt_assistant_overlay.dart';
 import 'package:nai_launcher/presentation/providers/character_position_canvas_provider.dart';
 import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/widgets/character/mobile_character_manager_sheet.dart';
@@ -52,26 +54,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith((ref) => _MemoryStorage()),
-          characterPromptNotifierProvider.overrideWith(
-            _SingleCharacterNotifier.new,
-          ),
-          characterPositionCanvasProvider.overrideWith(_CanvasNotifier.new),
-        ],
-        child: const MaterialApp(
-          locale: Locale('zh'),
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: InteractionPolicyScope(
-            initialPolicy: InteractionPolicy.touchFirst,
-            child: Scaffold(body: MobileCharacterManagerSheet()),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_manager());
     await tester.pumpAndSettle();
 
     final modes = find.byKey(const ValueKey('character-position-mode-scroll'));
@@ -125,6 +108,55 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  for (final scale in [1.0, 3.0]) {
+    testWidgets('320 宽角色管理器有正文时在 ${scale.toInt()}x 文字下控件可操作', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 820));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(_manager(textScaler: TextScaler.linear(scale)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alice with a long localized name'));
+      await tester.pumpAndSettle();
+
+      final tabs = [
+        for (final label in ['正向提示词', '负向提示词'])
+          find.ancestor(of: find.text(label), matching: find.byType(InkWell)),
+      ];
+      final sessionId = PromptHistorySessionIds.characterPrompt('alice');
+      final assistant = find.descendant(
+        of: find.byKey(ValueKey('prompt_assistant_toolbar_$sessionId')),
+        matching: find.byType(IconButton),
+      );
+      final clear = find.byKey(const ValueKey('character-prompt-clear-button'));
+      final mode = find.byKey(const ValueKey('tag-mode-button'));
+      expect(clear.hitTestable(), findsOneWidget);
+      expect(mode.hitTestable(), findsOneWidget);
+      for (final target in [...tabs, assistant]) {
+        expect(target.hitTestable(), findsOneWidget);
+        expect(tester.getSize(target).width, greaterThanOrEqualTo(44));
+      }
+      expect(
+        tester.getRect(tabs.first).bottom,
+        lessThanOrEqualTo(tester.getRect(assistant).top),
+      );
+      expect(tester.takeException(), isNull);
+
+      if (scale == 1) {
+        final overlay = find.byType(PromptAssistantOverlay);
+        final assistantState = tester.state(overlay);
+        final tabElement = tester.element(tabs.first);
+        await tester.binding.setSurfaceSize(const Size(420, 820));
+        await tester.pumpAndSettle();
+        expect(
+          tester.getCenter(tabs.first).dy,
+          closeTo(tester.getCenter(assistant).dy, 0.1),
+        );
+        expect(tester.state(overlay), same(assistantState));
+        expect(tester.element(tabs.first), same(tabElement));
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
 
   testWidgets(
     'compact worst case keeps form usable and close exits immediately',
@@ -212,3 +244,27 @@ void main() {
     },
   );
 }
+
+Widget _manager({TextScaler textScaler = TextScaler.noScaling}) =>
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWith((ref) => _MemoryStorage()),
+        characterPromptNotifierProvider.overrideWith(
+          _SingleCharacterNotifier.new,
+        ),
+        characterPositionCanvasProvider.overrideWith(_CanvasNotifier.new),
+      ],
+      child: MaterialApp(
+        locale: const Locale('zh'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+          child: child!,
+        ),
+        home: const InteractionPolicyScope(
+          initialPolicy: InteractionPolicy.touchFirst,
+          child: Scaffold(body: MobileCharacterManagerSheet()),
+        ),
+      ),
+    );

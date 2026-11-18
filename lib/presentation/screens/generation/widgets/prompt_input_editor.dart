@@ -6,17 +6,16 @@ import '../../../../core/autocomplete/autocomplete_settings.dart'
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../core/constants/storage_keys.dart';
 import '../../../../core/storage/local_storage_service.dart';
-import '../../../../data/models/image/image_params.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../providers/image_generation_provider.dart';
 import '../../../themes/core/input_surface_style.dart';
 import '../../../widgets/autocomplete/autocomplete.dart';
 import '../../../widgets/prompt/unified/unified_prompt_config.dart';
 import '../../../widgets/prompt/unified/unified_prompt_input.dart';
+import 'prompt_input_assistant.dart';
 import 'prompt_input_controller.dart';
 import 'prompt_editor_resize_region.dart';
 import 'prompt_input_models.dart';
-import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
 
 class PromptInputEditor extends ConsumerWidget {
   const PromptInputEditor({
@@ -49,14 +48,7 @@ class PromptInputEditor extends ConsumerWidget {
     final replaceUnderscores = ref.watch(replaceUnderscoresPreferenceProvider);
     final storage = ref.watch(localStorageServiceProvider);
     final negative = controller.isNegativeMode;
-    // 模型固定 UC 预设时负向提示词不会发送，只读保留给切回后的模型使用。
-    final negativeLocked =
-        negative &&
-        ref.watch(
-          generationParamsNotifierProvider.select(
-            (params) => params.usesFixedSettings,
-          ),
-        );
+    final negativeLocked = watchPromptInputLocked(ref, controller);
     final promptController = negative
         ? controller.negativeController
         : controller.promptController;
@@ -80,89 +72,68 @@ class PromptInputEditor extends ConsumerWidget {
             }
           },
           enabled: viewData.autoGrow && !compact && !viewData.isMaximized,
-          builder: (manualHeight) => Stack(
-            fit: StackFit.passthrough,
-            children: [
-              UnifiedPromptInput(
-                key: ValueKey(
-                  negative
-                      ? 'generation_prompt_negative_input'
-                      : 'generation_prompt_positive_input',
-                ),
-                controller: promptController,
-                focusNode: focusNode,
-                surfaceColor: compact
-                    ? inputSurfaceFillColor(
-                        Theme.of(context).colorScheme,
-                        prominent: true,
-                      )
-                    : null,
-                sessionId: negative
-                    ? PromptHistorySessionIds.generationNegative
-                    : PromptHistorySessionIds.generationPrompt,
-                onOpenAssistantSettings: commands.openAssistantSettings,
-                config: UnifiedPromptConfig(
-                  readOnly: negativeLocked,
-                  enableSyntaxHighlight: enableHighlight,
-                  numericEmphasisEnabled: viewData.numericEmphasisEnabled,
-                  enableAutocomplete: enableAutocomplete,
-                  enableAutoFormat: compact ? false : enableAutoFormat,
-                  enableSdSyntaxAutoConvert: compact
-                      ? false
-                      : enableSdSyntaxAutoConvert,
-                  separateNumericWeightClosing: separateNumericWeightClosing,
-                  replaceUnderscores: replaceUnderscores,
-                  enableComfyuiImport: !negative && detectMultiCharacterOnPaste,
-                  enableTagMode: true,
-                  autocompleteConfig: AutocompleteConfig(
-                    showTranslation: true,
-                    showCategory: !negative,
-                    showCount: !negative,
-                    autoInsertComma: true,
-                  ),
-                  hintText: compact
-                      ? negative
-                            ? context.l10n.prompt_unwantedContent
-                            : context.l10n.prompt_inputPrompt
-                      : negative
-                      ? context.l10n.prompt_unwantedContent
-                      : enableAutocomplete
-                      ? context.l10n.prompt_describeImageWithHint
-                      : context.l10n.prompt_describeImage,
-                ),
-                decoration: const InputDecoration(
-                  contentPadding: EdgeInsets.all(12),
-                ),
-                maxLines: null,
-                minLines: compact || manualHeight
-                    ? null
-                    : (viewData.autoGrow ? 4 : null),
-                expands: compact || manualHeight || !viewData.autoGrow,
-                fitContent: !compact && !manualHeight && viewData.autoGrow,
-                enableAssistant: false,
-                showTagModeSwitch: false,
-                onComfyuiImport: negative ? null : commands.importComfyuiPrompt,
-                onChanged: negative
-                    ? commands.updateNegativePrompt
-                    : commands.updatePrompt,
+          builder: (manualHeight) => UnifiedPromptInput(
+            key: ValueKey(
+              negative
+                  ? 'generation_prompt_negative_input'
+                  : 'generation_prompt_positive_input',
+            ),
+            controller: promptController,
+            focusNode: focusNode,
+            surfaceColor: compact
+                ? inputSurfaceFillColor(
+                    Theme.of(context).colorScheme,
+                    prominent: true,
+                  )
+                : null,
+            sessionId: negative
+                ? PromptHistorySessionIds.generationNegative
+                : PromptHistorySessionIds.generationPrompt,
+            onOpenAssistantSettings: commands.openAssistantSettings,
+            config: UnifiedPromptConfig(
+              readOnly: negativeLocked,
+              enableSyntaxHighlight: enableHighlight,
+              numericEmphasisEnabled: viewData.numericEmphasisEnabled,
+              enableAutocomplete: enableAutocomplete,
+              enableAutoFormat: compact ? false : enableAutoFormat,
+              enableSdSyntaxAutoConvert: compact
+                  ? false
+                  : enableSdSyntaxAutoConvert,
+              separateNumericWeightClosing: separateNumericWeightClosing,
+              replaceUnderscores: replaceUnderscores,
+              enableComfyuiImport: !negative && detectMultiCharacterOnPaste,
+              enableTagMode: true,
+              autocompleteConfig: AutocompleteConfig(
+                showTranslation: true,
+                showCategory: !negative,
+                showCount: !negative,
+                autoInsertComma: true,
               ),
-              if (!negativeLocked)
-                Positioned.fill(
-                  child: PromptAssistantOverlay(
-                    placement: PromptAssistantPlacement.viewport,
-                    iconOnly: true,
-                    supportsTagMode: true,
-                    sessionId: negative
-                        ? PromptHistorySessionIds.generationNegative
-                        : PromptHistorySessionIds.generationPrompt,
-                    controller: promptController,
-                    onChanged: negative
-                        ? commands.updateNegativePrompt
-                        : commands.updatePrompt,
-                    onOpenSettings: commands.openAssistantSettings,
-                  ),
-                ),
-            ],
+              hintText: compact
+                  ? negative
+                        ? context.l10n.prompt_unwantedContent
+                        : context.l10n.prompt_inputPrompt
+                  : negative
+                  ? context.l10n.prompt_unwantedContent
+                  : enableAutocomplete
+                  ? context.l10n.prompt_describeImageWithHint
+                  : context.l10n.prompt_describeImage,
+            ),
+            decoration: const InputDecoration(
+              contentPadding: EdgeInsets.all(12),
+            ),
+            maxLines: null,
+            minLines: compact || manualHeight
+                ? null
+                : (viewData.autoGrow ? 4 : null),
+            expands: compact || manualHeight || !viewData.autoGrow,
+            fitContent: !compact && !manualHeight && viewData.autoGrow,
+            enableAssistant: false,
+            showTagModeSwitch: false,
+            onComfyuiImport: negative ? null : commands.importComfyuiPrompt,
+            onChanged: negative
+                ? commands.updateNegativePrompt
+                : commands.updatePrompt,
           ),
         ),
       ),
