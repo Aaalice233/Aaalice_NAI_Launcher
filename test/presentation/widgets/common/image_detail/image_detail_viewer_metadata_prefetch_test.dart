@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
@@ -9,6 +10,8 @@ import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/providers/fixed_tags_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
+import 'package:nai_launcher/presentation/utils/image_detail_opener.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_image_page.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_metadata_panel.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_thumbnail_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_top_bar.dart';
@@ -141,6 +144,131 @@ void main() {
     slowRead.complete(null);
     await tester.pumpWidget(const SizedBox());
   });
+  testWidgets('删除使等待预取的缩略图跳转作废', (tester) async {
+    await _useDesktopSurface(tester);
+    final slow = Completer<NaiImageMetadata?>();
+    final first = _numberedImage(1);
+    final next = _numberedImage(2);
+    final third = _imageReadingFrom(slow);
+    await tester.pumpWidget(
+      _app(
+        home: ImageDetailViewer(
+          images: [first, next, third],
+          callbacks: ImageDetailCallbacks(
+            onDelete: (image) async {
+              expect(image, same(first));
+              return ImageDetailDeletePage([next, third], previousPage: false);
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(_thumbnailOf(third));
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    slow.complete(_metadata);
+    await tester.pump(_waitLimit);
+    _expectCurrent(tester, [next, third], 0);
+  });
+
+  for (final index in [17, 49, 50]) {
+    testWidgets('删除 51 张中的第 ${index + 1} 张，同步补位图与当前详情', (tester) async {
+      await _useDesktopSurface(tester);
+      final all = List.generate(51, _numberedImage);
+      final lastPage = index == 50;
+      final expected = [...all]..removeAt(index);
+      await tester.pumpWidget(_app());
+      ImageDetailOpener.showMultipleImmediate(
+        tester.element(find.byType(Scaffold)),
+        images: lastPage ? [all.last] : all.take(50).toList(),
+        initialIndex: lastPage ? 0 : index,
+        callbacks: ImageDetailCallbacks(
+          onDelete: (image) async {
+            expect(image, same(all[index]));
+            return ImageDetailDeletePage(expected, previousPage: lastPage);
+          },
+        ),
+      );
+      await tester.pump();
+      await tester.pump(_routeTransition);
+      if (lastPage) expect(find.byType(DetailThumbnailBar), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pump();
+      await tester.pump();
+      _expectCurrent(tester, expected, lastPage ? 49 : index);
+    });
+  }
+
+  for (final (index, ids, expectedId) in [
+    (1, [9, 1, 3], 3),
+    (2, [9, 1, 2], 2),
+    (2, [9, 1, 2, 4], 4),
+    (1, [9, 1], 1),
+  ]) {
+    testWidgets('删除后重新排序 $ids 仍定位到 $expectedId', (tester) async {
+      await _useDesktopSurface(tester);
+      final expected = ids.map(_numberedImage).toList();
+      await tester.pumpWidget(
+        _app(
+          home: ImageDetailViewer(
+            images: [1, 2, 3].map(_numberedImage).toList(),
+            initialIndex: index,
+            callbacks: ImageDetailCallbacks(
+              onDelete: (_) async =>
+                  ImageDetailDeletePage(expected, previousPage: false),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      await tester.pump();
+      await tester.pump();
+      _expectCurrent(tester, expected, ids.indexOf(expectedId));
+    });
+  }
+
+  testWidgets('删除结果集末尾退一张，筛选范围删空只关闭一次', (tester) async {
+    await _useDesktopSurface(tester);
+    final observer = _DetailRouteObserver();
+    final images = [_numberedImage(11), _numberedImage(22)];
+    final expectedDeletions = [images.last.identifier, images.first.identifier];
+    final deleted = <String>[];
+    final finishLastDelete = Completer<void>();
+    await tester.pumpWidget(_app(observers: [observer]));
+    ImageDetailOpener.showMultipleImmediate(
+      tester.element(find.byType(Scaffold)),
+      images: [...images],
+      initialIndex: 1,
+      callbacks: ImageDetailCallbacks(
+        onDelete: (image) async {
+          deleted.add(image.identifier);
+          images.remove(image);
+          if (images.isEmpty) await finishLastDelete.future;
+          return ImageDetailDeletePage([...images], previousPage: false);
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.pump(_routeTransition);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    await tester.pump();
+    _expectCurrent(tester, images, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    expect(deleted, expectedDeletions);
+    expect(observer.pops, 0);
+    finishLastDelete.complete();
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    // 关闭在删除回调结束后才发起，退场动画开始得比按键晚
+    await tester.pumpAndSettle();
+    expect(deleted, expectedDeletions);
+    expect(observer.pops, 1);
+    expect(find.byType(ImageDetailViewer), findsNothing);
+  });
+
   testWidgets('缩略图跳转等待预取时滑动换页，旧的跳转作废', (tester) async {
     await _useDesktopSurface(tester);
     final slowRead = Completer<NaiImageMetadata?>();
@@ -182,8 +310,59 @@ Future<void> _useDesktopSurface(WidgetTester tester) async {
   addTearDown(() => tester.binding.setSurfaceSize(null));
 }
 
-String _neverCreatedPath(String name) =>
-    p.join(Directory.systemTemp.path, 'detail_prefetch_never_created_$name.png');
+String _neverCreatedPath(String name) => p.join(
+  Directory.systemTemp.path,
+  'detail_prefetch_never_created_$name.png',
+);
+
+FileImageDetailData _numberedImage(int index) => FileImageDetailData(
+  filePath: _neverCreatedPath('$index'),
+  initialMetadata: NaiImageMetadata(model: 'model-$index', seed: index),
+);
+
+void _expectCurrent(
+  WidgetTester tester,
+  List<ImageDetailData> images,
+  int index,
+) {
+  final image = images[index];
+  final top = tester.widget<DetailTopBar>(find.byType(DetailTopBar));
+  expect(top.currentImage, same(image));
+  expect(_topBarIndex('${index + 1} / ${images.length}'), findsOneWidget);
+  expect(
+    tester.widget<PageView>(find.byType(PageView)).controller!.page,
+    index,
+  );
+  expect(
+    find.byWidgetPredicate((w) => w is DetailImagePage && w.data == image),
+    findsOneWidget,
+  );
+  expect(
+    tester
+        .widget<DetailMetadataPanel>(find.byType(DetailMetadataPanel))
+        .currentImage!
+        .metadata
+        ?.seed,
+    image.metadata?.seed,
+  );
+  expect(
+    find.byIcon(Icons.chevron_left),
+    index > 0 ? findsOneWidget : findsNothing,
+  );
+  expect(
+    find.byIcon(Icons.chevron_right),
+    index + 1 < images.length ? findsOneWidget : findsNothing,
+  );
+  if (images.length == 1) {
+    expect(find.byType(DetailThumbnailBar), findsNothing);
+  } else {
+    final bar = tester.widget<DetailThumbnailBar>(
+      find.byType(DetailThumbnailBar),
+    );
+    expect(bar.images, images);
+    expect(bar.currentIndex, index);
+  }
+}
 
 FileImageDetailData _imageReadingFrom(Completer<NaiImageMetadata?> read) {
   return FileImageDetailData(
@@ -252,6 +431,10 @@ class _DetailRouteObserver extends NavigatorObserver {
   // 等待方在 runAsync 的真实 zone；异步 Completer 生于 fake zone，通知会卡在永不冲刷的微任务队列
   final _firstPush = Completer<void>.sync();
   int pushes = 0;
+  int pops = 0;
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => pops++;
 
   bool get pushed => pushes > 0;
 

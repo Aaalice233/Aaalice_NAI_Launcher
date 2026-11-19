@@ -295,11 +295,21 @@ class _LocalGalleryShell extends ConsumerWidget {
 
   Widget _buildBody(BuildContext context, WidgetRef ref) {
     final gallery = viewModel.gallery;
-    if (gallery.error != null) {
+    final error = gallery.error;
+    if (error != null || (!gallery.isGroupedView && gallery.pageNeedsRetry)) {
       return GalleryErrorView(
-        error: gallery.error!.localized(context.l10n),
-        onRetry: () =>
-            ref.read(localGalleryNotifierProvider.notifier).refresh(),
+        error: error?.localized(context.l10n),
+        onRetry: () {
+          final notifier = ref.read(localGalleryNotifierProvider.notifier);
+          if (!gallery.isGroupedView &&
+              (error == null ||
+                  (error.code == LocalGalleryErrorCode.databaseFailed &&
+                      gallery.isInitialized))) {
+            notifier.loadPage(gallery.currentPage);
+          } else {
+            notifier.refresh();
+          }
+        },
       );
     }
     final images = gallery.isGroupedView
@@ -329,8 +339,10 @@ class _LocalGalleryShell extends ConsumerWidget {
       itemWidth: viewModel.itemWidth,
       groupedGridViewKey: groupedGridViewKey,
       onReuseMetadata: actions.importImageMetadata,
-      onSendAction: (record, action) => actions.routeImageAction(
+      onDelete: actions.confirmDeleteImage,
+      onSendAction: (record, action, {onSent}) => actions.routeImageAction(
         LocalGalleryImageAction(record: record, action: action),
+        onSent: onSent,
       ),
       onContextMenu: actions.showImageContextMenu,
     );

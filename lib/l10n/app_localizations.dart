@@ -6905,18 +6905,6 @@ abstract class AppLocalizations {
   /// **'Upscale'**
   String get gallery_upscale;
 
-  /// No description provided for @gallery_sentToImg2Img.
-  ///
-  /// In en, this message translates to:
-  /// **'Image sent to Image2Image'**
-  String get gallery_sentToImg2Img;
-
-  /// No description provided for @gallery_sentToReversePrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Image sent to reverse-prompt module'**
-  String get gallery_sentToReversePrompt;
-
   /// No description provided for @gallery_sendFailed.
   ///
   /// In en, this message translates to:
@@ -11018,6 +11006,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image deleted'**
   String get localGallery_imageDeleted;
+
+  /// No description provided for @localGallery_deleteCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The image files are gone. Cleanup of their gallery records failed. {error}'**
+  String localGallery_deleteCleanupFailed(Object error);
+
+  /// No description provided for @localGallery_deleteRegistryCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The derivative records could not be cleared.'**
+  String get localGallery_deleteRegistryCleanupFailed;
+
+  /// No description provided for @localGallery_deleteIndexCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The gallery records could not be updated.'**
+  String get localGallery_deleteIndexCleanupFailed;
 
   /// No description provided for @localGallery_deleteFailed.
   ///
@@ -20523,12 +20529,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This image has no Prompt'**
   String get toast_imageHasNoPrompt;
-
-  /// No description provided for @toast_useDeleteButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Use the delete button in the UI'**
-  String get toast_useDeleteButton;
 
   /// No description provided for @toast_imageHasNoMetadata.
   ///

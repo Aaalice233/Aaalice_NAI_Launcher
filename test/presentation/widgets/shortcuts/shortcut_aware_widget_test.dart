@@ -650,6 +650,38 @@ void main() {
       expect(counts[ShortcutIds.batchCopyTags], 1);
     });
 
+    testWidgets('查看器 Delete 在可编辑输入框聚焦时让给文本编辑', (tester) async {
+      var deletes = 0;
+      final field = FocusNode();
+      addTearDown(field.dispose);
+      final text = TextEditingController(text: 'abc');
+      addTearDown(text.dispose);
+      await _pumpPage(
+        tester,
+        PageShortcuts(
+          contextType: ShortcutContext.viewer,
+          shortcuts: {ShortcutIds.deleteImage: () => deletes++},
+          child: Material(
+            child: TextField(controller: text, focusNode: field),
+          ),
+        ),
+      );
+      field.requestFocus();
+      await tester.pump();
+      expect(field.hasPrimaryFocus, isTrue);
+      text.selection = const TextSelection.collapsed(offset: 1);
+      await tester.pump();
+      await _pressKey(tester, LogicalKeyboardKey.delete);
+      expect(deletes, 0);
+      expect(text.text, 'ac');
+
+      field.unfocus();
+      await tester.pump();
+      await _pressKey(tester, LogicalKeyboardKey.delete);
+      expect(deletes, 1);
+      expect(text.text, 'ac');
+    }, variant: _desktop);
+
     testWidgets('只读的可选中文本不拦截页面快捷键', (tester) async {
       var deletes = 0;
       final textFocus = FocusNode(debugLabel: 'selectable');

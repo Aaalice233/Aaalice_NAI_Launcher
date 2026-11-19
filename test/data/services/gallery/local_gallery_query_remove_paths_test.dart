@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -81,4 +82,41 @@ void main() {
     expect(query.filteredCount, 1);
     expect(query.totalCount, 2);
   });
+
+  test('删除期间才完成的筛选不能把已删的路径放回列表', () async {
+    final source = GalleryDataSource();
+    final delayed = _DelayedFilter(source);
+    final query = LocalGalleryQuery(
+      repository: LocalGalleryRepository(dataSource: source),
+      filterService: delayed,
+    );
+    final files = [_file('tracked/a.png'), _file('tracked/b.png')];
+    query.replaceAll(files);
+    const criteria = FilterCriteria(categoryFolderPath: 'tracked');
+    final pending = query.applyFilter(criteria);
+    query.removePaths([files.first.path]);
+    delayed.result.complete(
+      FilterResult(
+        files: files,
+        totalCount: 2,
+        executionTime: Duration.zero,
+        criteria: criteria,
+      ),
+    );
+    await pending;
+    expect(query.effectiveFiles, [files.last]);
+    expect(query.filteredCount, 1);
+  });
+}
+
+class _DelayedFilter extends GalleryFilterService {
+  _DelayedFilter(super.dataSource);
+  final result = Completer<FilterResult>();
+  @override
+  Future<FilterResult> applyFilters(
+    List<File> allFiles,
+    FilterCriteria criteria, {
+    String? operationId,
+    int fileListGeneration = 0,
+  }) => result.future;
 }

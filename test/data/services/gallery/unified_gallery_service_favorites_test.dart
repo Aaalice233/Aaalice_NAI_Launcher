@@ -6,10 +6,13 @@ import 'package:hive_ce/hive_ce.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:nai_launcher/core/cache/gallery_cache_manager.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
+import 'package:nai_launcher/core/database/datasources/gallery_tables.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
+import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_image_files.dart';
 import 'package:nai_launcher/data/repositories/gallery_category_repository.dart';
@@ -66,6 +69,95 @@ void main() {
 
       if (await tempDir.exists()) {
         await _deleteDirectoryWithRetry(tempDir);
+      }
+    });
+
+    Future<File> indexFile(String name, {bool onDisk = true}) async {
+      final file = File(p.join(galleryRoot.path, name));
+      if (onDisk) await file.writeAsBytes([1]);
+      await dataSource.upsertImage(
+        filePath: file.path,
+        fileName: name,
+        fileSize: 1,
+        createdAt: DateTime(2026),
+        modifiedAt: DateTime(2026),
+        metadataStatus: MetadataStatus.success,
+      );
+      return file;
+    }
+
+    Future<Map<String, int>> deletionFlags() =>
+        dataSource.execute('readDeletionFlags', (db) async {
+          final rows = await db.query(
+            GalleryTables.images,
+            columns: ['file_name', 'is_deleted'],
+          );
+          return {
+            for (final row in rows)
+              row['file_name'] as String: row['is_deleted'] as int,
+          };
+        });
+
+    test('真实图库删除标记已删文件和仅存索引行，保留相邻图片', () async {
+      final target = await indexFile('target.png');
+      final keep = await indexFile('keep.png');
+      await service.initialize();
+      final missing = await indexFile('missing.png', onDisk: false);
+      await target.delete();
+      expect(await deletionFlags(), {
+        'target.png': 0,
+        'missing.png': 0,
+        'keep.png': 0,
+      });
+      expect(
+        await service.removeDeletedImagesImmediately([
+          target.path,
+          missing.path,
+          keep.path,
+        ]),
+        1,
+      );
+      expect(await deletionFlags(), {
+        'target.png': 1,
+        'missing.png': 1,
+        'keep.png': 0,
+      });
+      expect(service.totalCount, 1);
+      expect((await service.getPage(0)).map((record) => record.path), [
+        keep.path,
+      ]);
+    });
+
+    test('SQLite 删除回滚不失效统计，重试提交后监听者读到新总数', () async {
+      final file = await indexFile('target.png');
+      await service.initialize();
+      await file.delete();
+      await dataSource.execute(
+        'rejectDeletion',
+        (db) => db.execute(
+          "CREATE TRIGGER reject_deletion BEFORE UPDATE OF is_deleted ON ${GalleryTables.images} "
+          "BEGIN SELECT RAISE(ABORT, 'reject deletion'); END",
+        ),
+      );
+      final counts = <Future<int>>[];
+      void onInvalidated() => counts.add(dataSource.countImages());
+      final cache = GalleryCacheManager()
+        ..registerOnStatisticsInvalidated(onInvalidated);
+      try {
+        await expectLater(
+          service.removeDeletedImagesImmediately([file.path]),
+          throwsException,
+        );
+        expect(counts, isEmpty);
+        expect((await deletionFlags())['target.png'], 0);
+        await dataSource.execute(
+          'allowDeletion',
+          (db) => db.execute('DROP TRIGGER reject_deletion'),
+        );
+        await service.removeDeletedImagesImmediately([file.path]);
+        expect(await Future.wait(counts), [0]);
+      } finally {
+        cache.unregisterOnStatisticsInvalidated(onInvalidated);
       }
     });
 

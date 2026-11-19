@@ -11,6 +11,7 @@ import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/gallery/gallery_index_admission.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
+import '../../../data/services/gallery/gallery_image_file_deleter.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../services/generation_history_storage_service.dart';
 import 'generation_models.dart';
@@ -57,10 +58,14 @@ class SavedFileDeletionResult {
   const SavedFileDeletionResult({
     this.deletedPaths = const [],
     this.failures = const {},
+    this.cleanupFailures = const {},
+    this.indexCleanupFailure,
   });
 
   final List<String> deletedPaths;
   final Map<String, Object> failures;
+  final Map<String, Object> cleanupFailures;
+  final Object? indexCleanupFailure;
 }
 
 class GeneratedImageRemovalResult {
@@ -247,24 +252,46 @@ class GenerationResultLifecycleService {
   ) async {
     final deleted = <String>[];
     final failures = <String, Object>{};
+    final cleanupFailures = <String, Object>{};
     for (final path in paths.toSet()) {
       try {
         if (await dependencies.deleteGalleryFile(path)) deleted.add(path);
-      } catch (error, stackTrace) {
-        AppLogger.e('删除生成结果的图库文件失败', error, stackTrace);
+      } on GalleryImageCleanupException catch (error) {
+        deleted.add(path);
+        cleanupFailures[path] = error.cause;
+        AppLogger.w(
+          '删除后清理衍生登记失败: ${error.cause.runtimeType}',
+          'GenerationResultLifecycle',
+        );
+      } on FileSystemException catch (error) {
+        AppLogger.w(
+          '删除生成结果的图库文件失败: ${error.runtimeType}',
+          'GenerationResultLifecycle',
+        );
         failures[path] = error;
       }
     }
+    Object? indexCleanupFailure;
     if (deleted.isNotEmpty) {
       try {
         await dependencies.removeGalleryImages(deleted);
-      } catch (error, stackTrace) {
-        AppLogger.e('删除后更新图库索引失败', error, stackTrace);
+      } on Exception catch (error) {
+        indexCleanupFailure = error;
+      } on StateError catch (error) {
+        indexCleanupFailure = error;
       }
+    }
+    if (indexCleanupFailure != null) {
+      AppLogger.w(
+        '删除后更新图库记录失败: ${indexCleanupFailure.runtimeType}',
+        'GenerationResultLifecycle',
+      );
     }
     return SavedFileDeletionResult(
       deletedPaths: List.unmodifiable(deleted),
       failures: Map.unmodifiable(failures),
+      cleanupFailures: Map.unmodifiable(cleanupFailures),
+      indexCleanupFailure: indexCleanupFailure,
     );
   }
 

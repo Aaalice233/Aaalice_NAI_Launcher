@@ -83,6 +83,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Scan only the folders you choose, then find artwork by folder, album, favorite status, Prompt, or generation metadata.
 - Image details separate positive and negative Prompts, pinned tags, character content, and full parameters for all-at-once or selective copying.
 - Batch categorization, favorites, moving, and deletion sit alongside comparison, slideshows, watermarks, redacted copies, and several viewing modes.
+- In the local gallery viewer, use Delete in the toolbar or the ⋮ menu on narrower screens. The default keyboard shortcut is Delete. Confirming permanently deletes the current image file.
 - In Settings → Privacy & Sharing, independently enable "Add watermark when copying or dragging" to apply the saved default watermark to an output copy without changing the original. Adding a watermark does not remove metadata. To remove it, also enable Protection Mode and "Remove all metadata when copying or dragging"; metadata is removed before the watermark is added.
 - The watermark editor offers Auto placement: the anchor you set is preferred, and when another corner is clearly cleaner, the whole watermark is mirrored there. Text and logo each have Auto grayscale, which picks a gray from the background beneath them, with Tone difference controlling how far it stands out.
 - Desktop gets context menus, hover previews, and drag-and-drop; touch devices get equivalent menus instead of losing features.
