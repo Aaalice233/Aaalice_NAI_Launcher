@@ -18,6 +18,7 @@ void main() {
     final options = MetadataImportOptions.all().copyWith(
       importSeed: false,
       importCharacterPrompts: false,
+      characterImportMode: CharacterImportMode.append,
     );
 
     await store.save(options);

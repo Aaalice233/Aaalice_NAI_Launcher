@@ -258,14 +258,22 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
   /// 替换所有角色
   ///
   /// 用于随机生成时一次性设置所有角色
-  void replaceAll(List<CharacterPrompt> characters) {
+  void replaceAll(List<CharacterPrompt> characters) =>
+      replaceCharacters(characters, globalAiChoice: state.globalAiChoice);
+
+  void replaceCharacters(
+    List<CharacterPrompt> characters, {
+    required bool globalAiChoice,
+  }) {
+    // 从手动切回 AI 选位时也保留手动布局补出的中心点。
     final requested = CharacterPromptConfig(
       characters: characters,
-      globalAiChoice: state.globalAiChoice,
+      globalAiChoice: state.globalAiChoice && globalAiChoice,
     );
     final model = ref.read(generationParamsNotifierProvider).model;
-    state = limitCharacterConfigForModel(requested, model);
-    if (state.characters.length != characters.length) {
+    final limited = limitCharacterConfigForModel(requested, model);
+    state = limited.copyWith(globalAiChoice: globalAiChoice);
+    if (limited.characters.length != characters.length) {
       AppLogger.w(
         'Character import truncated from ${characters.length} to '
             '${state.characters.length} for $model',
@@ -273,6 +281,32 @@ class CharacterPromptNotifier extends _$CharacterPromptNotifier {
       );
     }
     unawaited(_saveConfig());
+  }
+
+  int appendCharacters(Iterable<CharacterPrompt> characters) {
+    final remaining = characterLimit - state.characters.length;
+    if (remaining <= 0) return 0;
+    final added = characters.take(remaining).toList();
+    final combined = state.copyWith(
+      characters: [...state.characters, ...added],
+    );
+    state = combined.globalAiChoice
+        ? combined
+        : combined.copyWith(
+            characters: [
+              ...state.characters,
+              for (final character in added)
+                if (character.customPosition == null)
+                  character.copyWith(
+                    positionMode: CharacterPositionMode.custom,
+                    customPosition: combined.resolvePosition(character),
+                  )
+                else
+                  character,
+            ],
+          );
+    unawaited(_saveConfig());
+    return added.length;
   }
 
   /// 向上移动角色

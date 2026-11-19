@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import '../../../../core/enums/precise_ref_type.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../../data/models/gallery/nai_metadata_prompt_projection.dart';
 import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../utils/fixed_tag_import_resolution.dart';
 import '../../utils/metadata_import_applier.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../common/adaptive_dialog_frame.dart';
 import '../common/translated_tag_text.dart';
+import 'metadata_import_radio_group.dart';
 
 /// 元数据导入对话框
 ///
@@ -239,7 +241,9 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           avatar: const Icon(Icons.text_fields, size: 18),
           label: Text(l10n.metadataImport_promptsOnly),
           onPressed: () => setState(() {
-            _options = MetadataImportOptions.promptsOnly();
+            _options = MetadataImportOptions.promptsOnly().copyWith(
+              characterImportMode: _options.characterImportMode,
+            );
             _initializeSelections();
           }),
         ),
@@ -247,15 +251,20 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           avatar: const Icon(Icons.tune, size: 18),
           label: Text(l10n.metadataImport_generationOnly),
           onPressed: () => setState(() {
-            _options = MetadataImportOptions.generationOnly();
+            _options = MetadataImportOptions.generationOnly().copyWith(
+              characterImportMode: _options.characterImportMode,
+            );
             _initializeSelections();
           }),
         ),
         ActionChip(
           avatar: const Icon(Icons.deselect, size: 18),
           label: Text(l10n.metadataImport_clear),
-          onPressed: () =>
-              setState(() => _options = MetadataImportOptions.none()),
+          onPressed: () => setState(() {
+            _options = MetadataImportOptions.none().copyWith(
+              characterImportMode: _options.characterImportMode,
+            );
+          }),
         ),
       ],
     );
@@ -290,126 +299,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
         // 固定词（带子选项）
         if (metadata.hasSeparatedFields ||
             widget.fixedTagResolution != null) ...[
-          _buildParentCheckboxTile(
-            title: l10n.metadataImport_fixedTags,
-            value: _options.importFixedTags,
-            hasData:
-                metadata.fixedPrefixTags.isNotEmpty ||
-                metadata.fixedSuffixTags.isNotEmpty ||
-                metadata.fixedNegativePrefixTags.isNotEmpty ||
-                metadata.fixedNegativeSuffixTags.isNotEmpty ||
-                metadata.hasExplicitFixedTagMetadata ||
-                widget.fixedTagResolution?.isUnknown == true,
-            onChanged: (v) => setState(
-              () => _options = _options.copyWith(importFixedTags: v),
-            ),
-            children: [
-              if (widget.fixedTagResolution != null)
-                _buildFixedTagSource(widget.fixedTagResolution!),
-              if (widget.fixedTagResolution?.isUnknown == true)
-                _buildUnknownFixedTagPolicy(),
-              if (metadata.fixedPrefixTags.isNotEmpty)
-                _buildChildCheckboxTile(
-                  title: l10n.metadataImport_fixedPrefix(
-                    _truncateText(metadata.fixedPrefixTags.join(', '), 40),
-                  ),
-                  titleWidget: TranslatedPromptText(
-                    metadata.fixedPrefixTags.join(', '),
-                    originalText: l10n.metadataImport_fixedPrefix(
-                      _truncateText(metadata.fixedPrefixTags.join(', '), 40),
-                    ),
-                    selectable: false,
-                    maxLines: 1,
-                  ),
-                  value: _options.importFixedPrefix,
-                  onChanged: _options.importFixedTags
-                      ? (v) => setState(
-                          () => _options = _options.copyWith(
-                            importFixedPrefix: v,
-                          ),
-                        )
-                      : null,
-                ),
-              if (metadata.fixedSuffixTags.isNotEmpty)
-                _buildChildCheckboxTile(
-                  title: l10n.metadataImport_fixedSuffix(
-                    _truncateText(metadata.fixedSuffixTags.join(', '), 40),
-                  ),
-                  titleWidget: TranslatedPromptText(
-                    metadata.fixedSuffixTags.join(', '),
-                    originalText: l10n.metadataImport_fixedSuffix(
-                      _truncateText(metadata.fixedSuffixTags.join(', '), 40),
-                    ),
-                    selectable: false,
-                    maxLines: 1,
-                  ),
-                  value: _options.importFixedSuffix,
-                  onChanged: _options.importFixedTags
-                      ? (v) => setState(
-                          () => _options = _options.copyWith(
-                            importFixedSuffix: v,
-                          ),
-                        )
-                      : null,
-                ),
-              if (metadata.fixedNegativePrefixTags.isNotEmpty)
-                _buildChildCheckboxTile(
-                  title: l10n.metadataImport_negativeFixedPrefix(
-                    _truncateText(
-                      metadata.fixedNegativePrefixTags.join(', '),
-                      40,
-                    ),
-                  ),
-                  titleWidget: TranslatedPromptText(
-                    metadata.fixedNegativePrefixTags.join(', '),
-                    originalText: l10n.metadataImport_negativeFixedPrefix(
-                      _truncateText(
-                        metadata.fixedNegativePrefixTags.join(', '),
-                        40,
-                      ),
-                    ),
-                    selectable: false,
-                    maxLines: 1,
-                  ),
-                  value: _options.importFixedNegativePrefix,
-                  onChanged: _options.importFixedTags
-                      ? (v) => setState(
-                          () => _options = _options.copyWith(
-                            importFixedNegativePrefix: v,
-                          ),
-                        )
-                      : null,
-                ),
-              if (metadata.fixedNegativeSuffixTags.isNotEmpty)
-                _buildChildCheckboxTile(
-                  title: l10n.metadataImport_negativeFixedSuffix(
-                    _truncateText(
-                      metadata.fixedNegativeSuffixTags.join(', '),
-                      40,
-                    ),
-                  ),
-                  titleWidget: TranslatedPromptText(
-                    metadata.fixedNegativeSuffixTags.join(', '),
-                    originalText: l10n.metadataImport_negativeFixedSuffix(
-                      _truncateText(
-                        metadata.fixedNegativeSuffixTags.join(', '),
-                        40,
-                      ),
-                    ),
-                    selectable: false,
-                    maxLines: 1,
-                  ),
-                  value: _options.importFixedNegativeSuffix,
-                  onChanged: _options.importFixedTags
-                      ? (v) => setState(
-                          () => _options = _options.copyWith(
-                            importFixedNegativeSuffix: v,
-                          ),
-                        )
-                      : null,
-                ),
-            ],
-          ),
+          _buildFixedTagGroup(),
           // 质量词（带子选项）
           if (metadata.qualityTags.isNotEmpty)
             _buildParentCheckboxTile(
@@ -445,69 +335,10 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
                 );
               }).toList(),
             ),
-          // 角色提示词（带子选项）
-          if (metadata.characterInfos.isNotEmpty)
-            _buildParentCheckboxTile(
-              title: l10n.metadataImport_characterPromptsCount(
-                metadata.characterInfos.length,
-              ),
-              value: _options.importCharacterPrompts,
-              hasData: true,
-              onChanged: (v) => setState(
-                () => _options = _options.copyWith(importCharacterPrompts: v),
-              ),
-              children: metadata.characterInfos.asMap().entries.map((entry) {
-                final index = entry.key;
-                final character = entry.value;
-                return _buildChildCheckboxTile(
-                  title: l10n.metadataImport_characterIndex(
-                    index + 1,
-                    _truncateText(character.prompt, 35),
-                  ),
-                  titleWidget: TranslatedPromptText(
-                    character.prompt,
-                    originalText: l10n.metadataImport_characterIndex(
-                      index + 1,
-                      _truncateText(character.prompt, 35),
-                    ),
-                    selectable: false,
-                    maxLines: 1,
-                  ),
-                  value: _options.selectedCharacterIndices.contains(index),
-                  onChanged: _options.importCharacterPrompts
-                      ? (v) => setState(() {
-                          final selected = List<int>.from(
-                            _options.selectedCharacterIndices,
-                          );
-                          if (v) {
-                            if (!selected.contains(index)) {
-                              selected.add(index);
-                            }
-                          } else {
-                            selected.remove(index);
-                          }
-                          _options = _options.copyWith(
-                            selectedCharacterIndices: selected,
-                          );
-                        })
-                      : null,
-                );
-              }).toList(),
-            ),
-        ] else ...[
-          // 旧数据：只显示角色提示词总开关
-          if (metadata.characterPrompts.isNotEmpty)
-            _buildCheckboxTile(
-              title: l10n.metadataImport_characterPromptsCount(
-                metadata.characterPrompts.length,
-              ),
-              value: _options.importCharacterPrompts,
-              hasData: true,
-              onChanged: (v) => setState(
-                () => _options = _options.copyWith(importCharacterPrompts: v),
-              ),
-            ),
         ],
+        if (metadata.characterInfos.isNotEmpty ||
+            metadata.characterPrompts.isNotEmpty)
+          _buildCharacterGroup(),
         // 预览与实际写入负面框的内容一致，随 UC 预设勾选变化
         _buildCheckboxTile(
           title: l10n.metadataImport_negativePrompt,
@@ -526,6 +357,146 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFixedTagGroup() {
+    final metadata = widget.metadata;
+    final l10n = context.l10n;
+    return _buildParentCheckboxTile(
+      title: l10n.metadataImport_fixedTags,
+      value: _options.importFixedTags,
+      hasData:
+          metadata.fixedPrefixTags.isNotEmpty ||
+          metadata.fixedSuffixTags.isNotEmpty ||
+          metadata.fixedNegativePrefixTags.isNotEmpty ||
+          metadata.fixedNegativeSuffixTags.isNotEmpty ||
+          metadata.hasExplicitFixedTagMetadata ||
+          widget.fixedTagResolution?.isUnknown == true,
+      onChanged: (v) =>
+          setState(() => _options = _options.copyWith(importFixedTags: v)),
+      children: [
+        if (widget.fixedTagResolution != null)
+          _buildFixedTagSource(widget.fixedTagResolution!),
+        if (widget.fixedTagResolution?.isUnknown == true)
+          _buildUnknownFixedTagPolicy(),
+        if (metadata.fixedPrefixTags.isNotEmpty)
+          _buildFixedTagCheckbox(
+            metadata.fixedPrefixTags,
+            l10n.metadataImport_fixedPrefix,
+            _options.importFixedPrefix,
+            (v) => _options.copyWith(importFixedPrefix: v),
+          ),
+        if (metadata.fixedSuffixTags.isNotEmpty)
+          _buildFixedTagCheckbox(
+            metadata.fixedSuffixTags,
+            l10n.metadataImport_fixedSuffix,
+            _options.importFixedSuffix,
+            (v) => _options.copyWith(importFixedSuffix: v),
+          ),
+        if (metadata.fixedNegativePrefixTags.isNotEmpty)
+          _buildFixedTagCheckbox(
+            metadata.fixedNegativePrefixTags,
+            l10n.metadataImport_negativeFixedPrefix,
+            _options.importFixedNegativePrefix,
+            (v) => _options.copyWith(importFixedNegativePrefix: v),
+          ),
+        if (metadata.fixedNegativeSuffixTags.isNotEmpty)
+          _buildFixedTagCheckbox(
+            metadata.fixedNegativeSuffixTags,
+            l10n.metadataImport_negativeFixedSuffix,
+            _options.importFixedNegativeSuffix,
+            (v) => _options.copyWith(importFixedNegativeSuffix: v),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFixedTagCheckbox(
+    List<String> tags,
+    String Function(String) label,
+    bool value,
+    MetadataImportOptions Function(bool) updatedOptions,
+  ) {
+    final prompt = tags.join(', ');
+    final title = label(_truncateText(prompt, 40));
+    return _buildChildCheckboxTile(
+      title: title,
+      titleWidget: TranslatedPromptText(
+        prompt,
+        originalText: title,
+        selectable: false,
+        maxLines: 1,
+      ),
+      value: value,
+      onChanged: _options.importFixedTags
+          ? (v) => setState(() => _options = updatedOptions(v))
+          : null,
+    );
+  }
+
+  Widget _buildCharacterGroup() {
+    final l10n = context.l10n;
+    final metadata = widget.metadata;
+    final infos = metadata.characterInfos;
+    final enabled = _options.importCharacterPrompts;
+    return _buildParentCheckboxTile(
+      title: l10n.metadataImport_characterPromptsCount(
+        infos.isEmpty ? metadata.characterPrompts.length : infos.length,
+      ),
+      value: enabled,
+      hasData: true,
+      onChanged: (value) => setState(
+        () => _options = _options.copyWith(importCharacterPrompts: value),
+      ),
+      persistentChild: MetadataImportRadioGroup<CharacterImportMode>(
+        label: l10n.metadataImport_characterMode,
+        value: _options.characterImportMode,
+        choices: {
+          CharacterImportMode.replace: l10n.metadataImport_characterReplace,
+          CharacterImportMode.append: l10n.metadataImport_characterAppend,
+        },
+        onChanged: enabled
+            ? (mode) => setState(
+                () => _options = _options.copyWith(characterImportMode: mode),
+              )
+            : null,
+      ),
+      children: [
+        for (var index = 0; index < infos.length; index++)
+          _buildCharacterCheckbox(index),
+      ],
+    );
+  }
+
+  Widget _buildCharacterCheckbox(int index) {
+    final prompt = NaiMetadataPromptProjection(
+      widget.metadata,
+    ).characterPositive(index);
+    final title = context.l10n.metadataImport_characterIndex(
+      index + 1,
+      _truncateText(prompt, 35),
+    );
+    return _buildChildCheckboxTile(
+      title: title,
+      titleWidget: TranslatedPromptText(
+        prompt,
+        originalText: title,
+        selectable: false,
+        translationMaxLines: 1,
+      ),
+      value: _options.selectedCharacterIndices.contains(index),
+      onChanged: (checked) => setState(() {
+        final selected = _options.selectedCharacterIndices.toSet();
+        if (checked) {
+          selected.add(index);
+        } else {
+          selected.remove(index);
+        }
+        _options = _options.copyWith(
+          selectedCharacterIndices: selected.toList(),
+        );
+      }),
     );
   }
 
@@ -550,43 +521,18 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
     final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.only(left: 12, bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              l10n.metadataImport_unknownFixedTagsHint,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          RadioGroup<UnknownFixedTagPolicy>(
-            groupValue: _options.unknownFixedTagPolicy,
-            onChanged: _options.importFixedTags
-                ? (value) => setState(
-                    () => _options = _options.copyWith(
-                      unknownFixedTagPolicy: value!,
-                    ),
-                  )
-                : (_) {},
-            child: Column(
-              children: [
-                RadioListTile<UnknownFixedTagPolicy>(
-                  dense: true,
-                  title: Text(l10n.metadataImport_disableCurrentFixedTags),
-                  value: UnknownFixedTagPolicy.disableCurrent,
-                  enabled: _options.importFixedTags,
-                ),
-                RadioListTile<UnknownFixedTagPolicy>(
-                  dense: true,
-                  title: Text(l10n.metadataImport_keepCurrentFixedTags),
-                  value: UnknownFixedTagPolicy.keepCurrent,
-                  enabled: _options.importFixedTags,
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: MetadataImportRadioGroup<UnknownFixedTagPolicy>(
+        label: l10n.metadataImport_unknownFixedTagsHint,
+        value: _options.unknownFixedTagPolicy,
+        choices: {
+          UnknownFixedTagPolicy.disableCurrent:
+              l10n.metadataImport_disableCurrentFixedTags,
+          UnknownFixedTagPolicy.keepCurrent:
+              l10n.metadataImport_keepCurrentFixedTags,
+        },
+        onChanged: (policy) => setState(
+          () => _options = _options.copyWith(unknownFixedTagPolicy: policy),
+        ),
       ),
     );
   }
@@ -905,6 +851,7 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
     required bool hasData,
     required ValueChanged<bool> onChanged,
     required List<Widget> children,
+    Widget? persistentChild,
   }) {
     final theme = Theme.of(context);
 
@@ -926,12 +873,13 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
           controlAffinity: ListTileControlAffinity.leading,
         ),
         // 子选项缩进显示
-        if (value && hasData && children.isNotEmpty)
+        if (persistentChild != null ||
+            (value && hasData && children.isNotEmpty))
           Padding(
             padding: const EdgeInsets.only(left: 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
+              children: [?persistentChild, if (value && hasData) ...children],
             ),
           ),
       ],

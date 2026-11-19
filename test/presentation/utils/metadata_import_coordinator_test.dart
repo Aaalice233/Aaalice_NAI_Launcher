@@ -88,7 +88,7 @@ void main() {
         selectedPreciseReferenceIndices: [0],
       );
 
-      final appliedCount = await MetadataImportCoordinator.apply(
+      final outcome = await MetadataImportCoordinator.apply(
         read: container.read,
         metadata: metadata,
         options: options,
@@ -97,7 +97,7 @@ void main() {
 
       final params = container.read(generationParamsNotifierProvider);
       final characters = container.read(characterPromptNotifierProvider);
-      expect(appliedCount, 4);
+      expect(outcome.appliedCount, 4);
       expect(params.prompt, '1girl, sunset');
       expect(params.vibeReferencesV4, hasLength(1));
       expect(params.vibeReferencesV4.single.vibeEncoding, 'encoded-style');
@@ -207,7 +207,7 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final appliedCount = await MetadataImportCoordinator.apply(
+      final outcome = await MetadataImportCoordinator.apply(
         read: container.read,
         metadata: metadata,
         options: charactersOnly(const [2, 0]),
@@ -217,7 +217,7 @@ void main() {
       final characters = container
           .read(characterPromptNotifierProvider)
           .characters;
-      expect(appliedCount, 1);
+      expect(outcome.appliedCount, 1);
       expect(importedPrompts(container), ['girl A', 'girl C']);
       expect(characters.map((character) => character.negativePrompt), [
         'neg A',
@@ -237,14 +237,14 @@ void main() {
         ..clearAllCharacters()
         ..addCharacter(CharacterGender.female, prompt: 'existing');
 
-      final appliedCount = await MetadataImportCoordinator.apply(
+      final outcome = await MetadataImportCoordinator.apply(
         read: container.read,
         metadata: metadata,
         options: charactersOnly(const []),
         l10n: AppLocalizationsEn(),
       );
 
-      expect(appliedCount, 0);
+      expect(outcome.appliedCount, 0);
       expect(importedPrompts(container), ['existing']);
     });
 
@@ -328,7 +328,7 @@ void main() {
       importModel: true,
     );
 
-    final appliedCount = await MetadataImportCoordinator.apply(
+    final outcome = await MetadataImportCoordinator.apply(
       read: container.read,
       metadata: metadata,
       options: options,
@@ -336,7 +336,7 @@ void main() {
     );
 
     final params = container.read(generationParamsNotifierProvider);
-    expect(appliedCount, 2);
+    expect(outcome.appliedCount, 2);
     expect(params.model, ImageModels.animeDiffusionV45Full);
     expect(params.scale, 5.5);
   });
