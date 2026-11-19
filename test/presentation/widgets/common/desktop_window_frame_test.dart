@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -295,11 +296,20 @@ void main() {
     );
 
     await tester.tap(find.byKey(const ValueKey('desktop-window-maximize')));
-    await tester.tap(find.byKey(const ValueKey('desktop-window-close')));
     await tester.pump();
-
     expect(controller.unmaximizeCalls, 1);
+
+    final closePress = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('desktop-window-close'))),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(kPressTimeout);
+    expect(controller.closeCalls, 0);
+
+    await closePress.up();
+    await tester.pump();
     expect(controller.closeCalls, 1);
+    expect(controller.dragCalls, 0);
   });
 
   testWidgets(
