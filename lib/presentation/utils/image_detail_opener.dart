@@ -69,7 +69,7 @@ class ImageDetailOpener {
       images: images,
       initialIndex: initialIndex,
       showMetadataPanel: showMetadataPanel,
-      showThumbnails: showThumbnails && images.length > 1,
+      showThumbnails: showThumbnails,
       callbacks: callbacks,
     );
   }
@@ -118,7 +118,7 @@ class ImageDetailOpener {
         images: images,
         initialIndex: initialIndex,
         showMetadataPanel: showMetadataPanel,
-        showThumbnails: showThumbnails && images.length > 1,
+        showThumbnails: showThumbnails,
         callbacks: callbacks,
       );
     });

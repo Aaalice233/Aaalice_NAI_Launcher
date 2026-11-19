@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -10,6 +11,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_category.dart';
 import 'package:nai_launcher/data/models/gallery/gallery_tree_drop_slot.dart';
 import 'package:nai_launcher/data/repositories/gallery_category_repository.dart';
+import 'package:nai_launcher/data/services/gallery/gallery_folder_counts.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_image_files.dart';
 import 'package:nai_launcher/presentation/providers/category_operation_error.dart';
 import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
@@ -397,6 +399,100 @@ void main() {
         commission.folderPath,
       );
     }
+  });
+
+  test('单删与批删只重算目标文件夹和计入子目录的祖先', () async {
+    final notifier = container.read(galleryCategoryNotifierProvider.notifier);
+    final child = (await notifier.createCategory('nested', parentId: 'a'))!;
+    final files = [
+      for (final name in ['one', 'two', 'three'])
+        await File(
+          p.join(galleryRoot.path, 'a', 'nested', '$name.png'),
+        ).create(),
+    ];
+    final direct = await File(
+      p.join(galleryRoot.path, 'a', 'direct.jpg'),
+    ).create();
+    final counts = GalleryFolderCounts()..replaceFiles([...files, direct]);
+    await notifier.refresh();
+    int count(String id) => container
+        .read(galleryCategoryNotifierProvider)
+        .categories
+        .findById(id)!
+        .imageCount;
+    expect([count('a'), count(child.id), count('b')], [4, 3, 0]);
+    final unrelated = await File(
+      p.join(galleryRoot.path, 'b', 'unrelated.png'),
+    ).create();
+    counts.addToFolder(unrelated.parent.path, 1);
+
+    await files.first.delete();
+    counts.addToFolder(files.first.parent.path, -1);
+    await notifier.updateForImagePaths([files.first.path], counts.countIn);
+    expect([count('a'), count(child.id), count('b')], [3, 2, 0]);
+
+    for (final file in files.skip(1)) {
+      await file.delete();
+      counts.addToFolder(file.parent.path, -1);
+    }
+    await notifier.updateForImagePaths(
+      files.skip(1).map((file) => file.path).toList(),
+      counts.countIn,
+    );
+    expect([count('a'), count(child.id), count('b')], [1, 0, 0]);
+  });
+
+  test('全量同步已统计 A 时删除图片，后完成的同步不能恢复旧计数', () async {
+    final target = await File(
+      p.join(galleryRoot.path, 'a', 'target.png'),
+    ).create();
+    final keep = await File(p.join(galleryRoot.path, 'a', 'keep.png')).create();
+    final counts = GalleryFolderCounts()..replaceFiles([target, keep]);
+    final started = Completer<void>();
+    final resume = Completer<void>();
+    var pauseSync = false;
+    final repository = GalleryCategoryRepository(
+      images: GalleryImageFiles(
+        listDirectory: (directory) async* {
+          if (p.equals(directory.path, galleryRoot.path)) {
+            for (final name in ['c', 'b', 'a']) {
+              yield Directory(p.join(directory.path, name));
+            }
+            return;
+          }
+          if (pauseSync && p.basename(directory.path) == 'b') {
+            started.complete();
+            await resume.future;
+          }
+          yield* directory.list(followLinks: false);
+        },
+      ),
+    );
+    final gated = ProviderContainer(
+      overrides: [
+        galleryCategoryNotifierProvider.overrideWith(
+          () => GalleryCategoryNotifier(repository: repository),
+        ),
+      ],
+    );
+    addTearDown(gated.dispose);
+    final notifier = gated.read(galleryCategoryNotifierProvider.notifier);
+    await notifier.whenLoaded();
+    int count() => gated
+        .read(galleryCategoryNotifierProvider)
+        .categories
+        .findById('a')!
+        .imageCount;
+    expect(count(), 2);
+    pauseSync = true;
+    final sync = notifier.syncWithFileSystem();
+    await started.future;
+    await target.delete();
+    counts.addToFolder(target.parent.path, -1);
+    final update = notifier.updateForImagePaths([target.path], counts.countIn);
+    resume.complete();
+    await Future.wait([sync, update]);
+    expect(count(), 1);
   });
 
   test(

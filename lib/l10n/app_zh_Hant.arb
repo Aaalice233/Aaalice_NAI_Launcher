@@ -1646,8 +1646,6 @@
     }
   },
   "gallery_upscale": "放大",
-  "gallery_sentToImg2Img": "圖片已傳送到圖生圖",
-  "gallery_sentToReversePrompt": "圖片已傳送到反推模組",
   "gallery_sendFailed": "傳送失敗: {error}",
   "@gallery_sendFailed": {
     "placeholders": {
@@ -2792,6 +2790,14 @@
     }
   },
   "localGallery_imageDeleted": "圖片已刪除",
+  "localGallery_deleteCleanupFailed": "圖片檔案已不存在，清理圖庫記錄時發生錯誤。{error}",
+  "@localGallery_deleteCleanupFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_deleteRegistryCleanupFailed": "無法清理衍生圖片登記。",
+  "localGallery_deleteIndexCleanupFailed": "無法更新圖庫記錄。",
   "localGallery_deleteFailed": "刪除失敗: {error}",
   "@localGallery_deleteFailed": {
     "placeholders": {
@@ -5466,7 +5472,6 @@
   "toast_presetSaved": "預設儲存成功",
   "toast_imagePromptCopied": "已複製 Prompt",
   "toast_imageHasNoPrompt": "此圖片沒有 Prompt",
-  "toast_useDeleteButton": "請使用介面刪除按鈕",
   "toast_imageHasNoMetadata": "此圖片沒有後設資料",
   "toast_imageDataUnavailable": "影象資料不可用，無法複製",
   "toast_vibeDataCopied": "Vibe 資料已複製",

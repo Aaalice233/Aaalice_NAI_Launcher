@@ -68,7 +68,13 @@ void main() {
   });
 
   testWidgets('classic single click opens one image detail', (tester) async {
-    final container = _createContainer([_image('classic')]);
+    final folder = Directory.systemTemp.createTempSync('history_viewer_');
+    addTearDown(() => folder.deleteSync(recursive: true));
+    final file = File('${folder.path}/classic.png')
+      ..writeAsBytesSync(_solidPng(20, 40, 60));
+    final container = _createContainer([
+      _image('classic', filePath: file.path),
+    ]);
     addTearDown(container.dispose);
 
     await tester.pumpWidget(_historyApp(container));
@@ -76,12 +82,21 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('classic')));
     await _pumpRoute(tester);
 
-    final viewer = tester.widget<ImageDetailViewer>(
-      find.byType(ImageDetailViewer),
-    );
+    final detail = find.byType(ImageDetailViewer);
+    final viewer = tester.widget<ImageDetailViewer>(detail);
     expect(viewer.images, hasLength(1));
     expect(viewer.initialIndex, 0);
     expect(viewer.showThumbnails, isFalse);
+    expect(viewer.callbacks?.onDelete, isNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(ModalRoute.of(tester.element(detail))!.isCurrent, isTrue);
+    expect(
+      find.widgetWithIcon(ImageDetailViewer, Icons.delete_outline),
+      findsNothing,
+    );
+    expect(file.existsSync(), isTrue);
+    expect(_historyIds(container), ['classic']);
   });
 
   testWidgets('classic detail browses history with left and right arrows', (
@@ -595,6 +610,44 @@ void main() {
       expect(_historyIds(container), ['third']);
     });
 
+    testWidgets('生成历史提示已删文件的登记和图库索引清理原因', (tester) async {
+      final cause = StateError('registry write failed');
+      const path = 'gallery/history.png';
+      final container = _createContainer(
+        [_image('saved', filePath: path)],
+        deletionResult: SavedFileDeletionResult(
+          deletedPaths: [path],
+          cleanupFailures: {path: cause},
+          indexCleanupFailure: StateError('index write failed'),
+        ),
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(_cardActionApp(container));
+      await tester.pump();
+      final card = find.byKey(const ValueKey('saved'));
+      final gesture = await _hover(tester, card);
+      addTearDown(gesture.removePointer);
+      await tester.tap(_cardAction(card, '删除'), kind: PointerDeviceKind.mouse);
+      await _pumpRoute(tester);
+      await tester.tap(
+        find.widgetWithText(FilledButton, '删除'),
+        kind: PointerDeviceKind.mouse,
+      );
+      await _pumpRoute(tester);
+      final l10n = lookupAppLocalizations(const Locale('zh'));
+      expect(
+        find.text(
+          l10n.localGallery_deleteCleanupFailed(
+            'history.png: ${l10n.localGallery_deleteRegistryCleanupFailed}\n'
+            '${l10n.localGallery_deleteIndexCleanupFailed}',
+          ),
+        ),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('context menu lists delete for a single card', (tester) async {
       final container = _createContainer([_image('menu')]);
       addTearDown(container.dispose);
@@ -753,9 +806,14 @@ ProviderContainer _createContainer(
   List<GeneratedImage> currentImages = const [],
   GenerationStatus status = GenerationStatus.idle,
   ShareImageTransform? transform,
+  SavedFileDeletionResult? deletionResult,
 }) {
   final container = ProviderContainer(
     overrides: [
+      if (deletionResult != null)
+        imageGenerationNotifierProvider.overrideWith(
+          () => _HistoryDeletionResult(deletionResult),
+        ),
       if (transform != null)
         copyDragWatermarkProvider.overrideWithValue(transform),
       localStorageServiceProvider.overrideWith(
@@ -775,6 +833,16 @@ ProviderContainer _createContainer(
     batchHeight: 100,
   );
   return container;
+}
+
+class _HistoryDeletionResult extends ImageGenerationNotifier {
+  _HistoryDeletionResult(this.files);
+  final SavedFileDeletionResult files;
+  @override
+  Future<GeneratedImageRemovalResult> removeImages(
+    Iterable<String> imageIds,
+  ) async =>
+      GeneratedImageRemovalResult(removedCount: imageIds.length, files: files);
 }
 
 class _RecordingSharePreparation extends ShareImagePreparationService {
@@ -816,12 +884,14 @@ class _HistoryShortcutConfigNotifier extends ShortcutConfigNotifier {
 
 GeneratedImage _image(
   String id, {
+  String? filePath,
   int width = 32,
   int height = 32,
   GeneratedImageKind kind = GeneratedImageKind.completed,
 }) {
   return GeneratedImage(
     id: id,
+    filePath: filePath,
     bytes: Uint8List.fromList(
       img.encodePng(img.Image(width: 4, height: 4, numChannels: 4)),
     ),

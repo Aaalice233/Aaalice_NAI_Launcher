@@ -21,7 +21,7 @@ void main() {
     final repository = LocalGalleryRepository(dataSource: dataSource);
     final coordinator = GalleryScanCoordinator(
       dataSource: dataSource,
-      repository: repository,
+      loadFiles: repository.findGalleryFiles,
     );
     Future<int> index(String path, MetadataStatus status) async {
       final file = await File(path).create(recursive: true);
@@ -88,7 +88,7 @@ void main() {
     final dataSource = _MockGalleryDataSource();
     final coordinator = GalleryScanCoordinator(
       dataSource: dataSource,
-      repository: LocalGalleryRepository(dataSource: dataSource),
+      loadFiles: LocalGalleryRepository(dataSource: dataSource).findGalleryFiles,
     );
     const fileCount = 60000;
     registerFallbackValue((String path) => true);

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart' hide AsyncError;
 
 import '../../core/cache/gallery_cache_manager.dart';
 import '../../core/exceptions/gallery_exceptions.dart';
@@ -33,6 +33,8 @@ enum LocalGalleryErrorCode {
   favoriteFailed,
   rebuildFailed,
 }
+
+typedef _GalleryPageRead = ({int page, Completer<AsyncError?> done});
 
 class LocalGalleryError {
   const LocalGalleryError(this.code, {this.details});
@@ -129,6 +131,12 @@ abstract class LocalGalleryState with _$LocalGalleryState {
   /// 是否有过滤条件
   bool get hasFilters => filterCriteria.hasFilters;
 
+  bool get pageNeedsRetry =>
+      isInitialized &&
+      !isLoading &&
+      (hasFilters ? filteredCount : totalCount) > 0 &&
+      (currentImages.isEmpty || error != null);
+
   /// 是否可以加载更多
   bool get canLoadMore => currentPage < totalPages - 1;
 
@@ -153,6 +161,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   Future<int>? _favoriteCountLoad;
   DateTime? _lastSynchronizedAt;
   int _filterRequestSerial = 0;
+  _GalleryPageRead? _pageRead;
+  int _groupRequestSerial = 0;
   final Map<String, String> _deferredAdmissions = {};
   final Map<String, String> _deferredRemovals = {};
 
@@ -369,98 +379,112 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return;
     }
 
-    final requestedPage = page < 0 ? 0 : page;
+    await _startPageRead(page, showLoading: showLoading);
+  }
 
-    if (showLoading) {
-      _setState(state.copyWith(isLoading: true, currentPage: requestedPage));
+  Future<AsyncError?> _startPageRead(int page, {bool showLoading = false}) {
+    final previous = _pageRead;
+    final request = (page: page, done: Completer<AsyncError?>());
+    _pageRead = request;
+    // 删除调用方也在等这次读取，要让它拿到最终生效的页。
+    previous?.done.complete(request.done.future);
+    if (showLoading) _setState(state.copyWith(isLoading: true));
+    unawaited(_loadRequestedPage(request));
+    return request.done.future;
+  }
+
+  void _finishPageRead([AsyncError? failure]) {
+    final request = _pageRead;
+    _pageRead = null;
+    request?.done.complete(failure);
+  }
+
+  Future<LocalGalleryState> settledPage() async {
+    var request = _pageRead;
+    while (request != null) {
+      await request.done.future;
+      request = _pageRead;
     }
+    return state;
+  }
 
+  Future<void> _loadRequestedPage(_GalleryPageRead request) async {
+    AsyncError? failure;
     try {
-      final service = await getService();
-
-      // 计算总页数
-      final totalItems = state.filterCriteria.hasFilters
-          ? service.filteredCount
-          : service.totalCount;
-      final totalPages = (totalItems / state.pageSize).ceil();
-      final maxPage = totalPages > 0 ? totalPages - 1 : 0;
-      var normalizedPage = requestedPage > maxPage ? maxPage : requestedPage;
-
-      var records = await service.getPage(
-        normalizedPage,
-        pageSize: state.pageSize,
-      );
-
-      // 防御性兜底：如果页码在边界变化后落入空页，自动回退到末页。
-      if (records.isEmpty && normalizedPage > 0 && totalPages > 0) {
-        final fallbackPage = totalPages - 1;
-        if (fallbackPage != normalizedPage) {
-          final fallbackRecords = await service.getPage(
-            fallbackPage,
-            pageSize: state.pageSize,
-          );
-          if (fallbackRecords.isNotEmpty) {
-            normalizedPage = fallbackPage;
-            records = fallbackRecords;
-          }
-        }
-      }
-
-      _setState(
-        state.copyWith(
-          currentImages: records,
-          error: null,
-          currentPage: normalizedPage,
-          totalPages: totalPages,
-          filteredCount: service.filteredCount,
-          totalCount: service.totalCount,
-          isLoading: false,
-          isPageLoading: false,
-        ),
-      );
-    } on GalleryNotInitializedException {
-      _setState(
-        state.copyWith(
-          error: const LocalGalleryError(
-            LocalGalleryErrorCode.serviceInitializing,
-          ),
-          isLoading: false,
-          isPageLoading: false,
-        ),
-      );
-    } on GalleryDatabaseException catch (e) {
+      await _readPage(await getService(), request);
+    } catch (error, stackTrace) {
+      if (request != _pageRead) return;
+      failure = AsyncError(error, stackTrace);
       AppLogger.e(
-        'Database error loading page',
-        e,
+        'Failed to load page ${request.page}: ${error.runtimeType}',
         null,
+        stackTrace,
         'LocalGalleryNotifier',
       );
       _setState(
         state.copyWith(
-          error: LocalGalleryError(
-            LocalGalleryErrorCode.databaseFailed,
-            details: e.message,
-          ),
+          error: switch (error) {
+            GalleryNotInitializedException() => const LocalGalleryError(
+              LocalGalleryErrorCode.serviceInitializing,
+            ),
+            _ => LocalGalleryError(
+              LocalGalleryErrorCode.databaseFailed,
+              details: error.runtimeType.toString(),
+            ),
+          },
           isLoading: false,
           isPageLoading: false,
         ),
       );
-    } catch (e) {
-      AppLogger.e('Failed to load page $page', e, null, 'LocalGalleryNotifier');
-      _setState(state.copyWith(isLoading: false, isPageLoading: false));
+    } finally {
+      if (request == _pageRead) _finishPageRead(failure);
     }
+  }
+
+  Future<void> _readPage(
+    LocalGalleryService service,
+    _GalleryPageRead request,
+  ) async {
+    final pageSize = state.pageSize;
+    final totalItems = state.hasFilters
+        ? service.filteredCount
+        : service.totalCount;
+    final totalPages = (totalItems / pageSize).ceil();
+    final lastPage = totalPages > 0 ? totalPages - 1 : 0;
+    var page = request.page.clamp(0, lastPage);
+    var records = await service.getPage(page, pageSize: pageSize);
+    if (records.isEmpty && page > 0 && page != lastPage) {
+      final fallback = await service.getPage(lastPage, pageSize: pageSize);
+      if (fallback.isNotEmpty) {
+        page = lastPage;
+        records = fallback;
+      }
+    }
+    if (request != _pageRead) return;
+    _setState(
+      state.copyWith(
+        currentImages: records,
+        currentPage: page,
+        error: null,
+        totalPages: totalPages,
+        filteredCount: service.filteredCount,
+        totalCount: service.totalCount,
+        isLoading: false,
+        isPageLoading: false,
+      ),
+    );
   }
 
   /// 加载下一页
   Future<void> loadNextPage() async {
-    if (state.isLastPage || state.isLoading) return;
-    await loadPage(state.currentPage + 1);
+    final page = _pageRead?.page ?? state.currentPage;
+    if (page < state.totalPages - 1) await loadPage(page + 1);
   }
 
   /// 加载上一页
   Future<void> loadPreviousPage() async {
-    if (state.isFirstPage || state.isLoading) return;
-    await loadPage(state.currentPage - 1);
+    final page = _pageRead?.page ?? state.currentPage;
+    if (page > 0) await loadPage(page - 1);
   }
 
   /// 刷新画廊
@@ -490,12 +514,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         ),
       );
 
-      if (state.isGroupedView) {
-        await _loadGroupedImages();
-      } else {
-        // 刷新当前页
-        await loadPage(state.currentPage, showLoading: false);
-      }
+      await _reloadView(_pageRead?.page ?? state.currentPage);
       _favoriteCountLoad = null;
       _lastSynchronizedAt = DateTime.now();
     } on GalleryScanException catch (e) {
@@ -569,32 +588,66 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return;
     }
 
+    final keys = filePaths.map(galleryFilePathKey).toSet();
+    bool removed(LocalImageRecord image) =>
+        keys.contains(galleryFilePathKey(image.path));
+    final visible =
+        state.currentImages.any(removed) || state.groupedImages.any(removed);
+    if (visible) {
+      _finishPageRead();
+      ++_groupRequestSerial;
+    }
+    var mustReload = true;
     try {
-      final removedCount = await service.removeDeletedImagesImmediately(
-        filePaths,
-      );
-      await _updateFolders(service, filePaths);
-      if (removedCount == 0) return;
-      _favoriteCountLoad = null;
-      _setState(
-        state.copyWith(
-          totalCount: service.totalCount,
-          filteredCount: service.filteredCount,
-        ),
-      );
-      if (!state.isInitialized) return;
-      if (state.isGroupedView) {
-        await _loadGroupedImages();
-      } else {
-        await loadPage(state.currentPage, showLoading: false);
-      }
-    } catch (e, stackTrace) {
-      AppLogger.e(
-        '[RemoveDeletedImages] Failed to remove deleted images',
-        e,
-        stackTrace,
-        'LocalGalleryNotifier',
-      );
+      final count = await service.removeDeletedImagesImmediately(filePaths);
+      mustReload = count > 0 || visible;
+    } finally {
+      await Future.wait([
+        _updateFolders(service, filePaths),
+        if (mustReload) _refreshAfterRemoval(service, removed),
+      ]);
+    }
+  }
+
+  Future<void> _refreshAfterRemoval(
+    LocalGalleryService service,
+    bool Function(LocalImageRecord) removed,
+  ) async {
+    _favoriteCountLoad = null;
+    final count = state.hasFilters ? service.filteredCount : service.totalCount;
+    ++_groupRequestSerial;
+    final totalPages = (count / state.pageSize).ceil();
+    final page = totalPages == 0
+        ? 0
+        : state.currentPage.clamp(0, totalPages - 1);
+    final images = page == state.currentPage && count > 0
+        ? state.currentImages.where((image) => !removed(image)).toList()
+        : <LocalImageRecord>[];
+    _setState(
+      state.copyWith(
+        totalCount: service.totalCount,
+        filteredCount: service.filteredCount,
+        totalPages: totalPages,
+        currentPage: page,
+        currentImages: images,
+        groupedImages: count == 0
+            ? []
+            : state.groupedImages.where((image) => !removed(image)).toList(),
+        isLoading: count > 0 && images.isEmpty && state.isInitialized,
+        isPageLoading: false,
+        isGroupedLoading: count > 0 && state.isGroupedLoading,
+        error: null,
+      ),
+    );
+    if (count == 0) {
+      _finishPageRead();
+      return;
+    }
+    if (!state.isInitialized) return;
+    final failure = await _startPageRead(page);
+    if (state.isGroupedView) await _loadGroupedImages();
+    if (failure != null) {
+      Error.throwWithStackTrace(failure.error, failure.stackTrace);
     }
   }
 
@@ -631,10 +684,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
 
       // 扫描器抢先收录时同样要重取，否则开着图库会看不到新图。
+      final page = _pageRead?.page ?? state.currentPage;
       if (anyIndexed &&
           state.isInitialized &&
-          (state.isGroupedView || state.currentPage == 0)) {
-        await _reloadFirstView();
+          (state.isGroupedView || state.currentPage == 0 || page == 0)) {
+        await _reloadView(page);
       }
     } catch (e) {
       AppLogger.e(
@@ -958,7 +1012,8 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
 
   /// 设置分组视图
   Future<void> setGroupedView(bool value) async {
-    _setState(state.copyWith(isGroupedView: value));
+    if (!value) ++_groupRequestSerial;
+    _setState(state.copyWith(isGroupedView: value, isGroupedLoading: false));
     if (value) {
       await _loadGroupedImages();
     } else {
@@ -966,16 +1021,16 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
-  /// 分组视图重载整份分组列表，否则静默重取首页。
-  Future<void> _reloadFirstView() async {
+  Future<void> _reloadView(int page) async {
     if (state.isGroupedView) {
       await _loadGroupedImages();
     } else {
-      await loadPage(0, showLoading: false);
+      await loadPage(page, showLoading: false);
     }
   }
 
   Future<void> _loadGroupedImages() async {
+    final request = ++_groupRequestSerial;
     _setState(state.copyWith(isGroupedLoading: true));
     try {
       // 加载所有过滤后的图片用于分组
@@ -987,6 +1042,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       int page = 0;
       while (true) {
         final records = await service.getPage(page, pageSize: batchSize);
+        if (request != _groupRequestSerial) return;
         if (records.isEmpty) break;
         allRecords.addAll(records);
         if (records.length < batchSize) break;
@@ -1001,6 +1057,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         ),
       );
     } catch (e) {
+      if (request != _groupRequestSerial) return;
       AppLogger.e(
         'Failed to load grouped images',
         e,
@@ -1278,7 +1335,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
         ),
       );
 
-      await _reloadFirstView();
+      await _reloadView(0);
     } on GalleryCancelledException {
       _setState(state.copyWith(isRebuildingIndex: false, isLoading: false));
     } on GalleryScanException catch (e) {

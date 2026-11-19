@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:hive_ce/hive.dart' show HiveError;
+
 import '../../../core/mosaic/mosaic_derivative_registry.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
@@ -13,13 +15,29 @@ class GalleryImageFileDeleter {
   final WatermarkDerivativeRegistry _watermarks;
   final MosaicDerivativeRegistry _mosaics;
 
-  /// 文件已不存在时返回 `false`，删除失败时抛出原始异常。
   Future<bool> delete(String path) async {
     final file = File(path);
-    if (!await file.exists()) return false;
-    await file.delete();
-    await _watermarks.remove(path);
-    await _mosaics.remove(path);
+    try {
+      await file.delete();
+    } on PathNotFoundException {
+      if (await file.parent.exists() && !await file.exists()) return false;
+      rethrow;
+    }
+    try {
+      await Future.wait([_watermarks.remove(path), _mosaics.remove(path)]);
+    } on FileSystemException catch (error) {
+      throw GalleryImageCleanupException(error);
+    } on HiveError catch (error) {
+      throw GalleryImageCleanupException(error);
+    } on StateError catch (error) {
+      throw GalleryImageCleanupException(error);
+    }
     return true;
   }
+}
+
+class GalleryImageCleanupException implements Exception {
+  const GalleryImageCleanupException(this.cause);
+
+  final Object cause;
 }

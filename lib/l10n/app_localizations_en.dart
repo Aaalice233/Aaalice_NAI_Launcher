@@ -3884,13 +3884,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gallery_upscale => 'Upscale';
 
   @override
-  String get gallery_sentToImg2Img => 'Image sent to Image2Image';
-
-  @override
-  String get gallery_sentToReversePrompt =>
-      'Image sent to reverse-prompt module';
-
-  @override
   String gallery_sendFailed(Object error) {
     return 'Send failed: $error';
   }
@@ -6238,6 +6231,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_imageDeleted => 'Image deleted';
+
+  @override
+  String localGallery_deleteCleanupFailed(Object error) {
+    return 'The image files are gone. Cleanup of their gallery records failed. $error';
+  }
+
+  @override
+  String get localGallery_deleteRegistryCleanupFailed =>
+      'The derivative records could not be cleared.';
+
+  @override
+  String get localGallery_deleteIndexCleanupFailed =>
+      'The gallery records could not be updated.';
 
   @override
   String localGallery_deleteFailed(Object error) {
@@ -11763,9 +11769,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get toast_imageHasNoPrompt => 'This image has no Prompt';
-
-  @override
-  String get toast_useDeleteButton => 'Use the delete button in the UI';
 
   @override
   String get toast_imageHasNoMetadata => 'This image has no metadata';

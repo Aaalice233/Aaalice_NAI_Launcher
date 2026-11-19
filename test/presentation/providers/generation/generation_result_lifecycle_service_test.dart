@@ -13,6 +13,7 @@ import 'package:nai_launcher/data/models/fixed_tag/fixed_tag_usage_snapshot.dart
 import 'package:nai_launcher/data/models/gallery/gallery_index_admission.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/services/fixed_tag/fixed_tag_usage_record_store.dart';
+import 'package:nai_launcher/data/services/gallery/gallery_image_file_deleter.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_result_lifecycle_service.dart';
@@ -471,6 +472,23 @@ void main() {
       ]);
     });
 
+    test('衍生登记失败仍移除已删文件并保留具体原因', () async {
+      final cause = StateError('registry write failed');
+      final removed = <String>[];
+      final service = serviceWith(
+        deleteGalleryFile: (path) async {
+          if (path == 'locked.png') throw const FileSystemException('locked');
+          throw GalleryImageCleanupException(cause);
+        },
+        removeGalleryImages: (paths) async => removed.addAll(paths),
+      );
+      final result = await service.deleteSavedFiles(['gone.png', 'locked.png']);
+      expect(result.deletedPaths, ['gone.png']);
+      expect(removed, ['gone.png']);
+      expect(result.cleanupFailures, {'gone.png': cause});
+      expect(result.failures.keys, ['locked.png']);
+    });
+
     test('没有真正删掉文件时不动图库', () async {
       final removals = <List<String>>[];
       final service = serviceWith(
@@ -486,15 +504,17 @@ void main() {
     });
 
     test('图库索引更新失败不影响删除结果', () async {
+      final cause = StateError('index busy');
       final service = serviceWith(
         deleteGalleryFile: (_) async => true,
-        removeGalleryImages: (_) async => throw StateError('index busy'),
+        removeGalleryImages: (_) async => throw cause,
       );
 
       final result = await service.deleteSavedFiles(['a.png']);
 
       expect(result.deletedPaths, ['a.png']);
       expect(result.failures, isEmpty);
+      expect(result.indexCleanupFailure, same(cause));
     });
   });
 }

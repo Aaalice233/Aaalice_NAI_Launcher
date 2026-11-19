@@ -11,7 +11,6 @@ import '../../repositories/gallery_folder_repository.dart';
 import 'gallery_album_sidecar_service.dart';
 import 'gallery_image_files.dart';
 import 'gallery_stream_scanner.dart';
-import 'local_gallery_repository.dart';
 import 'scan_state_manager.dart';
 
 enum GalleryStartupIndexAction { none, fullScan }
@@ -37,12 +36,12 @@ bool shouldRunRefreshIndexScan({
 class GalleryScanCoordinator {
   GalleryScanCoordinator({
     required GalleryDataSource dataSource,
-    required LocalGalleryRepository repository,
+    required Future<List<File>> Function([String? rootPath]) loadFiles,
   }) : _dataSource = dataSource,
-       _repository = repository;
+       _loadFiles = loadFiles;
 
   final GalleryDataSource _dataSource;
-  final LocalGalleryRepository _repository;
+  final Future<List<File>> Function([String? rootPath]) _loadFiles;
   Future<List<File>>? _initializing;
   bool _isRefreshing = false;
   _QueuedRefresh? _queuedRefresh;
@@ -68,7 +67,7 @@ class GalleryScanCoordinator {
 
   Future<List<File>> _initialize() async {
     final rootPath = await GalleryFolderRepository.instance.getRootPath();
-    final files = await _repository.findGalleryFiles(rootPath);
+    final files = await _loadFiles(rootPath);
     AppLogger.i(
       'Found ${files.length} image files in file system',
       'LocalGalleryService',
@@ -112,7 +111,7 @@ class GalleryScanCoordinator {
 
   Future<void> _refresh(_RefreshRequest request) async {
     final _RefreshRequest(:scan, :previousCount) = request;
-    final files = await _repository.findGalleryFiles();
+    final files = await _loadFiles();
     await request.onFilesLoaded(files);
     if (shouldRunRefreshIndexScan(
       scanRequested: scan,

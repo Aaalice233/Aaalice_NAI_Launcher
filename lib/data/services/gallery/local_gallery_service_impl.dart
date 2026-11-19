@@ -36,15 +36,16 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     required LocalGalleryRepository repository,
     Duration admissionRetryDelay = const Duration(milliseconds: 300),
   }) {
+    final query = LocalGalleryQuery(
+      repository: repository,
+      filterService: filterService,
+    );
     return LocalGalleryServiceImpl._composed(
       repository: repository,
-      query: LocalGalleryQuery(
-        repository: repository,
-        filterService: filterService,
-      ),
+      query: query,
       scanCoordinator: GalleryScanCoordinator(
         dataSource: dataSource,
-        repository: repository,
+        loadFiles: query.reloadFiles,
       ),
       admissionRetryDelay: admissionRetryDelay,
     );
@@ -107,7 +108,6 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<List<File>> _initialize() async {
     try {
       final files = await _scanCoordinator.initialize();
-      _query.replaceAll(files);
       _isInitialized = true;
       return files;
     } on GalleryException {
@@ -320,20 +320,10 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       // 调用方传错路径时不能把磁盘上还在的图从图库里藏起来。
       if (!await File(tracked).exists()) missing.add(tracked);
     }
+    if (missing.isEmpty) return 0;
     final removed = _query.removePaths(missing);
-    if (removed.isEmpty) return 0;
-    try {
-      await _repository.markAsDeleted(removed);
-      GalleryCacheManager().invalidateStatistics();
-    } catch (error, stackTrace) {
-      // 列表已按磁盘移除；残留的索引行由下一次扫描的一致性检查清掉。
-      AppLogger.e(
-        '[RemoveDeletedImages] Failed to mark index rows as deleted',
-        error,
-        stackTrace,
-        'LocalGalleryService',
-      );
-    }
+    await _repository.markAsDeleted(missing);
+    GalleryCacheManager().invalidateStatistics();
     return removed.length;
   }
 
@@ -344,10 +334,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       await _scanCoordinator.refresh(
         scan: scan,
         previousCount: _query.totalCount,
-        onFilesLoaded: (files) async {
-          _query.replaceAll(files);
-          await _query.applyFilter(_query.currentFilter);
-        },
+        onFilesLoaded: (_) => _query.applyFilter(_query.currentFilter),
       );
     } catch (error) {
       if (error is GalleryException) rethrow;

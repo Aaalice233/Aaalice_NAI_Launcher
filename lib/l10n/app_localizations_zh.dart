@@ -3735,12 +3735,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gallery_upscale => '放大';
 
   @override
-  String get gallery_sentToImg2Img => '图片已发送到图生图';
-
-  @override
-  String get gallery_sentToReversePrompt => '图片已发送到反推模块';
-
-  @override
   String gallery_sendFailed(Object error) {
     return '发送失败: $error';
   }
@@ -5970,6 +5964,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_imageDeleted => '图片已删除';
+
+  @override
+  String localGallery_deleteCleanupFailed(Object error) {
+    return '图片文件已不存在，清理图库记录时出错。$error';
+  }
+
+  @override
+  String get localGallery_deleteRegistryCleanupFailed => '无法清理衍生图片登记。';
+
+  @override
+  String get localGallery_deleteIndexCleanupFailed => '无法更新图库记录。';
 
   @override
   String localGallery_deleteFailed(Object error) {
@@ -11288,9 +11293,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get toast_imageHasNoPrompt => '此图片没有 Prompt';
-
-  @override
-  String get toast_useDeleteButton => '请使用界面删除按钮';
 
   @override
   String get toast_imageHasNoMetadata => '此图片没有元数据';
@@ -19454,12 +19456,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gallery_upscale => '放大';
 
   @override
-  String get gallery_sentToImg2Img => '圖片已傳送到圖生圖';
-
-  @override
-  String get gallery_sentToReversePrompt => '圖片已傳送到反推模組';
-
-  @override
   String gallery_sendFailed(Object error) {
     return '傳送失敗: $error';
   }
@@ -21689,6 +21685,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_imageDeleted => '圖片已刪除';
+
+  @override
+  String localGallery_deleteCleanupFailed(Object error) {
+    return '圖片檔案已不存在，清理圖庫記錄時發生錯誤。$error';
+  }
+
+  @override
+  String get localGallery_deleteRegistryCleanupFailed => '無法清理衍生圖片登記。';
+
+  @override
+  String get localGallery_deleteIndexCleanupFailed => '無法更新圖庫記錄。';
 
   @override
   String localGallery_deleteFailed(Object error) {
@@ -27007,9 +27014,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get toast_imageHasNoPrompt => '此圖片沒有 Prompt';
-
-  @override
-  String get toast_useDeleteButton => '請使用介面刪除按鈕';
 
   @override
   String get toast_imageHasNoMetadata => '此圖片沒有後設資料';

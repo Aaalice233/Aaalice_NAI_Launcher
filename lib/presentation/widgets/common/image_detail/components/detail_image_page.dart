@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../image_viewport_surface.dart';
 import '../../../../../core/utils/localization_extension.dart';
+import '../../image_card_action.dart';
+import '../../image_card_context_menu.dart';
+import '../../image_viewport_surface.dart';
 import '../image_detail_data.dart';
 
 /// 单张图像页面组件
@@ -11,6 +13,7 @@ import '../image_detail_data.dart';
 class DetailImagePage extends StatefulWidget {
   final ImageDetailData data;
   final String? heroTag;
+  final Future<void> Function()? onDelete;
 
   /// 外部传入的 TransformationController，用于快捷键控制缩放
   final TransformationController? transformationController;
@@ -19,6 +22,7 @@ class DetailImagePage extends StatefulWidget {
     super.key,
     required this.data,
     this.heroTag,
+    this.onDelete,
     this.transformationController,
   });
 
@@ -214,6 +218,21 @@ class _DetailImagePageState extends State<DetailImagePage>
       children: [
         // 主图像区域
         GestureDetector(
+          onSecondaryTapUp: widget.onDelete == null
+              ? null
+              : (details) => ImageCardContextMenu.show(
+                  context: context,
+                  position: details.globalPosition,
+                  actions: [
+                    ImageCardAction(
+                      id: ImageCardActionId.delete,
+                      icon: Icons.delete_outline,
+                      label: context.l10n.common_delete,
+                      isDanger: true,
+                      invoke: widget.onDelete!,
+                    ),
+                  ],
+                ),
           onDoubleTapDown: _handleDoubleTapDown,
           onDoubleTap: _handleDoubleTap,
           child: InteractiveViewer(
