@@ -213,15 +213,8 @@ class NaiPromptExportCodec {
       metadata.fixedNegativePrefixTags.any((tag) => tag.trim().isNotEmpty) ||
       metadata.fixedNegativeSuffixTags.any((tag) => tag.trim().isNotEmpty);
 
-  static String characterPositive(NaiImageMetadata metadata, int index) {
-    if (index < metadata.characterPrompts.length) {
-      final value = metadata.characterPrompts[index].trim();
-      if (value.isNotEmpty) return value;
-    }
-    return index < metadata.characterInfos.length
-        ? metadata.characterInfos[index].prompt.trim()
-        : '';
-  }
+  static String characterPositive(NaiImageMetadata metadata, int index) =>
+      NaiMetadataPromptProjection(metadata).characterPositive(index).trim();
 
   static String characterNegative(NaiImageMetadata metadata, int index) {
     if (index < metadata.characterNegativePrompts.length) {

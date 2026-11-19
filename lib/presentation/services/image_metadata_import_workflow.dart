@@ -22,6 +22,8 @@ enum ImageMetadataImportResult {
   cancelled,
   noMetadata,
   noParametersSelected,
+  characterModelConflict,
+  characterLimitReached,
   applied,
 }
 
@@ -34,7 +36,7 @@ typedef MetadataImportOptionsPicker =
       MetadataImportOptions initialOptions,
     );
 typedef MetadataImportApplier =
-    Future<int> Function(
+    Future<MetadataImportOutcome> Function(
       ProviderReader read,
       NaiImageMetadata metadata,
       MetadataImportOptions options,
@@ -44,7 +46,7 @@ typedef MetadataImportResultReporter =
     void Function(
       BuildContext context,
       ImageMetadataImportResult result,
-      int appliedCount,
+      MetadataImportOutcome outcome,
     );
 typedef GenerationPageOpener = void Function(BuildContext context);
 
@@ -85,7 +87,11 @@ class ImageMetadataImportWorkflow {
     if (!context.mounted) return ImageMetadataImportResult.cancelled;
 
     if (parsedMetadata == null || !parsedMetadata.hasData) {
-      _resultReporter(context, ImageMetadataImportResult.noMetadata, 0);
+      _resultReporter(
+        context,
+        ImageMetadataImportResult.noMetadata,
+        const MetadataImportOutcome(0),
+      );
       return ImageMetadataImportResult.noMetadata;
     }
 
@@ -108,7 +114,7 @@ class ImageMetadataImportWorkflow {
     await _rememberSelection(selectionStore, options);
     if (!context.mounted) return ImageMetadataImportResult.cancelled;
 
-    final appliedCount = _metadataApplier == null
+    final outcome = _metadataApplier == null
         ? await MetadataImportCoordinator.apply(
             read: read,
             metadata: resolvedMetadata,
@@ -119,18 +125,20 @@ class ImageMetadataImportWorkflow {
         : await _metadataApplier(read, resolvedMetadata, options, context.l10n);
     if (!context.mounted) return ImageMetadataImportResult.cancelled;
 
-    if (appliedCount == 0) {
-      _resultReporter(
-        context,
+    final result = switch (outcome) {
+      MetadataImportOutcome(characterConflictLimit: != null) =>
+        ImageMetadataImportResult.characterModelConflict,
+      MetadataImportOutcome(appliedCount: 0, characterAppend: != null) =>
+        ImageMetadataImportResult.characterLimitReached,
+      MetadataImportOutcome(appliedCount: 0) =>
         ImageMetadataImportResult.noParametersSelected,
-        0,
-      );
-      return ImageMetadataImportResult.noParametersSelected;
+      _ => ImageMetadataImportResult.applied,
+    };
+    _resultReporter(context, result, outcome);
+    if (result == ImageMetadataImportResult.applied && openGenerationPage) {
+      _generationPageOpener(context);
     }
-
-    _resultReporter(context, ImageMetadataImportResult.applied, appliedCount);
-    if (openGenerationPage) _generationPageOpener(context);
-    return ImageMetadataImportResult.applied;
+    return result;
   }
 
   // 记忆写入失败不能拦下用户已确认的导入。
@@ -153,20 +161,41 @@ class ImageMetadataImportWorkflow {
   static void _reportResult(
     BuildContext context,
     ImageMetadataImportResult result,
-    int appliedCount,
+    MetadataImportOutcome outcome,
   ) {
+    final l10n = context.l10n;
     switch (result) {
+      case ImageMetadataImportResult.characterModelConflict:
+        final limit = outcome.characterConflictLimit!;
+        final count = outcome.existingCharacterCount;
+        final message = count == null
+            ? l10n.metadataImport_characterModelConflict(limit)
+            : l10n.metadataImport_characterAppendModelConflict(count, limit);
+        AppToast.warning(context, message);
+        return;
       case ImageMetadataImportResult.noMetadata:
-        AppToast.warning(context, context.l10n.metadataImport_noDataFound);
+        AppToast.warning(context, l10n.metadataImport_noDataFound);
         return;
       case ImageMetadataImportResult.noParametersSelected:
-        AppToast.warning(context, context.l10n.metadataImport_noParamsSelected);
+        AppToast.warning(context, l10n.metadataImport_noParamsSelected);
         return;
+      case ImageMetadataImportResult.characterLimitReached:
       case ImageMetadataImportResult.applied:
-        AppToast.success(
-          context,
-          context.l10n.metadataImport_appliedCount(appliedCount),
-        );
+        final append = outcome.characterAppend;
+        final applied = l10n.metadataImport_appliedCount(outcome.appliedCount);
+        if (append != null && append.skipped > 0) {
+          final counts = l10n.metadataImport_characterAppendResult(
+            append.added,
+            append.skipped,
+            append.limit,
+          );
+          AppToast.warning(
+            context,
+            outcome.appliedCount == 0 ? counts : '$applied\n$counts',
+          );
+        } else {
+          AppToast.success(context, applied);
+        }
         return;
       case ImageMetadataImportResult.cancelled:
         return;

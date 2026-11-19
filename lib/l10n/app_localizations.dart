@@ -15661,6 +15661,46 @@ abstract class AppLocalizations {
   /// **'Undesired Content'**
   String get metadataImport_negativePrompt;
 
+  /// No description provided for @metadataImport_characterMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Character import mode'**
+  String get metadataImport_characterMode;
+
+  /// No description provided for @metadataImport_characterReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace existing characters'**
+  String get metadataImport_characterReplace;
+
+  /// No description provided for @metadataImport_characterAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Append to the end'**
+  String get metadataImport_characterAppend;
+
+  /// No description provided for @metadataImport_characterAppendResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Characters added: {added}. Skipped: {skipped}. Limit: {limit}.'**
+  String metadataImport_characterAppendResult(
+    int added,
+    int skipped,
+    int limit,
+  );
+
+  /// No description provided for @metadataImport_characterModelConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'This model supports up to {limit} characters. Choose another model or turn off character import.'**
+  String metadataImport_characterModelConflict(int limit);
+
+  /// No description provided for @metadataImport_characterAppendModelConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'You already have {count} characters, exceeding the selected model’s limit of {limit}. Uncheck “Model” to append, or choose “Replace existing characters”.'**
+  String metadataImport_characterAppendModelConflict(int count, int limit);
+
   /// No description provided for @metadataImport_characterPromptsCount.
   ///
   /// In en, this message translates to:

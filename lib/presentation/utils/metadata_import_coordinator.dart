@@ -1,8 +1,10 @@
+import '../../core/constants/model_capabilities.dart';
 import '../../data/models/character/character_prompt.dart' as char;
 import '../../data/models/fixed_tag/fixed_tag_entry.dart';
 import '../../data/models/fixed_tag/fixed_tag_prompt_type.dart';
 import '../../data/models/fixed_tag/fixed_tag_usage_snapshot.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/models/gallery/nai_metadata_prompt_projection.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 import '../../l10n/app_localizations.dart';
 import '../providers/character_prompt_provider.dart';
@@ -13,10 +15,30 @@ import 'metadata_import_applier.dart';
 import 'fixed_tag_import_resolution.dart';
 import 'prompt_preset_import_utils.dart';
 
+typedef CharacterAppendCounts = ({int added, int skipped, int limit});
+
+class MetadataImportOutcome {
+  const MetadataImportOutcome(this.appliedCount, {this.characterAppend})
+    : characterConflictLimit = null,
+      existingCharacterCount = null;
+
+  const MetadataImportOutcome.characterConflict(
+    int limit, {
+    this.existingCharacterCount,
+  }) : appliedCount = 0,
+       characterAppend = null,
+       characterConflictLimit = limit;
+
+  final int appliedCount;
+  final CharacterAppendCounts? characterAppend;
+  final int? characterConflictLimit;
+  final int? existingCharacterCount;
+}
+
 class MetadataImportCoordinator {
   const MetadataImportCoordinator._();
 
-  static Future<int> apply({
+  static Future<MetadataImportOutcome> apply({
     required ProviderReader read,
     required NaiImageMetadata metadata,
     required MetadataImportOptions options,
@@ -30,18 +52,63 @@ class MetadataImportCoordinator {
           entries: read(fixedTagsNotifierProvider).entries,
         );
     final resolvedMetadata = resolution.metadata;
-    final notifier = read(generationParamsNotifierProvider.notifier);
     final characterIndices = _selectedCharacterIndices(
       resolvedMetadata,
       options,
     );
 
     if (characterIndices.isNotEmpty) {
-      read(characterPromptNotifierProvider.notifier).clearAllCharacters();
+      final currentModel = read(generationParamsNotifierProvider).model;
+      final importedModel = options.importModel
+          ? MetadataImportApplier.resolveImportableModel(resolvedMetadata)
+          : null;
+      final targetModel = importedModel ?? currentModel;
+      final limit = ModelCapabilityRegistry.of(targetModel).maxCharacters;
+      if (limit == 0) {
+        return const MetadataImportOutcome.characterConflict(0);
+      }
+      if (options.characterImportMode == CharacterImportMode.append &&
+          targetModel != currentModel) {
+        final count = read(characterPromptNotifierProvider).characters.length;
+        if (count > limit) {
+          return MetadataImportOutcome.characterConflict(
+            limit,
+            existingCharacterCount: count,
+          );
+        }
+      }
     }
 
-    var appliedCount = MetadataImportApplier.applyPromptAndGenerationParams(
-      metadata: resolvedMetadata,
+    var appliedCount = _applyGenerationParams(read, resolvedMetadata, options);
+    CharacterAppendCounts? append;
+    if (characterIndices.isNotEmpty) {
+      append = _applyCharacterPrompts(
+        read,
+        resolvedMetadata,
+        characterIndices,
+        options.characterImportMode,
+      );
+      if (append == null || append.added > 0) appliedCount++;
+    }
+    appliedCount += _applyReferenceParams(read, resolvedMetadata, options);
+    appliedCount += await _applyFixedTags(
+      read,
+      resolvedMetadata,
+      options,
+      l10n,
+      resolution,
+    );
+    return MetadataImportOutcome(appliedCount, characterAppend: append);
+  }
+
+  static int _applyGenerationParams(
+    ProviderReader read,
+    NaiImageMetadata metadata,
+    MetadataImportOptions options,
+  ) {
+    final notifier = read(generationParamsNotifierProvider.notifier);
+    return MetadataImportApplier.applyPromptAndGenerationParams(
+      metadata: metadata,
       options: options,
       target: MetadataImportTarget(
         updatePrompt: notifier.updatePrompt,
@@ -73,22 +140,6 @@ class MetadataImportCoordinator {
         updateModelMode: notifier.updateModelMode,
       ),
     );
-
-    if (characterIndices.isNotEmpty) {
-      _applyCharacterPrompts(read, resolvedMetadata, characterIndices);
-      appliedCount++;
-    }
-
-    appliedCount += _applyReferenceParams(read, resolvedMetadata, options);
-    appliedCount += await _applyFixedTags(
-      read,
-      resolvedMetadata,
-      options,
-      l10n,
-      resolution,
-    );
-
-    return appliedCount;
   }
 
   static Future<int> _applyFixedTags(
@@ -150,66 +201,84 @@ class MetadataImportCoordinator {
     MetadataImportOptions options,
   ) {
     if (!options.importCharacterPrompts) return const [];
-    final promptCount = metadata.characterPrompts.length;
     if (metadata.characterInfos.isEmpty) {
-      return List<int>.generate(promptCount, (index) => index);
+      return List<int>.generate(
+        metadata.characterPrompts.length,
+        (index) => index,
+      );
     }
     final selected = options.selectedCharacterIndices.toSet();
     return [
-      for (var index = 0; index < promptCount; index++)
+      for (var index = 0; index < metadata.characterInfos.length; index++)
         if (selected.contains(index)) index,
     ];
   }
 
-  static void _applyCharacterPrompts(
+  static CharacterAppendCounts? _applyCharacterPrompts(
     ProviderReader read,
     NaiImageMetadata metadata,
     List<int> indices,
+    CharacterImportMode mode,
   ) {
-    final characters = <char.CharacterPrompt>[];
-    final negativePrompts = metadata.characterNegativePrompts;
-    final characterInfos = metadata.characterInfos;
-    var hasImportedCenters = false;
-
-    for (final i in indices) {
-      final prompt = metadata.characterPrompts[i];
-      final info = i < characterInfos.length ? characterInfos[i] : null;
-      final negativePrompt =
-          info?.negativePrompt ??
-          (i < negativePrompts.length ? negativePrompts[i] : '');
-      final centerX = info?.centerX;
-      final centerY = info?.centerY;
-      final hasCenter =
-          centerX != null &&
-          centerY != null &&
-          centerX.isFinite &&
-          centerY.isFinite;
-      hasImportedCenters = hasImportedCenters || hasCenter;
-
-      characters.add(
-        char.CharacterPrompt.create(
-          name: 'Character ${characters.length + 1}',
-          gender: _inferGenderFromPrompt(prompt),
-          prompt: prompt,
-          negativePrompt: negativePrompt,
-          positionMode: hasCenter
-              ? char.CharacterPositionMode.custom
-              : char.CharacterPositionMode.aiChoice,
-          customPosition: hasCenter
-              ? char.CharacterPosition(
-                  mode: char.CharacterPositionMode.custom,
-                  row: centerY.clamp(0.0, 1.0),
-                  column: centerX.clamp(0.0, 1.0),
-                )
-              : null,
-        ),
+    final notifier = read(characterPromptNotifierProvider.notifier);
+    final append = mode == CharacterImportMode.append;
+    final offset = append
+        ? read(characterPromptNotifierProvider).characters.length
+        : 0;
+    final incoming = indices.indexed.map(
+      (entry) => _importCharacter(metadata, entry.$2, offset + entry.$1 + 1),
+    );
+    if (append) {
+      final added = notifier.appendCharacters(incoming);
+      return (
+        added: added,
+        skipped: indices.length - added,
+        limit: notifier.characterLimit,
       );
     }
+    final characters = incoming.toList();
+    final useCoords =
+        metadata.characterUseCoords ??
+        characters.any((character) => character.customPosition != null);
+    notifier.replaceCharacters(characters, globalAiChoice: !useCoords);
+    return null;
+  }
 
-    final notifier = read(characterPromptNotifierProvider.notifier);
-    notifier.replaceAll(characters);
-    final useCoords = metadata.characterUseCoords ?? hasImportedCenters;
-    notifier.setGlobalAiChoice(!useCoords);
+  static char.CharacterPrompt _importCharacter(
+    NaiImageMetadata metadata,
+    int i,
+    int number,
+  ) {
+    final negativePrompts = metadata.characterNegativePrompts;
+    final characterInfos = metadata.characterInfos;
+    final info = i < characterInfos.length ? characterInfos[i] : null;
+    final prompt = NaiMetadataPromptProjection(metadata).characterPositive(i);
+    final negativePrompt =
+        info?.negativePrompt ??
+        (i < negativePrompts.length ? negativePrompts[i] : '');
+    final centerX = info?.centerX;
+    final centerY = info?.centerY;
+    final hasCenter =
+        centerX != null &&
+        centerY != null &&
+        centerX.isFinite &&
+        centerY.isFinite;
+    return char.CharacterPrompt.create(
+      name: 'Character $number',
+      gender: _inferGenderFromPrompt(prompt),
+      prompt: prompt,
+      negativePrompt: negativePrompt,
+      positionMode: hasCenter
+          ? char.CharacterPositionMode.custom
+          : char.CharacterPositionMode.aiChoice,
+      customPosition: hasCenter
+          ? char.CharacterPosition(
+              mode: char.CharacterPositionMode.custom,
+              row: centerY.clamp(0.0, 1.0),
+              column: centerX.clamp(0.0, 1.0),
+            )
+          : null,
+    );
   }
 
   static char.CharacterGender _inferGenderFromPrompt(String prompt) {

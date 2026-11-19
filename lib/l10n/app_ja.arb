@@ -4140,6 +4140,30 @@
     }
   },
   "metadataImport_negativePrompt": "除外したい要素",
+  "metadataImport_characterMode": "キャラクターの読み込み方法",
+  "metadataImport_characterReplace": "既存のキャラクターを置き換える",
+  "metadataImport_characterAppend": "末尾に追加",
+  "metadataImport_characterAppendResult": "{added} 人を追加し、{skipped} 人をスキップしました（上限 {limit} 人）。",
+  "@metadataImport_characterAppendResult": {
+    "placeholders": {
+      "added": {"type": "int"},
+      "skipped": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
+  "metadataImport_characterModelConflict": "選択したモデルの上限は {limit} 人です。モデルを変更するか、キャラクターの読み込みをオフにしてください。",
+  "@metadataImport_characterModelConflict": {
+    "placeholders": {
+      "limit": {"type": "int"}
+    }
+  },
+  "metadataImport_characterAppendModelConflict": "現在のキャラクター数は {count} 人で、選択したモデルの上限（{limit} 人）を超えています。「モデル」のチェックを外して追加するか、「既存のキャラクターを置き換える」を選んでください。",
+  "@metadataImport_characterAppendModelConflict": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
   "metadataImport_characterPromptsCount": "キャラクタープロンプト ({count})",
   "@metadataImport_characterPromptsCount": {
     "placeholders": {

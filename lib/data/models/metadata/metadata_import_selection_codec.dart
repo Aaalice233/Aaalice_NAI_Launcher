@@ -13,6 +13,7 @@ typedef _CategoryToggle = ({
 /// 逐图条目（角色、质量词、Vibe、精准参考的选中项）按序号对应当前图片，不落盘。
 abstract final class MetadataImportSelectionCodec {
   static const _unknownFixedTagPolicyKey = 'unknownFixedTagPolicy';
+  static const _characterImportModeKey = 'characterImportMode';
 
   // 键名即落盘格式，字段改名时不得随之改动。
   static final Map<String, _CategoryToggle> _categoryToggles = {
@@ -127,6 +128,7 @@ abstract final class MetadataImportSelectionCodec {
     for (final MapEntry(:key, value: toggle) in _categoryToggles.entries)
       key: toggle.read(options),
     _unknownFixedTagPolicyKey: options.unknownFixedTagPolicy.name,
+    _characterImportModeKey: options.characterImportMode.name,
   });
 
   /// 缺项、类型不符或整体无法解析时，逐项回落到 [MetadataImportOptions.all]。
@@ -142,9 +144,12 @@ abstract final class MetadataImportSelectionCodec {
     }
     final policy = UnknownFixedTagPolicy.values
         .asNameMap()[stored[_unknownFixedTagPolicyKey]];
-    return policy == null
-        ? options
-        : options.copyWith(unknownFixedTagPolicy: policy);
+    final characterMode = CharacterImportMode.values
+        .asNameMap()[stored[_characterImportModeKey]];
+    return options.copyWith(
+      unknownFixedTagPolicy: policy ?? options.unknownFixedTagPolicy,
+      characterImportMode: characterMode ?? options.characterImportMode,
+    );
   }
 
   static Map<String, Object?>? _parseObject(String? raw) {

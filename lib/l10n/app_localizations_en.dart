@@ -8912,6 +8912,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metadataImport_negativePrompt => 'Undesired Content';
 
   @override
+  String get metadataImport_characterMode => 'Character import mode';
+
+  @override
+  String get metadataImport_characterReplace => 'Replace existing characters';
+
+  @override
+  String get metadataImport_characterAppend => 'Append to the end';
+
+  @override
+  String metadataImport_characterAppendResult(
+    int added,
+    int skipped,
+    int limit,
+  ) {
+    return 'Characters added: $added. Skipped: $skipped. Limit: $limit.';
+  }
+
+  @override
+  String metadataImport_characterModelConflict(int limit) {
+    return 'This model supports up to $limit characters. Choose another model or turn off character import.';
+  }
+
+  @override
+  String metadataImport_characterAppendModelConflict(int count, int limit) {
+    return 'You already have $count characters, exceeding the selected model’s limit of $limit. Uncheck “Model” to append, or choose “Replace existing characters”.';
+  }
+
+  @override
   String metadataImport_characterPromptsCount(int count) {
     return 'Character Prompts ($count)';
   }

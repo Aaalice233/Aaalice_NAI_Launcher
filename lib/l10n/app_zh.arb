@@ -4215,6 +4215,30 @@
     }
   },
   "metadataImport_negativePrompt": "负向提示词",
+  "metadataImport_characterMode": "角色导入方式",
+  "metadataImport_characterReplace": "覆盖现有角色",
+  "metadataImport_characterAppend": "增添到末尾",
+  "metadataImport_characterAppendResult": "已增添 {added} 个角色，跳过 {skipped} 个（上限 {limit}）",
+  "@metadataImport_characterAppendResult": {
+    "placeholders": {
+      "added": {"type": "int"},
+      "skipped": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
+  "metadataImport_characterModelConflict": "所选模型最多支持 {limit} 个角色。请更换模型或取消角色导入。",
+  "@metadataImport_characterModelConflict": {
+    "placeholders": {
+      "limit": {"type": "int"}
+    }
+  },
+  "metadataImport_characterAppendModelConflict": "当前已有 {count} 个角色，超过所选模型的上限 {limit} 个。请取消勾选「模型」后增添，或改用「覆盖现有角色」。",
+  "@metadataImport_characterAppendModelConflict": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
   "metadataImport_characterPromptsCount": "角色提示词 ({count}个)",
   "@metadataImport_characterPromptsCount": {
     "placeholders": {
