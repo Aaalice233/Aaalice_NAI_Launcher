@@ -9,6 +9,7 @@ import 'package:nai_launcher/presentation/widgets/image_editor/core/editor_state
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_controller.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_workspace.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/layers/layer.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/tools/tool_base.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,6 +17,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // EditorState 构造时会异步读取工具设置
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  for (final redo in [false, true]) {
+    testWidgets(
+      'resizing then undoing or redoing exports the size shown in the toolbar (redo=$redo)',
+      (tester) async {
+        final editor = await _pushEditor(tester);
+        editor.state.resizeCanvas(const Size(128, 192), CanvasResizeMode.pad);
+        editor.state.resizeCanvas(const Size(192, 128), CanvasResizeMode.pad);
+        expect(editor.state.undo(), isTrue);
+        if (redo) expect(editor.state.redo(), isTrue);
+        await tester.pump();
+        final expected = redo ? (192, 128) : (128, 192);
+        expect(find.text('${expected.$1} x ${expected.$2}'), findsOneWidget);
+        final output = await editor.exportNow(tester);
+        expect((output.width, output.height), expected);
+      },
+    );
+  }
 
   testWidgets('exporting right after a blur stroke includes that stroke', (
     tester,

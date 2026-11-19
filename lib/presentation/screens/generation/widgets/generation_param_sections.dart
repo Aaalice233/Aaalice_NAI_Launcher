@@ -6,6 +6,7 @@ import '../../../../core/constants/api_constants.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/image_generation_provider.dart';
+import '../../../providers/generation/generation_request_resolution.dart';
 import '../../../widgets/common/app_toast.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 import '../../../widgets/common/model_family_icon.dart';
@@ -127,6 +128,7 @@ class SizeSection extends ConsumerWidget {
         SizeSelector(
           width: size.width,
           height: size.height,
+          requestGeometry: ref.watch(generationPageRequestGeometryProvider),
           onChanged: (width, height) {
             ref
                 .read(generationParamsNotifierProvider.notifier)

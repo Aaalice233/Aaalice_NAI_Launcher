@@ -14,6 +14,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../core/utils/decoded_image_size.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/localization_extension.dart';
+import '../../../core/utils/nai_resolution_adapter.dart';
 import '../../../data/models/image/image_params.dart';
 import '../../../data/models/inpaint/inpaint_draft.dart';
 import '../../../data/models/inpaint/inpaint_draft_status.dart';
@@ -54,6 +55,7 @@ typedef ManualInpaintPanelHandoff =
       required Uint8List source,
       required int sourceWidth,
       required int sourceHeight,
+      required ({int width, int height})? requestSize,
       required Uint8List mask,
       required bool focusedInpaintEnabled,
       required Rect? focusedSelectionRect,
@@ -635,10 +637,18 @@ class ManualInpaintToolbox implements InpaintDraftAuthoringHost {
     );
 
     try {
+      final params = ImageParams.fromJson(draft.parameterSnapshot);
       await handoff(
         source: source,
         sourceWidth: width,
         sourceHeight: height,
+        requestSize:
+            NaiResolutionAdapter.isGenerationCompatible(
+              params.width,
+              params.height,
+            )
+            ? (width: params.width, height: params.height)
+            : null,
         mask: mask,
         focusedInpaintEnabled: focused.enabled && selectionRect != null,
         focusedSelectionRect: selectionRect,

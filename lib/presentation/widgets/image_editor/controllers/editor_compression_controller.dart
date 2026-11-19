@@ -112,31 +112,10 @@ class EditorCompressionController {
     return focusedInpaintEnabled ? l10n.editor_compressionFocusLimited : null;
   }
 
-  double get compressionLinearScale {
-    return activeTarget.linearScaleFor(workWidth, workHeight);
-  }
-
-  /// 以档位计算时的工作尺寸为基准；取景框尺寸已变化时仍能还原原来的缩放比例
-  double get planLinearScale {
-    final currentPlan = plan;
-    final target = _compressionTarget;
-    if (currentPlan == null || target == null) return 1;
-    return target.linearScaleFor(currentPlan.workWidth, currentPlan.workHeight);
-  }
-
-  void initializePlan() {
-    refreshPlan(desiredScale: 1);
-  }
-
-  void refreshPlan({double? desiredScale}) {
+  void refreshPlan() {
     final region = outputRegion;
     final currentWorkWidth = region.width.round();
     final currentWorkHeight = region.height.round();
-    final previousTarget = _compressionTarget;
-    final previousScale = previousTarget?.linearScaleFor(
-      plan?.workWidth ?? currentWorkWidth,
-      plan?.workHeight ?? currentWorkHeight,
-    );
     final nextPlan = EditorCompressionPlan.resolve(
       workWidth: currentWorkWidth,
       workHeight: currentWorkHeight,
@@ -146,14 +125,22 @@ class EditorCompressionController {
       minimumContextPixels: minimumContextMegaPixels,
     );
 
-    EditorCompressionTarget target;
-    if (desiredScale != null) {
-      target = nextPlan.targetAtOrBelowScale(desiredScale);
-    } else {
-      final exactIndex = nextPlan.indexOf(previousTarget);
+    var target = nextPlan.highestTarget;
+    final selection = session.compressionSelection;
+    if (selection != null) {
+      final exactIndex =
+          selection.workWidth == currentWorkWidth &&
+              selection.workHeight == currentWorkHeight
+          ? nextPlan.indexOf(selection.target)
+          : -1;
       target = exactIndex >= 0
           ? nextPlan.targets[exactIndex]
-          : nextPlan.targetAtOrBelowScale(previousScale ?? 1);
+          : nextPlan.targetAtOrBelowScale(
+              selection.target.linearScaleFor(
+                selection.workWidth,
+                selection.workHeight,
+              ),
+            );
     }
     session.compressionPlan = nextPlan;
     session.compressionTarget = target;
@@ -171,7 +158,13 @@ class EditorCompressionController {
     final currentPlan = plan;
     if (currentPlan == null || currentPlan.targets.isEmpty) return;
     final resolvedIndex = index.clamp(0, currentPlan.targets.length - 1);
-    session.compressionTarget = currentPlan.targets[resolvedIndex];
+    final target = currentPlan.targets[resolvedIndex];
+    session.compressionSelection = (
+      workWidth: currentPlan.workWidth,
+      workHeight: currentPlan.workHeight,
+      target: target,
+    );
+    session.compressionTarget = target;
     syncFocusedSelectionConstraint();
     publishRequestEstimate();
   }
@@ -183,7 +176,7 @@ class EditorCompressionController {
         outputRegion == _compressionPlanRegion) {
       return false;
     }
-    refreshPlan(desiredScale: planLinearScale);
+    refreshPlan();
     return true;
   }
 
@@ -339,7 +332,6 @@ class EditorCompressionController {
   }
 
   void toggleFocusedInpaint() {
-    final desiredScale = compressionLinearScale;
     session.focusedInpaintEnabled = !focusedInpaintEnabled;
     if (focusedInpaintEnabled) {
       if (!_focusedSelectionState.hasCommittedRect) {
@@ -351,7 +343,7 @@ class EditorCompressionController {
       _focusedSelectionState.clear();
       editorState.setToolById('brush');
     }
-    refreshPlan(desiredScale: desiredScale);
+    refreshPlan();
   }
 
   void clearFocusedSelection() {

@@ -16,7 +16,10 @@ abstract final class BinaryMaskCodec {
     } catch (_) {
       return null;
     }
-    if (image == null) return null;
+    return image == null ? null : fromImage(image);
+  }
+
+  static BinaryMask fromImage(img.Image image) {
     final pixels = Uint8List(image.width * image.height);
     var index = 0;
     for (var y = 0; y < image.height; y++) {

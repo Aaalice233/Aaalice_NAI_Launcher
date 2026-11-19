@@ -76,6 +76,8 @@ class ImageEditorController extends ChangeNotifier {
   bool focusedInpaintEnabled = false;
   EditorCompressionPlan? compressionPlan;
   EditorCompressionTarget? compressionTarget;
+  ({int workWidth, int workHeight, EditorCompressionTarget target})?
+  compressionSelection;
   bool isInitialized = false;
   bool didStartInitialization = false;
   bool isOutpaintCommitPending = false;

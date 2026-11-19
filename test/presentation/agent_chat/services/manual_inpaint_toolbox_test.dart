@@ -19,6 +19,7 @@ import 'package:nai_launcher/data/services/inpaint_draft_file_repository.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_image_observation_ledger.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/manual_inpaint_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
+import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 
 import '../../../helpers/exif_orientation_fixture.dart';
@@ -215,10 +216,8 @@ void main() {
       anlasEstimator: (_, _) => 0,
       workspaceDir: root.path,
       repository: repository,
-      editorLauncher: (_, __, ___) => ManualInpaintEditorSession(
-        result: editorResult.future,
-        close: () {},
-      ),
+      editorLauncher: (_, __, ___) =>
+          ManualInpaintEditorSession(result: editorResult.future, close: () {}),
     );
     final tools = {for (final tool in toolbox.tools()) tool.name: tool};
     final created = _json(
@@ -560,6 +559,7 @@ void main() {
         required source,
         required sourceWidth,
         required sourceHeight,
+        required requestSize,
         required mask,
         required focusedInpaintEnabled,
         required focusedSelectionRect,
@@ -617,6 +617,7 @@ void main() {
         required source,
         required sourceWidth,
         required sourceHeight,
+        required requestSize,
         required mask,
         required focusedInpaintEnabled,
         required focusedSelectionRect,
@@ -663,6 +664,7 @@ void main() {
         required source,
         required sourceWidth,
         required sourceHeight,
+        required requestSize,
         required mask,
         required focusedInpaintEnabled,
         required focusedSelectionRect,
@@ -705,6 +707,7 @@ void main() {
           required source,
           required sourceWidth,
           required sourceHeight,
+          required requestSize,
           required mask,
           required focusedInpaintEnabled,
           required focusedSelectionRect,
@@ -875,6 +878,57 @@ void main() {
     (Object?, Object?) requestSize(InpaintDraft draft) =>
         (draft.parameterSnapshot['width'], draft.parameterSnapshot['height']);
 
+    Future<ImageParams> loadIntoPanel(
+      ManualInpaintToolbox toolbox,
+      Map<String, AgentTool> tools,
+      String id,
+      (int, int) expectedSource,
+      ({int width, int height})? expectedRequest,
+    ) async {
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updateSize(1024, 1024, persist: false);
+      ({int width, int height})? forwardedRequest;
+      toolbox.configurePanelHandoff(({
+        required source,
+        required sourceWidth,
+        required sourceHeight,
+        required requestSize,
+        required mask,
+        required focusedInpaintEnabled,
+        required focusedSelectionRect,
+        required minimumContextMegaPixels,
+        required sourceIsOutpaint,
+      }) async {
+        forwardedRequest = requestSize;
+        container
+            .read(imageWorkflowControllerProvider.notifier)
+            .applyInpaintEditorResult(
+              sourceImage: source,
+              sourceWidth: sourceWidth,
+              sourceHeight: sourceHeight,
+              requestSize: requestSize,
+              maskImage: mask,
+              focusedInpaintEnabled: focusedInpaintEnabled,
+              focusedSelectionRect: focusedSelectionRect,
+              minimumContextMegaPixels: minimumContextMegaPixels,
+              sourceIsOutpaint: sourceIsOutpaint,
+            );
+      });
+      final result = await tools['load_inpaint_draft_into_panel']!.execute(
+        'load',
+        {'draft_id': id},
+      );
+      expect(result.details['ok'], isTrue);
+      expect(forwardedRequest, expectedRequest);
+      final workflow = container.read(imageWorkflowControllerProvider);
+      expect((
+        workflow.sourceImageWidth,
+        workflow.sourceImageHeight,
+      ), expectedSource);
+      return container.read(generationParamsNotifierProvider);
+    }
+
     test('outpaint result resizes, flags and reprices the draft', () async {
       final toolbox = buildToolbox(paidAbovePixels: 512 * 512);
       final tools = {for (final tool in toolbox.tools()) tool.name: tool};
@@ -992,8 +1046,16 @@ void main() {
             'upscale the compressed source back',
       );
       expect(ready.estimatedAnlas, 0);
+      final panel = await loadIntoPanel(
+        toolbox,
+        tools,
+        id,
+        (384, 384),
+        (width: 384, height: 384),
+      );
       final submitted = await submit(tools, id);
       expect((submitted.width, submitted.height), (384, 384));
+      expect((panel.width, panel.height), (submitted.width, submitted.height));
       expect(submitted.isOutpaint, isFalse);
     });
 
@@ -1013,10 +1075,49 @@ void main() {
       expect(requestSize(ready), (832, 1216));
       expect(ready.parameterSnapshot['_agentSourceIsOutpaint'], isFalse);
       expect(ready.estimatedAnlas, created.estimatedAnlas);
+      final panel = await loadIntoPanel(
+        toolbox,
+        tools,
+        id,
+        (416, 608),
+        (width: 832, height: 1216),
+      );
       final submitted = await submit(tools, id);
       expect((submitted.width, submitted.height), (832, 1216));
+      expect((panel.width, panel.height), (submitted.width, submitted.height));
       expect(submitted.isOutpaint, isFalse);
     });
+
+    test(
+      'loads a legacy oversized draft with derived request dimensions',
+      () async {
+        final toolbox = buildToolbox(paidAbovePixels: 1 << 30);
+        final tools = {for (final tool in toolbox.tools()) tool.name: tool};
+        final editor = _inpaintResult(832, 1216);
+        final source = editor.inpaintSourceImage!;
+        final snapshot = const ImageParams(width: 1664, height: 2432).toJson();
+        final draft = await repository.prepare(
+          sourceBytes: source,
+          parameterSnapshot: snapshot,
+          estimatedAnlas: 0,
+        );
+        await repository.beginEditing(draft.id);
+        await repository.complete(
+          draft.id,
+          sourceBytes: source,
+          maskBytes: editor.maskImage!,
+          parameterSnapshot: snapshot,
+          estimatedAnlas: 0,
+        );
+
+        final panel = await loadIntoPanel(toolbox, tools, draft.id, (
+          832,
+          1216,
+        ), null);
+
+        expect((panel.width, panel.height), (832, 1216));
+      },
+    );
 
     test('expand_inpaint_canvas drafts are submitted as outpaint', () async {
       final toolbox = buildToolbox(paidAbovePixels: 1 << 30);

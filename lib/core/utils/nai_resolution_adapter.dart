@@ -515,25 +515,22 @@ class NaiResolutionAdapter {
   // ==================== 内部方法 ====================
 
   /// 源图比例与当前请求尺寸一致且不更大时，官网会沿用当前尺寸并在发送前放大源图。
-  static ({int width, int height, double scaleFactor})? _reuseCurrentRequestSize(
+  static ({int width, int height, double scaleFactor})?
+  _reuseCurrentRequestSize(
     int sourceWidth,
     int sourceHeight, {
     required int? currentWidth,
     required int? currentHeight,
   }) {
-    if (currentWidth == null || currentHeight == null) return null;
-
-    final sourceAspect = sourceWidth / sourceHeight;
-    if (currentWidth / currentHeight != sourceAspect) return null;
-
-    var orientedWidth = sourceWidth;
-    var orientedHeight = sourceHeight;
-    if (sourceAspect > 1) {
-      final temp = orientedWidth;
-      orientedWidth = orientedHeight;
-      orientedHeight = temp;
+    if (currentWidth == null ||
+        currentHeight == null ||
+        !isGenerationCompatible(currentWidth, currentHeight)) {
+      return null;
     }
-    if (orientedWidth > currentWidth || orientedHeight > currentHeight) {
+
+    if (sourceWidth > currentWidth ||
+        sourceHeight > currentHeight ||
+        sourceWidth / sourceHeight != currentWidth / currentHeight) {
       return null;
     }
 

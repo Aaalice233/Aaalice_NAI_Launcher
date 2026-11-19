@@ -5030,6 +5030,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get generation_invalidInpaintFrameHint =>
+      '请将取景框移到图像范围内，并在框内涂画蒙版，使其缩放到输出尺寸后仍覆盖像素。';
+
+  @override
+  String get generation_unreadableInpaintImageHint =>
+      '无法读取底图或蒙版。请重新载入底图或蒙版后重试。';
+
+  @override
   String get generation_emptyInpaintMask => '重绘蒙版采样后为空';
 
   @override
@@ -20739,6 +20747,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   ) {
     return '$width×$height 無法用於生成。寬度和高度必須是 64 的倍數、單邊不能超過 4096，且總畫素不能超過 3,145,728。最接近的可用尺寸是 $suggestedWidth×$suggestedHeight。';
   }
+
+  @override
+  String get generation_invalidInpaintFrameHint =>
+      '請將取景框移到影像範圍內，並在框內塗畫蒙版，使其縮放到輸出尺寸後仍涵蓋像素。';
+
+  @override
+  String get generation_unreadableInpaintImageHint =>
+      '無法讀取底圖或蒙版。請重新載入底圖或蒙版後再試一次。';
 
   @override
   String get generation_emptyInpaintMask => '重繪蒙版取樣後為空';

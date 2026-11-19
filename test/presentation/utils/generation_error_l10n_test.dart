@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/utils/focused_inpaint_input_exception.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/utils/generation_error_l10n.dart';
@@ -15,6 +16,35 @@ void main() {
   };
 
   for (final entry in locales.entries) {
+    testWidgets(
+      'focused input errors show localized recovery hints (${entry.key})',
+      (tester) async {
+        final context = await _pumpContext(tester, entry.value);
+        final l10n = AppLocalizations.of(context)!;
+        for (final (error, hint) in [
+          (
+            const FocusedInpaintInputException.invalidCrop(),
+            l10n.generation_invalidInpaintFrameHint,
+          ),
+          (
+            const FocusedInpaintInputException.decodeFailed(
+              FocusedInpaintInput.source,
+            ),
+            l10n.generation_unreadableInpaintImageHint,
+          ),
+        ]) {
+          expect(describeGenerationError(context, error.code), (
+            l10n.generation_generationFailed,
+            hint,
+          ));
+          expect(
+            summarizeGenerationError(context, error.code),
+            '${l10n.generation_generationFailed}\n$hint',
+          );
+        }
+      },
+    );
+
     testWidgets('empty inpaint masks read as a localized hint (${entry.key})', (
       tester,
     ) async {

@@ -6,6 +6,7 @@ import 'dart:ui';
 
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
@@ -951,6 +952,102 @@ void main() {
     expect(networkActivity.isActive, isFalse);
   });
 
+  for (final stream in [false, true]) {
+    test(
+      '1664x2432 canvas sends 1280x768 and preserves every pixel outside the crop (stream=$stream)',
+      () async {
+        final canvas = img.Image(width: 1664, height: 2432, numChannels: 4);
+        img.fill(canvas, color: img.ColorRgba8(30, 70, 90, 255));
+        img.fillRect(
+          canvas,
+          x1: 12,
+          y1: 9,
+          x2: 810,
+          y2: 2010,
+          color: img.ColorRgba8(24, 60, 108, 255),
+        );
+        final generated = _solidPng(
+          width: 1280,
+          height: 768,
+          r: 240,
+          g: 40,
+          b: 70,
+        );
+        final adapter = _PendingDioAdapter(
+          onRequest: (request) {
+            if (stream) {
+              request.completeWithMsgpackMessages([
+                {'event_type': 'final', 'samp_ix': 0, 'image': generated},
+              ]);
+            } else {
+              request.completeWithZipImage(generated);
+            }
+          },
+        );
+        final dio = Dio()..httpClientAdapter = adapter;
+        addTearDown(dio.close);
+        final endpoint = NaiApiEndpointService();
+        final api = NAIImageGenerationApiService(
+          dio,
+          NAIImageEnhancementApiService(dio, endpoint),
+          endpoint,
+        );
+        final params = ImageParams(
+          action: ImageGenerationAction.infill,
+          model: 'nai-diffusion-4-5-full-inpainting',
+          width: 1664,
+          height: 2432,
+          sourceImage: img.encodePng(canvas, level: 1),
+          maskImage: _rectMaskPng(
+            width: 1664,
+            height: 2432,
+            x: 400,
+            y: 1000,
+            rectWidth: 128,
+            rectHeight: 128,
+          ),
+        );
+        const selection = Rect.fromLTWH(288, 900, 1088, 576);
+        final result = stream
+            ? (await api
+                      .generateImageStream(
+                        params,
+                        focusedInpaintEnabled: true,
+                        minimumContextMegaPixels: 96,
+                        focusedSelectionRect: selection,
+                      )
+                      .last)
+                  .finalImage!
+            : (await api.generateImage(
+                params,
+                focusedInpaintEnabled: true,
+                minimumContextMegaPixels: 96,
+                focusedSelectionRect: selection,
+              )).$1.single;
+        final options = adapter.requests.single.options;
+        final parts = {
+          for (final p in parseBrowserMultipart(
+            options.data as Uint8List,
+            boundaryOf(options.headers['content-type'] as String),
+          ))
+            p.name: p,
+        };
+        final payload = jsonDecode(parts['request']!.text)['parameters'] as Map;
+        expect((payload['width'], payload['height']), (1280, 768));
+        final uploaded = img.decodePng(parts['image']!.bytes)!;
+        expect((uploaded.width, uploaded.height), (1280, 768));
+        final display = img.decodePng(result)!;
+        expect((display.width, display.height), (1664, 2432));
+        expect(display.getPixel(464, 1064).r, 240);
+        _expectPixelsOutsideCrop(
+          canvas,
+          display,
+          const Rect.fromLTWH(192, 804, 1280, 768),
+        );
+      },
+    );
+  }
+
   test('focused stream preview keeps raw crop and carries placement', () async {
     final adapter = _PendingDioAdapter();
     final dio = Dio()..httpClientAdapter = adapter;
@@ -1263,7 +1360,34 @@ Future<void> _waitForRequestCount(
   fail('Expected $expectedCount request(s), got ${adapter.requests.length}.');
 }
 
+void _expectPixelsOutsideCrop(img.Image source, img.Image result, Rect crop) {
+  final before = source.getBytes(order: img.ChannelOrder.rgba);
+  final after = result.getBytes(order: img.ChannelOrder.rgba);
+  final stride = source.width * 4;
+  void check(int start, int end) {
+    if (!listEquals(
+      Uint8List.sublistView(before, start, end),
+      Uint8List.sublistView(after, start, end),
+    )) {
+      fail('Pixels outside the crop changed on row ${start ~/ stride}');
+    }
+  }
+
+  for (var y = 0; y < source.height; y++) {
+    final start = y * stride;
+    if (y < crop.top || y >= crop.bottom) {
+      check(start, start + stride);
+    } else {
+      check(start, start + crop.left.toInt() * 4);
+      check(start + crop.right.toInt() * 4, start + stride);
+    }
+  }
+}
+
 class _PendingDioAdapter implements HttpClientAdapter {
+  _PendingDioAdapter({this.onRequest});
+
+  final void Function(_PendingRequest)? onRequest;
   final List<_PendingRequest> requests = [];
 
   @override
@@ -1274,6 +1398,7 @@ class _PendingDioAdapter implements HttpClientAdapter {
   ) {
     final request = _PendingRequest(options, cancelFuture);
     requests.add(request);
+    onRequest?.call(request);
     return request.response.future;
   }
 

@@ -4,14 +4,46 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/utils/focused_inpaint_input_exception.dart';
 import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/services/metadata/unified_metadata_parser.dart';
 
+import '../../helpers/corrupt_png.dart';
 import '../../helpers/exif_orientation_fixture.dart';
 import '../../helpers/image_pixel_matchers.dart';
 
 void main() {
+  test('decode failures expose only the code and fixed input label', () {
+    final png = img.encodePng(img.Image(width: 64, height: 64));
+    final corrupt = corruptPngPixelData(png);
+    expect(() => img.decodeImage(corrupt), throwsA(isA<img.ImageException>()));
+
+    const code = FocusedInpaintInputException.decodeFailedCode;
+    for (final (source, mask, input) in [
+      (corrupt, png, FocusedInpaintInput.source),
+      (png, corrupt, FocusedInpaintInput.mask),
+    ]) {
+      expect(
+        () => FocusedInpaintUtils.resolveRequestGeometry(
+          sourceImage: source,
+          maskImage: mask,
+          minContextMegaPixels: 96,
+        ),
+        throwsA(
+          isA<FocusedInpaintInputException>()
+              .having((error) => error.input, 'input', input)
+              .having((error) => error.toString(), 'error string', code)
+              .having(
+                (error) => error.logMessage,
+                'log message',
+                '$code input=${input.name}',
+              ),
+        ),
+      );
+    }
+  });
+
   group('FocusedInpaintUtils', () {
     group('geometry', () {
       FocusedInpaintGeometry resolve({

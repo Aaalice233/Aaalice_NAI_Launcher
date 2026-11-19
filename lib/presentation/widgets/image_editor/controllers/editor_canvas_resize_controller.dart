@@ -39,7 +39,6 @@ class EditorCanvasResizeController {
 
   Future<void> changeCanvasSize(BuildContext context) async {
     final l10n = context.l10n;
-    final compressionScale = compressionController.compressionLinearScale;
     final result = await CanvasSizeDialog.show(
       context,
       initialSize: editorState.canvasSize,
@@ -80,10 +79,6 @@ class EditorCanvasResizeController {
 
         // 使用新的 resizeCanvas 方法，支持图层内容变换
         editorState.resizeCanvas(result.size, mode);
-        session.focusedSelectionState.canvasSize = result.size;
-        compressionController.refreshPlan(desiredScale: compressionScale);
-        compressionController.constrainCommittedFocusedSelection();
-        compressionController.refreshPlan();
 
         // 显示成功消息
         if (context.mounted) {
@@ -210,22 +205,21 @@ class EditorCanvasResizeController {
 
   /// 拖边、平移、尺寸对话框与撤销重做都经由这里同步依赖取景框的状态
   bool syncOnFrameChanged() {
-    if (!_isInpaintMode ||
-        !session.isInitialized ||
-        !frameController.isAttached) {
+    if (!session.isInitialized ||
+        (_isInpaintMode && !frameController.isAttached)) {
       return false;
     }
     final frame = editorState.frame;
-    session.outpaintSourceImage = null;
-    session.outpaintSourceWidth = frame.width.round();
-    session.outpaintSourceHeight = frame.height.round();
     session.focusedSelectionState.canvasSize = frame.size;
-    if (session.focusedInpaintEnabled && frameController.hasOutpaintChanges) {
-      compressionController.disableFocusedInpaintForOutpaint();
+    if (_isInpaintMode) {
+      session.outpaintSourceImage = null;
+      session.outpaintSourceWidth = frame.width.round();
+      session.outpaintSourceHeight = frame.height.round();
+      if (session.focusedInpaintEnabled && frameController.hasOutpaintChanges) {
+        compressionController.disableFocusedInpaintForOutpaint();
+      }
     }
-    compressionController.refreshPlan(
-      desiredScale: compressionController.planLinearScale,
-    );
+    compressionController.refreshPlan();
     return true;
   }
 

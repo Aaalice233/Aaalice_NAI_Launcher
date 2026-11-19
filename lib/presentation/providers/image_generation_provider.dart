@@ -15,6 +15,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/character_center_resolver.dart';
 import '../../core/utils/image_save_utils.dart';
 import '../../core/utils/image_share_sanitizer.dart';
+import '../../core/utils/focused_inpaint_input_exception.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
 import '../../core/utils/prompt_preset_resolution.dart';
 import '../../data/datasources/remote/nai_image_generation_api_service.dart';
@@ -38,6 +39,7 @@ import 'generation/generation_cooldown_provider.dart';
 import 'generation/generation_models.dart';
 import 'generation/generation_params_notifier.dart';
 import 'generation/generation_request_preparation_service.dart';
+import 'generation/generation_request_resolution.dart';
 import 'generation/generation_result_lifecycle_service.dart';
 import 'generation/generation_settings_notifiers.dart';
 import 'generation/image_generation_coordinator.dart';
@@ -319,114 +321,37 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
         return;
       }
-      final liveParams = ref.read(generationParamsNotifierProvider);
-      final useRestoredLiveParams = identical(params, liveParams);
-      if (ref.read(generationSessionPersistenceEnabledProvider)) {
-        await Future.wait<void>([
-          ensureGenerationHistoryRestored(),
-          ref
-              .read(generationParamsNotifierProvider.notifier)
-              .restoreGenerationState(),
-        ]);
-        if (!_isCurrentLifecycle(epoch) ||
-            _activeInvocationId != invocationId) {
-          return;
-        }
-      }
-      final effectiveParams = useRestoredLiveParams
-          ? ref.read(generationParamsNotifierProvider)
-          : params;
-      final issue = NaiResolutionAdapter.validateGenerationResolution(
-        effectiveParams.width,
-        effectiveParams.height,
+      final request = await _validatedRequest(
+        params,
+        focusedOverride,
+        epoch,
+        invocationId,
       );
-      if (issue != null) {
-        state = state.copyWith(
-          status: GenerationStatus.error,
-          errorMessage: issue.errorCode,
-          progress: 0,
-        );
+      if (request == null ||
+          !_isCurrentLifecycle(epoch) ||
+          _activeInvocationId != invocationId) {
         return;
       }
       if (!ref.read(generationCooldownProvider.notifier).tryStartGeneration()) {
         return;
       }
 
-      try {
-        releaseForeground = await ref
-            .read(androidForegroundTaskServiceProvider)
-            .acquire();
-      } catch (error, stackTrace) {
-        AppLogger.e(
-          'Unable to start Android generation foreground service',
-          error,
-          stackTrace,
-        );
-      }
+      releaseForeground = await _acquireGenerationForeground();
       if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
         return;
       }
 
-      final preparation = _preparationService(
-        preserveCharacterSnapshot: preserveCharacterSnapshot,
-        focusedOverride: focusedOverride,
-        bypassRandomPrompt: bypassRandomPrompt,
+      await _runGeneration(
+        request.params,
+        epoch: epoch,
+        invocationId: invocationId,
+        batchSizeOverride: batchSizeOverride,
+        preparation: _preparationService(
+          preserveCharacterSnapshot: preserveCharacterSnapshot,
+          focused: request.focused,
+          bypassRandomPrompt: bypassRandomPrompt,
+        ),
       );
-      late final GenerationPreparationResult prepared;
-      try {
-        prepared = await preparation.prepareInitial(effectiveParams);
-      } on UnsupportedRandomPromptModelException catch (error, stackTrace) {
-        AppLogger.e(
-          'Generation preparation rejected an unsupported random model',
-          error,
-          stackTrace,
-        );
-        if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
-          state = state.copyWith(
-            status: GenerationStatus.error,
-            errorMessage: error.encodedMessage,
-            progress: 0,
-          );
-        }
-        return;
-      }
-      if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
-        return;
-      }
-      final runId = ++_runCounter;
-      _activeRunId = runId;
-      _activeFixedTagUsageSnapshot = prepared.fixedTagUsageSnapshot;
-      _streamPreviews.clear();
-      _failedSnapshotKeys.clear();
-      final dlss = ref.read(dlssProvider);
-      final coordinator = ImageGenerationCoordinator(
-        apiService: ref.read(naiImageGenerationApiServiceProvider),
-        postprocess: dlss.automaticSnapshot(),
-        onPostprocessError: dlss.reportEnhancementError,
-      );
-      _coordinator = coordinator;
-      final command = GenerationCommand(
-        runId: runId,
-        params: prepared.params,
-        batchCount: prepared.params.nSamples,
-        batchSize: batchSizeOverride ?? ref.read(imagesPerRequestProvider),
-        prepareBatch: (batch, current) async {
-          if (batch == 0) return current;
-          final next = await preparation.prepareSubsequentBatch(current);
-          return next;
-        },
-        focusedInpaintEnabled: prepared.focusedSnapshot.enabled,
-        minimumContextMegaPixels:
-            prepared.focusedSnapshot.minimumContextMegaPixels,
-        focusedSelectionRect: prepared.focusedSnapshot.selectionRect,
-        focusedContextCrop: prepared.focusedSnapshot.contextCrop,
-        streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
-      );
-      final handle = coordinator.start(command);
-      _activeRun = handle;
-      await for (final event in coordinator.execute(command, handle)) {
-        await _reduce(event, epoch);
-      }
     } finally {
       // 归属判断不可省：被取消后新一次提交已经接管标志，这里不能替它复位。
       if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
@@ -467,9 +392,147 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
   }
 
+  Future<Future<void> Function()?> _acquireGenerationForeground() async {
+    try {
+      return await ref.read(androidForegroundTaskServiceProvider).acquire();
+    } catch (error, stackTrace) {
+      AppLogger.e(
+        'Unable to start Android generation foreground service',
+        error,
+        stackTrace,
+      );
+      return null;
+    }
+  }
+
+  Future<({ImageParams params, GenerationFocusedSnapshot focused})?>
+  _validatedRequest(
+    ImageParams params,
+    GenerationFocusedSnapshot? focusedOverride,
+    int epoch,
+    int invocationId,
+  ) async {
+    final liveParams = ref.read(generationParamsNotifierProvider);
+    final useRestoredLiveParams = identical(params, liveParams);
+    if (ref.read(generationSessionPersistenceEnabledProvider)) {
+      await Future.wait<void>([
+        ensureGenerationHistoryRestored(),
+        ref
+            .read(generationParamsNotifierProvider.notifier)
+            .restoreGenerationState(),
+      ]);
+      if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
+        return null;
+      }
+    }
+    final effectiveParams = useRestoredLiveParams
+        ? ref.read(generationParamsNotifierProvider)
+        : params;
+    final focused =
+        focusedOverride ??
+        ref.read(imageWorkflowControllerProvider).focusedSnapshot;
+    final error = await _requestResolutionError(effectiveParams, focused);
+    if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
+      return null;
+    }
+    if (error != null) {
+      state = state.copyWith(
+        status: GenerationStatus.error,
+        errorMessage: error,
+        progress: 0,
+      );
+      return null;
+    }
+    return (params: effectiveParams, focused: focused);
+  }
+
+  Future<void> _runGeneration(
+    ImageParams effectiveParams, {
+    required int epoch,
+    required int invocationId,
+    required int? batchSizeOverride,
+    required GenerationRequestPreparationService preparation,
+  }) async {
+    late final GenerationPreparationResult prepared;
+    try {
+      prepared = await preparation.prepareInitial(effectiveParams);
+    } on UnsupportedRandomPromptModelException catch (error, stackTrace) {
+      AppLogger.e(
+        'Generation preparation rejected an unsupported random model',
+        error,
+        stackTrace,
+      );
+      if (_isCurrentLifecycle(epoch) && _activeInvocationId == invocationId) {
+        state = state.copyWith(
+          status: GenerationStatus.error,
+          errorMessage: error.encodedMessage,
+          progress: 0,
+        );
+      }
+      return;
+    }
+    if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
+      return;
+    }
+    final runId = ++_runCounter;
+    _activeRunId = runId;
+    _activeFixedTagUsageSnapshot = prepared.fixedTagUsageSnapshot;
+    _streamPreviews.clear();
+    _failedSnapshotKeys.clear();
+    final dlss = ref.read(dlssProvider);
+    final coordinator = ImageGenerationCoordinator(
+      apiService: ref.read(naiImageGenerationApiServiceProvider),
+      postprocess: dlss.automaticSnapshot(),
+      onPostprocessError: dlss.reportEnhancementError,
+    );
+    _coordinator = coordinator;
+    final command = GenerationCommand(
+      runId: runId,
+      params: prepared.params,
+      batchCount: prepared.params.nSamples,
+      batchSize: batchSizeOverride ?? ref.read(imagesPerRequestProvider),
+      prepareBatch: (batch, current) async {
+        if (batch == 0) return current;
+        final next = await preparation.prepareSubsequentBatch(current);
+        return next;
+      },
+      focusedInpaintEnabled: prepared.focusedSnapshot.enabled,
+      minimumContextMegaPixels:
+          prepared.focusedSnapshot.minimumContextMegaPixels,
+      focusedSelectionRect: prepared.focusedSnapshot.selectionRect,
+      focusedContextCrop: prepared.focusedSnapshot.contextCrop,
+      streamPreviewEnabled: ref.read(generationStreamPreviewSettingsProvider),
+    );
+    final handle = coordinator.start(command);
+    _activeRun = handle;
+    await for (final event in coordinator.execute(command, handle)) {
+      await _reduce(event, epoch);
+    }
+  }
+
+  Future<String?> _requestResolutionError(
+    ImageParams params,
+    GenerationFocusedSnapshot focused,
+  ) async {
+    final input = focused.inputFor(params);
+    try {
+      final geometry = input == null
+          ? null
+          : await ref.read(focusedRequestGeometryProvider(input));
+      return validateRequestResolution(
+        params.width,
+        params.height,
+        geometry,
+      )?.errorCode;
+    } on FocusedInpaintInputException catch (error) {
+      AppLogger.w(error.logMessage, 'ImgGen');
+      return error.code;
+    }
+  }
+
   GenerationRequestPreparationService _preparationService({
     bool preserveCharacterSnapshot = false,
-    GenerationFocusedSnapshot? focusedOverride,
+    required GenerationFocusedSnapshot focused,
     bool bypassRandomPrompt = false,
   }) {
     var queueExecuting = false;
@@ -507,13 +570,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
             );
           },
         ),
-        focused: GenerationFocusedPreparation(
-          // 只有生成页会把聚焦状态存在 workflow 里；Agent 等其他提交方必须显式
-          // 传入，否则会继承上一张图残留的聚焦选区。
-          read: () =>
-              focusedOverride ??
-              ref.read(imageWorkflowControllerProvider).focusedSnapshot,
-        ),
+        focused: GenerationFocusedPreparation(read: () => focused),
         vibes: GenerationVibePreparation(prepare: _prepareVibesForGeneration),
       ),
       preserveCharacterSnapshot: preserveCharacterSnapshot,

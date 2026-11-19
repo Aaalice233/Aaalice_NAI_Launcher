@@ -2292,6 +2292,8 @@
       "suggestedHeight": { "type": "int" }
     }
   },
+  "generation_invalidInpaintFrameHint": "フレームを画像内に収め、出力サイズに縮小しても残る大きさでフレーム内にマスクを描いてください。",
+  "generation_unreadableInpaintImageHint": "元画像またはマスクを読み込めません。画像またはマスクを読み込み直してから、もう一度お試しください。",
   "generation_emptyInpaintMask": "インペイントマスクがサンプリング後に空になりました",
   "generation_emptyInpaintMaskHint": "マスクが細すぎるか小さすぎるため、{gridSize} ピクセル単位のグリッドでサンプリングすると再描画する領域が残りません。マスクを太くするか広げてから、もう一度お試しください。",
   "@generation_emptyInpaintMaskHint": {
