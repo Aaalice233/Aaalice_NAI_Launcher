@@ -6,13 +6,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/harness/llm_helpers.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/agent_wire_helpers.dart';
 
-const _provider = ProviderConfig(
-  id: 'provider',
-  name: 'Provider',
-  protocol: ProviderProtocol.openaiChatCompletions,
-  baseUrl: 'https://example.test',
+const _request = AgentChatRequest(
+  sessionId: 'chat',
+  provider: ProviderConfig(
+    id: 'provider',
+    name: 'Provider',
+    protocol: ProviderProtocol.openaiChatCompletions,
+    baseUrl: 'https://example.test',
+  ),
+  model: 'test-model',
+  systemPrompt: '',
+  messages: [],
+  tools: [],
+  apiKey: null,
 );
 
 bool _retryable(String errorMessage) => isRetryableAssistantError(
@@ -68,7 +77,7 @@ void main() {
     };
     for (final entry in cases.entries) {
       test(entry.key, () {
-        final message = agentWireErrorFrom(entry.value, _provider).message;
+        final message = agentWireErrorFrom(entry.value, _request).message;
         expect(message, contains('network error'));
         expect(message, contains('provider=Provider'));
         expect(_retryable(message), isTrue);
@@ -81,7 +90,7 @@ void main() {
           requestOptions: options,
           error: const SocketException('Connection reset by peer'),
         ),
-        _provider,
+        _request,
       ).message;
       expect(message, contains('Connection reset by peer'));
     });
@@ -104,7 +113,7 @@ void main() {
         badResponse(503, {
           'error': {'message': 'Service busy'},
         }),
-        _provider,
+        _request,
       ).message;
       expect(message, contains('HTTP 503'));
       expect(message, isNot(contains('network error')));
@@ -117,7 +126,7 @@ void main() {
         _retryable(
           agentWireErrorFrom(
             badResponse(401, 'invalid api key'),
-            _provider,
+            _request,
           ).message,
         ),
         isFalse,
@@ -128,7 +137,7 @@ void main() {
             badResponse(429, {
               'error': {'message': 'insufficient_quota'},
             }),
-            _provider,
+            _request,
           ).message,
         ),
         isFalse,
@@ -143,7 +152,7 @@ void main() {
         DioException.badCertificate(requestOptions: options),
         const HandshakeException('CERTIFICATE_VERIFY_FAILED'),
       ]) {
-        final message = agentWireErrorFrom(error, _provider).message;
+        final message = agentWireErrorFrom(error, _request).message;
         expect(message, isNot(contains('network error')));
         expect(_retryable(message), isFalse);
       }
@@ -156,7 +165,7 @@ void main() {
             requestOptions: options,
             reason: 'cancelled by user',
           ),
-          _provider,
+          _request,
         ).message,
         'aborted',
       );

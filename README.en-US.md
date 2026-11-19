@@ -66,6 +66,8 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 - Local translation misses can be sent to a configured AI translation service.
 - Prompt Assistant tasks, including reverse prompting, optimization, and translation, share a configurable response wait timeout: 1, 2, 5, 10, 15, or 30 minutes, with a 5-minute default.
 - Each Prompt Assistant provider saves its own automatic or manual concurrency mode. Automatic mode starts at 5 concurrent requests, and independent tag batches translate in parallel. Each task offers the thinking levels supported by its model. Manage providers, API keys, and models under Settings → Integrations → Model services, and task routing and thinking levels under Settings → Integrations → Prompt Assistant. Both stay on this device.
+- Models outside the catalog start at Model default in Agent Chat and Prompt Assistant. Choose Low, Medium, or High directly on OpenAI-compatible providers. For native Gemini and Anthropic providers, first open Configure reasoning and select the format your model accepts.
+- If a provider rejects a reasoning level, choose Model default in the chat menu and select Retry on the error card. The new request omits reasoning parameters. Models that support explicitly disabling reasoning also offer Off.
 
 ### 🧬 Vibe, Precise Reference, and image editing
 

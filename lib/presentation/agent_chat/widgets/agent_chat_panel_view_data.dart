@@ -130,7 +130,7 @@ class AgentChatPanelCommands {
   final Future<void> Function(String sessionId) deleteSession;
   final Future<void> Function(AgentChatMoreAction action) moreAction;
   final Future<void> Function(String providerId, String model) selectModel;
-  final Future<void> Function(ThinkingLevel level) selectThinkingLevel;
+  final Future<void> Function(ThinkingLevel? level) selectThinkingLevel;
   final Future<void> Function(AgentPermissionMode mode) selectPermissionMode;
   final Future<void> Function(bool enabled) setWebAccessEnabled;
   final Future<void> Function() pickImages;

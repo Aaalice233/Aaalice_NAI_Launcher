@@ -40,6 +40,12 @@ Future<String?> showProviderEditor(
         _providerIdFromName(name, fallback: result.preset.defaultId),
       );
   final next = ProviderConfig(
+    modelReasoningFormats:
+        state.providers
+            .where((item) => item.id == id)
+            .firstOrNull
+            ?.modelReasoningFormats ??
+        const {},
     id: id,
     name: name,
     type: result.preset.legacyType,

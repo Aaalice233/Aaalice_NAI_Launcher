@@ -234,6 +234,61 @@ void main() {
   );
 
   test(
+    'restored task reasoning only reaches the selected provider and model',
+    () async {
+      const model = 'gemini-carbon';
+      const task = AssistantTaskType.translate;
+      final config = container.read(promptAssistantConfigProvider.notifier);
+      for (final id in ['relay', 'backup']) {
+        await config.upsertProvider(
+          ProviderPreset.openaiCompatibleChat.createConfig(id: id),
+        );
+        await config.addProviderModels(id, [model], source: ModelSource.manual);
+      }
+      await config.setTaskThinkingLevel(
+        task,
+        'relay',
+        model,
+        AssistantThinkingLevel.medium,
+      );
+      container.dispose();
+      container = createContainer();
+      service = container.read(promptAssistantServiceProvider);
+      final restored = container.read(promptAssistantConfigProvider);
+      expect(
+        restored.providers
+            .firstWhere((p) => p.id == 'relay')
+            .modelReasoningFormats[model],
+        ModelReasoningFormat.chatEffort,
+      );
+      Future<void> translate(String session) async {
+        final index = api.requests.length;
+        api.waitForCount = index + 1;
+        api.started = Completer<void>();
+        final pending = service.translateTags([session], sessionId: session);
+        await api.started!.future;
+        api.finish(index);
+        await pending;
+      }
+
+      await translate('first_tag');
+      final notifier = container.read(promptAssistantConfigProvider.notifier);
+      await notifier.setRouting(
+        restored.routing.copyWithTask(
+          taskType: task,
+          providerId: 'backup',
+          model: model,
+        ),
+      );
+      await translate('second_tag');
+      expect(
+        api.requests.map((r) => (r.provider.id, r.reasoningRequest?.effort)),
+        [('relay', 'medium'), ('backup', null)],
+      );
+    },
+  );
+
+  test(
     'one invalid batch fails the operation without leaking other requests',
     () async {
       api.waitForCount = 2;

@@ -27764,6 +27764,42 @@ abstract class AppLocalizations {
   /// **'Model default'**
   String get promptAssistant_thinkingDefault;
 
+  /// No description provided for @promptAssistant_configureReasoning.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure reasoning'**
+  String get promptAssistant_configureReasoning;
+
+  /// No description provided for @promptAssistant_reasoningFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning format'**
+  String get promptAssistant_reasoningFormat;
+
+  /// No description provided for @promptAssistant_reasoningLevelFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Level'**
+  String get promptAssistant_reasoningLevelFormat;
+
+  /// No description provided for @promptAssistant_reasoningBudgetFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Token budget'**
+  String get promptAssistant_reasoningBudgetFormat;
+
+  /// No description provided for @promptAssistant_reasoningAdaptiveFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Adaptive'**
+  String get promptAssistant_reasoningAdaptiveFormat;
+
+  /// No description provided for @promptAssistant_reasoningRejectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch back to Model default and retry.'**
+  String get promptAssistant_reasoningRejectedHint;
+
   /// No description provided for @promptAssistant_thinkingUnavailable.
   ///
   /// In en, this message translates to:

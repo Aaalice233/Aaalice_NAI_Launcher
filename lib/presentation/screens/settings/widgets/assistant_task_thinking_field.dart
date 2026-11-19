@@ -13,6 +13,7 @@ class AssistantTaskThinkingField extends StatelessWidget {
     required this.model,
     required this.value,
     required this.onChanged,
+    this.onConfigure,
   });
 
   final AssistantTaskType task;
@@ -20,6 +21,7 @@ class AssistantTaskThinkingField extends StatelessWidget {
   final String? model;
   final AssistantThinkingLevel value;
   final ValueChanged<AssistantThinkingLevel> onChanged;
+  final VoidCallback? onConfigure;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +31,7 @@ class AssistantTaskThinkingField extends StatelessWidget {
             provider: provider!,
             model: model!,
           );
-    final supported = metadata.selectableThinkingLevels
+    final supported = metadata.offeredThinkingLevels
         .map((level) => level.name)
         .toSet();
     final choices = AssistantThinkingLevel.values
@@ -39,7 +41,7 @@ class AssistantTaskThinkingField extends StatelessWidget {
               supported.contains(level.name),
         )
         .toList();
-    final selected = choices.contains(value)
+    final selected = metadata.quickFormat == null && choices.contains(value)
         ? value
         : AssistantThinkingLevel.automatic;
     final l10n = context.l10n;
@@ -79,7 +81,16 @@ class AssistantTaskThinkingField extends StatelessWidget {
                   if (level != null) onChanged(level);
                 },
         ),
-        if (supported.isEmpty || selected != value) ...[
+        if (metadata.configurable && onConfigure != null)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              onPressed: onConfigure,
+              child: Text(l10n.promptAssistant_configureReasoning),
+            ),
+          ),
+        if ((!metadata.configurable && supported.isEmpty) ||
+            selected != value) ...[
           const SizedBox(height: 6),
           Text(
             supported.isEmpty

@@ -97,6 +97,7 @@ Future<void> showAddModelForm(
     ))
       model.name,
   };
+  final notifier = ref.read(promptAssistantConfigProvider.notifier);
   final result = await AdaptivePresenter.showForm<ProviderModelFormResult>(
     context: context,
     dialogWidth: 480,
@@ -109,10 +110,16 @@ Future<void> showAddModelForm(
     ),
   );
   if (result == null) return;
-  final notifier = ref.read(promptAssistantConfigProvider.notifier);
   await notifier.addProviderModels(provider.id, [
     result.id,
   ], source: ModelSource.manual);
+  if (result.reasoningFormat != null) {
+    await notifier.setModelReasoningFormat(
+      provider.id,
+      result.id,
+      result.reasoningFormat,
+    );
+  }
   if (result.displayName.isNotEmpty) {
     await notifier.renameProviderModel(
       provider.id,
@@ -124,7 +131,6 @@ Future<void> showAddModelForm(
 
 Future<void> showEditModelForm(
   BuildContext context,
-  WidgetRef ref,
   ProviderConfig provider,
   ModelConfig model,
 ) async {
@@ -140,10 +146,23 @@ Future<void> showEditModelForm(
       scrollController: scrollController,
     ),
   );
-  if (result == null) return;
-  await ref
-      .read(promptAssistantConfigProvider.notifier)
-      .renameProviderModel(provider.id, model.name, result.displayName);
+  if (result == null || !context.mounted) return;
+  final notifier = ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(promptAssistantConfigProvider.notifier);
+  if (result.reasoningFormat != provider.modelReasoningFormats[model.name]) {
+    await notifier.setModelReasoningFormat(
+      provider.id,
+      model.name,
+      result.reasoningFormat,
+    );
+  }
+  await notifier.renameProviderModel(
+    provider.id,
+    model.name,
+    result.displayName,
+  );
 }
 
 /// 被任务路由或智能体引用时先说明后果再确认；返回是否已移除。

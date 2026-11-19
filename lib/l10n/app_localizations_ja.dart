@@ -15596,6 +15596,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get promptAssistant_thinkingDefault => 'モデルの既定値';
 
   @override
+  String get promptAssistant_configureReasoning => '推論を設定';
+
+  @override
+  String get promptAssistant_reasoningFormat => '推論パラメーターの形式';
+
+  @override
+  String get promptAssistant_reasoningLevelFormat => 'レベル';
+
+  @override
+  String get promptAssistant_reasoningBudgetFormat => 'トークン予算';
+
+  @override
+  String get promptAssistant_reasoningAdaptiveFormat => '適応型';
+
+  @override
+  String get promptAssistant_reasoningRejectedHint =>
+      '「モデルの既定値」に戻してから再試行してください。';
+
+  @override
   String get promptAssistant_thinkingUnavailable =>
       '調整可能な思考レベルが確認できないため、モデルの既定動作を使用します。';
 

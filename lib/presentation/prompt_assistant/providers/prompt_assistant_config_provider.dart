@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import '../models/assistant_model_capability.dart';
 
 final promptAssistantConfigProvider =
     NotifierProvider<PromptAssistantConfigNotifier, PromptAssistantConfigState>(
@@ -261,6 +263,16 @@ class PromptAssistantConfigNotifier
     ];
     if (models.length == state.models.length) return;
     state = state.copyWith(
+      providers: [
+        for (final provider in state.providers)
+          if (provider.id == providerId)
+            provider.copyWith(
+              modelReasoningFormats: {...provider.modelReasoningFormats}
+                ..removeWhere((id, _) => removed.contains(id)),
+            )
+          else
+            provider,
+      ],
       models: models,
       routing: _repointRoutes(providerId, models),
     );
@@ -324,6 +336,101 @@ class PromptAssistantConfigNotifier
 
   Future<void> setRouting(TaskRoutingConfig routing) async {
     state = state.copyWith(routing: routing);
+    await _save();
+  }
+
+  PromptAssistantConfigState _withReasoningFormat(
+    ProviderConfig provider,
+    String model,
+    ModelReasoningFormat? format,
+  ) {
+    if (provider.modelReasoningFormats[model] == format) return state;
+    final formats = {...provider.modelReasoningFormats}..remove(model);
+    if (format != null) formats[model] = format;
+    final routing = state.routing;
+    return state.copyWith(
+      providers: [
+        for (final item in state.providers)
+          item.id == provider.id
+              ? item.copyWith(modelReasoningFormats: formats)
+              : item,
+      ],
+      routing: routing.copyWith(
+        thinkingLevels: {...routing.thinkingLevels}
+          ..removeWhere(
+            (task, _) =>
+                routing.providerIdFor(task) == provider.id &&
+                routing.modelFor(task) == model,
+          ),
+      ),
+    );
+  }
+
+  Future<void> setModelReasoningFormat(
+    String providerId,
+    String model,
+    ModelReasoningFormat? format,
+  ) async {
+    if (!state.models.any(
+      (item) =>
+          item.providerId == providerId &&
+          item.name == model &&
+          !item.isPlaceholder,
+    )) {
+      return;
+    }
+    final provider = state.providers.firstWhere(
+      (item) => item.id == providerId,
+    );
+    if (format != null &&
+        !AssistantModelCatalog.resolveProvider(
+          provider: provider,
+          model: model,
+        ).configurableFormats.contains(format)) {
+      return;
+    }
+    state = _withReasoningFormat(provider, model, format);
+    await _save();
+  }
+
+  Future<void> setTaskThinkingLevel(
+    AssistantTaskType task,
+    String providerId,
+    String model,
+    AssistantThinkingLevel level,
+  ) async {
+    if (!state
+        .modelsForProviderTask(providerId: providerId, taskType: task)
+        .any((item) => item.name == model && !item.isPlaceholder)) {
+      return;
+    }
+    final provider = state.providers.firstWhere(
+      (item) => item.id == providerId,
+    );
+    final metadata = AssistantModelCatalog.resolveProvider(
+      provider: provider,
+      model: model,
+    );
+    if (level != AssistantThinkingLevel.automatic &&
+        !metadata.offeredThinkingLevels.any(
+          (item) => item.name == level.name,
+        )) {
+      return;
+    }
+    final format = metadata.quickFormat;
+    final next = format != null && level != AssistantThinkingLevel.automatic
+        ? _withReasoningFormat(provider, model, format)
+        : state;
+    final route = next.routing.copyWithTask(
+      taskType: task,
+      providerId: providerId,
+      model: model,
+    );
+    state = next.copyWith(
+      routing: route.copyWith(
+        thinkingLevels: {...route.thinkingLevels, task: level},
+      ),
+    );
     await _save();
   }
 

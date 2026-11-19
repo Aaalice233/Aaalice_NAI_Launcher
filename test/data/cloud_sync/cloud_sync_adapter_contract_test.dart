@@ -41,6 +41,50 @@ class _TrackingAdapter extends ValidatingCloudSyncDataAdapter {
 }
 
 void main() {
+  test(
+    'prompt assistant only exports user rules and preserves local model declarations on restore',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'sync-assistant-',
+      );
+      addTearDown(() async {
+        await Hive.close();
+        await directory.delete(recursive: true);
+      });
+      Hive.init(directory.path);
+      await Hive.openBox<dynamic>(StorageKeys.settingsBox);
+      final storage = LocalStorageService();
+      const providers = [
+        {
+          'id': 'local',
+          'modelReasoningFormats': {'gemini-carbon': 'geminiLevel'},
+        },
+      ];
+      const rules = [
+        {'id': 'rule'},
+      ];
+      await storage.setSetting(
+        StorageKeys.promptAssistantConfigJson,
+        jsonEncode({'providers': providers, 'rules': rules}),
+      );
+      final adapter = PromptAssistantProfileCloudSyncAdapter(storage);
+      expect((await adapter.exportRecords().single).data, {'rules': rules});
+      final restored = PortableSyncRecord(
+        adapterId: adapter.id,
+        id: 'user-rules',
+        kind: 'profile',
+        data: const {'rules': []},
+      );
+      await adapter.apply([restored]);
+      expect(
+        jsonDecode(
+          storage.getSetting<String>(StorageKeys.promptAssistantConfigJson)!,
+        ),
+        {'providers': providers, 'rules': []},
+      );
+    },
+  );
+
   test('registry finishes every preflight before any mutation', () async {
     final first = _TrackingAdapter('first');
     final second = _TrackingAdapter('second', reject: true);

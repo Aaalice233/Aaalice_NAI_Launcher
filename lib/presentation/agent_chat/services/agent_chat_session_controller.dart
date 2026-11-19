@@ -25,6 +25,7 @@ import 'agent_chat_draft_controller.dart';
 import 'agent_chat_session_naming.dart';
 import 'agent_chat_session_recovery.dart';
 import 'agent_chat_session_summary_cache.dart';
+import 'agent_chat_thinking_selections.dart';
 
 class AgentChatRewindCheckpoint {
   const AgentChatRewindCheckpoint({
@@ -82,6 +83,7 @@ class AgentChatSessionController {
 
   Agent? agent;
   Session? session;
+  Map<(String, String), ThinkingLevel> _thinkingSelections = {};
   Usage totalUsage = const Usage();
   final List<session_types.MessageEntry> _visibleEntries = [];
   final List<session_types.LaneRecord> _visibleRecords = [];
@@ -168,10 +170,13 @@ class AgentChatSessionController {
       contextWindow: _readState().contextUsage.contextWindow,
     );
     nextAgent.state.messages = restoredMessages;
-    nextAgent.state.thinkingLevel = ThinkingLevel.values.firstWhere(
-      (level) => level.name == context.thinkingLevel,
-      orElse: () => ThinkingLevel.off,
+    final selections = restoreChatThinkingSelections(
+      entries,
+      nextAgent.state.model,
     );
+    final model = nextAgent.state.model;
+    final selected = selections[(model.provider, model.id)];
+    nextAgent.state.thinkingLevel = selected ?? ThinkingLevel.off;
     nextAgent.setSystemPrompt(await _buildSystemPrompt());
 
     final recentEntries = (await nextSession.findEntriesOnBranch(
@@ -215,6 +220,7 @@ class AgentChatSessionController {
 
     session = nextSession;
     agent = nextAgent;
+    _thinkingSelections = selections;
     totalUsage = usage;
 
     await _localStorage.setSetting(
@@ -241,13 +247,33 @@ class AgentChatSessionController {
         lastRequestUsage: latestRequestUsage,
         clearLastRequestUsage: latestRequestUsage == null,
         contextUsage: contextUsage,
-        thinkingLevel: nextAgent.state.thinkingLevel,
+        thinkingLevel: selected,
+        useModelDefault: selected == null,
         pendingResources: draft.resources,
         composerText: draft.composerText,
       ),
     );
     await _draftController.refreshPendingResourceAvailability();
   }
+
+  ThinkingLevel? thinkingLevelFor(Model model) =>
+      _thinkingSelections[(model.provider, model.id)];
+
+  Future<void> recordThinkingLevel(
+    Session currentSession,
+    Model model,
+    ThinkingLevel? level,
+  ) => _mutateOperation(() async {
+    await appendChatThinkingSelection(currentSession, model, level);
+    if (identical(session, currentSession)) {
+      final route = (model.provider, model.id);
+      if (level == null) {
+        _thinkingSelections.remove(route);
+      } else {
+        _thinkingSelections[route] = level;
+      }
+    }
+  });
 
   AgentChatTimelinePage _buildVisibleTimelinePage({
     required bool hasEarlier,
@@ -711,7 +737,9 @@ class AgentChatSessionController {
     return _runTransition(() => activateSession(sessionId), loadsContent: true);
   }
 
-  Future<AgentChatRewindCheckpoint?> beginRewindLastUserMessage() async {
+  Future<AgentChatRewindCheckpoint?> beginRewindLastUserMessage({
+    (Model, ThinkingLevel?)? keepThinkingSelection,
+  }) async {
     AgentChatRewindCheckpoint? pendingCheckpoint;
     AgentChatRewindCheckpoint? completedCheckpoint;
     try {
@@ -763,6 +791,12 @@ class AgentChatSessionController {
         );
         await currentSession.moveLane('main', target.parentId);
         await activateSession(sessionId);
+        if (keepThinkingSelection case (
+          final model,
+          final level,
+        ) when thinkingLevelFor(model) != level) {
+          await recordThinkingLevel(session!, model, level);
+        }
         await _restorePendingResources(sessionId, restoredResources);
         completedCheckpoint = pendingCheckpoint;
       }, loadsContent: true);
