@@ -137,7 +137,11 @@ void main() {
     );
     await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
-    expect(result, (id: 'my-model', displayName: '我的模型'));
+    expect(result, (
+      id: 'my-model',
+      displayName: '我的模型',
+      reasoningFormat: null,
+    ));
   });
 
   testWidgets('编辑已有服务商时地址和密钥交给页内编辑，新建时仍可填写', (tester) async {

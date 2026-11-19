@@ -9,6 +9,7 @@ import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../../../prompt_assistant/models/assistant_model_capability.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../widgets/common/searchable_model_picker.dart';
@@ -16,6 +17,7 @@ import '../widgets/prompt_assistant_settings_forms.dart';
 import '../widgets/assistant_task_labels.dart';
 import '../widgets/assistant_task_thinking_field.dart';
 import '../widgets/settings_card.dart';
+import 'model_services/provider_model_actions.dart';
 
 class PromptAssistantSettingsSection extends ConsumerWidget {
   const PromptAssistantSettingsSection({super.key});
@@ -218,14 +220,24 @@ class PromptAssistantSettingsSection extends ConsumerWidget {
       modelPickerKeyPrefix: 'prompt-route-${taskType.name}-model',
       thinkingField: AssistantTaskThinkingField(
         task: taskType,
-        provider: state.providers.where((p) => p.id == providerId).firstOrNull,
+        provider: provider,
         model: modelValue,
-        value: state.routing.thinkingFor(taskType),
-        onChanged: (level) => notifier.setRouting(
-          state.routing.copyWith(
-            thinkingLevels: {...state.routing.thinkingLevels, taskType: level},
-          ),
+        value: useCurrentModel
+            ? state.routing.thinkingFor(taskType)
+            : AssistantThinkingLevel.automatic,
+        onChanged: (level) => notifier.setTaskThinkingLevel(
+          taskType,
+          providerId,
+          modelValue!,
+          level,
         ),
+        onConfigure: provider == null || modelValue == null
+            ? null
+            : () => showEditModelForm(
+                context,
+                provider,
+                models.firstWhere((m) => m.name == modelValue),
+              ),
       ),
       providerValue: providerItems.any((item) => item.value == providerId)
           ? providerId

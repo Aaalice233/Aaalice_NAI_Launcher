@@ -63,6 +63,30 @@ enum ProviderProtocol {
   ollamaChatCompletions,
 }
 
+enum ModelReasoningFormat {
+  chatEffort,
+  responsesEffort,
+  geminiLevel,
+  geminiBudget,
+  anthropicAdaptive,
+  anthropicBudget;
+
+  static List<ModelReasoningFormat> forProtocol(ProviderProtocol protocol) =>
+      switch (protocol) {
+        ProviderProtocol.openaiChatCompletions ||
+        ProviderProtocol.ollamaChatCompletions => const [chatEffort],
+        ProviderProtocol.openaiResponses => const [responsesEffort],
+        ProviderProtocol.geminiGenerateContent => const [
+          geminiLevel,
+          geminiBudget,
+        ],
+        ProviderProtocol.anthropicMessages => const [
+          anthropicAdaptive,
+          anthropicBudget,
+        ],
+      };
+}
+
 extension ProviderProtocolLabel on ProviderProtocol {
   String get label {
     switch (this) {
@@ -524,6 +548,7 @@ extension ProviderPresetDefaults on ProviderPreset {
 }
 
 class ProviderConfig {
+  final Map<String, ModelReasoningFormat> modelReasoningFormats;
   final AssistantConcurrencySettings concurrency;
   final String id;
   final String name;
@@ -535,6 +560,7 @@ class ProviderConfig {
   final bool allowImageInput;
 
   const ProviderConfig({
+    this.modelReasoningFormats = const {},
     this.concurrency = const AssistantConcurrencySettings(),
     required this.id,
     required this.name,
@@ -547,6 +573,7 @@ class ProviderConfig {
   });
 
   ProviderConfig copyWith({
+    Map<String, ModelReasoningFormat>? modelReasoningFormats,
     AssistantConcurrencySettings? concurrency,
     String? id,
     String? name,
@@ -559,6 +586,8 @@ class ProviderConfig {
     bool? allowImageInput,
   }) {
     return ProviderConfig(
+      modelReasoningFormats:
+          modelReasoningFormats ?? this.modelReasoningFormats,
       concurrency: concurrency ?? this.concurrency,
       id: id ?? this.id,
       name: name ?? this.name,
@@ -581,6 +610,10 @@ class ProviderConfig {
     'enabled': enabled,
     'allowImageInput': allowImageInput,
     'concurrency': concurrency.toJson(),
+    if (modelReasoningFormats.isNotEmpty)
+      'modelReasoningFormats': modelReasoningFormats.map(
+        (id, format) => MapEntry(id, format.name),
+      ),
   };
 
   factory ProviderConfig.fromJson(Map<String, dynamic> json) {
@@ -594,7 +627,15 @@ class ProviderConfig {
       legacyType: type,
       preset: preset,
     );
+    final formats =
+        json['modelReasoningFormats'] as Map<String, dynamic>? ??
+        const <String, dynamic>{};
+    final byName = ModelReasoningFormat.values.asNameMap();
     return ProviderConfig(
+      modelReasoningFormats: {
+        for (final entry in formats.entries)
+          if (byName[entry.value] case final format?) entry.key: format,
+      },
       concurrency: AssistantConcurrencySettings.fromJson(
         json['concurrency'] as Map<String, dynamic>? ?? const {},
       ),

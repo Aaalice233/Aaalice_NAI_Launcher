@@ -42,6 +42,7 @@ class AgentReasoningRequest {
     this.preserveReasoningContent = false,
     this.allowEmptySignature = false,
     this.alwaysIncludeEncryptedReasoning = false,
+    this.requestReasoningReplay = true,
   });
 
   final AgentReasoningApi api;
@@ -55,6 +56,7 @@ class AgentReasoningRequest {
   final bool preserveReasoningContent;
   final bool allowEmptySignature;
   final bool alwaysIncludeEncryptedReasoning;
+  final bool requestReasoningReplay;
 }
 
 /// Agent 请求：完整消息历史 + 工具集 + 系统提示词。
@@ -163,9 +165,15 @@ class AgentWireFinish extends AgentWireEvent {
 }
 
 class AgentWireError extends AgentWireEvent {
-  const AgentWireError(this.message);
+  const AgentWireError(
+    this.message, {
+    this.retryMessage,
+    this.rejectedReasoningField,
+  });
 
   final String message;
+  final String? retryMessage;
+  final String? rejectedReasoningField;
 }
 
 /// 用户消息内联图片的便捷提取（适配器构造 payload 用）。

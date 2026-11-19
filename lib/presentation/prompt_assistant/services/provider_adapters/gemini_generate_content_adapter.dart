@@ -8,6 +8,7 @@ import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'prompt_assistant_adapter.dart';
 import 'reasoning_payload.dart';
+import 'reasoning_rejection.dart';
 
 class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
   const GeminiGenerateContentAdapter();
@@ -65,7 +66,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       ),
       cancelToken: cancelToken,
     );
-    return _extractResponseContent(response.data);
+    return _extractResponseContent(checkedProviderResponse(response));
   }
 
   @override
@@ -78,6 +79,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         '${_resolveStreamGenerateEndpoint(request.provider, request.model)}'
         '?alt=sse';
     final pending = <AgentWireEvent>[];
+    final payload = _buildAgentPayload(request);
 
     var stopReason = StopReason.pending;
     Usage? usage;
@@ -110,10 +112,11 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           if (data.trim() == '[DONE]') return;
           throw const FormatException('Google stream returned invalid JSON');
         }
-        final error = extractErrorMessage(json);
-        if (error != null) {
+        if (json['error'] case final error?) {
           sawError = true;
-          pending.add(AgentWireError('LLM service returned an error: $error'));
+          pending.add(
+            agentWireErrorFrom(ProviderResponseError(error, payload), request),
+          );
           return;
         }
         final usageRaw = json['usageMetadata'];
@@ -224,7 +227,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       final stream = agentStreamPost(
         dio,
         endpoint: endpoint,
-        payload: _buildAgentPayload(request),
+        payload: payload,
         headers: _headers(request.apiKey),
         cancelToken: cancelToken,
         // Duration.zero overrides Dio's BaseOptions deadline instead of
@@ -247,7 +250,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
       if (pending.isNotEmpty) {
         yield* Stream.fromIterable(List.of(pending));
       }
-      yield agentWireErrorFrom(error, request.provider);
+      yield agentWireErrorFrom(error, request);
       return;
     }
 
@@ -445,10 +448,6 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
 
   String _extractResponseContent(dynamic raw) {
     if (raw is Map<String, dynamic>) {
-      final error = extractErrorMessage(raw);
-      if (error != null) {
-        throw StateError('LLM service returned an error: $error');
-      }
       final candidates = raw['candidates'];
       if (candidates is List) {
         final parts = <String>[];

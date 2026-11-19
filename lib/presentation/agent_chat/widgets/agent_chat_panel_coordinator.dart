@@ -399,10 +399,8 @@ class AgentChatPanelCoordinator {
   }
 
   Future<void> _retryLastMessage() async {
-    final message = await _notifier.rewindLastUserMessage();
-    if (message == null || !_isMounted()) return;
     _controller.followLatest();
-    await _notifier.sendContent(message.content);
+    await _notifier.retryLastMessage();
   }
 
   _AgentChatMessageDraft? _draftForUserMessage(UserMessage message) {

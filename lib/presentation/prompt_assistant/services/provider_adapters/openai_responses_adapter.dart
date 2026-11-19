@@ -9,6 +9,7 @@ import 'agent_wire_helpers.dart';
 import 'openai_chat_completions_adapter.dart';
 import 'prompt_assistant_adapter.dart';
 import 'reasoning_payload.dart';
+import 'reasoning_rejection.dart';
 
 class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
   const OpenAiResponsesAdapter();
@@ -64,7 +65,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
       cancelToken: cancelToken,
     );
 
-    return _extractResponseContent(response.data);
+    return _extractResponseContent(checkedProviderResponse(response));
   }
 
   @override
@@ -83,6 +84,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     final reasoningItems = <String, Map<String, dynamic>>{};
     final reasoningTextSeen = <String>{};
     String? activeReasoningId;
+    final payload = _buildAgentPayload(request);
 
     final parser = AgentSseParser(
       onEvent: (event, data) {
@@ -221,24 +223,14 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
           case 'error':
             sawTerminalEvent = true;
             sawError = true;
-            final error = json;
-            final response = error['response'];
-            Map<String, dynamic>? errorBody;
-            if (response is Map<String, dynamic>) {
-              final inner = response['error'];
-              if (inner is Map<String, dynamic>) {
-                errorBody = inner;
-              }
-            }
-            final direct = error['error'];
-            if (errorBody == null && direct is Map<String, dynamic>) {
-              errorBody = direct;
-            }
-            final message =
-                errorBody?['message'] as String? ??
-                'LLM stream failed with event $event';
+            final response = json['response'];
+            final body =
+                response is Map &&
+                    providerErrorDetail(response['error']) != null
+                ? response
+                : json;
             pending.add(
-              AgentWireError('LLM service returned an error: $message'),
+              agentWireErrorFrom(ProviderResponseError(body, payload), request),
             );
           default:
             break;
@@ -250,7 +242,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
       final stream = agentStreamPost(
         dio,
         endpoint: _resolveEndpoint(request.provider),
-        payload: _buildAgentPayload(request),
+        payload: payload,
         headers: _agentHeaders(request.apiKey),
         cancelToken: cancelToken,
       );
@@ -270,7 +262,7 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
       if (pending.isNotEmpty) {
         yield* Stream.fromIterable(List.of(pending));
       }
-      yield agentWireErrorFrom(error, request.provider);
+      yield agentWireErrorFrom(error, request);
       return;
     }
 
@@ -366,9 +358,14 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
       'store': false,
       if (request.effectiveMaxOutputTokens case final maxTokens?)
         'max_output_tokens': maxTokens < 16 ? 16 : maxTokens,
-      if (effort != null) 'reasoning': {'effort': effort, 'summary': 'auto'},
+      if (effort != null)
+        'reasoning': {
+          'effort': effort,
+          if (reasoning?.requestReasoningReplay != false) 'summary': 'auto',
+        },
       if (reasoning?.api == AgentReasoningApi.openAiResponses &&
-          (reasoning!.enabled || reasoning.alwaysIncludeEncryptedReasoning))
+          reasoning!.requestReasoningReplay &&
+          (reasoning.enabled || reasoning.alwaysIncludeEncryptedReasoning))
         'include': ['reasoning.encrypted_content'],
       if (request.systemPrompt.trim().isNotEmpty)
         'instructions': request.systemPrompt.trim(),
@@ -389,7 +386,15 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
   Map<String, dynamic>? _decodeReasoningItem(String signature) {
     try {
       final value = jsonDecode(signature);
-      return value is Map<String, dynamic> ? value : null;
+      if (value is! Map<String, dynamic> || value['type'] != 'reasoning') {
+        return null;
+      }
+      final encrypted = value['encrypted_content'];
+      if ((encrypted is String && encrypted.trim().isNotEmpty) ||
+          _responseReasoningText(value['content']).trim().isNotEmpty) {
+        return value;
+      }
+      return null;
     } on FormatException {
       return null;
     }
@@ -449,10 +454,6 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
 
   String _extractResponseContent(dynamic raw) {
     if (raw is Map<String, dynamic>) {
-      final error = extractErrorMessage(raw);
-      if (error != null) {
-        throw StateError('LLM service returned an error: $error');
-      }
       final outputText = contentToText(raw['output_text']);
       if (outputText.isNotEmpty) return outputText;
 

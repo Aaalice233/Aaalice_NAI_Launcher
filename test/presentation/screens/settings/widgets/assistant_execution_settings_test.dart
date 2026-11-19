@@ -107,6 +107,47 @@ void main() {
         expect(value, AssistantThinkingLevel.max);
         expect(tester.takeException(), isNull);
       });
+
+      testWidgets(
+        'custom task default and format entry at $width / ${scale}x',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = Size(width, 500);
+          addTearDown(tester.view.reset);
+          var configured = false;
+          AssistantThinkingLevel? selected;
+          await tester.pumpWidget(
+            app(
+              SingleChildScrollView(
+                child: AssistantTaskThinkingField(
+                  task: AssistantTaskType.translate,
+                  provider: ProviderPreset.openaiCompatibleChat.createConfig(),
+                  model: 'gemini-carbon',
+                  value: AssistantThinkingLevel.automatic,
+                  onConfigure: () => configured = true,
+                  onChanged: (value) => selected = value,
+                ),
+              ),
+              scale: scale,
+            ),
+          );
+          expect(find.text('模型默认').hitTestable(), findsOneWidget);
+          final configure = find.text('配置推理');
+          await tester.ensureVisible(configure);
+          await tester.tap(configure);
+          expect(configured, isTrue);
+          await tester.tap(
+            find.byType(DropdownButtonFormField<AssistantThinkingLevel>),
+          );
+          await tester.pumpAndSettle();
+          final high = find.text('高').last;
+          await tester.ensureVisible(high);
+          await tester.tap(high);
+          await tester.pumpAndSettle();
+          expect(selected, AssistantThinkingLevel.high);
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   }
 
@@ -143,7 +184,17 @@ void main() {
       expect(selectors.first.initialValue, AssistantThinkingLevel.high);
       expect(selectors.last.initialValue, AssistantThinkingLevel.automatic);
       expect(find.text('开启'), findsOneWidget);
-      expect(find.text('未识别到可调思考等级，使用模型默认行为。'), findsOneWidget);
+      final unknown = tester
+          .widgetList<DropdownButton<AssistantThinkingLevel>>(
+            find.byType(DropdownButton<AssistantThinkingLevel>),
+          )
+          .last;
+      expect(unknown.items!.map((item) => item.value), [
+        AssistantThinkingLevel.automatic,
+        AssistantThinkingLevel.low,
+        AssistantThinkingLevel.medium,
+        AssistantThinkingLevel.high,
+      ]);
       expect(tester.takeException(), isNull);
     },
   );

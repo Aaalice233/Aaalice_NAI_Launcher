@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/assistant_execution_settings.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
@@ -89,6 +90,118 @@ void main() {
   tearDown(() => container.dispose());
 
   group('addProviderModels', () {
+    test(
+      'missing models, placeholders and mismatched native formats cannot authorize a route',
+      () async {
+        final before = read().routing;
+        await notifier.setTaskThinkingLevel(
+          AssistantTaskType.translate,
+          'relay',
+          'not-added',
+          AssistantThinkingLevel.high,
+        );
+        expect(read().routing, same(before));
+        await notifier.setModelReasoningFormat(
+          'relay',
+          'default-model',
+          ModelReasoningFormat.chatEffort,
+        );
+        await notifier.addProviderModels('relay', [
+          'gemini-carbon',
+        ], source: ModelSource.api);
+        await notifier.setModelReasoningFormat(
+          'relay',
+          'gemini-carbon',
+          ModelReasoningFormat.geminiBudget,
+        );
+        expect(
+          read().providers
+              .firstWhere((p) => p.id == 'relay')
+              .modelReasoningFormats,
+          isEmpty,
+        );
+      },
+    );
+    test(
+      'reasoning declarations survive refresh, rename and local reload for their real model',
+      () async {
+        const model = 'gemini-carbon';
+        const task = AssistantTaskType.translate;
+        for (final id in ['relay', 'backup']) {
+          await notifier.addProviderModels(id, [
+            model,
+          ], source: ModelSource.api);
+        }
+        await routeAllTasks('relay', model);
+        await notifier.setRouting(
+          read().routing.copyWith(
+            thinkingLevels: {
+              AssistantTaskType.llm: AssistantThinkingLevel.high,
+            },
+          ),
+        );
+        await notifier.setTaskThinkingLevel(
+          task,
+          'relay',
+          model,
+          AssistantThinkingLevel.medium,
+        );
+        await notifier.addProviderModels('relay', [
+          model,
+          'another',
+        ], source: ModelSource.api);
+        await notifier.renameProviderModel('relay', model, 'My model');
+        await notifier.upsertProvider(
+          read().providers
+              .firstWhere((p) => p.id == 'relay')
+              .copyWith(name: 'My relay'),
+        );
+        final restored = PromptAssistantConfigState.decode(read().encode());
+        final relay = restored.providers.firstWhere((p) => p.id == 'relay');
+        expect(relay.name, 'My relay');
+        expect(relay.modelReasoningFormats, {
+          model: ModelReasoningFormat.chatEffort,
+        });
+        expect(
+          restored.providers
+              .firstWhere((p) => p.id == 'backup')
+              .modelReasoningFormats,
+          isEmpty,
+        );
+        expect(
+          restored.routing.thinkingFor(task),
+          AssistantThinkingLevel.medium,
+        );
+        expect(
+          restored.routing.thinkingFor(AssistantTaskType.llm),
+          AssistantThinkingLevel.automatic,
+        );
+        expect(
+          ProviderConfig.fromJson(
+            {...relay.toJson()}..remove('modelReasoningFormats'),
+          ).modelReasoningFormats,
+          isEmpty,
+        );
+        await notifier.setRouting(
+          restored.routing.copyWithTask(
+            taskType: task,
+            providerId: 'backup',
+            model: model,
+          ),
+        );
+        expect(
+          read().routing.thinkingFor(task),
+          AssistantThinkingLevel.automatic,
+        );
+        await notifier.removeProviderModels('relay', [model]);
+        expect(
+          read().providers
+              .firstWhere((p) => p.id == 'relay')
+              .modelReasoningFormats,
+          isEmpty,
+        );
+      },
+    );
     test('stores one copy per task and skips models already present', () async {
       await notifier.addProviderModels('relay', [
         'gpt-4o',

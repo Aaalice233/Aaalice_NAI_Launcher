@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/autocomplete/local_first_prompt_translation.dart';
 import '../../../core/autocomplete/tag_translation_lookup.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/locale_provider.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../core/utils/prompt_edit_document.dart';
 import '../../../core/network/proxy_settings_provider.dart';
 import '../models/agent_protocol.dart';
@@ -36,7 +38,12 @@ final promptAssistantDioProvider = Provider<Dio>((ref) {
 
 final promptAssistantServiceProvider = Provider<PromptAssistantService>((ref) {
   final dio = ref.watch(promptAssistantDioProvider);
-  final client = PromptAssistantApiClient(dio: dio);
+  final client = PromptAssistantApiClient(
+    dio: dio,
+    reasoningRejectionHint: () => lookupAppLocalizations(
+      ref.read(localeNotifierProvider),
+    ).promptAssistant_reasoningRejectedHint,
+  );
   final service = PromptAssistantService(
     ref: ref,
     apiClient: client,
@@ -593,9 +600,15 @@ Prompt version: $tagTranslationPromptVersion
       model: model.name,
     );
     final level = config.routing.thinkingFor(taskType);
-    final supported = metadata.selectableThinkingLevels.any(
-      (value) => value.name == level.name,
-    );
+    final supported =
+        provider.id == routingProviderId &&
+        model.name == routingModel &&
+        taskModels.any(
+          (item) => item.name == model.name && !item.isPlaceholder,
+        ) &&
+        metadata.selectableThinkingLevels.any(
+          (value) => value.name == level.name,
+        );
     return (
       provider: provider,
       model: model,

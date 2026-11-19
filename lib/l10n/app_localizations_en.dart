@@ -15981,6 +15981,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get promptAssistant_thinkingDefault => 'Model default';
 
   @override
+  String get promptAssistant_configureReasoning => 'Configure reasoning';
+
+  @override
+  String get promptAssistant_reasoningFormat => 'Reasoning format';
+
+  @override
+  String get promptAssistant_reasoningLevelFormat => 'Level';
+
+  @override
+  String get promptAssistant_reasoningBudgetFormat => 'Token budget';
+
+  @override
+  String get promptAssistant_reasoningAdaptiveFormat => 'Adaptive';
+
+  @override
+  String get promptAssistant_reasoningRejectedHint =>
+      'Switch back to Model default and retry.';
+
+  @override
   String get promptAssistant_thinkingUnavailable =>
       'No adjustable thinking levels identified. Uses the model default.';
 

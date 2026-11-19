@@ -36,7 +36,7 @@ class AgentChatState {
     this.totalUsage,
     this.lastRequestUsage,
     this.contextUsage = const AgentContextUsage.unknown(),
-    this.thinkingLevel = ThinkingLevel.off,
+    this.thinkingLevel,
     this.availableThinkingLevels = const [],
     this.pendingResources = const [],
     this.unavailableResourceKeys = const {},
@@ -80,8 +80,8 @@ class AgentChatState {
 
   /// Current context occupancy, anchored to the last valid assistant usage.
   final AgentContextUsage contextUsage;
-  final ThinkingLevel thinkingLevel;
-  final List<ThinkingLevel> availableThinkingLevels;
+  final ThinkingLevel? thinkingLevel;
+  final List<ThinkingLevel?> availableThinkingLevels;
   final List<AgentChatResourceReference> pendingResources;
   final Set<String> unavailableResourceKeys;
   final String composerText;
@@ -122,7 +122,8 @@ class AgentChatState {
     bool clearLastRequestUsage = false,
     AgentContextUsage? contextUsage,
     ThinkingLevel? thinkingLevel,
-    List<ThinkingLevel>? availableThinkingLevels,
+    bool useModelDefault = false,
+    List<ThinkingLevel?>? availableThinkingLevels,
     List<AgentChatResourceReference>? pendingResources,
     Set<String>? unavailableResourceKeys,
     String? composerText,
@@ -171,7 +172,9 @@ class AgentChatState {
           ? null
           : lastRequestUsage ?? this.lastRequestUsage,
       contextUsage: contextUsage ?? this.contextUsage,
-      thinkingLevel: thinkingLevel ?? this.thinkingLevel,
+      thinkingLevel: useModelDefault
+          ? null
+          : thinkingLevel ?? this.thinkingLevel,
       availableThinkingLevels:
           availableThinkingLevels ?? this.availableThinkingLevels,
       pendingResources: pendingResources ?? this.pendingResources,

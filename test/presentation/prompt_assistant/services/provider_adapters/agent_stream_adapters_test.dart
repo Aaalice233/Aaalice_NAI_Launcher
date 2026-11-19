@@ -204,7 +204,8 @@ void main() {
     );
     final payload = capture.options!.data as Map<String, dynamic>;
     expect(payload['model'], 'deepseek-v4-flash');
-    expect(payload['thinking'], {'type': 'disabled'});
+    expect(payload, isNot(contains('thinking')));
+    expect(payload, isNot(contains('reasoning_effort')));
   });
 
   test(

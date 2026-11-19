@@ -364,7 +364,7 @@ class _ProviderModelRow extends ConsumerWidget {
               key: ValueKey('model-services-model-edit-$id'),
               tooltip: l10n.modelServices_editModel,
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () => showEditModelForm(context, ref, provider, model),
+              onPressed: () => showEditModelForm(context, provider, model),
             ),
             IconButton(
               key: ValueKey('model-services-model-remove-$id'),

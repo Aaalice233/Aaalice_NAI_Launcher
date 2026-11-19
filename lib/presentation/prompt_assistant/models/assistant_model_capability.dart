@@ -4,6 +4,7 @@ import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_reasoning_model_rule.dart';
 import 'pi_model_profiles.dart';
 import 'pi_reasoning_model_catalog.dart';
+import '../services/provider_adapters/reasoning_payload.dart';
 
 const _thinkingOrder = <ThinkingLevel>[
   ThinkingLevel.off,
@@ -15,24 +16,89 @@ const _thinkingOrder = <ThinkingLevel>[
   ThinkingLevel.max,
 ];
 
+enum AssistantModelCatalogMatch {
+  reasoning,
+  nonReasoning,
+  incompatibleProtocol,
+  unknown,
+}
+
 class AssistantModelMetadata {
   const AssistantModelMetadata({
     required this.contextWindow,
     required this.maxOutputTokens,
     required this.thinkingLevels,
     this.reasoningRule,
+    this.catalogMatch = AssistantModelCatalogMatch.reasoning,
+    this.configurableFormats = const [],
   });
 
   static const unknown = AssistantModelMetadata(
     contextWindow: 0,
     maxOutputTokens: 0,
     thinkingLevels: <ThinkingLevel>[],
+    catalogMatch: AssistantModelCatalogMatch.unknown,
   );
 
   final int contextWindow;
   final int maxOutputTokens;
   final List<ThinkingLevel> thinkingLevels;
   final AgentReasoningModelRule? reasoningRule;
+  final AssistantModelCatalogMatch catalogMatch;
+  final List<ModelReasoningFormat> configurableFormats;
+
+  bool get configurable => configurableFormats.isNotEmpty;
+
+  ModelReasoningFormat? get quickFormat =>
+      configurableFormats.length == 1 && reasoningRule == null
+      ? configurableFormats.single
+      : null;
+
+  List<ThinkingLevel> get offeredThinkingLevels => quickFormat != null
+      ? _customEfforts
+      : [
+          for (final level in selectableThinkingLevels)
+            if (level != ThinkingLevel.off || _sendsExplicitOff) level,
+        ];
+
+  List<ThinkingLevel?> get chatThinkingLevels => [
+    if (configurable || reasoning) null,
+    ...offeredThinkingLevels,
+  ];
+
+  bool get _sendsExplicitOff {
+    final off = resolveReasoningRequest(null);
+    if (off == null) return false;
+    return switch (off.api) {
+      AgentReasoningApi.openAiResponses =>
+        responsesReasoningEffort(off, null) != null ||
+            off.alwaysIncludeEncryptedReasoning,
+      AgentReasoningApi.anthropicBudget ||
+      AgentReasoningApi.anthropicAdaptive => anthropicReasoningPayload(
+        reasoning: off,
+      ).containsKey('thinking'),
+      AgentReasoningApi.geminiBudget ||
+      AgentReasoningApi.geminiLevel => geminiThinkingConfig(off) != null,
+      _ => chatReasoningPayload(off).isNotEmpty,
+    };
+  }
+
+  ThinkingLevel? visibleChatLevel(ThinkingLevel? selected) {
+    if (selected == null || !thinkingLevels.contains(selected)) return null;
+    final visible = visibleLevel(selected);
+    return chatThinkingLevels.contains(visible) ? visible : null;
+  }
+
+  ThinkingLevel visibleLevel(ThinkingLevel level) {
+    if (level == ThinkingLevel.off || !thinkingLevels.contains(level)) {
+      return ThinkingLevel.off;
+    }
+    final choices = selectableThinkingLevels;
+    if (choices.contains(level)) return level;
+    final control = _controlFor(level);
+    return choices.where((item) => _controlFor(item) == control).firstOrNull ??
+        ThinkingLevel.off;
+  }
 
   bool get reasoning => thinkingLevels.isNotEmpty;
 
@@ -48,11 +114,8 @@ class AssistantModelMetadata {
   List<ThinkingLevel> get selectableThinkingLevels {
     final choices = <(bool, String?, int?), ThinkingLevel>{};
     for (final level in thinkingLevels) {
-      final request = resolveReasoningRequest(
-        level == ThinkingLevel.off ? null : level.name,
-      );
-      if (request == null) continue;
-      final control = (request.enabled, request.effort, request.budgetTokens);
+      final control = _controlFor(level);
+      if (control == null) continue;
       if (!choices.containsKey(control) || level == ThinkingLevel.high) {
         choices[control] = level;
       }
@@ -60,9 +123,22 @@ class AssistantModelMetadata {
     return thinkingLevels.where(choices.values.contains).toList();
   }
 
+  (bool, String?, int?)? _controlFor(ThinkingLevel level) {
+    final request = resolveReasoningRequest(
+      level == ThinkingLevel.off ? null : level.name,
+    );
+    return request == null
+        ? null
+        : (request.enabled, request.effort, request.budgetTokens);
+  }
+
   AgentReasoningRequest? resolveReasoningRequest(String? selectedLevel) {
     final rule = reasoningRule;
     if (rule == null || thinkingLevels.isEmpty) return null;
+    if (configurable &&
+        !thinkingLevels.any((level) => level.name == selectedLevel)) {
+      return null;
+    }
 
     if (selectedLevel == null && !thinkingLevels.contains(ThinkingLevel.off)) {
       final geminiUsesHiddenMinimum =
@@ -102,6 +178,7 @@ class AssistantModelMetadata {
       preserveReasoningContent: rule.requiresReasoningContent,
       allowEmptySignature: rule.allowEmptySignature,
       alwaysIncludeEncryptedReasoning: rule.alwaysIncludeEncryptedReasoning,
+      requestReasoningReplay: !configurable,
     );
   }
 
@@ -167,6 +244,12 @@ class AssistantModelMetadata {
   }
 }
 
+const _customEfforts = [
+  ThinkingLevel.low,
+  ThinkingLevel.medium,
+  ThinkingLevel.high,
+];
+
 class AssistantModelCatalog {
   const AssistantModelCatalog._();
 
@@ -174,6 +257,7 @@ class AssistantModelCatalog {
     api: AgentReasoningApi.deepSeek,
     levels: [ThinkingLevel.off, ThinkingLevel.high],
     supportsReasoningEffort: false,
+    requiresReasoningContent: true,
     contextWindow: 128000,
     maxOutputTokens: 8192,
   );
@@ -200,12 +284,20 @@ class AssistantModelCatalog {
     required String model,
   }) {
     final providerKey = _resolvePiProvider(provider, model);
-    var rule = providerKey == null ? null : _lookupRule(providerKey, model);
+    final providerRule = providerKey == null
+        ? null
+        : _lookupRule(providerKey, model);
+    final knownToProvider =
+        _profilesByProvider[providerKey]?.containsKey(
+          model.trim().toLowerCase(),
+        ) ??
+        false;
+    var rule = providerRule;
 
     // OpenAI exposes the same model efforts through both wire protocols.
     // Pi's catalog lists Responses; Chat Completions needs its own field shape.
     if (provider.protocol == ProviderProtocol.openaiChatCompletions &&
-        (providerKey == 'openai' || rule == null)) {
+        (providerKey == 'openai' || (rule == null && !knownToProvider))) {
       final openAiRule = _lookupRule('openai', model);
       if (openAiRule?.api == AgentReasoningApi.openAiResponses) {
         rule = openAiRule!.withApi(AgentReasoningApi.openAiCompletions);
@@ -217,8 +309,10 @@ class AssistantModelCatalog {
         'deepseek-chat' => _legacyDeepSeekChat,
         'deepseek-reasoner' => _legacyDeepSeekReasoner,
         // 官方已下线这两个名字但仍接受请求，实际由 deepseek-flash 提供服务。
-        'deepseek-v4-flash' ||
-        'deepseek-v4-flash-vision-exp' => _lookupRule('deepseek', 'deepseek-flash'),
+        'deepseek-v4-flash' || 'deepseek-v4-flash-vision-exp' => _lookupRule(
+          'deepseek',
+          'deepseek-flash',
+        ),
         _ => null,
       };
     }
@@ -237,14 +331,91 @@ class AssistantModelCatalog {
     }
 
     if (provider.preset == ProviderPreset.openaiChat &&
-        model.startsWith('gpt-4.1')) {
+        _gpt41Models.contains(model.trim().toLowerCase())) {
       return const AssistantModelMetadata(
         contextWindow: 1047576,
         maxOutputTokens: 32768,
         thinkingLevels: [],
+        catalogMatch: AssistantModelCatalogMatch.nonReasoning,
       );
     }
-    return _resolveByModelName(provider.protocol, model);
+    if (knownToProvider && providerRule == null) {
+      return _nonReasoning;
+    }
+    final named = _resolveByModelName(provider.protocol, model);
+    if (named.catalogMatch != AssistantModelCatalogMatch.unknown) return named;
+    return _resolveCustom(provider, model);
+  }
+
+  static const _gpt41Models = {
+    'gpt-4.1',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'gpt-4.1-2025-04-14',
+    'gpt-4.1-mini-2025-04-14',
+    'gpt-4.1-nano-2025-04-14',
+  };
+
+  static const _nonReasoning = AssistantModelMetadata(
+    contextWindow: 0,
+    maxOutputTokens: 0,
+    thinkingLevels: [],
+    catalogMatch: AssistantModelCatalogMatch.nonReasoning,
+  );
+
+  static AssistantModelMetadata _resolveCustom(
+    ProviderConfig provider,
+    String model,
+  ) {
+    final id = model.trim();
+    if (id.isEmpty || id == 'default-model') {
+      return AssistantModelMetadata.unknown;
+    }
+    final formats = ModelReasoningFormat.forProtocol(provider.protocol);
+    final format = provider.modelReasoningFormats[id];
+    final custom = formats.contains(format) ? _customRule(format!) : null;
+    return AssistantModelMetadata(
+      catalogMatch: AssistantModelCatalogMatch.unknown,
+      configurableFormats: formats,
+      reasoningRule: custom,
+      thinkingLevels: custom?.levels ?? const [],
+      contextWindow: 0,
+      maxOutputTokens: 0,
+    );
+  }
+
+  static AgentReasoningModelRule _customRule(ModelReasoningFormat format) {
+    return AgentReasoningModelRule(
+      api: switch (format) {
+        ModelReasoningFormat.chatEffort => AgentReasoningApi.openAiCompletions,
+        ModelReasoningFormat.responsesEffort =>
+          AgentReasoningApi.openAiResponses,
+        ModelReasoningFormat.geminiLevel => AgentReasoningApi.geminiLevel,
+        ModelReasoningFormat.geminiBudget => AgentReasoningApi.geminiBudget,
+        ModelReasoningFormat.anthropicAdaptive =>
+          AgentReasoningApi.anthropicAdaptive,
+        ModelReasoningFormat.anthropicBudget =>
+          AgentReasoningApi.anthropicBudget,
+      },
+      levels: _customEfforts,
+      levelMap: format == ModelReasoningFormat.geminiLevel
+          ? const {
+              ThinkingLevel.low: 'LOW',
+              ThinkingLevel.medium: 'MEDIUM',
+              ThinkingLevel.high: 'HIGH',
+            }
+          : const {},
+      // 未知 Anthropic 输出上限按 4096 处理，需为正文预留 1024。
+      thinkingBudgets: format == ModelReasoningFormat.anthropicBudget
+          ? const {
+              ThinkingLevel.low: 1024,
+              ThinkingLevel.medium: 2048,
+              ThinkingLevel.high: 3072,
+            }
+          : const {},
+      contextWindow: 0,
+      maxOutputTokens: 0,
+    );
   }
 
   /// 中转站与自建网关的 baseUrl 不在 host 白名单里，认不出服务商，但模型名
@@ -256,7 +427,11 @@ class AssistantModelCatalog {
     String model,
   ) {
     final candidates = _rulesByModelName[model.trim().toLowerCase()];
-    if (candidates == null) return AssistantModelMetadata.unknown;
+    if (candidates == null) {
+      return _profilesByModelName.containsKey(model.trim().toLowerCase())
+          ? _nonReasoning
+          : AssistantModelMetadata.unknown;
+    }
 
     AgentReasoningModelRule? compatible;
     AgentReasoningModelRule? fallback;
@@ -285,6 +460,7 @@ class AssistantModelCatalog {
       contextWindow: fallback!.contextWindow,
       maxOutputTokens: fallback.maxOutputTokens,
       thinkingLevels: const [],
+      catalogMatch: AssistantModelCatalogMatch.incompatibleProtocol,
     );
   }
 
@@ -473,19 +649,13 @@ class AssistantModelCatalog {
 }
 
 class AgentChatModelCapability {
-  const AgentChatModelCapability({
-    required this.model,
-    required this.levels,
-    required this.metadata,
-  });
+  const AgentChatModelCapability({required this.model, required this.metadata});
 
   final Model model;
-  final List<ThinkingLevel> levels;
   final AssistantModelMetadata metadata;
 
   static const unavailable = AgentChatModelCapability(
     model: Model(id: '', name: '', api: '', provider: ''),
-    levels: [],
     metadata: AssistantModelMetadata.unknown,
   );
 
@@ -514,7 +684,6 @@ class AgentChatModelCapability {
         maxTokens: metadata.maxOutputTokens,
         reasoning: metadata.reasoning,
       ),
-      levels: metadata.thinkingLevels,
       metadata: metadata,
     );
   }
