@@ -42,6 +42,21 @@ void main() {
     expect(source, contains('ResizeChildContent();'));
   });
 
+  test('runner focuses the Flutter child only on activation', () {
+    final source = File('windows/runner/win32_window.cpp').readAsStringSync();
+
+    expect(
+      source,
+      matches(
+        RegExp(
+          r'case WM_ACTIVATE:\s*'
+          r'if \(LOWORD\(wparam\) == WA_INACTIVE\) \{\s*return 0;\s*\}\s*'
+          r'if \(child_content_ != nullptr\) \{\s*SetFocus\(child_content_\);',
+        ),
+      ),
+    );
+  });
+
   test('hot reload explicitly resynchronizes child size and DPI metrics', () {
     final bootstrapSource = File(
       'lib/presentation/screens/splash/app_bootstrap.dart',
