@@ -382,14 +382,22 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    final viewer = tester.widget<ImageDetailViewer>(
-      find.byType(ImageDetailViewer),
-    );
+    final detail = find.byType(ImageDetailViewer);
+    final viewer = tester.widget<ImageDetailViewer>(detail);
     expect(viewer.images, hasLength(1));
     expect(
       (viewer.images.single as FileImageDetailData).filePath,
       imageFile.path,
     );
+    expect(viewer.callbacks?.onDelete, isNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(ModalRoute.of(tester.element(detail))!.isCurrent, isTrue);
+    expect(
+      find.widgetWithIcon(ImageDetailViewer, Icons.delete_outline),
+      findsNothing,
+    );
+    expect(imageFile.existsSync(), isTrue);
   });
 
   testWidgets('renders persisted generation files without a display tool', (
@@ -488,6 +496,7 @@ void main() {
       find.byType(ImageDetailViewer),
     );
     final detail = viewer.images.single as GeneratedImageDetailData;
+    expect(viewer.callbacks?.onDelete, isNull);
     expect(detail.imageBytes, originalBytes);
     final decoded = image_lib.decodeImage(detail.imageBytes);
     expect(decoded?.width, 4);

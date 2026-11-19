@@ -24,7 +24,6 @@ import '../../../core/utils/zip_utils.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
-import '../../../data/services/gallery/gallery_image_file_deleter.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../providers/fixed_tags_provider.dart';
@@ -37,6 +36,7 @@ import '../../providers/mosaic_settings_provider.dart';
 import '../../providers/watermark_settings_provider.dart';
 import '../../providers/reverse_prompt_provider.dart';
 import '../../providers/selection_mode_provider.dart';
+import '../../services/local_gallery_deletion.dart';
 import '../../router/app_routes.dart';
 import '../mosaic/mosaic_editor_launcher.dart';
 import '../watermark/watermark_editor_launcher.dart';
@@ -164,14 +164,15 @@ class LocalGalleryActionCoordinator {
   final BuildContext Function() _context;
   final bool Function() _mounted;
 
+  LocalGallerySelectionNotifier? get _selectionIfMounted => _mounted()
+      ? _ref.read(localGallerySelectionNotifierProvider.notifier)
+      : null;
+
   WatermarkDerivativeRegistry get _watermarkRegistry =>
       WatermarkDerivativeRegistry(_ref.read(localStorageServiceProvider));
 
   MosaicDerivativeRegistry get _mosaicRegistry =>
       MosaicDerivativeRegistry(_ref.read(localStorageServiceProvider));
-
-  GalleryImageFileDeleter get _fileDeleter =>
-      GalleryImageFileDeleter(_ref.read(localStorageServiceProvider));
 
   Future<List<LocalImageRecord>> _selectedImages([Set<String>? targets]) async {
     final selectedIds =
@@ -210,14 +211,15 @@ class LocalGalleryActionCoordinator {
   Future<void> deleteSelectedImages([Set<String>? targets]) async {
     final context = _context();
     final l10n = context.l10n;
-    final selectedImages = await _selectedImages(targets);
-    if (selectedImages.isEmpty || !_mounted()) return;
+    final paths =
+        (targets ??
+                _ref.read(localGallerySelectionNotifierProvider).selectedIds)
+            .toList();
+    if (paths.isEmpty) return;
     final confirmed = await ThemedConfirmDialog.show(
       context: _context(),
       title: l10n.localGallery_confirmBulkDelete,
-      content: l10n.localGallery_confirmBulkDeleteContent(
-        selectedImages.length,
-      ),
+      content: l10n.localGallery_confirmBulkDeleteContent(paths.length),
       confirmText: l10n.common_delete,
       cancelText: l10n.common_cancel,
       type: ThemedConfirmDialogType.danger,
@@ -228,33 +230,14 @@ class LocalGalleryActionCoordinator {
       context: _context(),
       ref: _ref,
       title: l10n.localGallery_protectedDeleteTitle,
-      content: l10n.localGallery_protectedDeleteImagesContent(
-        selectedImages.length,
-      ),
+      content: l10n.localGallery_protectedDeleteImagesContent(paths.length),
       confirmText: l10n.common_delete,
       icon: Icons.delete_forever_outlined,
     );
     if (!protected || !_mounted()) return;
 
-    final deletedPaths = <String>[];
-    final deleter = _fileDeleter;
-    for (final image in selectedImages) {
-      try {
-        if (await deleter.delete(image.path)) deletedPaths.add(image.path);
-      } catch (_) {
-        // Individual failures do not prevent deleting the remaining selection.
-      }
-    }
-    _ref.read(localGallerySelectionNotifierProvider.notifier).exit();
-    await _ref
-        .read(localGalleryNotifierProvider.notifier)
-        .removeDeletedImages(deletedPaths);
-    if (_mounted() && deletedPaths.isNotEmpty) {
-      AppToast.success(
-        _context(),
-        _context().l10n.localGallery_deletedImages(deletedPaths.length),
-      );
-    }
+    await deleteConfirmedGalleryImages(_ref, paths);
+    _selectionIfMounted?.exit();
   }
 
   Future<void> packSelectedImages([Set<String>? targets]) async {
@@ -399,7 +382,6 @@ class LocalGalleryActionCoordinator {
     final categories = _ref.read(galleryCategoryNotifierProvider.notifier);
     final gallery = _ref.read(localGalleryNotifierProvider.notifier);
     final albums = _ref.read(galleryAlbumNotifierProvider.notifier);
-    final selection = _ref.read(localGallerySelectionNotifierProvider.notifier);
     final watermark = _watermarkRegistry;
     final mosaic = _mosaicRegistry;
     final protected = await AssetProtectionGuard.confirmDangerousAction(
@@ -429,7 +411,7 @@ class LocalGalleryActionCoordinator {
       await mosaic.relocatePath(oldPath: image.path, newPath: newPath);
     });
     if (movedPaths.isNotEmpty) {
-      selection.removeDeleted(movedPaths);
+      _selectionIfMounted?.removeDeleted(movedPaths);
       await gallery.refresh(scan: false);
       await albums.exportSidecarNow();
     }
@@ -534,7 +516,10 @@ class LocalGalleryActionCoordinator {
     );
   }
 
-  Future<void> routeImageAction(LocalGalleryImageAction request) async {
+  Future<void> routeImageAction(
+    LocalGalleryImageAction request, {
+    VoidCallback? onSent,
+  }) async {
     final record = request.record;
     final availableMetadata = request.metadata ?? record.metadata;
     switch (request.action) {
@@ -546,9 +531,9 @@ class LocalGalleryActionCoordinator {
       case LocalImageContextAction.importMetadata:
         await importImageMetadata(record);
       case LocalImageContextAction.sendToImg2Img:
-        await _sendToImg2Img(record);
+        await _sendToImg2Img(record, onSent);
       case LocalImageContextAction.sendToReversePrompt:
-        await _sendToReversePrompt(record);
+        await _sendToReversePrompt(record, onSent);
       case LocalImageContextAction.sendToStyleTransfer:
         await _sendToStyleTransfer(record);
       case LocalImageContextAction.sendToPreciseReference:
@@ -588,7 +573,7 @@ class LocalGalleryActionCoordinator {
       case LocalImageContextAction.showInFolder:
         await _openFileInFolder(record.path);
       case LocalImageContextAction.delete:
-        await _confirmDeleteImage(record);
+        await confirmDeleteImage(record);
     }
   }
 
@@ -668,12 +653,16 @@ class LocalGalleryActionCoordinator {
     }
   }
 
-  Future<void> _sendToImg2Img(LocalImageRecord record) async {
+  Future<void> _sendToImg2Img(
+    LocalImageRecord record,
+    VoidCallback? onSent,
+  ) async {
     try {
       final bytes = await _readExistingImage(record);
-      if (bytes == null) return;
+      if (bytes == null || !_mounted()) return;
       ImageWorkflowLauncher.openImageToImage(_ref, bytes);
       if (_mounted()) {
+        onSent?.call();
         _context().go(AppRoutes.home);
         AppToast.success(
           _context(),
@@ -819,14 +808,18 @@ class LocalGalleryActionCoordinator {
     }
   }
 
-  Future<void> _sendToReversePrompt(LocalImageRecord record) async {
+  Future<void> _sendToReversePrompt(
+    LocalImageRecord record,
+    VoidCallback? onSent,
+  ) async {
     try {
       final bytes = await _readExistingImage(record);
-      if (bytes == null) return;
+      if (bytes == null || !_mounted()) return;
       await _ref
           .read(reversePromptProvider.notifier)
           .addImage(bytes, name: path.basename(record.path));
       if (_mounted()) {
+        onSent?.call();
         _context().go(AppRoutes.home);
         AppToast.success(
           _context(),
@@ -986,7 +979,9 @@ class LocalGalleryActionCoordinator {
     }
   }
 
-  Future<void> _confirmDeleteImage(LocalImageRecord record) async {
+  Future<GalleryImageDeleteResult> confirmDeleteImage(
+    LocalImageRecord record,
+  ) async {
     final context = _context();
     final confirmed = await ThemedConfirmDialog.show(
       context: context,
@@ -999,7 +994,7 @@ class LocalGalleryActionCoordinator {
       type: ThemedConfirmDialogType.danger,
       icon: Icons.delete_forever_outlined,
     );
-    if (!confirmed || !_mounted()) return;
+    if (!confirmed || !_mounted()) return GalleryImageDeleteResult.cancelled;
     final protected = await AssetProtectionGuard.confirmDangerousAction(
       context: _context(),
       ref: _ref,
@@ -1010,23 +1005,8 @@ class LocalGalleryActionCoordinator {
       confirmText: _context().l10n.localGallery_confirmDelete,
       icon: Icons.delete_outline,
     );
-    if (!protected || !_mounted()) return;
-    try {
-      if (!await _fileDeleter.delete(record.path)) return;
-      await _ref
-          .read(localGalleryNotifierProvider.notifier)
-          .removeDeletedImages([record.path]);
-      if (_mounted()) {
-        AppToast.success(_context(), _context().l10n.localGallery_imageDeleted);
-      }
-    } catch (error) {
-      if (_mounted()) {
-        AppToast.error(
-          _context(),
-          _context().l10n.localGallery_deleteFailed('$error'),
-        );
-      }
-    }
+    if (!protected || !_mounted()) return GalleryImageDeleteResult.cancelled;
+    return (await deleteConfirmedGalleryImages(_ref, [record.path])).single;
   }
 
   Future<Uint8List?> _readExistingImage(LocalImageRecord record) async {

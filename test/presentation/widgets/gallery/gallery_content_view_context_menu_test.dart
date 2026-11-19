@@ -7,7 +7,11 @@ import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
+import 'package:nai_launcher/presentation/services/local_gallery_deletion.dart';
 import 'package:nai_launcher/presentation/widgets/common/card_action_buttons.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_thumbnail_bar.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_top_bar.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/gallery_content_view.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_card_3d.dart';
 import 'package:nai_launcher/presentation/widgets/gallery/local_image_context_menu.dart';
@@ -22,6 +26,153 @@ void main() {
   tearDown(() {
     PlatformCapabilities.debugOverride = null;
   });
+
+  for (final firstRead in ['成功', '读取异常', '返回空页']) {
+    testWidgets('末页删除后读取网格新页（$firstRead），删空返回图库', (tester) async {
+      PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+        TargetPlatform.android,
+      );
+      await tester.binding.setSurfaceSize(const Size(1600, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final l10n = lookupAppLocalizations(const Locale('en'));
+      final records = [
+        for (var i = 0; i < 51; i++)
+          LocalImageRecord(
+            path: 'gallery/$i.png',
+            size: i,
+            modifiedAt: DateTime(2026),
+            metadata: NaiImageMetadata(seed: i),
+          ),
+      ];
+      final notifier = _ViewerGallery(records.last);
+      var outcome = GalleryImageDeleteResult.cancelled;
+      var newPage = records.take(50).toList();
+      final targets = <String>[];
+      final sends = <(String, LocalImageContextAction)>[];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localGalleryNotifierProvider.overrideWith(() => notifier),
+          ],
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Consumer(
+              builder: (context, ref, _) {
+                final page = ref.watch(localGalleryNotifierProvider);
+                if (page.isLoading) {
+                  return const Scaffold(body: Text('loading gallery'));
+                }
+                if (page.currentImages.isEmpty) {
+                  return const Scaffold(body: Text('empty gallery'));
+                }
+                return Scaffold(
+                  body: LocalGalleryContentView(
+                    columns: 1,
+                    itemWidth: 120,
+                    onDelete: (record) async {
+                      targets.add(record.path);
+                      if (outcome.fileIsGone) {
+                        if (firstRead != '成功' &&
+                            outcome ==
+                                GalleryImageDeleteResult.alreadyMissing) {
+                          notifier.failThenRetry(
+                            newPage,
+                            reportError: firstRead == '读取异常',
+                          );
+                        } else {
+                          if (outcome ==
+                              GalleryImageDeleteResult.alreadyMissing) {
+                            notifier.startReplacementPage();
+                            await WidgetsBinding.instance.endOfFrame;
+                          }
+                          notifier.show(newPage);
+                        }
+                      }
+                      return outcome;
+                    },
+                    onSendAction: (record, action, {onSent}) async {
+                      expect(onSent, isNotNull);
+                      sends.add((record.path, action));
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      final originalGrid = tester.element(find.byType(LocalGalleryContentView));
+      final grid = tester.widget<GenericGalleryContentView<LocalImageRecord>>(
+        find.byType(GenericGalleryContentView<LocalImageRecord>),
+      );
+      grid.view3DConfig!.showDetailViewer(grid.state.currentImages, 0);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      Future<void> invokeDelete() async {
+        tester.widget<DetailTopBar>(find.byType(DetailTopBar)).onDelete!();
+        await tester.pump();
+        await tester.pump();
+      }
+
+      for (final keep in [
+        GalleryImageDeleteResult.cancelled,
+        GalleryImageDeleteResult.failed,
+      ]) {
+        outcome = keep;
+        await invokeDelete();
+        expect(find.text('1 / 1'), findsOneWidget);
+        expect(find.byType(DetailThumbnailBar), findsNothing);
+      }
+      outcome = GalleryImageDeleteResult.alreadyMissing;
+      await invokeDelete();
+      if (firstRead != '成功') {
+        if (firstRead == '读取异常') {
+          expect(find.textContaining('page unavailable'), findsOneWidget);
+        }
+        expect(find.byType(DetailTopBar), findsNothing);
+        expect(targets, List.filled(3, records.last.path));
+        await tester.tap(find.text('Retry'));
+        await tester.pump();
+        await tester.pump();
+        expect(notifier.readPages, [0]);
+        expect(targets, List.filled(3, records.last.path));
+      }
+      expect(find.text('50 / 50'), findsOneWidget);
+      final bar = tester.widget<DetailThumbnailBar>(
+        find.byType(DetailThumbnailBar),
+      );
+      expect(
+        bar.images.map((image) => image.identifier),
+        newPage.map((record) => record.path),
+      );
+      expect(bar.currentIndex, 49);
+      expect(originalGrid.mounted, isFalse);
+      await tester.pump();
+      for (final label in [
+        l10n.detail_sendToImg2Img,
+        l10n.detail_sendToReversePrompt,
+      ]) {
+        final button = find.byTooltip(label).hitTestable();
+        expect(button, findsOneWidget);
+        await tester.tap(button);
+      }
+      await tester.pump();
+      expect(sends, [
+        (records[49].path, LocalImageContextAction.sendToImg2Img),
+        (records[49].path, LocalImageContextAction.sendToReversePrompt),
+      ]);
+      outcome = GalleryImageDeleteResult.deleted;
+      newPage = [];
+      await invokeDelete();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
+      expect(targets, [...List.filled(3, records.last.path), records[49].path]);
+      expect(find.text('empty gallery'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('grouped gallery forwards secondary taps to the context menu', (
     tester,
@@ -365,6 +516,58 @@ Future<void> _observeTouch(WidgetTester tester) async {
   await tester.pump();
   await touch.up();
   await tester.pump();
+}
+
+class _ViewerGallery extends LocalGalleryNotifier {
+  _ViewerGallery(this.initial);
+  final LocalImageRecord initial;
+  late List<LocalImageRecord> retryPage;
+  final readPages = <int>[];
+  @override
+  LocalGalleryState build() => LocalGalleryState(
+    currentImages: [initial],
+    currentPage: 1,
+    isPageLoading: true,
+    isInitialized: true,
+  );
+
+  void startReplacementPage() {
+    state = state.copyWith(currentImages: [], isLoading: true);
+  }
+
+  void show(List<LocalImageRecord> records) {
+    state = state.copyWith(
+      currentPage: 0,
+      currentImages: records,
+      isLoading: false,
+      error: null,
+      totalCount: records.length,
+    );
+  }
+
+  void failThenRetry(
+    List<LocalImageRecord> records, {
+    required bool reportError,
+  }) {
+    retryPage = records;
+    state = state.copyWith(
+      currentPage: 0,
+      currentImages: [],
+      totalCount: records.length,
+      error: reportError
+          ? const LocalGalleryError(
+              LocalGalleryErrorCode.databaseFailed,
+              details: 'page unavailable',
+            )
+          : null,
+    );
+  }
+
+  @override
+  Future<void> loadPage(int page, {bool showLoading = true}) async {
+    readPages.add(page);
+    show(retryPage);
+  }
 }
 
 class _GroupedGalleryState implements GalleryState<LocalImageRecord> {

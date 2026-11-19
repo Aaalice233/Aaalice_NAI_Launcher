@@ -129,21 +129,11 @@ class LocalGalleryScreenController extends ChangeNotifier {
   }
 
   void goToPreviousPage() {
-    final state = _ref.read(localGalleryNotifierProvider);
-    if (state.currentPage > 0) {
-      _ref
-          .read(localGalleryNotifierProvider.notifier)
-          .loadPage(state.currentPage - 1);
-    }
+    _ref.read(localGalleryNotifierProvider.notifier).loadPreviousPage();
   }
 
   void goToNextPage() {
-    final state = _ref.read(localGalleryNotifierProvider);
-    if (state.currentPage < state.totalPages - 1) {
-      _ref
-          .read(localGalleryNotifierProvider.notifier)
-          .loadPage(state.currentPage + 1);
-    }
+    _ref.read(localGalleryNotifierProvider.notifier).loadNextPage();
   }
 
   Future<void> refreshGallery({bool scan = true}) async {

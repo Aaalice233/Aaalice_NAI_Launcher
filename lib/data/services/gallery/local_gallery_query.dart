@@ -34,6 +34,7 @@ class LocalGalleryQuery {
   List<File> _allFiles = [];
   final folderCounts = GalleryFolderCounts();
   List<File> _filteredFiles = [];
+  final _listingExclusions = <Set<String>>{};
   FilterCriteria _currentFilter = const FilterCriteria();
   int _fileListGeneration = 0;
   int _filterGeneration = 0;
@@ -51,6 +52,25 @@ class LocalGalleryQuery {
 
   /// Bumped whenever the membership or ordering of [allFiles] changes.
   int get fileListGeneration => _fileListGeneration;
+
+  Future<List<File>> reloadFiles([String? rootPath]) async {
+    final excluded = <String>{};
+    _listingExclusions.add(excluded);
+    try {
+      final files = await _repository.findGalleryFiles(rootPath);
+      replaceAll(
+        excluded.isEmpty
+            ? files
+            : [
+                for (final file in files)
+                  if (!excluded.contains(galleryFilePathKey(file.path))) file,
+              ],
+      );
+      return _allFiles;
+    } finally {
+      _listingExclusions.remove(excluded);
+    }
+  }
 
   void replaceAll(List<File> files) {
     _allFiles = files;
@@ -94,6 +114,9 @@ class LocalGalleryQuery {
   /// returns the tracked spellings that were removed.
   List<String> removePaths(Iterable<String> filePaths) {
     final keys = {for (final path in filePaths) galleryFilePathKey(path)};
+    for (final excluded in _listingExclusions) {
+      excluded.addAll(keys);
+    }
     final removed = <String>[];
     final remaining = <File>[];
     for (final file in _allFiles) {
@@ -150,15 +173,25 @@ class LocalGalleryQuery {
 
     final operationId = 'local_gallery_filter_$generation';
     _activeFilterOperationId = operationId;
+    final filesGeneration = _fileListGeneration;
     try {
       final result = await _filterService.applyFilters(
         _allFiles,
         criteria,
         operationId: operationId,
-        fileListGeneration: _fileListGeneration,
+        fileListGeneration: filesGeneration,
       );
       if (generation != _filterGeneration || _currentFilter != criteria) return;
-      _filteredFiles = result.files;
+      if (filesGeneration == _fileListGeneration) {
+        _filteredFiles = result.files;
+      } else {
+        final remaining = _allFiles
+            .map((file) => galleryFilePathKey(file.path))
+            .toSet();
+        _filteredFiles = result.files
+            .where((file) => remaining.contains(galleryFilePathKey(file.path)))
+            .toList();
+      }
     } on FilterCancelledException {
       if (generation == _filterGeneration) rethrow;
     } catch (error) {

@@ -1740,8 +1740,6 @@
     }
   },
   "gallery_upscale": "Upscale",
-  "gallery_sentToImg2Img": "Image sent to Image2Image",
-  "gallery_sentToReversePrompt": "Image sent to reverse-prompt module",
   "gallery_sendFailed": "Send failed: {error}",
   "@gallery_sendFailed": {
     "placeholders": {
@@ -2775,6 +2773,14 @@
     }
   },
   "localGallery_imageDeleted": "Image deleted",
+  "localGallery_deleteCleanupFailed": "The image files are gone. Cleanup of their gallery records failed. {error}",
+  "@localGallery_deleteCleanupFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_deleteRegistryCleanupFailed": "The derivative records could not be cleared.",
+  "localGallery_deleteIndexCleanupFailed": "The gallery records could not be updated.",
   "localGallery_deleteFailed": "Delete failed: {error}",
   "@localGallery_deleteFailed": {
     "placeholders": {
@@ -5623,7 +5629,6 @@
   "toast_presetSaved": "Preset saved successfully",
   "toast_imagePromptCopied": "Prompt copied",
   "toast_imageHasNoPrompt": "This image has no Prompt",
-  "toast_useDeleteButton": "Use the delete button in the UI",
   "toast_imageHasNoMetadata": "This image has no metadata",
   "toast_imageDataUnavailable": "Image data is unavailable and cannot be copied",
   "toast_vibeDataCopied": "Vibe data copied",
