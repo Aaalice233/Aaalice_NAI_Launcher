@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 
 import '../models/image_generation_artifact.dart';
 import 'exif_orientation.dart';
+import 'focused_inpaint_input_exception.dart';
 import 'inpaint_mask_utils.dart';
 import 'isolate_pool.dart';
 import 'pica_lanczos_resizer.dart';
@@ -495,18 +496,23 @@ class FocusedInpaintUtils {
     Rect? contextCrop,
     required double minContextMegaPixels,
   }) {
-    final decodedSource = ExifOrientation.decodeUpright(sourceImage);
-    if (decodedSource == null) {
+    final decodedSource = _decodeInput(
+      sourceImage,
+      ExifOrientation.decodeUpright,
+      FocusedInpaintInput.source,
+    );
+    final decodedMask = _decodeInput(
+      maskImage,
+      img.decodeImage,
+      FocusedInpaintInput.mask,
+    );
+    if (decodedMask.width != decodedSource.width ||
+        decodedMask.height != decodedSource.height) {
       return null;
     }
-
-    final binaryMask = InpaintMaskUtils.decodeBinaryMask(maskImage);
-    if (binaryMask == null) {
-      return null;
-    }
-
+    final binaryMask = BinaryMaskCodec.fromImage(decodedMask);
     final maskBounds = _findBinaryMaskBounds(
-      binaryMask.mask,
+      binaryMask.pixels,
       binaryMask.width,
       binaryMask.height,
     );
@@ -515,12 +521,6 @@ class FocusedInpaintUtils {
       return null;
     }
 
-    final decodedMask = img.decodeImage(maskImage);
-    if (decodedMask == null ||
-        decodedMask.width != decodedSource.width ||
-        decodedMask.height != decodedSource.height) {
-      return null;
-    }
     final FocusedInpaintGeometry? geometry;
     if (contextCrop != null) {
       geometry = resolveGeometryForCrop(
@@ -531,7 +531,7 @@ class FocusedInpaintUtils {
       // 裁切区里没有要生成的像素时，这次请求没有意义
       if (geometry == null ||
           !_hasMaskedPixelWithin(
-            binaryMask.mask,
+            binaryMask.pixels,
             binaryMask.width,
             geometry.contextCrop,
           )) {
@@ -550,6 +550,26 @@ class FocusedInpaintUtils {
     }
 
     return (source: decodedSource, mask: decodedMask, geometry: geometry);
+  }
+
+  static img.Image _decodeInput(
+    Uint8List bytes,
+    img.Image? Function(Uint8List) decode,
+    FocusedInpaintInput input,
+  ) {
+    final img.Image? image;
+    try {
+      image = decode(bytes);
+    } on Object catch (_, stackTrace) {
+      Error.throwWithStackTrace(
+        FocusedInpaintInputException.decodeFailed(input),
+        stackTrace,
+      );
+    }
+    if (image == null) {
+      throw FocusedInpaintInputException.decodeFailed(input);
+    }
+    return image;
   }
 
   static bool _hasMaskedPixelWithin(

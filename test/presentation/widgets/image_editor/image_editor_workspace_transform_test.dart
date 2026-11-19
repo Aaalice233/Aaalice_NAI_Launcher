@@ -21,6 +21,30 @@ void main() {
   // EditorState 构造时会异步读取工具设置
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  testWidgets(
+    'resizing, undoing and redoing preserve the selected compression scale',
+    (tester) async {
+      final (key, session) = await pumpEditorWorkspace(
+        tester,
+        viewSize: const Size(1180, 760),
+      );
+      final state = session.editorState;
+      state.resizeCanvas(const Size(1280, 1280), CanvasResizeMode.pad);
+      final index = session.compressionPlan!.targets.indexWhere(
+        (target) => target.matches(1024, 1024),
+      );
+      expect(index, isNonNegative);
+      key.currentState!.debugSetCompressionTargetIndex(index);
+      state.resizeCanvas(const Size(1600, 1600), CanvasResizeMode.pad);
+      expect(session.compressionTarget!.matches(1280, 1280), isTrue);
+      state.undo();
+      expect(session.compressionTarget!.matches(1024, 1024), isTrue);
+      state.redo();
+      expect(session.compressionTarget!.matches(1280, 1280), isTrue);
+      await tester.pumpAndSettle();
+    },
+  );
+
   group('importing an image', () {
     testWidgets('keeps the whole picture and opens a transform to place it', (
       tester,

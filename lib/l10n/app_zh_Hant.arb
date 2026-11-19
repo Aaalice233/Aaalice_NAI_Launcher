@@ -2225,6 +2225,8 @@
       }
     }
   },
+  "generation_invalidInpaintFrameHint": "請將取景框移到影像範圍內，並在框內塗畫蒙版，使其縮放到輸出尺寸後仍涵蓋像素。",
+  "generation_unreadableInpaintImageHint": "無法讀取底圖或蒙版。請重新載入底圖或蒙版後再試一次。",
   "generation_emptyInpaintMask": "重繪蒙版取樣後為空",
   "generation_emptyInpaintMaskHint": "蒙版太細或太小，按 {gridSize} 像素網格取樣後沒有留下可重繪的區域。請加粗或擴大蒙版後重試。",
   "@generation_emptyInpaintMaskHint": {

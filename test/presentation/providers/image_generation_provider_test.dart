@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui';
 
@@ -11,6 +12,8 @@ import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/utils/focused_inpaint_input_exception.dart';
+import 'package:nai_launcher/core/utils/focused_inpaint_utils.dart';
 import 'package:nai_launcher/core/utils/image_save_utils.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
@@ -26,6 +29,7 @@ import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_request_resolution.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/image_save_settings_provider.dart';
 import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
@@ -33,6 +37,8 @@ import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 import 'package:nai_launcher/presentation/providers/notification_settings_provider.dart';
 import 'package:nai_launcher/presentation/services/generation_history_storage_service.dart';
 import 'package:path/path.dart' as p;
+
+import '../../helpers/corrupt_png.dart';
 
 class MockNAIImageGenerationApiService extends Mock
     implements NAIImageGenerationApiService {}
@@ -246,6 +252,180 @@ void main() {
               .isGenerating,
           isFalse,
         );
+      },
+    );
+
+    test(
+      'ordinary inpaint and a focus fallback reject the illegal whole size before transport',
+      () async {
+        final api = MockNAIImageGenerationApiService();
+        final local = _createAuthenticatedContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(api),
+          ],
+        );
+        addTearDown(local.dispose);
+        final params = ImageParams(
+          width: 1664,
+          height: 2432,
+          action: ImageGenerationAction.infill,
+          sourceImage: _validImageBytes(width: 384, height: 256),
+          maskImage: _validMaskBytes(width: 320, height: 256),
+        );
+        for (final enabled in [false, true]) {
+          await local
+              .read(imageGenerationNotifierProvider.notifier)
+              .generate(
+                params,
+                focusedOverride: GenerationFocusedSnapshot(
+                  enabled: enabled,
+                  minimumContextMegaPixels: 96,
+                ),
+              );
+          expect(
+            local.read(imageGenerationNotifierProvider).errorMessage,
+            'GENERATION_ERROR_INVALID_RESOLUTION|1664|2432|1472|2112',
+          );
+        }
+        verifyZeroInteractions(api);
+      },
+    );
+
+    test(
+      'invalid frames and an overlong focused request never reach transport',
+      () async {
+        final api = MockNAIImageGenerationApiService();
+        final local = _createAuthenticatedContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(api),
+          ],
+        );
+        addTearDown(local.dispose);
+        final source = _validImageBytes(width: 512, height: 256);
+        final mask = _validMaskBytes(width: 512, height: 256);
+        for (final (frame, expected) in [
+          (
+            const Rect.fromLTWH(-1, 0, 256, 256),
+            equals(FocusedInpaintInputException.invalidCropCode),
+          ),
+          (
+            const Rect.fromLTWH(0, 0, 64, 64),
+            equals(FocusedInpaintInputException.invalidCropCode),
+          ),
+          (
+            const Rect.fromLTWH(0, 100, 512, 16),
+            startsWith('GENERATION_ERROR_INVALID_RESOLUTION|5760|128|'),
+          ),
+        ]) {
+          local
+              .read(imageWorkflowControllerProvider.notifier)
+              .applyInpaintEditorResult(
+                sourceImage: source,
+                sourceWidth: 512,
+                sourceHeight: 256,
+                maskImage: mask,
+                sourceIsOutpaint: false,
+                focusedInpaintEnabled: true,
+                minimumContextMegaPixels: 96,
+                focusedSelectionRect: null,
+                focusedContextCrop: frame,
+              );
+          await local
+              .read(imageGenerationNotifierProvider.notifier)
+              .generate(local.read(generationParamsNotifierProvider));
+          expect(
+            local.read(imageGenerationNotifierProvider).errorMessage,
+            expected,
+          );
+        }
+        verifyZeroInteractions(api);
+      },
+    );
+
+    test('unreadable focused images fail locally before transport', () async {
+      final api = MockNAIImageGenerationApiService();
+      final local = _createAuthenticatedContainer(
+        overrides: [
+          naiImageGenerationApiServiceProvider.overrideWithValue(api),
+        ],
+      );
+      addTearDown(local.dispose);
+      final source = _validImageBytes(width: 128, height: 128);
+      final mask = _validMaskBytes(width: 128, height: 128);
+      for (final (sourceInput, maskInput) in [
+        (corruptPngPixelData(source), mask),
+        (source, corruptPngPixelData(mask)),
+        (Uint8List.fromList([0]), mask),
+      ]) {
+        await local
+            .read(imageGenerationNotifierProvider.notifier)
+            .generate(
+              ImageParams(
+                width: 128,
+                height: 128,
+                action: ImageGenerationAction.infill,
+                sourceImage: sourceInput,
+                maskImage: maskInput,
+              ),
+              focusedOverride: const GenerationFocusedSnapshot(
+                enabled: true,
+                minimumContextMegaPixels: 96,
+              ),
+            );
+        final state = local.read(imageGenerationNotifierProvider);
+        expect(state.status, GenerationStatus.error);
+        expect(
+          state.errorMessage,
+          FocusedInpaintInputException.decodeFailedCode,
+        );
+      }
+      verifyZeroInteractions(api);
+    });
+
+    test(
+      'a cancelled preflight cannot overwrite a newer input error',
+      () async {
+        final started = Completer<void>();
+        final previous = Completer<FocusedInpaintGeometry?>();
+        final api = MockNAIImageGenerationApiService();
+        final local = _createAuthenticatedContainer(
+          overrides: [
+            naiImageGenerationApiServiceProvider.overrideWithValue(api),
+            focusedRequestGeometryProvider.overrideWith((ref, input) {
+              started.complete();
+              return previous.future;
+            }),
+          ],
+        );
+        addTearDown(local.dispose);
+        final generation = local.read(imageGenerationNotifierProvider.notifier);
+        final pending = generation.generate(
+          ImageParams(
+            width: 128,
+            height: 128,
+            action: ImageGenerationAction.infill,
+            sourceImage: _validImageBytes(width: 128, height: 128),
+            maskImage: _validMaskBytes(width: 128, height: 128),
+          ),
+          focusedOverride: const GenerationFocusedSnapshot(
+            enabled: true,
+            minimumContextMegaPixels: 96,
+          ),
+        );
+        await started.future;
+        generation.cancel();
+        await generation.generate(const ImageParams(width: 1080, height: 1920));
+        previous.completeError(
+          const FocusedInpaintInputException.decodeFailed(
+            FocusedInpaintInput.source,
+          ),
+        );
+        await pending;
+        expect(
+          local.read(imageGenerationNotifierProvider).errorMessage,
+          'GENERATION_ERROR_INVALID_RESOLUTION|1080|1920|1088|1920',
+        );
+        verifyZeroInteractions(api);
       },
     );
 
@@ -1257,7 +1437,7 @@ void main() {
 
       final params = container
           .read(generationParamsNotifierProvider)
-          .copyWith(width: 1792, height: 896);
+          .copyWith(width: 1664, height: 2432);
       await notifier.generate(params);
 
       final updatedParams = container.read(generationParamsNotifierProvider);
@@ -1948,8 +2128,13 @@ Uint8List _validImageBytes({
 Uint8List _validMaskBytes({required int width, required int height}) {
   final mask = img.Image(width: width, height: height);
   img.fill(mask, color: img.ColorRgb8(0, 0, 0));
-  for (var y = 100; y < 180; y++) {
-    for (var x = 200; x < 280; x++) {
+  const patchSize = 80;
+  final right = math.min(width, 200 + patchSize);
+  final bottom = math.min(height, 100 + patchSize);
+  final left = math.max(0, right - patchSize);
+  final top = math.max(0, bottom - patchSize);
+  for (var y = top; y < bottom; y++) {
+    for (var x = left; x < right; x++) {
       mask.setPixelRgb(x, y, 255, 255, 255);
     }
   }

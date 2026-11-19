@@ -2197,6 +2197,8 @@
       "suggestedHeight": { "type": "int" }
     }
   },
+  "generation_invalidInpaintFrameHint": "请将取景框移到图像范围内，并在框内涂画蒙版，使其缩放到输出尺寸后仍覆盖像素。",
+  "generation_unreadableInpaintImageHint": "无法读取底图或蒙版。请重新载入底图或蒙版后重试。",
   "generation_emptyInpaintMask": "重绘蒙版采样后为空",
   "generation_emptyInpaintMaskHint": "蒙版太细或太小，按 {gridSize} 像素网格采样后没有留下可重绘的区域。请加粗或扩大蒙版后重试。",
   "@generation_emptyInpaintMaskHint": {

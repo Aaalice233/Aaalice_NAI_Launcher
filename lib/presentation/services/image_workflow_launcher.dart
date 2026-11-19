@@ -14,6 +14,7 @@ import '../../data/models/image/image_params.dart';
 import '../../data/models/metadata/metadata_import_options.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../providers/generation/image_workflow_controller.dart';
+import '../providers/generation/image_workflow_geometry_helpers.dart';
 import '../providers/generation/workflow_panel_reveal_provider.dart';
 import '../providers/image_generation_provider.dart';
 import '../providers/krita/krita_bridge_notifier.dart';
@@ -131,6 +132,22 @@ class ImageWorkflowLauncher {
       return false;
     }
 
+    return _applyEditorResult(
+      context,
+      workflowNotifier,
+      mode,
+      result,
+      isCurrent,
+    );
+  }
+
+  static Future<bool> _applyEditorResult(
+    BuildContext context,
+    ImageWorkflowController workflowNotifier,
+    ImageEditorMode mode,
+    ImageEditorResult result,
+    bool Function()? isCurrent,
+  ) async {
     AppLogger.d(
       'Editor returned: mode=$mode, hasImageChanges=${result.hasImageChanges}, '
           'hasSourceImageChanges=${result.hasSourceImageChanges}, '
@@ -156,14 +173,7 @@ class ImageWorkflowLauncher {
     );
 
     if (mode == ImageEditorMode.edit) {
-      if (result.hasImageChanges && result.modifiedImage != null) {
-        workflowNotifier.replaceSourceImage(
-          result.modifiedImage!,
-          sourceWidth: result.outputWidth,
-          sourceHeight: result.outputHeight,
-          autoAdapt: !result.compressionApplied,
-        );
-        workflowNotifier.setPanelExpanded(true);
+      if (applyEditResult(workflowNotifier, result)) {
         AppToast.success(context, context.l10n.img2img_editApplied);
         return true;
       }
@@ -181,6 +191,11 @@ class ImageWorkflowLauncher {
     applyInpaintEditorResult(workflowNotifier, result, effectiveMask);
     if (effectiveMask != null) {
       AppToast.success(context, context.l10n.img2img_inpaintMaskReady);
+    } else if (result.focusOutpaint != null) {
+      AppToast.warning(
+        context,
+        context.l10n.generation_invalidInpaintFrameHint,
+      );
     } else if (result.maskImage != null) {
       AppToast.warning(context, context.l10n.toast_noValidMaskIgnored);
     } else if (result.hasSourceImageChanges) {
@@ -189,6 +204,32 @@ class ImageWorkflowLauncher {
     return true;
   }
 
+  static bool applyEditResult(
+    ImageWorkflowController workflow,
+    ImageEditorResult result,
+  ) {
+    final image = result.modifiedImage;
+    if (image == null) return false;
+    final size = _compressedRequestSize(result);
+    workflow.replaceSourceImage(
+      image,
+      sourceWidth: size?.width,
+      sourceHeight: size?.height,
+      autoAdapt: size == null,
+    );
+    workflow.setPanelExpanded(true);
+    return true;
+  }
+
+  static ({int width, int height})? _compressedRequestSize(
+    ImageEditorResult result,
+  ) => result.compressionApplied
+      ? clampWorkflowSizeToRequestLimits(
+          result.outputWidth!,
+          result.outputHeight!,
+        )
+      : null;
+
   @visibleForTesting
   static void applyInpaintEditorResult(
     ImageWorkflowController workflowNotifier,
@@ -196,19 +237,20 @@ class ImageWorkflowLauncher {
     Uint8List? effectiveMask,
   ) {
     final focusOutpaint = result.focusOutpaint;
+    final requestSize = _compressedRequestSize(result);
     if (focusOutpaint != null) {
       workflowNotifier.applyInpaintEditorResult(
         sourceImage: focusOutpaint.sourceImage,
         sourceWidth: focusOutpaint.width,
         sourceHeight: focusOutpaint.height,
-        maskImage: effectiveMask,
+        // 压缩后全黑的蒙版仍属于固定框请求，生成前必须拒绝它。
+        maskImage: result.maskImage!,
         focusedInpaintEnabled: true,
         focusedSelectionRect: null,
-        // 没有可生成的蒙版时只换成整张画布，不再聚焦
-        focusedContextCrop: effectiveMask == null ? null : focusOutpaint.crop,
+        focusedContextCrop: focusOutpaint.crop,
         minimumContextMegaPixels: result.minimumContextMegaPixels,
         sourceIsOutpaint: false,
-        useExactSourceDimensions: result.compressionApplied,
+        requestSize: requestSize,
       );
       return;
     }
@@ -228,7 +270,7 @@ class ImageWorkflowLauncher {
       minimumContextMegaPixels: result.minimumContextMegaPixels,
       forceDisableFocusedInpaint: result.hasOutpaintChanges,
       sourceIsOutpaint: result.hasOutpaintChanges,
-      useExactSourceDimensions: result.compressionApplied,
+      requestSize: requestSize,
     );
   }
 

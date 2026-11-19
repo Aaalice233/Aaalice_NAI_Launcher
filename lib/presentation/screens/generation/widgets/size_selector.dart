@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
-import '../../../../core/utils/nai_resolution_adapter.dart';
 import '../../../../data/models/image/resolution_preset.dart';
+import '../../../providers/generation/generation_request_resolution.dart';
 import '../../../widgets/common/themed_dropdown.dart';
 
 /// 尺寸选择器 (带分组预设和自定义输入)
@@ -12,12 +14,14 @@ import '../../../widgets/common/themed_dropdown.dart';
 class SizeSelector extends StatefulWidget {
   final int width;
   final int height;
+  final AsyncValue<FocusedInpaintGeometry?> requestGeometry;
   final void Function(int width, int height) onChanged;
 
   const SizeSelector({
     super.key,
     required this.width,
     required this.height,
+    this.requestGeometry = const AsyncData(null),
     required this.onChanged,
   });
 
@@ -157,6 +161,13 @@ class _SizeSelectorState extends State<SizeSelector> {
     }
   }
 
+  void _swapDimensions() {
+    final previousWidth = _widthController.text;
+    _widthController.text = _heightController.text;
+    _heightController.text = previousWidth;
+    _onManualSizeChanged();
+  }
+
   List<DropdownMenuItem<String>> _buildDropdownItems(BuildContext context) {
     final theme = Theme.of(context);
     final items = <DropdownMenuItem<String>>[];
@@ -208,10 +219,6 @@ class _SizeSelectorState extends State<SizeSelector> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
-    final resolutionIssue = NaiResolutionAdapter.validateGenerationResolution(
-      widget.width,
-      widget.height,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,12 +293,7 @@ class _SizeSelectorState extends State<SizeSelector> {
             // 交换宽高按钮
             const SizedBox(width: 8),
             IconButton(
-              onPressed: () {
-                final temp = _widthController.text;
-                _widthController.text = _heightController.text;
-                _heightController.text = temp;
-                _onManualSizeChanged();
-              },
+              onPressed: _swapDimensions,
               icon: const Icon(Icons.swap_horiz, size: 20),
               tooltip: context.l10n.common_swap,
               style: IconButton.styleFrom(
@@ -303,19 +305,64 @@ class _SizeSelectorState extends State<SizeSelector> {
             ),
           ],
         ),
-        if (resolutionIssue != null) ...[
+        _RequestSizeHint(
+          width: widget.width,
+          height: widget.height,
+          requestGeometry: widget.requestGeometry,
+        ),
+      ],
+    );
+  }
+}
+
+class _RequestSizeHint extends StatelessWidget {
+  const _RequestSizeHint({
+    required this.width,
+    required this.height,
+    required this.requestGeometry,
+  });
+  final int width;
+  final int height;
+  final AsyncValue<FocusedInpaintGeometry?> requestGeometry;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = requestGeometry.unwrapPrevious();
+    if (resolved.isLoading) return const SizedBox.shrink();
+    final geometry = resolved.asData?.value;
+    final issue = resolved.hasError
+        ? null
+        : validateRequestResolution(width, height, geometry);
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodySmall;
+    final errorStyle = style?.copyWith(color: theme.colorScheme.error);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (resolved.hasError || geometry != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            geometry == null
+                ? l10n.editor_requestedSizeInvalid
+                : l10n.editor_requestedSize(
+                    geometry.requestWidth,
+                    geometry.requestHeight,
+                  ),
+            style: resolved.hasError ? errorStyle : style,
+          ),
+        ],
+        if (issue != null) ...[
           const SizedBox(height: 6),
           Text(
             l10n.generation_invalidResolutionHint(
-              resolutionIssue.width,
-              resolutionIssue.height,
-              resolutionIssue.suggestedWidth,
-              resolutionIssue.suggestedHeight,
+              issue.width,
+              issue.height,
+              issue.suggestedWidth,
+              issue.suggestedHeight,
             ),
             key: const ValueKey('invalid-resolution-hint'),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.error,
-            ),
+            style: errorStyle,
           ),
         ],
       ],

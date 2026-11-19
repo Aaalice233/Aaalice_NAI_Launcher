@@ -399,7 +399,7 @@ void main() {
         sourceWidth: 1216,
         sourceHeight: 1216,
         sourceIsOutpaint: false,
-        useExactSourceDimensions: true,
+        requestSize: (width: 1216, height: 1216),
         maskImage: _buildMask(
           width: 1216,
           height: 1216,

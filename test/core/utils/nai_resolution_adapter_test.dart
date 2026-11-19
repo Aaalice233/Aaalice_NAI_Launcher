@@ -441,6 +441,23 @@ void main() {
       }
     });
 
+    test('adapts an illegal current size even when the source matches it', () {
+      for (final (width, height, expected) in [
+        (1664, 2432, (1472, 2112)),
+        (2432, 1664, (2112, 1472)),
+        (1080, 1920, (1088, 1920)),
+        (64, 4160, (64, 4096)),
+      ]) {
+        final resolution = NaiResolutionAdapter.findImportResolution(
+          width,
+          height,
+          currentWidth: width,
+          currentHeight: height,
+        );
+        expect((resolution.width, resolution.height), expected);
+      }
+    });
+
     test('keeps the official buckets for Stable Diffusion family models', () {
       final result = NaiResolutionAdapter.findImportResolution(
         4096,
@@ -453,16 +470,19 @@ void main() {
       expect((result.width, result.height), equals((512, 512)));
     });
 
-    test('keeps the current parameter size for a smaller same-aspect source', () {
-      final result = NaiResolutionAdapter.findImportResolution(
-        512,
-        768,
-        currentWidth: 1024,
-        currentHeight: 1536,
-      );
+    test(
+      'keeps the current parameter size for a smaller same-aspect source',
+      () {
+        final result = NaiResolutionAdapter.findImportResolution(
+          512,
+          768,
+          currentWidth: 1024,
+          currentHeight: 1536,
+        );
 
-      expect((result.width, result.height), equals((1024, 1536)));
-    });
+        expect((result.width, result.height), equals((1024, 1536)));
+      },
+    );
 
     test('describeImageForImport follows the default sizing', () {
       final info = NaiResolutionAdapter.describeImageForImport(

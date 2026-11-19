@@ -4,11 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../dlss/dlss_enhancement_panel.dart';
-import '../../../../core/utils/focused_inpaint_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/image/image_params.dart';
 import '../../../providers/cost_estimate_provider.dart';
 import '../../../providers/generation/generation_params_notifier.dart';
+import '../../../providers/generation/generation_request_resolution.dart';
 import '../../../providers/generation/image_workflow_controller.dart';
 import '../../../widgets/common/ink_host.dart';
 import '../../../widgets/common/themed_slider.dart';
@@ -52,39 +52,34 @@ class _InpaintPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final workflow = data.workflow;
-    final generationSize = ref.watch(
-      generationParamsNotifierProvider.select(
-        (value) => (value.width, value.height),
-      ),
-    );
-    final sourceWidth =
-        workflow.sourceImageWidth ?? workflow.sourceWidth ?? generationSize.$1;
-    final sourceHeight =
-        workflow.sourceImageHeight ??
-        workflow.sourceHeight ??
-        generationSize.$2;
+    final geometry = ref
+        .watch(generationPageRequestGeometryProvider)
+        .unwrapPrevious()
+        .asData
+        ?.value;
     final contextCrop = workflow.focusedContextCrop;
-    final selection = workflow.focusedSelectionRect;
-    final geometry = contextCrop != null
-        ? FocusedInpaintUtils.resolveGeometryForCrop(
-            sourceWidth: sourceWidth,
-            sourceHeight: sourceHeight,
-            crop: contextCrop,
-          )
-        : selection == null
-        ? null
-        : FocusedInpaintUtils.resolveGeometryForSelection(
-            sourceWidth: sourceWidth,
-            sourceHeight: sourceHeight,
-            selectionRect: selection,
-            minContextMegaPixels: workflow.minimumContextMegaPixels,
-          );
-    final focusedCost = geometry == null
-        ? null
-        : ref.watch(estimatedCostProvider);
-    final enabledHint = contextCrop != null
-        ? context.l10n.img2img_focusOutpaintHint
-        : context.l10n.img2img_focusedInpaintEnabledHint;
+    final l10n = context.l10n;
+    var hint = !workflow.focusedInpaintEnabled
+        ? l10n.img2img_focusedInpaintDisabledHint
+        : contextCrop != null
+        ? l10n.img2img_focusOutpaintHint
+        : l10n.img2img_focusedInpaintEnabledHint;
+    if (geometry != null) {
+      final cost = ref.watch(estimatedCostProvider);
+      final request = cost == null
+          ? l10n.editor_requestedSize(
+              geometry.requestWidth,
+              geometry.requestHeight,
+            )
+          : l10n.editor_focusRequestSummary(
+              geometry.contextCrop.width,
+              geometry.contextCrop.height,
+              geometry.requestWidth,
+              geometry.requestHeight,
+              cost,
+            );
+      hint = '$hint\n$request';
+    }
     return _SubPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -105,11 +100,7 @@ class _InpaintPanel extends ConsumerWidget {
               style: theme.textTheme.bodyMedium,
             ),
             subtitle: Text(
-              workflow.focusedInpaintEnabled && geometry != null
-                  ? '$enabledHint\n${context.l10n.editor_focusRequestSummary(geometry.contextCrop.width, geometry.contextCrop.height, geometry.requestWidth, geometry.requestHeight, focusedCost ?? 0)}'
-                  : workflow.focusedInpaintEnabled
-                  ? enabledHint
-                  : context.l10n.img2img_focusedInpaintDisabledHint,
+              hint,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 height: 1.4,

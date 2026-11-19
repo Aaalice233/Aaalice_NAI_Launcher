@@ -125,8 +125,8 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     if (autoAdapt) {
       importInfo = describeWorkflowSourceForImport(
         imageBytes,
-        currentWidth: sourceWidth ?? _params.width,
-        currentHeight: sourceHeight ?? _params.height,
+        currentWidth: _params.width,
+        currentHeight: _params.height,
         model: _params.model,
       );
       if (importInfo != null) {
@@ -166,8 +166,8 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     final params = _params;
     final importInfo = await describeWorkflowSourceForImportAsync(
       imageBytes,
-      currentWidth: sourceWidth ?? params.width,
-      currentHeight: sourceHeight ?? params.height,
+      currentWidth: params.width,
+      currentHeight: params.height,
       model: params.model,
     );
 
@@ -385,7 +385,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     Rect? focusedContextCrop,
     bool forceDisableFocusedInpaint = false,
     bool sourceIsOutpaint = true,
-    bool useExactSourceDimensions = false,
+    ({int width, int height})? requestSize,
   }) {
     final hasReplacementSource = sourceImage != null;
     validateInpaintEditorSourceDimensions(
@@ -405,7 +405,7 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
     NaiImportImageInfo? importInfo;
     if (hasReplacementSource) {
       _paramsNotifier.setSourceImage(sourceImage);
-      if (!useExactSourceDimensions) {
+      if (requestSize == null) {
         importInfo = describeWorkflowSourceForImport(
           sourceImage,
           currentWidth: _params.width,
@@ -415,9 +415,9 @@ class ImageWorkflowController extends Notifier<ImageWorkflowState> {
       }
     }
 
-    // 编辑器已经明确给出输出尺寸，只在超出请求上限时收敛到最接近的合法尺寸。
     final exactRequestSize = hasReplacementSource && importInfo == null
-        ? clampWorkflowSizeToRequestLimits(sourceWidth!, sourceHeight!)
+        ? requestSize ??
+              clampWorkflowSizeToRequestLimits(sourceWidth!, sourceHeight!)
         : null;
 
     _ensureBaseSizeSnapshot();

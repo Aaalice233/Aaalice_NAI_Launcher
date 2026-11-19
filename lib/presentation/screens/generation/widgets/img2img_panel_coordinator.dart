@@ -89,11 +89,8 @@ final class Img2ImgPanelCoordinator {
       mode: ImageEditorMode.edit,
       title: context.l10n.img2img_drawSketch,
     );
-    final image = result?.modifiedImage;
-    if (image == null || !context.mounted) return;
-    _workflow
-      ..replaceSourceImage(image)
-      ..setPanelExpanded(true);
+    if (result == null || !context.mounted) return;
+    ImageWorkflowLauncher.applyEditResult(_workflow, result);
   }
 
   void openEditor(

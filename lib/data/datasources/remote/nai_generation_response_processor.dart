@@ -9,6 +9,7 @@ import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import '../../../core/models/image_generation_artifact.dart';
 import '../../../core/network/request_builders/nai_image_request_builder.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/utils/focused_inpaint_input_exception.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../../../core/utils/inpaint_mask_utils.dart';
 import '../../../core/utils/isolate_pool.dart';
@@ -51,10 +52,7 @@ class NaiGenerationResponseProcessor {
       minContextMegaPixels: minimumContextMegaPixels,
     );
     if (request == null && focusedContextCrop != null) {
-      throw StateError(
-        'Focus outpaint crop $focusedContextCrop does not fit the source '
-        'image or contains no masked pixels.',
-      );
+      throw const FocusedInpaintInputException.invalidCrop();
     }
     if (request != null) {
       AppLogger.d(

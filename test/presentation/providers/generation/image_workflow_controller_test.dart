@@ -769,7 +769,7 @@ void main() {
           sourceWidth: 1344,
           sourceHeight: 640,
           sourceIsOutpaint: false,
-          useExactSourceDimensions: true,
+          requestSize: (width: 1344, height: 640),
           maskImage: mask,
           focusedInpaintEnabled: true,
           focusedSelectionRect: const Rect.fromLTWH(128, 64, 640, 320),
@@ -830,7 +830,7 @@ void main() {
       },
     );
 
-    test('applyInpaintEditorResult drops a crop outside the new source', () {
+    test('a fixed frame outside the source stays focused for validation', () {
       final controller = container.read(
         imageWorkflowControllerProvider.notifier,
       );
@@ -848,8 +848,11 @@ void main() {
       );
 
       final workflow = container.read(imageWorkflowControllerProvider);
-      expect(workflow.focusedContextCrop, isNull);
-      expect(workflow.focusedInpaintEnabled, isFalse);
+      expect(
+        workflow.focusedContextCrop,
+        const Rect.fromLTWH(512, 0, 832, 1216),
+      );
+      expect(workflow.focusedInpaintEnabled, isTrue);
     });
 
     test('a focus outpaint crop clears with every focused reset', () {
@@ -1563,7 +1566,6 @@ void main() {
       expect(params.maskImage, same(mask));
       expect(workflow.focusedInpaintEnabled, isTrue);
     });
-
   });
 
   group('resolveSeedvr2SwapIoComponents', () {

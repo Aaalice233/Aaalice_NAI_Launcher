@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/utils/focused_inpaint_input_exception.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
 import '../../core/utils/localization_extension.dart';
 import '../providers/generation/generation_error_classifier.dart';
@@ -65,6 +66,16 @@ String detailGenerationError(BuildContext context, String message) {
       return (
         l10n.randomPrompt_unsupportedModel,
         l10n.randomPrompt_unsupportedModelHint,
+      );
+    case FocusedInpaintInputException.invalidCropCode:
+      return (
+        l10n.generation_generationFailed,
+        l10n.generation_invalidInpaintFrameHint,
+      );
+    case FocusedInpaintInputException.decodeFailedCode:
+      return (
+        l10n.generation_generationFailed,
+        l10n.generation_unreadableInpaintImageHint,
       );
     case 'GENERATION_ERROR_INVALID_RESOLUTION':
       if (parts.length >= 5) {

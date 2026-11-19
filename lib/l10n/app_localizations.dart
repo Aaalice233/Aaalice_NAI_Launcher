@@ -9273,6 +9273,18 @@ abstract class AppLocalizations {
     int suggestedHeight,
   );
 
+  /// No description provided for @generation_invalidInpaintFrameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the frame inside the image and paint a mask large enough to remain visible inside the frame at the output size.'**
+  String get generation_invalidInpaintFrameHint;
+
+  /// No description provided for @generation_unreadableInpaintImageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The source image or mask could not be read. Reload the image or mask and try again.'**
+  String get generation_unreadableInpaintImageHint;
+
   /// No description provided for @generation_emptyInpaintMask.
   ///
   /// In en, this message translates to:

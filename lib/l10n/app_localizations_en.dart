@@ -5258,6 +5258,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get generation_invalidInpaintFrameHint =>
+      'Keep the frame inside the image and paint a mask large enough to remain visible inside the frame at the output size.';
+
+  @override
+  String get generation_unreadableInpaintImageHint =>
+      'The source image or mask could not be read. Reload the image or mask and try again.';
+
+  @override
   String get generation_emptyInpaintMask =>
       'Inpaint mask is empty after sampling';
 
