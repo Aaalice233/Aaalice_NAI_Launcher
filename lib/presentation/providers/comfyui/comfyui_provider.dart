@@ -164,6 +164,8 @@ class ComfyUIWorkflows extends _$ComfyUIWorkflows {
 class ComfyUITask extends _$ComfyUITask {
   static const String _tag = 'ComfyUI-Task';
 
+  int _cancellationGeneration = 0;
+
   static String _summarizeInputImages(Map<String, Uint8List> images) {
     return images.entries
         .map((entry) => '${entry.key}:${entry.value.length}')
@@ -205,6 +207,7 @@ class ComfyUITask extends _$ComfyUITask {
     required Map<String, Uint8List> inputImages,
     required Map<String, dynamic> paramValues,
   }) async {
+    final cancellationGeneration = _cancellationGeneration;
     final connNotifier = ref.read(comfyUIConnectionProvider.notifier);
     final connStatus = ref.read(comfyUIConnectionProvider);
     final workflows = ref.read(comfyUIWorkflowsProvider.notifier);
@@ -260,85 +263,14 @@ class ComfyUITask extends _$ComfyUITask {
     }
 
     try {
-      final outputNodeIds = template.outputSlots
-          .map((slot) => slot.nodeId)
-          .toSet();
-
-      // 1. 上传图像
-      state = state.copyWith(status: ComfyUITaskStatus.uploading, progress: 0);
-      AppLogger.d('Uploading inputs for template=$templateId', _tag);
-      final uploadedFiles = await manager.uploadInputImages(
-        api: conn!.api!,
+      return await _runConnectedWorkflow(
+        conn: conn!,
+        manager: manager,
         template: template,
-        imageData: inputImages,
+        inputImages: inputImages,
+        paramValues: paramValues,
+        cancellationGeneration: cancellationGeneration,
       );
-      AppLogger.d(
-        'Inputs uploaded for template=$templateId: $uploadedFiles',
-        _tag,
-      );
-
-      // 2. 处理种子：-1 表示随机
-      final effectiveParams = Map<String, dynamic>.from(paramValues);
-      final seedSlot = template.slots.where((s) => s.id == 'seed').toList();
-      if (seedSlot.isNotEmpty) {
-        final seedValue =
-            effectiveParams['seed'] ?? seedSlot.first.defaultValue;
-        if (seedValue is int && seedValue == -1) {
-          effectiveParams['seed'] = Random().nextInt(4294967295);
-        }
-      }
-
-      // 3. 构建可执行工作流
-      AppLogger.d('Building workflow for template=$templateId', _tag);
-      final workflow = manager.buildExecutableWorkflow(
-        template: template,
-        paramValues: effectiveParams,
-        uploadedFiles: uploadedFiles,
-      );
-      AppLogger.d(
-        'Validating workflow node types for template=$templateId',
-        _tag,
-      );
-      await manager.validateWorkflowNodeTypes(
-        api: conn.api!,
-        workflow: workflow,
-      );
-      AppLogger.d(
-        'Workflow node validation passed: template=$templateId',
-        _tag,
-      );
-
-      // 4. 提交工作流
-      state = state.copyWith(status: ComfyUITaskStatus.queued);
-      AppLogger.i(
-        'Queue prompt start: template=$templateId, clientId=${conn.clientId}',
-        _tag,
-      );
-      final result = await conn.api!.queuePrompt(
-        workflow: workflow,
-        clientId: conn.clientId,
-      );
-      state = state.copyWith(promptId: result.promptId);
-      conn.ws!.trackPrompt(result.promptId);
-      AppLogger.i(
-        'Queue prompt returned: template=$templateId, '
-        'promptId=${result.promptId}, '
-        'webSocketOutput=${template.usesWebSocketOutput}',
-        _tag,
-      );
-
-      // 5. 等待完成
-      state = state.copyWith(status: ComfyUITaskStatus.running);
-
-      final images = template.usesWebSocketOutput
-          ? await _waitForWebSocketResult(conn, result.promptId, outputNodeIds)
-          : await _waitForHttpResult(conn, result.promptId, outputNodeIds);
-      AppLogger.i(
-        'Workflow result collected: template=$templateId, '
-        'promptId=${result.promptId}, ${_summarizeOutputImages(images)}',
-        _tag,
-      );
-      return images;
     } on _ComfyUITaskLocalizedException catch (e, stackTrace) {
       AppLogger.e(
         'Task execution failed: template=$templateId',
@@ -353,6 +285,7 @@ class ComfyUITask extends _$ComfyUITask {
       );
       return null;
     } catch (e, stackTrace) {
+      if (cancellationGeneration != _cancellationGeneration) return null;
       AppLogger.e(
         'Task execution failed: template=$templateId',
         e,
@@ -366,6 +299,91 @@ class ComfyUITask extends _$ComfyUITask {
       );
       return null;
     }
+  }
+
+  Future<List<Uint8List>?> _runConnectedWorkflow({
+    required ComfyUIConnectionManager conn,
+    required WorkflowTemplateManager manager,
+    required WorkflowTemplate template,
+    required Map<String, Uint8List> inputImages,
+    required Map<String, dynamic> paramValues,
+    required int cancellationGeneration,
+  }) async {
+    final templateId = template.id;
+    final outputNodeIds = template.outputSlots
+        .map((slot) => slot.nodeId)
+        .toSet();
+
+    // 1. 上传图像
+    state = state.copyWith(status: ComfyUITaskStatus.uploading, progress: 0);
+    AppLogger.d('Uploading inputs for template=$templateId', _tag);
+    final uploadedFiles = await manager.uploadInputImages(
+      api: conn.api!,
+      template: template,
+      imageData: inputImages,
+    );
+    if (cancellationGeneration != _cancellationGeneration) return null;
+    AppLogger.d(
+      'Inputs uploaded for template=$templateId: $uploadedFiles',
+      _tag,
+    );
+
+    // 2. 处理种子：-1 表示随机
+    final effectiveParams = Map<String, dynamic>.from(paramValues);
+    final seedSlot = template.slots.where((s) => s.id == 'seed').toList();
+    if (seedSlot.isNotEmpty) {
+      final seedValue = effectiveParams['seed'] ?? seedSlot.first.defaultValue;
+      if (seedValue is int && seedValue == -1) {
+        effectiveParams['seed'] = Random().nextInt(4294967295);
+      }
+    }
+
+    // 3. 构建可执行工作流
+    AppLogger.d('Building workflow for template=$templateId', _tag);
+    final workflow = manager.buildExecutableWorkflow(
+      template: template,
+      paramValues: effectiveParams,
+      uploadedFiles: uploadedFiles,
+    );
+    AppLogger.d(
+      'Validating workflow node types for template=$templateId',
+      _tag,
+    );
+    await manager.validateWorkflowNodeTypes(api: conn.api!, workflow: workflow);
+    if (cancellationGeneration != _cancellationGeneration) return null;
+    AppLogger.d('Workflow node validation passed: template=$templateId', _tag);
+
+    // 4. 提交工作流
+    state = state.copyWith(status: ComfyUITaskStatus.queued);
+    AppLogger.i(
+      'Queue prompt start: template=$templateId, clientId=${conn.clientId}',
+      _tag,
+    );
+    final result = await conn.api!.queuePrompt(
+      workflow: workflow,
+      clientId: conn.clientId,
+    );
+    state = state.copyWith(promptId: result.promptId);
+    conn.ws!.trackPrompt(result.promptId);
+    AppLogger.i(
+      'Queue prompt returned: template=$templateId, '
+      'promptId=${result.promptId}, '
+      'webSocketOutput=${template.usesWebSocketOutput}',
+      _tag,
+    );
+
+    // 5. 等待完成
+    state = state.copyWith(status: ComfyUITaskStatus.running);
+
+    final images = template.usesWebSocketOutput
+        ? await _waitForWebSocketResult(conn, result.promptId, outputNodeIds)
+        : await _waitForHttpResult(conn, result.promptId, outputNodeIds);
+    AppLogger.i(
+      'Workflow result collected: template=$templateId, '
+      'promptId=${result.promptId}, ${_summarizeOutputImages(images)}',
+      _tag,
+    );
+    return images;
   }
 
   Future<List<Uint8List>> _waitForWebSocketResult(
@@ -514,6 +532,7 @@ class ComfyUITask extends _$ComfyUITask {
   }
 
   void cancel() {
+    _cancellationGeneration++;
     final conn = ref.read(comfyUIConnectionProvider.notifier).manager;
     conn?.api?.interrupt();
     state = state.copyWith(status: ComfyUITaskStatus.cancelled);
