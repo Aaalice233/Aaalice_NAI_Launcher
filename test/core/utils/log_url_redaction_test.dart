@@ -109,6 +109,50 @@ void main() {
         'https://x.test/y?q=a,b&token=t tail',
         'https://x.test/y tail',
       ),
+      'apostrophes and parentheses inside a query': (
+        "https://x.test/y?q=O'Connor(a,b)&tags=private status=429",
+        'https://x.test/y status=429',
+      ),
+      'full-width comma after a query': (
+        'https://danbooru.donmai.us/posts.json?limit=1&tags=a+b，状态码=429',
+        'https://danbooru.donmai.us/posts.json，状态码=429',
+      ),
+      'ComfyUI node errors separated without spaces': (
+        '节点 1: https://x.test/input?key=one；节点 2: https://y.test/output#two',
+        '节点 1: https://x.test/input；节点 2: https://y.test/output',
+      ),
+      'Chinese diagnostics immediately after a fragment': (
+        'https://x.test/y?tags=private#fragment状态码=429',
+        'https://x.test/y状态码=429',
+      ),
+      'Chinese text at the start of a query value': (
+        'https://x.test/y?tags=隐藏标签&login=bob status=429',
+        'https://x.test/y status=429',
+      ),
+      'closing single quote followed by a field': (
+        "url='https://x.test/y?q=1'status=429",
+        "url='https://x.test/y'status=429",
+      ),
+      'closing parenthesis followed by a field': (
+        '(https://x.test/y?key=one)status=429',
+        '(https://x.test/y)status=429',
+      ),
+      'adjacent URLs without a separator': (
+        'https://x.test/y?q=1https://u:p@z.test/a?tag=two#frag',
+        'https://x.test/yhttps://z.test/a',
+      ),
+      'adjacent WebSocket URL after a path': (
+        'https://x.test/viewwss://u:p@y.test/ws?clientId=private',
+        'https://x.test/viewwss://y.test/ws',
+      ),
+      'semicolon between URLs': (
+        'https://x.test/y?q=a;custom://z.test/a#frag',
+        'https://x.test/y;custom://z.test/a',
+      ),
+      'redirect URL inside a query value': (
+        'https://x.test/y?redirect=https://z.test/a?tag=two#frag status=429',
+        'https://x.test/y status=429',
+      ),
       'authority followed directly by query': (
         'https://user:secret@x.test?login=bob&key=xyz',
         'https://x.test',
