@@ -9,6 +9,16 @@ String redactUriForLog(Uri uri) {
 }
 
 const _scheme = r'[A-Za-z][A-Za-z0-9+.-]*';
+final _proxyUrlScheme = RegExp('^$_scheme://');
+
+String formatProxyAddressForLog(String address) {
+  final uri = Uri.tryParse(
+    '//${address.trim().replaceFirst(_proxyUrlScheme, '')}',
+  );
+  if (uri == null || uri.host.isEmpty) return '[invalid proxy address]';
+  return uri.replace(userInfo: '').authority;
+}
+
 const _urlDelimiters =
     r'''\s"<>`‘’“”\u3000-\u303F'''
     r'\uFF01-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40\uFF5B-\uFF65';

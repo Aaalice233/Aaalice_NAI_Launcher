@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/log_url_redaction.dart';
 import 'windows_proxy_helper.dart';
 
 /// 代理测试结果
@@ -141,7 +142,10 @@ class ProxyService {
         hostPort = hostPort.split('@').last;
       }
 
-      AppLogger.d('Linux proxy detected: $hostPort', 'PROXY');
+      AppLogger.d(
+        () => 'Linux proxy detected: ${formatProxyAddressForLog(proxyUrl)}',
+        'PROXY',
+      );
       return hostPort;
     } catch (e) {
       AppLogger.w('Failed to parse Linux proxy URL: ${e.runtimeType}', 'PROXY');

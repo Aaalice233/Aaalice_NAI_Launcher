@@ -56,10 +56,12 @@ Dio dioClient(Ref ref) {
   // 添加错误处理拦截器
   dio.interceptors.add(ErrorInterceptor(ref));
 
-  final route = proxyAddress != null && proxyAddress.isNotEmpty
-      ? 'proxy: $proxyAddress'
-      : 'direct';
-  AppLogger.d('Dio using HTTP/1.1 adapter ($route)', 'NETWORK');
+  AppLogger.d(() {
+    final route = proxyAddress != null && proxyAddress.isNotEmpty
+        ? 'proxy: ${formatProxyAddressForLog(proxyAddress)}'
+        : 'direct';
+    return 'Dio using HTTP/1.1 adapter ($route)';
+  }, 'NETWORK');
 
   // 注意：不要在 dispose 时关闭 Dio，因为 Provider 可能会被重建
   // ref.onDispose(dio.close);

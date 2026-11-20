@@ -13,6 +13,7 @@ import '../../core/shortcuts/shortcut_storage.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/hive_startup_box_opener.dart';
 import '../../core/utils/hive_storage_helper.dart';
+import '../../core/utils/log_url_redaction.dart';
 import '../../core/database/datasources/gallery_data_source.dart';
 import '../../core/storage/local_storage_service.dart';
 import '../../data/datasources/local/random_tag_library_data_source.dart';
@@ -299,7 +300,10 @@ void _configureSystemProxy(LocalStorageService localStorage) {
   );
   SystemProxyHttpOverrides.applyProxyAddress(proxyAddress);
   if (proxyAddress != null && proxyAddress.isNotEmpty) {
-    AppLogger.i('Applied proxy: $proxyAddress', 'NETWORK');
+    AppLogger.i(
+      () => 'Applied proxy: ${formatProxyAddressForLog(proxyAddress)}',
+      'NETWORK',
+    );
   } else {
     AppLogger.d('No proxy applied (disabled or no address)', 'NETWORK');
   }
