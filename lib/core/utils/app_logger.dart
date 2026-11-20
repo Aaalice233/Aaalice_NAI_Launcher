@@ -6,7 +6,7 @@ import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
-import 'log_url_redaction.dart';
+import 'log_redaction.dart';
 
 /// 增强版应用日志工具类
 ///
@@ -99,7 +99,7 @@ class AppLogger {
   }
 
   static LogPrinter _buildPrinter() =>
-      _UrlRedactingPrinter(SimplePrinter(printTime: true));
+      _RedactingPrinter(SimplePrinter(printTime: true));
 
   static Level get _minimumLevel {
     return _minimumLevelOverride ??
@@ -607,8 +607,8 @@ class AppLogger {
   }
 }
 
-class _UrlRedactingPrinter extends LogPrinter {
-  _UrlRedactingPrinter(this._printer);
+class _RedactingPrinter extends LogPrinter {
+  _RedactingPrinter(this._printer);
 
   final LogPrinter _printer;
 
@@ -617,7 +617,7 @@ class _UrlRedactingPrinter extends LogPrinter {
 
   @override
   List<String> log(LogEvent event) =>
-      _printer.log(event).map(redactUrlsInLogText).toList();
+      _printer.log(event).map(redactLogText).toList();
 
   @override
   Future<void> destroy() => _printer.destroy();

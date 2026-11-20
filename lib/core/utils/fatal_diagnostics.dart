@@ -5,7 +5,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_logger.dart';
-import 'log_url_redaction.dart';
+import 'log_redaction.dart';
 
 /// Writes crash-startup diagnostics independently of the optional app log file.
 class FatalDiagnostics {
@@ -56,9 +56,7 @@ class FatalDiagnostics {
       final boundedContent = wasTruncated
           ? rawContent.substring(0, maxFileCharacters)
           : rawContent;
-      final redactedContent = redactSensitiveText(
-        redactUrlsInLogText(boundedContent),
-      );
+      final redactedContent = redactLogText(boundedContent);
       final content = wasTruncated
           ? '$redactedContent\n[TRUNCATED DIAGNOSTIC]'
           : redactedContent;
@@ -135,109 +133,4 @@ class FatalDiagnostics {
   }
 
   static String _pad(int value) => value.toString().padLeft(2, '0');
-
-  static String redactSensitiveText(String text) {
-    final secrets = <String>{};
-
-    void collect(RegExp pattern, int group) {
-      for (final match in pattern.allMatches(text)) {
-        final value = match.group(group);
-        if (value != null && value.length >= 4) {
-          secrets.add(value);
-        }
-      }
-    }
-
-    collect(
-      RegExp(
-        r'\bauthorization\s*[:=]\s*(?:basic|bearer)\s+([^\s,;]+)',
-        caseSensitive: false,
-      ),
-      1,
-    );
-    collect(
-      RegExp(r'\bbearer\s+([A-Za-z0-9._~+/=-]{6,})', caseSensitive: false),
-      1,
-    );
-    collect(
-      RegExp(
-        r'\b(token|api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|client[_-]?secret|private[_-]?key|cookies?|session(?:id|[_-]?(?:token|key))?)\s*[:=]\s*([^&\s,;}]+)',
-        caseSensitive: false,
-      ),
-      2,
-    );
-
-    var redacted = text
-        .replaceAll(
-          RegExp(
-            r'-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----.*?(?:-----END (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----|$)',
-            caseSensitive: false,
-            dotAll: true,
-          ),
-          '[REDACTED PRIVATE KEY]',
-        )
-        .replaceAllMapped(
-          RegExp(
-            r'\b(?:set-cookie|cookies?)\s*:\s*[^\r\n]*',
-            caseSensitive: false,
-          ),
-          (match) => '${match.group(0)!.split(':').first}: [REDACTED]',
-        )
-        .replaceAllMapped(
-          RegExp(
-            r'\bauthorization\s*[:=]\s*(?:(?:basic|bearer)\s+)?[^\s,;]+',
-            caseSensitive: false,
-          ),
-          (match) {
-            final raw = match.group(0)!;
-            final separator = raw.contains(':') ? ':' : '=';
-            final name = raw.split(RegExp(r'[:=]')).first.trim();
-            return '$name$separator [REDACTED]';
-          },
-        )
-        .replaceAllMapped(
-          RegExp(r'\bbearer\s+[A-Za-z0-9._~+/=-]{6,}', caseSensitive: false),
-          (_) => 'Bearer [REDACTED]',
-        )
-        .replaceAllMapped(
-          RegExp(
-            r'\b(token|api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|client[_-]?secret|private[_-]?key|cookies?|session(?:id|[_-]?(?:token|key))?)\s*[:=]\s*[^&\s,;}]+',
-            caseSensitive: false,
-          ),
-          (match) {
-            final raw = match.group(0)!;
-            final separator = raw.contains(':') ? ':' : '=';
-            final name = raw.split(RegExp(r'[:=]')).first.trim();
-            return '$name$separator [REDACTED]';
-          },
-        )
-        .replaceAll(
-          RegExp(
-            r'\b(?:pst-[A-Za-z0-9_-]{10,}|sk-(?:proj-)?[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,}|hf_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b',
-          ),
-          '[REDACTED]',
-        )
-        .replaceAll(
-          RegExp(
-            r'\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b',
-          ),
-          '[REDACTED]',
-        );
-
-    if (redacted.contains('://')) {
-      redacted = redacted.replaceAllMapped(
-        RegExp(
-          r'([a-z][a-z0-9+.-]*://)[^/\s:@]+:[^@\s/]+@',
-          caseSensitive: false,
-        ),
-        (match) => '${match.group(1)}[REDACTED]@',
-      );
-    }
-
-    for (final secret in secrets) {
-      redacted = redacted.replaceAll(secret, '[REDACTED]');
-    }
-
-    return redacted;
-  }
 }

@@ -9,7 +9,7 @@ String redactUriForLog(Uri uri) {
 }
 
 final _absoluteLogUrl = RegExp(
-  r'''([A-Za-z][A-Za-z0-9+.-]*://)([^/\s"<>`?#]*)([^\s"<>`?#]*)([?#][^\s"<>`]*)?''',
+  r'''([A-Za-z][A-Za-z0-9+.-]*://)([^/\s"<>`?#]*)([^\s"<>`?#]*)([?#](?:= \[REDACTED\]|[^\s"<>`])*)?''',
 );
 
 String redactUrlsInLogText(String text) {
@@ -21,8 +21,11 @@ String redactUrlsInLogText(String text) {
     final tail = match.group(4);
     var punctuation = '';
     if (tail != null) {
+      const legacyValue = '= [REDACTED]';
+      final legacyStart = tail.lastIndexOf(legacyValue);
+      final legacyEnd = legacyStart < 0 ? 0 : legacyStart + legacyValue.length;
       var start = tail.length;
-      while (start > 0 && ",.;:!)]}'".contains(tail[start - 1])) {
+      while (start > legacyEnd && ",.;:!)]}'".contains(tail[start - 1])) {
         start--;
       }
       punctuation = tail.substring(start);
