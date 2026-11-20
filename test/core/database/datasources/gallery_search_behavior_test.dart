@@ -114,6 +114,74 @@ void main() {
     });
 
     test(
+      'an underscored term matches either spelling in all text searches',
+      () async {
+        final now = DateTime.utc(2026);
+        final ids = <int>[];
+        final files = <File>[];
+        for (final (name, prompt) in [
+          ('long hair', 'solo, long hair'),
+          ('long_hair', 'long_hair'),
+          ('long_sleeves short_hair', 'solo, long_sleeves, short_hair'),
+          ('short_hair', 'short_hair'),
+        ]) {
+          final file = File('/test/$name.png');
+          files.add(file);
+          final id = await dataSource.upsertImage(
+            filePath: file.path,
+            fileName: '$name.png',
+            fileSize: 1024,
+            createdAt: now,
+            modifiedAt: now,
+          );
+          ids.add(id);
+          await dataSource.upsertMetadata(
+            id,
+            NaiImageMetadata(prompt: prompt, negativePrompt: '', seed: id),
+          );
+        }
+
+        const query = 'long_hair';
+        final expectedIds = unorderedEquals(ids.take(2));
+        expect(await dataSource.searchFullText(query), expectedIds);
+        expect(
+          {
+            'file name': await dataSource.searchByFileName(query),
+            'metadata': await dataSource.searchByMetadataText(query),
+          },
+          {'file name': expectedIds, 'metadata': expectedIds},
+        );
+
+        final filterService = GalleryFilterService(dataSource);
+        final matches = await filterService.applyFilters(
+          files,
+          const FilterCriteria(searchQuery: query),
+        );
+        expect(matches.files.map((file) => file.path), [
+          files[0].path,
+          files[1].path,
+        ]);
+
+        final manualWords = await filterService.applyFilters(
+          files,
+          const FilterCriteria(searchQuery: 'long hair'),
+        );
+        expect(
+          manualWords.files.map((file) => file.path),
+          files.map((f) => f.path),
+        );
+
+        for (final separator in [',', '，']) {
+          final delimited = await filterService.applyFilters(
+            files,
+            FilterCriteria(searchQuery: 'solo${separator}long hair'),
+          );
+          expect(delimited.files.map((file) => file.path), [files.first.path]);
+        }
+      },
+    );
+
+    test(
       'should refresh cached search results after metadata indexing updates the same tag query',
       () async {
         final now = DateTime.now();

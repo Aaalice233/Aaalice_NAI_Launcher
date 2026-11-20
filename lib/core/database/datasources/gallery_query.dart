@@ -78,6 +78,12 @@ class SqliteGalleryQuery implements GalleryQuery {
         .replaceAll('_', r'\_');
   }
 
+  static String _searchTermCondition(String column) =>
+      "LOWER(REPLACE($column, '_', ' ')) LIKE ? ESCAPE '\\'";
+
+  static String _searchTermPattern(String term) =>
+      '%${_escapeLikePattern(TagNormalizer.toDisplay(term))}%';
+
   @override
   Future<List<int>> searchFullText(String query, {int limit = 100}) async {
     final searchTerms = _extractSearchTerms(query);
@@ -143,11 +149,12 @@ class SqliteGalleryQuery implements GalleryQuery {
 
     return context.trackQuery('searchByFileName', () async {
       try {
-        final likeConditions = searchTerms
-            .map((_) => r"LOWER(file_name) LIKE ? ESCAPE '\'")
-            .join(' OR ');
+        final likeConditions = List.filled(
+          searchTerms.length,
+          _searchTermCondition('file_name'),
+        ).join(' OR ');
         final likeArgs = searchTerms
-            .map((term) => '%${_escapeLikePattern(term)}%')
+            .map(_searchTermPattern)
             .toList(growable: false);
 
         final results = await gateway.execute(
@@ -219,12 +226,10 @@ class SqliteGalleryQuery implements GalleryQuery {
 
         for (final term in searchTerms) {
           termConditions.add(
-            searchableColumns
-                .map((column) => "LOWER($column) LIKE ? ESCAPE '\\'")
-                .join(' OR '),
+            searchableColumns.map(_searchTermCondition).join(' OR '),
           );
 
-          final pattern = '%${_escapeLikePattern(term)}%';
+          final pattern = _searchTermPattern(term);
           for (var i = 0; i < searchableColumns.length; i++) {
             likeArgs.add(pattern);
           }

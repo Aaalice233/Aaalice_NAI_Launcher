@@ -14,11 +14,14 @@ import 'package:nai_launcher/presentation/providers/autocomplete_services_provid
 import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
 import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
+import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_config.dart';
 import 'package:nai_launcher/presentation/widgets/autocomplete/autocomplete_wrapper.dart';
+import 'package:nai_launcher/presentation/widgets/gallery/local_gallery_toolbar.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_settings_notifiers.dart'
     as generation_settings;
 import 'package:nai_launcher/presentation/widgets/prompt/nai_syntax_controller.dart';
@@ -874,6 +877,63 @@ void main() {
       expect(controller.text, 'blue_eyes');
     },
   );
+
+  testWidgets('local gallery completes words or comma segments as typed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localGalleryNotifierProvider.overrideWith(
+            _AutocompleteGalleryNotifier.new,
+          ),
+          autocompleteSettingsProvider.overrideWith(
+            _FixedAutocompleteSettingsNotifier.new,
+          ),
+          zhDictionaryServiceProvider.overrideWith(
+            () => ZhDictionaryNotifier(ZhDictionaryService()),
+          ),
+          autocompleteServicesProvider.overrideWithValue(
+            AutocompleteServices(
+              localSources: [_TranslatedBaseSource()],
+              dictionaryTranslations: const _NoTranslations(),
+              llmTranslations: const _NoTranslations(),
+              danbooru: _NoDanbooru(),
+            ),
+          ),
+        ],
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: LocalGalleryToolbar()),
+        ),
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(LocalGalleryToolbar)),
+    );
+    final field = find.byType(TextField);
+    for (final (partial, expected) in [
+      ('blu', 'blue_eyes'),
+      ('solo blu', 'solo blue_eyes'),
+      ('solo　blu', 'solo　blue_eyes'),
+      ('solo, blue ey', 'solo, blue eyes'),
+      ('solo，blue ey', 'solo，blue eyes'),
+    ]) {
+      await tester.enterText(field, partial);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 30));
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+
+      expect(tester.widget<TextField>(field).controller!.text, expected);
+      expect(
+        container.read(localGalleryNotifierProvider).filterCriteria.searchQuery,
+        expected,
+      );
+    }
+  });
 
   testWidgets('does not query while an IME composition is active', (
     tester,
@@ -1905,6 +1965,18 @@ class _OpenOnTagClickSettingsNotifier extends AutocompleteSettingsNotifier {
     danbooruEnabled: false,
     zhInstallPromptDismissed: true,
   );
+}
+
+class _AutocompleteGalleryNotifier extends LocalGalleryNotifier {
+  @override
+  LocalGalleryState build() => const LocalGalleryState(isInitialized: true);
+
+  @override
+  Future<void> setSearchQuery(String query) async {
+    state = state.copyWith(
+      filterCriteria: state.filterCriteria.copyWith(searchQuery: query),
+    );
+  }
 }
 
 class _FixedAutocompleteSettingsNotifier extends AutocompleteSettingsNotifier {
