@@ -89,7 +89,7 @@ void main() {
         cursorPosition: 13,
         limit: 20,
         locale: 'en',
-        splitOnSpaces: true,
+        mode: PromptTokenMode.spaceSeparated,
       );
 
       expect(query.token, 'lo');
@@ -294,6 +294,30 @@ void main() {
       expect(result.text, 'girl, negative(red_hair, glasses)');
     });
 
+    test('gallery related completion reuses the existing fullwidth comma', () {
+      const text = 'blue eyes，solo，';
+      const mode = PromptTokenMode.gallerySearch;
+      for (final cursor in [text.indexOf('solo') + 2, text.length]) {
+        final query = PromptTokenParser.parseRelated(
+          text: text,
+          cursorPosition: cursor,
+          limit: 20,
+          locale: 'en',
+          mode: mode,
+        )!;
+        expect(query.relatedTag, 'solo');
+        final applied = PromptTokenParser.apply(
+          text: text,
+          query: query,
+          canonicalTag: 'long_hair',
+          autoInsertComma: false,
+          replaceUnderscores: true,
+          mode: mode,
+        );
+        expect(applied.text, 'blue eyes，solo，long hair');
+      }
+    });
+
     test('inserts related tags before the negative block closing boundary', () {
       const text = 'girl, negative(red hair)';
       final query = PromptTokenParser.parseRelated(
@@ -334,13 +358,13 @@ void main() {
       int beforeCursor,
       String after,
       int afterCursor, {
-      bool splitOnSpaces = false,
+      PromptTokenMode mode = PromptTokenMode.commaSeparated,
     }) => PromptTokenParser.editChangesActiveToken(
       previousText: before,
       previousCursorPosition: beforeCursor,
       currentText: after,
       currentCursorPosition: afterCursor,
-      splitOnSpaces: splitOnSpaces,
+      mode: mode,
     );
 
     test('ignores structural edits around an untouched tag', () {
@@ -364,7 +388,26 @@ void main() {
     test('treats spaces according to the field separator policy', () {
       expect(changes('blueeyes', 4, 'blue eyes', 5), isTrue);
       expect(
-        changes('first solo', 6, 'firstsolo', 5, splitOnSpaces: true),
+        changes(
+          'first solo',
+          6,
+          'firstsolo',
+          5,
+          mode: PromptTokenMode.spaceSeparated,
+        ),
+        isFalse,
+      );
+    });
+
+    test('treats a fullwidth comma as a structural gallery edit', () {
+      expect(
+        changes(
+          'soloblue',
+          4,
+          'solo，blue',
+          5,
+          mode: PromptTokenMode.gallerySearch,
+        ),
         isFalse,
       );
     });

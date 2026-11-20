@@ -364,6 +364,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
         showCategory: true,
         showCount: true,
         autoInsertComma: false,
+        useGallerySearchSyntax: true,
       ),
       onSuggestionSelected: (value) {
         // 选择补全建议后仍然作为搜索框文本处理，不转为标签 chip。

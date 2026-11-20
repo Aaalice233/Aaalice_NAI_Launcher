@@ -6,15 +6,27 @@ void main() {
     test('prompt fields follow the user preference', () {
       const config = AutocompleteConfig();
 
-      expect(config.insertsSpacedTags(userPreference: true), isTrue);
-      expect(config.insertsSpacedTags(userPreference: false), isFalse);
+      expect(
+        config.insertsSpacedTags(text: 'blu', userPreference: true),
+        isTrue,
+      );
+      expect(
+        config.insertsSpacedTags(text: 'blu', userPreference: false),
+        isFalse,
+      );
     });
 
     test('space-separated fields always insert canonical tags', () {
       const config = AutocompleteConfig(treatSpacesAsSeparators: true);
 
-      expect(config.insertsSpacedTags(userPreference: true), isFalse);
-      expect(config.insertsSpacedTags(userPreference: false), isFalse);
+      expect(
+        config.insertsSpacedTags(text: 'blu', userPreference: true),
+        isFalse,
+      );
+      expect(
+        config.insertsSpacedTags(text: 'blu', userPreference: false),
+        isFalse,
+      );
     });
   });
 }

@@ -1,3 +1,5 @@
+import '../../../core/autocomplete/prompt_token_parser.dart';
+
 /// Presentation options kept for compatibility with existing prompt fields.
 /// User-level autocomplete settings take precedence where explicitly set.
 class AutocompleteConfig {
@@ -11,6 +13,7 @@ class AutocompleteConfig {
     this.minQueryLength = 2,
     this.autoInsertComma = true,
     this.treatSpacesAsSeparators = false,
+    this.useGallerySearchSyntax = false,
   });
 
   /// Overrides the user-level result count only for space-constrained fields.
@@ -23,8 +26,17 @@ class AutocompleteConfig {
   final int minQueryLength;
   final bool autoInsertComma;
   final bool treatSpacesAsSeparators;
+  final bool useGallerySearchSyntax;
+
+  PromptTokenMode get tokenMode => useGallerySearchSyntax
+      ? PromptTokenMode.gallerySearch
+      : treatSpacesAsSeparators
+      ? PromptTokenMode.spaceSeparated
+      : PromptTokenMode.commaSeparated;
 
   /// A spaced tag would split into separate terms in space-separated fields.
-  bool insertsSpacedTags({required bool userPreference}) =>
-      !treatSpacesAsSeparators && userPreference;
+  bool insertsSpacedTags({
+    required String text,
+    required bool userPreference,
+  }) => userPreference && !tokenMode.splitsOnSpaces(text);
 }

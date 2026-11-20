@@ -448,9 +448,9 @@ class GalleryFilterService {
   /// 把过滤条件分配到管线的各个阶段。
   _FilterPlan _planFilters(FilterCriteria criteria) {
     // 逗号分隔搜索改走分段 AND 匹配，避免 FTS 多词搜索的 OR 语义。
-    final isDelimited =
-        criteria.searchQuery.isNotEmpty &&
-        _hasDelimitedSearchQuery(criteria.searchQuery);
+    final isDelimited = TagNormalizer.commaSeparatorPattern.hasMatch(
+      criteria.searchQuery,
+    );
     final databaseCriteria = isDelimited
         ? criteria.copyWith(searchQuery: '')
         : criteria;
@@ -678,10 +678,6 @@ class GalleryFilterService {
         stack,
       );
     }
-  }
-
-  bool _hasDelimitedSearchQuery(String value) {
-    return value.contains(',') || value.contains('，');
   }
 
   List<String> _parseDelimitedSearchSegments(String value) {
