@@ -1,3 +1,4 @@
+import '../utils/tag_normalizer.dart';
 import 'completion_models.dart';
 
 class LibraryCompletionEntry {
@@ -25,7 +26,7 @@ class TagLibraryCompletionSource implements CompletionSource {
     if (query.kind != CompletionQueryKind.libraryAlias) return const [];
 
     final limit = query.limit.clamp(1, maxResults);
-    final normalizedQuery = query.token.toLowerCase();
+    final normalizedQuery = TagNormalizer.foldSearchText(query.token);
     return searchEntries(query.token, limit)
         .map(
           (entry) => CompletionCandidate(
@@ -42,7 +43,7 @@ class TagLibraryCompletionSource implements CompletionSource {
 
   static CompletionMatchKind _matchKind(String name, String query) {
     if (query.isEmpty) return CompletionMatchKind.fullText;
-    final normalizedName = name.toLowerCase();
+    final normalizedName = TagNormalizer.foldSearchText(name);
     if (normalizedName == query) return CompletionMatchKind.aliasExact;
     if (normalizedName.startsWith(query)) {
       return CompletionMatchKind.aliasPrefix;

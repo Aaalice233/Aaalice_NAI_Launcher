@@ -50,17 +50,6 @@ class _FixedTagLibraryPickerDialogState
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
-  List<TagLibraryEntry> get _filteredEntries {
-    if (_searchQuery.isEmpty) return widget.entries;
-    final query = _searchQuery.toLowerCase();
-    return widget.entries
-        .where((entry) {
-          return entry.name.toLowerCase().contains(query) ||
-              entry.content.toLowerCase().contains(query);
-        })
-        .toList(growable: false);
-  }
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -70,7 +59,7 @@ class _FixedTagLibraryPickerDialogState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final filtered = _filteredEntries;
+    final filtered = widget.entries.search(_searchQuery);
     final isCompact = context.adaptiveWindow.isCompact;
     final body = Column(
       children: [

@@ -315,8 +315,9 @@ extension TagLibraryEntryListExtension on List<TagLibraryEntry> {
   /// 搜索名称、内容与标签，下划线与空格视为等价
   List<TagLibraryEntry> search(String query) {
     if (query.isEmpty) return this;
-    final foldedQuery = _foldSearchText(query);
-    bool matches(String value) => _foldSearchText(value).contains(foldedQuery);
+    final foldedQuery = TagNormalizer.foldSearchText(query);
+    bool matches(String value) =>
+        TagNormalizer.foldSearchText(value).contains(foldedQuery);
     return where(
       (e) => matches(e.name) || matches(e.content) || e.tags.any(matches),
     ).toList();
@@ -344,7 +345,3 @@ int _compareByOrder(TagLibraryEntry a, TagLibraryEntry b) {
   final byCreated = a.createdAt.compareTo(b.createdAt);
   return byCreated != 0 ? byCreated : a.id.compareTo(b.id);
 }
-
-// 内容可能按空格偏好保存，搜索框补全插入的却是下划线写法
-String _foldSearchText(String value) =>
-    TagNormalizer.toDisplay(value.toLowerCase());

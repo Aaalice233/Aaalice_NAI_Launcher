@@ -224,10 +224,13 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('搜索后无图条目仍可正常添加', (tester) async {
+  testWidgets('下划线搜索命中空格写法的无图条目并可添加', (tester) async {
     _setViewport(tester, const Size(800, 600));
     final hiddenEntry = _entry(id: 'hidden', name: '其他预设');
-    final targetEntry = _entry(id: 'target', name: '目标预设');
+    final targetEntry = _entry(
+      id: 'target',
+      name: '目标预设',
+    ).copyWith(content: '1girl, long hair');
     TagLibraryEntry? selected;
 
     await _openPicker(
@@ -235,7 +238,7 @@ void main() {
       entries: [hiddenEntry, targetEntry],
       onSelect: (value) => selected = value,
     );
-    await tester.enterText(find.byType(TextField), '目标');
+    await tester.enterText(find.byType(TextField), 'long_hair');
     await tester.pump();
 
     expect(

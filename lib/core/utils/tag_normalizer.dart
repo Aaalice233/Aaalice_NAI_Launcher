@@ -51,6 +51,8 @@ class TagNormalizer {
     return tag.replaceAll('_', ' ');
   }
 
+  static String foldSearchText(String text) => toDisplay(text.toLowerCase());
+
   /// 批量转换为显示格式
   static List<String> toDisplayList(List<String> tags) {
     return tags.map(toDisplay).toList();

@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../core/utils/alias_parser.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/prompt_edit_document.dart';
+import '../../core/utils/tag_normalizer.dart';
 import 'tag_library_page_provider.dart';
 import '../../data/models/tag_library/tag_library_entry.dart';
 
@@ -113,36 +114,38 @@ class AliasResolverService extends _$AliasResolverService {
       return sorted.take(limit).toList();
     }
 
-    final lowerQuery = query.toLowerCase();
+    final foldedQuery = TagNormalizer.foldSearchText(query);
 
     // 搜索名称匹配的条目
     final matches = <(TagLibraryEntry, int)>[];
     for (final entry in entries) {
-      final lowerName = entry.name.toLowerCase();
+      final foldedName = TagNormalizer.foldSearchText(entry.name);
 
       // 计算匹配分数
       int score = 0;
 
       // 完全匹配
-      if (lowerName == lowerQuery) {
+      if (foldedName == foldedQuery) {
         score = 100;
       }
       // 前缀匹配
-      else if (lowerName.startsWith(lowerQuery)) {
+      else if (foldedName.startsWith(foldedQuery)) {
         score = 80;
       }
       // 包含匹配
-      else if (lowerName.contains(lowerQuery)) {
+      else if (foldedName.contains(foldedQuery)) {
         score = 60;
       }
       // 内容匹配
-      else if (entry.content.toLowerCase().contains(lowerQuery)) {
+      else if (TagNormalizer.foldSearchText(
+        entry.content,
+      ).contains(foldedQuery)) {
         score = 40;
       }
       // 标签匹配
       else {
         for (final tag in entry.tags) {
-          if (tag.toLowerCase().contains(lowerQuery)) {
+          if (TagNormalizer.foldSearchText(tag).contains(foldedQuery)) {
             score = 30;
             break;
           }
