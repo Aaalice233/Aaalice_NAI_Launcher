@@ -118,6 +118,39 @@ void main() {
     expect(page.nextOffset, 2);
   });
 
+  test('收藏按完整标签片段和逗号分隔的多个词搜索', () async {
+    final repository = _repository(box, storage);
+    await repository.upsertAll([
+      _detail(
+        sourceId: GallerySourceId.aiTag,
+        workId: 'tag',
+        title: 'Portrait',
+        tags: const ['solo', 'long_hair'],
+      ),
+      _detail(
+        sourceId: GallerySourceId.aiTag,
+        workId: 'title',
+        title: 'Long Hair',
+      ),
+      _detail(
+        sourceId: GallerySourceId.aiTag,
+        workId: 'split',
+        title: 'Other',
+        tags: const ['solo', 'long_sleeves', 'short_hair'],
+      ),
+    ], savedAt: DateTime.utc(2025));
+
+    List<String> matches(String text) => repository
+        .query(OnlineGalleryFavoriteQuery(searchText: text))
+        .items
+        .map((item) => item.sourceWorkId)
+        .toList();
+
+    expect(matches('long_hair'), ['title', 'tag']);
+    expect(matches('solo, long_hair'), ['title', 'tag']);
+    expect(matches('long hair'), ['split', 'title', 'tag']);
+  });
+
   test('toggle/remove 及重复批量键保持确定语义', () async {
     final repository = _repository(box, storage);
     await repository.ensureInitialized();

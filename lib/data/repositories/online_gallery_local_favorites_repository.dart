@@ -11,6 +11,7 @@ import '../../core/utils/prompt_tag_utils.dart';
 import '../models/online_gallery/gallery_item.dart';
 import '../models/online_gallery/gallery_source.dart';
 import '../models/online_gallery/online_gallery_favorite_record.dart';
+import '../services/online_gallery/online_gallery_query.dart';
 import '../services/online_gallery/quick_tag_cloud_access.dart';
 import '../services/online_gallery/quick_tag_cloud_media_resolver.dart';
 import '../services/online_gallery/quick_tag_cloud_user_service.dart';
@@ -158,13 +159,7 @@ class OnlineGalleryLocalFavoritesRepository {
         .map(_normalizeTag)
         .where((value) => value.isNotEmpty)
         .toSet();
-    final terms = query.searchText
-        .trim()
-        .toLowerCase()
-        .replaceAll('_', ' ')
-        .split(RegExp(r'\s+'))
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
+    final terms = OnlineGalleryQuery.favoriteSearchTerms(query.searchText);
     final candidateKeys = query.sourceId == null
         ? _sortedKeys
         : (_sortedKeysBySource[query.sourceId!] ?? const <String>[]);
@@ -219,11 +214,11 @@ class OnlineGalleryLocalFavoritesRepository {
       if (blacklist.isNotEmpty && _recordTags(record).any(blacklist.contains)) {
         return false;
       }
-      if (terms.isNotEmpty) {
-        final haystack = _searchHaystack(record);
-        if (!terms.every(haystack.contains)) return false;
-      }
-      return true;
+      return terms.isEmpty ||
+          OnlineGalleryQuery.matchesFavoriteSearchFields(
+            terms,
+            _searchFields(record),
+          );
     });
     var total = 0;
     final pageRecords = <OnlineGalleryFavoriteRecord>[];
@@ -490,7 +485,7 @@ Set<String> _recordTags(OnlineGalleryFavoriteRecord record) {
 String _normalizeTag(String value) =>
     value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
 
-String _searchHaystack(OnlineGalleryFavoriteRecord record) {
+List<String?> _searchFields(OnlineGalleryFavoriteRecord record) {
   final item = record.item;
   final detail = record.detail;
   return [
@@ -518,7 +513,7 @@ String _searchHaystack(OnlineGalleryFavoriteRecord record) {
         )
         .join(' '),
     detail.contributors.map((value) => '${value.name} ${value.role}').join(' '),
-  ].whereType<String>().join('\n').toLowerCase().replaceAll('_', ' ');
+  ];
 }
 
 OnlineGalleryFavoriteRecord _quickTagCloudRecord(
