@@ -17,6 +17,7 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/services/android_foreground_task_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/assistant_execution_settings.dart';
 import 'package:nai_launcher/data/models/interaction/user_question.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -685,6 +686,114 @@ User instructions.
         await chat.selectChatModel('relay', id);
       });
 
+      test('resetting the format allows the same chat effort again', () async {
+        final chat = container.read(provider.notifier);
+        final config = container.read(promptAssistantConfigProvider.notifier);
+        await chat.setThinkingLevel(ThinkingLevel.high);
+        await config.setModelReasoningFormat('relay', 'gemini-carbon', null);
+        expect(container.read(provider).thinkingLevel, isNull);
+        await chat.setThinkingLevel(ThinkingLevel.high);
+        expect(container.read(provider).thinkingLevel, ThinkingLevel.high);
+        await chat.send('reselected');
+        expect(requests.single.reasoningRequest?.effort, 'high');
+      });
+
+      test(
+        'a legacy custom selection belongs to its original declaration',
+        () async {
+          const model = 'gemini-carbon';
+          final current = container.read(promptAssistantConfigProvider);
+          final legacyConfig = current.copyWith(
+            providers: [
+              for (final p in current.providers)
+                if (p.id == 'relay')
+                  p.copyWith(
+                    modelReasoningFormats: {
+                      model: ModelReasoningFormat.chatEffort,
+                    },
+                  )
+                else
+                  p,
+            ],
+          );
+          await storage.setSetting(
+            StorageKeys.promptAssistantConfigJson,
+            legacyConfig.encode(),
+          );
+          container.invalidate(promptAssistantConfigProvider);
+          final config = container.read(promptAssistantConfigProvider.notifier);
+          final legacy = await sessionRepo.create(
+            const SessionCreateOptions(id: 'legacy-custom'),
+          );
+          await legacy.appendEntry(
+            ModelChangeEntry(
+              id: legacy.idGenerator(),
+              provider: 'relay',
+              modelId: model,
+            ),
+            'main',
+          );
+          await legacy.appendEntry(
+            ThinkingLevelEntry(id: legacy.idGenerator(), thinkingLevel: 'high'),
+            'main',
+          );
+          final chat = container.read(provider.notifier);
+          await chat.switchSession('legacy-custom');
+          expect(container.read(provider).thinkingLevel, ThinkingLevel.high);
+          await config.setModelReasoningFormat('relay', model, null);
+          await config.setTaskThinkingLevel(
+            AssistantTaskType.translate,
+            'relay',
+            model,
+            AssistantThinkingLevel.low,
+          );
+          expect(container.read(provider).thinkingLevel, isNull);
+          await chat.setThinkingLevel(ThinkingLevel.high);
+          await chat.send('selected again');
+          expect(requests.single.reasoningRequest?.effort, 'high');
+        },
+      );
+
+      test(
+        'a task declaration cannot restore chat effort from session history',
+        () async {
+          final chat = container.read(provider.notifier);
+          final config = container.read(promptAssistantConfigProvider.notifier);
+          const model = 'gemini-carbon';
+          await chat.setThinkingLevel(ThinkingLevel.high);
+          await chat.send('old selection');
+          final original = container.read(provider).activeSessionId;
+          await chat.newSession();
+          await config.setModelReasoningFormat('relay', model, null);
+          await config.setTaskThinkingLevel(
+            AssistantTaskType.translate,
+            'relay',
+            model,
+            AssistantThinkingLevel.low,
+          );
+          expect(container.read(provider).thinkingLevel, isNull);
+          await chat.switchSession(original);
+          expect(container.read(provider).thinkingLevel, isNull);
+          await chat.retryLastMessage();
+          expect(requests.last.reasoningRequest?.effort, isNull);
+          expect((await chat.rewindLastUserMessage())?.text, 'old selection');
+          await config.addProviderModels('relay', [
+            'another-model',
+          ], source: ModelSource.manual);
+          await chat.selectChatModel('relay', 'another-model');
+          await chat.selectChatModel('relay', model);
+          expect(container.read(provider).thinkingLevel, isNull);
+          await chat.send('still default');
+          await chat.newSession();
+          expect(container.read(provider).thinkingLevel, isNull);
+          expect(requests.map((r) => r.reasoningRequest?.effort), [
+            'high',
+            null,
+            null,
+          ]);
+        },
+      );
+
       test(
         'first send waits for the selected effort while provider storage is paused',
         () async {
@@ -939,7 +1048,28 @@ User instructions.
         await chat.setThinkingLevel(null);
         await chat.send('default');
         expect(requests.first.reasoningRequest?.enabled, isFalse);
-        expect(requests.last.reasoningRequest, isNull);
+        expect(requests.last.reasoningRequest!.enabled, isNull);
+        expect(requests.last.reasoningRequest!.effort, isNull);
+      },
+    );
+
+    test(
+      'model default retains the DeepSeek replay protocol in chat requests',
+      () async {
+        final config = container.read(promptAssistantConfigProvider.notifier);
+        final relay = ProviderPreset.deepseek.createConfig();
+        const model = 'deepseek-reasoner';
+        await config.upsertProvider(relay);
+        await config.addProviderModels(relay.id, [
+          model,
+        ], source: ModelSource.manual);
+        final chat = container.read(provider.notifier);
+        await chat.selectChatModel(relay.id, model);
+        await chat.send('model default');
+        final request = requests.single;
+        expect(request.reasoning, isNull);
+        expect(request.reasoningRequest!.enabled, isNull);
+        expect(request.reasoningRequest!.preserveReasoningContent, isTrue);
       },
     );
 

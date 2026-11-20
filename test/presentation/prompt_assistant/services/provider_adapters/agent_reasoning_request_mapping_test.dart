@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/models/agent_protocol.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/models/assistant_model_capability.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/anthropic_messages_adapter.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/gemini_generate_content_adapter.dart';
@@ -13,6 +14,122 @@ import 'package:nai_launcher/presentation/prompt_assistant/services/provider_ada
 
 void main() {
   group('Pi provider-native reasoning request mapping', () {
+    for (final (preset, model, adapter, highControls) in [
+      (
+        ProviderPreset.deepseek,
+        'deepseek-chat',
+        const OpenAiChatCompletionsAdapter(),
+        {
+          'thinking': {'type': 'enabled'},
+        },
+      ),
+      (
+        ProviderPreset.deepseek,
+        'deepseek-reasoner',
+        const OpenAiChatCompletionsAdapter(),
+        {
+          'thinking': {'type': 'enabled'},
+        },
+      ),
+      (
+        ProviderPreset.mistral,
+        'magistral-medium-latest',
+        const OpenAiChatCompletionsAdapter(),
+        {'prompt_mode': 'reasoning'},
+      ),
+      (
+        ProviderPreset.kimiCoding,
+        'kimi-for-coding',
+        const AnthropicMessagesAdapter(),
+        {
+          'thinking': {'type': 'adaptive', 'display': 'summarized'},
+          'output_config': {'effort': 'high'},
+        },
+      ),
+      (
+        ProviderPreset.xai,
+        'grok-4.6',
+        const OpenAiResponsesAdapter(),
+        {
+          'reasoning': {'effort': 'high', 'summary': 'auto'},
+        },
+      ),
+    ]) {
+      test('$model replays tool history at model default and high', () async {
+        final provider = preset.createConfig();
+        final capability = AgentChatModelCapability.resolve(provider, model);
+        for (final level in [null, 'high']) {
+          final payload = await _capture(
+            adapter,
+            _request(
+              provider.protocol,
+              capability.resolveReasoningRequest(level)!,
+              provider: provider,
+              model: model,
+              messages: [
+                UserMessage.text('look it up'),
+                AssistantMessage(
+                  provider: provider.id,
+                  model: model,
+                  content: const [
+                    AssistantThinkingContent('need lookup'),
+                    ToolCallContent(
+                      id: 'call_1',
+                      name: 'lookup',
+                      arguments: {},
+                    ),
+                  ],
+                  stopReason: StopReason.toolUse,
+                ),
+                ToolResultMessage(
+                  toolCallId: 'call_1',
+                  toolName: 'lookup',
+                  content: const [ToolResultTextContent('found')],
+                ),
+              ],
+            ),
+          );
+          final assistant = (payload['messages'] as List?)
+              ?.whereType<Map>()
+              .firstWhere((m) => m['role'] == 'assistant');
+          switch (preset) {
+            case ProviderPreset.deepseek:
+              expect(assistant?['reasoning_content'], 'need lookup');
+            case ProviderPreset.mistral:
+              expect(assistant?['content'], [
+                {
+                  'type': 'thinking',
+                  'thinking': [
+                    {'type': 'text', 'text': 'need lookup'},
+                  ],
+                },
+              ]);
+            case ProviderPreset.kimiCoding:
+              expect((assistant?['content'] as List).first, {
+                'type': 'thinking',
+                'thinking': 'need lookup',
+                'signature': '',
+              });
+            case ProviderPreset.xai:
+              expect(payload['include'], ['reasoning.encrypted_content']);
+            default:
+              fail('Unexpected preset $preset');
+          }
+          final controls = {
+            for (final field in [
+              'reasoning',
+              'reasoning_effort',
+              'thinking',
+              'prompt_mode',
+              'output_config',
+              'enable_thinking',
+            ])
+              if (payload.containsKey(field)) field: payload[field],
+          };
+          expect(controls, level == null ? {} : highControls);
+        }
+      });
+    }
     test('provider payloads use the effective Pi model output limit', () async {
       final responses = await _capture(
         const OpenAiResponsesAdapter(),
@@ -411,25 +528,29 @@ Future<Map<String, dynamic>> _capture(
 AgentChatRequest _request(
   ProviderProtocol protocol,
   AgentReasoningRequest reasoningRequest, {
+  ProviderConfig? provider,
+  String model = 'model',
   int? maxOutputTokens,
   int modelMaxOutputTokens = 128000,
   List<Message>? messages,
 }) => AgentChatRequest(
   sessionId: 'session',
-  provider: ProviderConfig(
-    id: 'provider',
-    name: 'Provider',
-    protocol: protocol,
-    baseUrl: 'https://example.test',
-  ),
-  model: 'model',
+  provider:
+      provider ??
+      ProviderConfig(
+        id: 'provider',
+        name: 'Provider',
+        protocol: protocol,
+        baseUrl: 'https://example.test',
+      ),
+  model: model,
   systemPrompt: 'system',
   messages: messages ?? [UserMessage.text('hello')],
   tools: const [],
   apiKey: null,
   maxOutputTokens: maxOutputTokens,
   modelMaxOutputTokens: modelMaxOutputTokens,
-  reasoning: reasoningRequest.enabled ? 'high' : null,
+  reasoning: reasoningRequest.enabled == true ? 'high' : null,
   reasoningRequest: reasoningRequest,
 );
 

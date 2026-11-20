@@ -112,11 +112,10 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           if (data.trim() == '[DONE]') return;
           throw const FormatException('Google stream returned invalid JSON');
         }
-        if (json['error'] case final error?) {
+        if (ProviderResponseError.fromResponse(json, payload)
+            case final error?) {
           sawError = true;
-          pending.add(
-            agentWireErrorFrom(ProviderResponseError(error, payload), request),
-          );
+          pending.add(agentWireErrorFrom(error, request));
           return;
         }
         final usageRaw = json['usageMetadata'];

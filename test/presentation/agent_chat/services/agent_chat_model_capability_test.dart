@@ -309,7 +309,7 @@ void main() {
     );
   });
 
-  test('Gemini 3 missing reasoning uses its supported hidden minimum', () {
+  test('Gemini 3 uses the hidden minimum only for explicit off', () {
     final provider = ProviderPreset.gemini.createConfig(id: 'google');
     final proCapability = AgentChatModelCapability.resolve(
       provider,
@@ -320,8 +320,14 @@ void main() {
       'gemini-3.8-flash',
     );
 
-    final proRequest = proCapability.resolveReasoningRequest(null);
-    final flashRequest = flashCapability.resolveReasoningRequest(null);
+    for (final capability in [proCapability, flashCapability]) {
+      final modelDefault = capability.resolveReasoningRequest(null)!;
+      expect(modelDefault.enabled, isNull);
+      expect(modelDefault.effort, isNull);
+      expect(modelDefault.sendWhenDisabled, isFalse);
+    }
+    final proRequest = proCapability.resolveReasoningRequest('off');
+    final flashRequest = flashCapability.resolveReasoningRequest('off');
 
     expect(proRequest?.enabled, isFalse);
     expect(proRequest?.sendWhenDisabled, isTrue);
@@ -358,13 +364,13 @@ void main() {
     expect(capability.resolveReasoningRequest('high')?.effort, 'high');
   });
 
-  test('omits missing reasoning on models whose off mapping is null', () {
+  test('omits explicit off on models whose off mapping is null', () {
     final capability = AgentChatModelCapability.resolve(
       ProviderPreset.openaiResponses.createConfig(id: 'openai'),
       'gpt-5',
     );
 
-    final request = capability.resolveReasoningRequest(null);
+    final request = capability.resolveReasoningRequest('off');
 
     expect(request?.enabled, isFalse);
     expect(request?.sendWhenDisabled, isFalse);

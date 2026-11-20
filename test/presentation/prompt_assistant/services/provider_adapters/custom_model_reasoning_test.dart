@@ -86,14 +86,13 @@ Future<String?> _complete(
   String? level, {
   required bool agent,
   String model = _id,
+  String? expectedText,
 }) async {
   final metadata = AssistantModelCatalog.resolveProvider(
     provider: provider,
     model: model,
   );
-  final resolved = level == null
-      ? null
-      : metadata.resolveReasoningRequest(level == 'off' ? null : level);
+  final resolved = metadata.resolveReasoningRequest(level);
   if (agent) {
     final events =
         await AgentApiClient(dio, reasoningRejectionHint: () => '切回模型默认重试')
@@ -111,25 +110,36 @@ Future<String?> _complete(
               ),
             )
             .toList();
+    if (expectedText != null) {
+      expect(
+        events.whereType<AgentWireTextDelta>().map((e) => e.delta).join(),
+        expectedText,
+      );
+      expect(events.whereType<AgentWireFinish>(), hasLength(1));
+    }
     return events.whereType<AgentWireError>().firstOrNull?.message;
   }
   try {
-    await PromptAssistantApiClient(
-          dio: dio,
-          reasoningRejectionHint: () => '切回模型默认重试',
-        )
-        .complete(
-          request: PromptAssistantRequest(
-            sessionId: 'task',
-            provider: provider,
-            model: model,
-            systemPrompt: 'system',
-            userParts: [PromptAssistantContentPart.text('hello')],
-            apiKey: null,
-            reasoningRequest: resolved,
-          ),
-        )
-        .toList();
+    final chunks =
+        await PromptAssistantApiClient(
+              dio: dio,
+              reasoningRejectionHint: () => '切回模型默认重试',
+            )
+            .complete(
+              request: PromptAssistantRequest(
+                sessionId: 'task',
+                provider: provider,
+                model: model,
+                systemPrompt: 'system',
+                userParts: [PromptAssistantContentPart.text('hello')],
+                apiKey: null,
+                reasoningRequest: resolved,
+              ),
+            )
+            .toList();
+    if (expectedText != null) {
+      expect(chunks.map((c) => c.delta).join(), expectedText);
+    }
     return null;
   } on StateError catch (error) {
     return error.message;
@@ -194,6 +204,32 @@ void main() {
     dio = Dio()..httpClientAdapter = server;
   });
   tearDown(() => dio.close(force: true));
+
+  test(
+    'a known model at default can use the ordinary HTTP 400 fallback',
+    () async {
+      server.reply = () => server.bodies.length == 1
+          ? _reply('{"error":{"message":"Invalid request"}}', status: 400)
+          : null;
+      final relay = ProviderPreset.openaiCompatibleChat.createConfig();
+      expect(
+        await _complete(
+          dio,
+          relay,
+          null,
+          agent: false,
+          model: 'gpt-5.2',
+          expectedText: 'ok',
+        ),
+        isNull,
+      );
+      expect(server.bodies, hasLength(2));
+      expect(
+        server.bodies.last.keys,
+        unorderedEquals(['model', 'stream', 'messages']),
+      );
+    },
+  );
 
   test(
     'DeepSeek retries only an endpoint rejection with identical explicit fields',
@@ -549,6 +585,132 @@ void main() {
   }
 
   for (final agent in [false, true]) {
+    test(
+      'HTTP 200 empty error fields preserve normal content, agent=$agent',
+      () async {
+        for (final preset in [
+          ProviderPreset.openaiCompatibleChat,
+          ProviderPreset.gemini,
+        ]) {
+          final relay = preset.createConfig();
+          for (final error in [
+            null,
+            '',
+            '   ',
+            false,
+            {},
+            0,
+            {'message': ' ', 'code': 'ok'},
+          ]) {
+            final json = jsonEncode({
+              'error': error,
+              'choices': [
+                {
+                  'message': {'content': 'ok'},
+                  'delta': {'content': 'ok'},
+                  'finish_reason': 'stop',
+                },
+              ],
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'ok'},
+                    ],
+                  },
+                  'finishReason': 'STOP',
+                },
+              ],
+            });
+            server.reply = () =>
+                agent ? _reply('data: $json\n\n', stream: true) : _reply(json);
+            expect(
+              await _complete(
+                dio,
+                relay,
+                null,
+                agent: agent,
+                expectedText: 'ok',
+              ),
+              isNull,
+              reason: '$preset $error',
+            );
+          }
+          for (final error in [
+            'real issue',
+            {'message': ' ', 'error': 'real issue'},
+            {'type': 'real issue'},
+          ]) {
+            final json = jsonEncode({'error': error});
+            server.reply = () =>
+                agent ? _reply('data: $json\n\n', stream: true) : _reply(json);
+            expect(
+              await _complete(dio, relay, null, agent: agent),
+              contains('real issue'),
+            );
+          }
+        }
+      },
+    );
+    test(
+      'only an empty parameter path falls back to the rejection text, agent=$agent',
+      () async {
+        final relay = ProviderPreset.openaiCompatibleChat
+            .createConfig()
+            .copyWith(
+              modelReasoningFormats: {_id: ModelReasoningFormat.chatEffort},
+            );
+        const reason = 'Unsupported parameter: reasoning_effort';
+        const extra = 'Extra inputs are not permitted: reasoning_effort';
+        for (final (status, details, expected, rejected) in [
+          (
+            400,
+            {
+              'error': {'param': '', 'message': reason},
+            },
+            reason,
+            true,
+          ),
+          (
+            422,
+            {
+              'detail': [
+                {
+                  'loc': ['body'],
+                  'msg': extra,
+                },
+              ],
+            },
+            extra,
+            true,
+          ),
+          (
+            422,
+            {
+              'detail': [
+                {
+                  'param': ' ',
+                  'loc': ['body', 'max_tokens'],
+                  'msg': reason,
+                },
+              ],
+            },
+            reason,
+            false,
+          ),
+        ]) {
+          server.status = status;
+          server.error = details;
+          final message = await _complete(dio, relay, 'high', agent: agent);
+          expect(message, contains(expected));
+          expect(message!.contains('reasoning_effort · 切回模型默认重试'), rejected);
+          expect(
+            await _complete(dio, relay, null, agent: agent),
+            isNot(contains('切回模型默认重试')),
+          );
+        }
+      },
+    );
     test(
       '422 validation loc and msg identify the rejected field, agent=$agent',
       () async {

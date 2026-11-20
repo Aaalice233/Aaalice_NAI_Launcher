@@ -33,10 +33,24 @@ void main() {
           );
           expect(metadata.reasoning, isTrue, reason: model.key);
           final controls = <Object>{};
+          final modelDefault = metadata.resolveReasoningRequest(null)!;
+          expect(
+            chatReasoningPayload(modelDefault),
+            isEmpty,
+            reason: model.key,
+          );
+          expect(geminiThinkingConfig(modelDefault), isNull, reason: model.key);
+          expect(
+            responsesReasoningEffort(modelDefault, null),
+            isNull,
+            reason: model.key,
+          );
+          expect(anthropicReasoningPayload(reasoning: modelDefault).keys, [
+            'max_tokens',
+          ], reason: model.key);
           for (final level in metadata.selectableThinkingLevels) {
-            final request = metadata.resolveReasoningRequest(
-              level == ThinkingLevel.off ? null : level.name,
-            )!;
+            final request = metadata.resolveReasoningRequest(level.name)!;
+            final enabled = request.enabled!;
             final reason = '${provider.key}/${model.key}/${level.name}';
             final control = (
               request.enabled,
@@ -54,7 +68,7 @@ void main() {
               case AgentReasoningApi.qwen:
                 final payload = chatReasoningPayload(request);
                 expect(payload, isNotEmpty, reason: reason);
-                if (request.enabled && model.value.supportsReasoningEffort) {
+                if (enabled && model.value.supportsReasoningEffort) {
                   expect(
                     payload['reasoning_effort'],
                     model.value.mappedLevel(level),
@@ -70,7 +84,7 @@ void main() {
               case AgentReasoningApi.openAiCompletions:
               case AgentReasoningApi.mistralEffort:
                 final payload = chatReasoningPayload(request);
-                if (request.enabled) {
+                if (enabled) {
                   expect(
                     payload['reasoning_effort'],
                     isNotEmpty,
@@ -79,7 +93,7 @@ void main() {
                 }
               case AgentReasoningApi.openRouter:
                 final payload = chatReasoningPayload(request);
-                if (request.enabled) {
+                if (enabled) {
                   expect(
                     (payload['reasoning'] as Map)['effort'],
                     isNotEmpty,
@@ -89,11 +103,11 @@ void main() {
               case AgentReasoningApi.mistralPromptMode:
                 expect(
                   chatReasoningPayload(request),
-                  request.enabled ? {'prompt_mode': 'reasoning'} : {},
+                  enabled ? {'prompt_mode': 'reasoning'} : {},
                   reason: reason,
                 );
               case AgentReasoningApi.openAiResponses:
-                if (request.enabled) {
+                if (enabled) {
                   expect(
                     responsesReasoningEffort(request, null),
                     isNotEmpty,
@@ -106,7 +120,7 @@ void main() {
                   reasoning: request,
                   modelMaxOutputTokens: metadata.maxOutputTokens,
                 );
-                if (request.enabled) {
+                if (enabled) {
                   expect(payload, contains('thinking'), reason: reason);
                   if (request.api == AgentReasoningApi.anthropicBudget) {
                     final budget =
@@ -128,12 +142,12 @@ void main() {
               case AgentReasoningApi.geminiBudget:
                 final payload = geminiThinkingConfig(request)!;
                 expect(payload['thinkingBudget'], isA<int>(), reason: reason);
-                if (request.enabled) {
+                if (enabled) {
                   expect(payload['thinkingBudget'], isNot(0), reason: reason);
                 }
               case AgentReasoningApi.geminiLevel:
                 final payload = geminiThinkingConfig(request);
-                if (request.enabled) {
+                if (enabled) {
                   expect(payload?['thinkingLevel'], isNotEmpty, reason: reason);
                 }
             }
@@ -182,7 +196,7 @@ void main() {
       containsPair('thinkingLevel', 'MEDIUM'),
     );
     expect(
-      geminiThinkingConfig(metadata.resolveReasoningRequest(null)),
+      geminiThinkingConfig(metadata.resolveReasoningRequest('off')),
       containsPair('thinkingLevel', 'LOW'),
     );
   });

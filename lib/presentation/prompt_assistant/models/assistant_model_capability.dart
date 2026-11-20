@@ -67,12 +67,11 @@ class AssistantModelMetadata {
   ];
 
   bool get _sendsExplicitOff {
-    final off = resolveReasoningRequest(null);
+    final off = resolveReasoningRequest(ThinkingLevel.off.name);
     if (off == null) return false;
     return switch (off.api) {
       AgentReasoningApi.openAiResponses =>
-        responsesReasoningEffort(off, null) != null ||
-            off.alwaysIncludeEncryptedReasoning,
+        responsesReasoningEffort(off, null) != null,
       AgentReasoningApi.anthropicBudget ||
       AgentReasoningApi.anthropicAdaptive => anthropicReasoningPayload(
         reasoning: off,
@@ -124,43 +123,43 @@ class AssistantModelMetadata {
   }
 
   (bool, String?, int?)? _controlFor(ThinkingLevel level) {
-    final request = resolveReasoningRequest(
-      level == ThinkingLevel.off ? null : level.name,
-    );
+    final request = resolveReasoningRequest(level.name);
     return request == null
         ? null
-        : (request.enabled, request.effort, request.budgetTokens);
+        : (request.enabled == true, request.effort, request.budgetTokens);
   }
 
   AgentReasoningRequest? resolveReasoningRequest(String? selectedLevel) {
     final rule = reasoningRule;
     if (rule == null || thinkingLevels.isEmpty) return null;
     if (configurable &&
+        selectedLevel != null &&
         !thinkingLevels.any((level) => level.name == selectedLevel)) {
       return null;
     }
 
-    if (selectedLevel == null && !thinkingLevels.contains(ThinkingLevel.off)) {
+    if (selectedLevel == null ||
+        (selectedLevel == ThinkingLevel.off.name &&
+            !thinkingLevels.contains(ThinkingLevel.off))) {
+      final explicitOff = selectedLevel != null;
       final geminiUsesHiddenMinimum =
+          explicitOff &&
           rule.api == AgentReasoningApi.geminiLevel &&
           rule.disabledEffort != null;
       return AgentReasoningRequest(
         api: rule.api,
-        enabled: false,
+        enabled: explicitOff ? false : null,
         effort: geminiUsesHiddenMinimum ? rule.disabledEffort : null,
         sendWhenDisabled: geminiUsesHiddenMinimum,
         preserveReasoningContent: rule.requiresReasoningContent,
         allowEmptySignature: rule.allowEmptySignature,
         alwaysIncludeEncryptedReasoning: rule.alwaysIncludeEncryptedReasoning,
+        requestReasoningReplay: !configurable,
       );
     }
 
-    final requested = ThinkingLevel.values.where(
-      (level) => level != ThinkingLevel.off && level.name == selectedLevel,
-    );
-    var selected = selectedLevel == null
-        ? ThinkingLevel.off
-        : requested.firstOrNull ?? ThinkingLevel.off;
+    var selected =
+        ThinkingLevel.values.asNameMap()[selectedLevel] ?? ThinkingLevel.off;
     if (!thinkingLevels.contains(selected)) {
       selected = _nearestSupportedLevel(selected, thinkingLevels);
     }
@@ -267,6 +266,7 @@ class AssistantModelCatalog {
     levels: [ThinkingLevel.high],
     levelMap: {ThinkingLevel.off: null},
     supportsReasoningEffort: false,
+    requiresReasoningContent: true,
     contextWindow: 128000,
     maxOutputTokens: 65536,
   );

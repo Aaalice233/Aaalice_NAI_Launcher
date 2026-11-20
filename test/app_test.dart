@@ -1836,7 +1836,7 @@ void main() {
               reasoningRequest: AssistantModelCatalog.resolveProvider(
                 provider: ProviderPreset.deepseek.createConfig(),
                 model: 'deepseek-chat',
-              ).resolveReasoningRequest(null),
+              ).resolveReasoningRequest('off'),
             ),
           )
           .toList();

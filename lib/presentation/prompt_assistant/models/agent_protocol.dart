@@ -38,15 +38,17 @@ class AgentReasoningRequest {
     required this.enabled,
     this.effort,
     this.budgetTokens,
-    this.sendWhenDisabled = true,
+    bool sendWhenDisabled = true,
     this.preserveReasoningContent = false,
     this.allowEmptySignature = false,
     this.alwaysIncludeEncryptedReasoning = false,
     this.requestReasoningReplay = true,
-  });
+  }) : sendWhenDisabled = enabled != null && sendWhenDisabled;
 
   final AgentReasoningApi api;
-  final bool enabled;
+
+  /// Null leaves level control to the model while retaining its wire protocol.
+  final bool? enabled;
   final String? effort;
   final int? budgetTokens;
 
@@ -93,8 +95,7 @@ class AgentChatRequest {
     return requested < modelLimit ? requested : modelLimit;
   }
 
-  /// Selected UI reasoning level. Null is retained for backwards-compatible
-  /// callers and represents Off before model-specific request resolution.
+  /// Legacy effort for adapters called without a resolved request.
   final String? reasoning;
 
   /// Provider-native request resolved from Pi's model registry contract.

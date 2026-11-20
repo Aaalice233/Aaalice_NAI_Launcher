@@ -58,6 +58,7 @@ void main() {
         {
           'id': 'local',
           'modelReasoningFormats': {'gemini-carbon': 'geminiLevel'},
+          'modelReasoningFormatIds': {'gemini-carbon': 'local-declaration'},
         },
       ];
       const rules = [

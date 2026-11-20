@@ -12,7 +12,6 @@ import '../../../l10n/app_localizations.dart';
 import '../../../core/utils/prompt_edit_document.dart';
 import '../../../core/network/proxy_settings_provider.dart';
 import '../models/agent_protocol.dart';
-import '../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../models/assistant_model_capability.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../providers/prompt_assistant_config_provider.dart';
@@ -613,11 +612,9 @@ Prompt version: $tagTranslationPromptVersion
       provider: provider,
       model: model,
       apiKey: apiKey,
-      reasoning: level == AssistantThinkingLevel.automatic || !supported
-          ? null
-          : metadata.resolveReasoningRequest(
-              level == AssistantThinkingLevel.off ? null : level.name,
-            ),
+      reasoning: metadata.resolveReasoningRequest(
+        supported ? level.name : null,
+      ),
       maxOutputTokens: metadata.maxOutputTokens > 0
           ? metadata.maxOutputTokens
           : null,

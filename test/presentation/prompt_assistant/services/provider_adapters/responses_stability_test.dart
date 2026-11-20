@@ -39,7 +39,10 @@ void main() {
       expect(responses.thinkingLevels, chat.thinkingLevels);
       expect(responses.thinkingLevels, contains(ThinkingLevel.off));
       expect(
-        responsesReasoningEffort(responses.resolveReasoningRequest(null), null),
+        responsesReasoningEffort(
+          responses.resolveReasoningRequest('off'),
+          null,
+        ),
         'none',
       );
       expect(
@@ -50,7 +53,7 @@ void main() {
         'high',
       );
       expect(
-        chatReasoningPayload(chat.resolveReasoningRequest(null)),
+        chatReasoningPayload(chat.resolveReasoningRequest('off')),
         isNotEmpty,
       );
     });
@@ -131,7 +134,7 @@ void main() {
               messages: harnessConvertToLlm(messages),
               tools: const [],
               apiKey: null,
-              reasoningRequest: metadata.resolveReasoningRequest(null),
+              reasoningRequest: metadata.resolveReasoningRequest('off'),
             ),
             cancelToken: CancelToken(),
           )

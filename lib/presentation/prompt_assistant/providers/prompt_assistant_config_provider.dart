@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
@@ -116,15 +117,48 @@ class PromptAssistantConfigNotifier
   }
 
   Future<void> upsertProvider(ProviderConfig provider) async {
+    state = _withProvider(provider);
+    await _save();
+  }
+
+  PromptAssistantConfigState _withProvider(ProviderConfig provider) {
     final providers = [...state.providers];
     final idx = providers.indexWhere((p) => p.id == provider.id);
+    final previous = idx < 0 ? null : providers[idx];
+    final supported = ModelReasoningFormat.forProtocol(provider.protocol);
+    final formats = Map.fromEntries(
+      provider.modelReasoningFormats.entries.where(
+        (entry) => supported.contains(entry.value),
+      ),
+    );
+    final changed = {
+      for (final model in {
+        ...?previous?.modelReasoningFormats.keys,
+        ...provider.modelReasoningFormats.keys,
+      })
+        if (previous?.modelReasoningFormats[model] != formats[model] ||
+            !formats.containsKey(model))
+          model,
+    };
+    final next = provider.copyWith(
+      modelReasoningFormats: formats,
+      modelReasoningFormatIds: {
+        for (final model in formats.keys)
+          if (changed.contains(model))
+            model: const Uuid().v4()
+          else if (previous?.modelReasoningFormatIds[model] case final id?)
+            model: id,
+      },
+    );
     if (idx >= 0) {
-      providers[idx] = provider;
+      providers[idx] = next;
     } else {
-      providers.add(provider);
+      providers.add(next);
     }
-    state = state.copyWith(providers: providers);
-    await _save();
+    return state.copyWith(
+      providers: providers,
+      routing: state.routing.withoutThinkingFor(provider.id, changed),
+    );
   }
 
   /// 同 [setProviderApiKey]，服务商已删除时不能被延迟提交写回来。
@@ -269,6 +303,8 @@ class PromptAssistantConfigNotifier
             provider.copyWith(
               modelReasoningFormats: {...provider.modelReasoningFormats}
                 ..removeWhere((id, _) => removed.contains(id)),
+              modelReasoningFormatIds: {...provider.modelReasoningFormatIds}
+                ..removeWhere((id, _) => removed.contains(id)),
             )
           else
             provider,
@@ -347,26 +383,10 @@ class PromptAssistantConfigNotifier
     if (provider.modelReasoningFormats[model] == format) return state;
     final formats = {...provider.modelReasoningFormats}..remove(model);
     if (format != null) formats[model] = format;
-    final routing = state.routing;
-    return state.copyWith(
-      providers: [
-        for (final item in state.providers)
-          item.id == provider.id
-              ? item.copyWith(modelReasoningFormats: formats)
-              : item,
-      ],
-      routing: routing.copyWith(
-        thinkingLevels: {...routing.thinkingLevels}
-          ..removeWhere(
-            (task, _) =>
-                routing.providerIdFor(task) == provider.id &&
-                routing.modelFor(task) == model,
-          ),
-      ),
-    );
+    return _withProvider(provider.copyWith(modelReasoningFormats: formats));
   }
 
-  Future<void> setModelReasoningFormat(
+  Future<String?> setModelReasoningFormat(
     String providerId,
     String model,
     ModelReasoningFormat? format,
@@ -377,7 +397,7 @@ class PromptAssistantConfigNotifier
           item.name == model &&
           !item.isPlaceholder,
     )) {
-      return;
+      return null;
     }
     final provider = state.providers.firstWhere(
       (item) => item.id == providerId,
@@ -387,10 +407,14 @@ class PromptAssistantConfigNotifier
           provider: provider,
           model: model,
         ).configurableFormats.contains(format)) {
-      return;
+      return null;
     }
     state = _withReasoningFormat(provider, model, format);
+    final formatId = state.providers
+        .firstWhere((item) => item.id == providerId)
+        .modelReasoningFormatIds[model];
     await _save();
+    return formatId;
   }
 
   Future<void> setTaskThinkingLevel(

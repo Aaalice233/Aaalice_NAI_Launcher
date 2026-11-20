@@ -365,7 +365,8 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
         },
       if (reasoning?.api == AgentReasoningApi.openAiResponses &&
           reasoning!.requestReasoningReplay &&
-          (reasoning.enabled || reasoning.alwaysIncludeEncryptedReasoning))
+          (reasoning.enabled == true ||
+              reasoning.alwaysIncludeEncryptedReasoning))
         'include': ['reasoning.encrypted_content'],
       if (request.systemPrompt.trim().isNotEmpty)
         'instructions': request.systemPrompt.trim(),
