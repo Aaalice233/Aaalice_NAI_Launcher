@@ -10,13 +10,13 @@ String? _rejectedField(Object? body, Object? payload) {
   if (payload is! Map) return null;
   final fields = _sentReasoningFields(payload).toList();
   for (final item in _errorItems(body)) {
-    final parameter = item is Map ? item['param'] ?? item['loc'] : null;
-    if (parameter is String || parameter is List) {
-      final path = _normalize(
-        parameter is List
-            ? parameter.where((part) => part != 'body').join('.')
-            : parameter as String,
-      );
+    final path = item is Map
+        ? [
+            item['param'],
+            item['loc'],
+          ].map(_parameterPath).where((p) => p.isNotEmpty).firstOrNull
+        : null;
+    if (path != null) {
       final match = fields
           .where(
             (field) =>
@@ -27,7 +27,9 @@ String? _rejectedField(Object? body, Object? payload) {
       if (match != null) return match;
       continue;
     }
-    final message = item is Map ? item['message'] ?? item['msg'] : item;
+    final message = item is Map
+        ? _firstMessage([item['message'], item['msg']])
+        : item;
     if (message is! String) continue;
     final text = _normalize(message);
     if (!_rejection.hasMatch(text) || _unknownModel.hasMatch(text)) continue;
@@ -38,6 +40,18 @@ String? _rejectedField(Object? body, Object? payload) {
     }
   }
   return null;
+}
+
+String _parameterPath(Object? parameter) {
+  final parts = switch (parameter) {
+    final String value => value.split('.'),
+    final List values => values,
+    _ => const [],
+  };
+  return parts
+      .map((part) => _normalize(part.toString().trim()))
+      .where((part) => part.isNotEmpty && part != 'body')
+      .join('.');
 }
 
 bool _mentionsField(String message, String name) {
@@ -70,19 +84,45 @@ Iterable<Object?> _errorItems(Object? body) sync* {
 String? providerErrorDetail(Object? body) {
   final messages = [
     for (final item in _errorItems(body))
-      if ((item is Map
-              ? item['message'] ?? item['msg'] ?? item['detail'] ?? item['type']
-              : item)
-          case final String message when message.trim().isNotEmpty)
+      if (_firstMessage(
+            item is Map
+                ? [item['message'], item['msg'], item['detail'], item['type']]
+                : [item],
+          )
+          case final message?)
         message,
   ];
   return messages.isEmpty ? null : messages.join('\n');
 }
 
+String? _firstMessage(Iterable<Object?> values) => values
+    .whereType<String>()
+    .map((s) => s.trim())
+    .where((s) => s.isNotEmpty)
+    .firstOrNull;
+
 class ProviderResponseError extends StateError {
   ProviderResponseError(Object body, Object? payload)
-    : field = _rejectedField(body, payload),
-      super(providerErrorDetail(body) ?? body.toString());
+    : this._(
+        providerErrorDetail(body) ??
+            _firstMessage([body.toString()]) ??
+            'Unknown provider error',
+        body,
+        payload,
+      );
+
+  ProviderResponseError._(super.message, Object body, Object? payload)
+    : field = _rejectedField(body, payload);
+
+  static ProviderResponseError? fromResponse(Object? body, Object? payload) {
+    final error = body is Map ? body['error'] : null;
+    final detail = error is Map
+        ? _firstMessage([error['message'], error['error'], error['type']])
+        : _firstMessage([error]);
+    return detail == null
+        ? null
+        : ProviderResponseError._(detail, error, payload);
+  }
 
   final String? field;
 
@@ -92,8 +132,9 @@ class ProviderResponseError extends StateError {
 
 dynamic checkedProviderResponse(Response<dynamic> response) {
   final body = response.data;
-  if (body case {'error': final error?}) {
-    throw ProviderResponseError(error, response.requestOptions.data);
+  if (ProviderResponseError.fromResponse(body, response.requestOptions.data)
+      case final error?) {
+    throw error;
   }
   return body;
 }

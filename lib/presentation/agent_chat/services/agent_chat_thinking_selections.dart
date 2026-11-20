@@ -2,15 +2,18 @@ import '../../../core/agent/agent_types.dart';
 import '../../../core/agent/harness/session/session.dart';
 
 const _modelDefault = 'agentChatModelDefault';
+const _reasoningFormat = 'agentChatReasoningFormat';
 
-Map<(String, String), ThinkingLevel> restoreChatThinkingSelections(
+typedef ChatThinkingSelection = ({ThinkingLevel level, String? formatId});
+
+Map<(String, String), ChatThinkingSelection> restoreChatThinkingSelections(
   List<SessionEntry> branch,
   Model currentModel,
 ) {
-  final selections = <(String, String), ThinkingLevel>{};
+  final selections = <(String, String), ChatThinkingSelection>{};
   final levels = ThinkingLevel.values.asNameMap();
   (String, String)? route;
-  ThinkingLevel? pending;
+  ChatThinkingSelection? pending;
   SessionEntry? parent;
   for (final entry in branch) {
     switch (entry) {
@@ -20,14 +23,22 @@ Map<(String, String), ThinkingLevel> restoreChatThinkingSelections(
         route = (provider, modelId);
       case ThinkingLevelEntry(:final thinkingLevel):
         final level = levels[thinkingLevel];
-        if (parent is ModelChangeEntry &&
-            parent.id == entry.parentId &&
-            level != null &&
+        final formatId = switch (parent) {
+          CustomEntry(customType: _reasoningFormat, data: final String id) =>
+            id,
+          _ => null,
+        };
+        final selection = level == null
+            ? null
+            : (level: level, formatId: formatId);
+        if ((parent is ModelChangeEntry || formatId != null) &&
+            parent?.id == entry.parentId &&
+            selection != null &&
             route != null) {
-          selections[route] = level;
+          selections[route] = selection;
         } else {
           // 旧档位记录没有路由，随后的助手回复才带有实际使用的渠道和模型。
-          pending = level;
+          pending = selection;
         }
       case MessageEntry(
         message: AssistantMessage(
@@ -59,9 +70,9 @@ Map<(String, String), ThinkingLevel> restoreChatThinkingSelections(
 Future<void> appendChatThinkingSelection(
   Session session,
   Model model,
-  ThinkingLevel? level,
+  ChatThinkingSelection? selection,
 ) async {
-  if (level == null) {
+  if (selection == null) {
     await session.appendCustomEntry(_modelDefault, {
       'provider': model.provider,
       'model': model.id,
@@ -76,8 +87,14 @@ Future<void> appendChatThinkingSelection(
     ),
     'main',
   );
+  if (selection.formatId case final id?) {
+    await session.appendCustomEntry(_reasoningFormat, id);
+  }
   await session.appendEntry(
-    ThinkingLevelEntry(id: session.idGenerator(), thinkingLevel: level.name),
+    ThinkingLevelEntry(
+      id: session.idGenerator(),
+      thinkingLevel: selection.level.name,
+    ),
     'main',
   );
 }

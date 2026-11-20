@@ -143,11 +143,10 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
         if (json == null) {
           return;
         }
-        if (json['error'] case final error?) {
+        if (ProviderResponseError.fromResponse(json, payload)
+            case final error?) {
           sawError = true;
-          pending.add(
-            agentWireErrorFrom(ProviderResponseError(error, payload), request),
-          );
+          pending.add(agentWireErrorFrom(error, request));
           return;
         }
         final usageRaw = json['usage'];
@@ -587,7 +586,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       );
     } on DioException catch (e) {
       final status = e.response?.statusCode;
-      final explicit = request.reasoningRequest != null;
+      final explicit = request.reasoningRequest?.enabled != null;
       final shouldRetryDeepSeek =
           request.provider.preset == ProviderPreset.deepseek &&
           endpoint.endsWith('/v1/chat/completions') &&

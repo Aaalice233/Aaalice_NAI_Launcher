@@ -112,6 +112,36 @@ void main() {
   tearDown(() => container.dispose());
 
   test(
+    'one-shot prompt optimization keeps the fallback model replay capability',
+    () async {
+      final config = container.read(promptAssistantConfigProvider.notifier);
+      const task = AssistantTaskType.llm;
+      var routing = container.read(promptAssistantConfigProvider).routing;
+      routing = routing.copyWithTask(
+        taskType: task,
+        providerId: 'missing-provider',
+        model: 'missing-model',
+      );
+      await config.setRouting(
+        routing.copyWith(thinkingLevels: {task: AssistantThinkingLevel.high}),
+      );
+      api.waitForCount = 1;
+      api.started = Completer<void>();
+      final result = service
+          .optimizePrompt('prompt', sessionId: 'one-shot')
+          .toList();
+      await api.started!.future;
+      final request = api.requests.single;
+      api.replies.single.complete('optimized');
+      expect((await result).first.delta, 'optimized');
+      expect(request.model, 'deepseek-v4-flash');
+      expect(request.reasoningRequest!.preserveReasoningContent, isTrue);
+      expect(request.reasoningRequest!.enabled, isNull);
+      expect(request.maxOutputTokens, isNull);
+    },
+  );
+
+  test(
     'all missing tags are batched concurrently and rendered in original order',
     () async {
       api.waitForCount = 3;
@@ -124,7 +154,10 @@ void main() {
       expect(api.requests.length, 3);
       for (final request in api.requests) {
         expect(request.allowConcurrentInSession, isTrue);
-        expect(request.reasoningRequest, isNull);
+        final reasoning = request.reasoningRequest!;
+        expect(reasoning.enabled, isNull);
+        expect(reasoning.preserveReasoningContent, isTrue);
+        expect(request.maxOutputTokens, request.modelMaxOutputTokens);
       }
       for (final index in [2, 0, 1]) {
         api.finish(index);

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -89,6 +91,121 @@ void main() {
 
   tearDown(() => container.dispose());
 
+  test('changing protocol clears only levels using removed formats', () async {
+    const model = 'gemini-carbon';
+    const task = AssistantTaskType.translate;
+    for (final id in ['relay', 'backup']) {
+      await notifier.addProviderModels(id, [model], source: ModelSource.manual);
+    }
+    await notifier.setTaskThinkingLevel(
+      task,
+      'relay',
+      model,
+      AssistantThinkingLevel.high,
+    );
+    await notifier.setTaskThinkingLevel(
+      AssistantTaskType.llm,
+      'backup',
+      model,
+      AssistantThinkingLevel.low,
+    );
+    ProviderConfig relay() =>
+        read().providers.firstWhere((p) => p.id == 'relay');
+    final formatId = relay().modelReasoningFormatIds[model];
+    expect(formatId, isNotNull);
+    await notifier.upsertProvider(
+      relay().copyWith(protocol: ProviderProtocol.ollamaChatCompletions),
+    );
+    expect(relay().modelReasoningFormatIds[model], formatId);
+    expect(read().routing.thinkingFor(task), AssistantThinkingLevel.high);
+    await notifier.upsertProvider(
+      relay().copyWith(protocol: ProviderProtocol.geminiGenerateContent),
+    );
+    expect(relay().modelReasoningFormats, isEmpty);
+    expect(relay().modelReasoningFormatIds, isEmpty);
+    final restored = PromptAssistantConfigState.decode(read().encode());
+    expect(restored.routing.providerIdFor(task), 'relay');
+    expect(restored.routing.modelFor(task), model);
+    expect(
+      restored.routing.thinkingFor(task),
+      AssistantThinkingLevel.automatic,
+    );
+    expect(
+      restored.routing.thinkingFor(AssistantTaskType.llm),
+      AssistantThinkingLevel.low,
+    );
+    expect(
+      restored.providers
+          .firstWhere((p) => p.id == 'backup')
+          .modelReasoningFormats[model],
+      ModelReasoningFormat.chatEffort,
+    );
+  });
+
+  test(
+    'old provider JSON drops incompatible and unknown formats and their task levels',
+    () async {
+      const task = AssistantTaskType.translate;
+      await notifier.addProviderModels('relay', [
+        'bad',
+        'future',
+        'good',
+      ], source: ModelSource.manual);
+      final raw = read().toJson();
+      final relay = (raw['providers'] as List).cast<Map>().firstWhere(
+        (p) => p['id'] == 'relay',
+      );
+      relay['protocol'] = ProviderProtocol.geminiGenerateContent.name;
+      relay['modelReasoningFormats'] = {
+        'bad': 'chatEffort',
+        'future': 'futureFormat',
+        'good': 'geminiLevel',
+      };
+      raw['routing'] = read().routing
+          .copyWithTask(taskType: task, providerId: 'relay', model: 'bad')
+          .copyWithTask(
+            taskType: AssistantTaskType.llm,
+            providerId: 'relay',
+            model: 'good',
+          )
+          .copyWithTask(
+            taskType: AssistantTaskType.custom,
+            providerId: 'relay',
+            model: 'future',
+          )
+          .copyWith(
+            thinkingLevels: {
+              task: AssistantThinkingLevel.high,
+              AssistantTaskType.llm: AssistantThinkingLevel.medium,
+              AssistantTaskType.custom: AssistantThinkingLevel.high,
+            },
+          )
+          .toJson();
+      final restored = PromptAssistantConfigState.decode(jsonEncode(raw));
+      final provider = restored.providers.firstWhere((p) => p.id == 'relay');
+      expect(provider.modelReasoningFormats, {
+        'good': ModelReasoningFormat.geminiLevel,
+      });
+      expect(provider.modelReasoningFormatIds, isEmpty);
+      expect(
+        restored.routing.thinkingFor(task),
+        AssistantThinkingLevel.automatic,
+      );
+      expect(
+        restored.routing.thinkingFor(AssistantTaskType.custom),
+        AssistantThinkingLevel.automatic,
+      );
+      expect(
+        restored.routing.thinkingFor(AssistantTaskType.llm),
+        AssistantThinkingLevel.medium,
+      );
+      expect(
+        PromptAssistantConfigState.decode(restored.encode()).routing.toJson(),
+        restored.routing.toJson(),
+      );
+    },
+  );
+
   group('addProviderModels', () {
     test(
       'missing models, placeholders and mismatched native formats cannot authorize a route',
@@ -146,6 +263,10 @@ void main() {
           model,
           AssistantThinkingLevel.medium,
         );
+        final declaredId = read().providers
+            .firstWhere((p) => p.id == 'relay')
+            .modelReasoningFormatIds[model];
+        expect(declaredId, isNotNull);
         await notifier.addProviderModels('relay', [
           model,
           'another',
@@ -159,6 +280,7 @@ void main() {
         final restored = PromptAssistantConfigState.decode(read().encode());
         final relay = restored.providers.firstWhere((p) => p.id == 'relay');
         expect(relay.name, 'My relay');
+        expect(relay.modelReasoningFormatIds[model], declaredId);
         expect(relay.modelReasoningFormats, {
           model: ModelReasoningFormat.chatEffort,
         });

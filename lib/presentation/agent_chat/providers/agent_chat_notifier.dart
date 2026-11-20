@@ -305,6 +305,14 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       workspaceDir: _workspaceDir.path,
       buildAgent: _buildAgent,
       buildSystemPrompt: _buildSystemPrompt,
+      reasoningFormatIdFor: (model) {
+        if (!ref.mounted) return null;
+        final providers = ref.read(promptAssistantConfigProvider).providers;
+        return providers
+            .where((p) => p.id == model.provider)
+            .firstOrNull
+            ?.modelReasoningFormatIds[model.id];
+      },
       readState: () => state,
       writeState: (next) => state = next,
       isMounted: () => ref.mounted,
@@ -732,9 +740,10 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       final selected = _activeRoute == null
           ? state.thinkingLevel
           : _activeThinkingLevel;
-      final reasoning = selected == null && options?.reasoning == null
-          ? null
-          : capability.resolveReasoningRequest(options?.reasoning);
+      final reasoning = capability.resolveReasoningRequest(
+        options?.reasoning ??
+            (selected == ThinkingLevel.off ? ThinkingLevel.off.name : null),
+      );
       final request = AgentChatRequest(
         sessionId: 'agent_chat',
         provider: route.$1,
@@ -989,19 +998,22 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       if (!ref.mounted || !identical(_sessionController.session, session)) {
         return;
       }
-      if (_sessionController.thinkingLevelFor(capability.model) == level) {
+      final format = capability.metadata.quickFormat;
+      if ((format == null || level == null) &&
+          _sessionController.thinkingLevelFor(capability.model) == level) {
         return;
       }
-      final format = capability.metadata.quickFormat;
+      var formatId = route.$1.modelReasoningFormatIds[route.$2];
       if (format != null && level != null) {
-        await ref
+        formatId = await ref
             .read(promptAssistantConfigProvider.notifier)
             .setModelReasoningFormat(route.$1.id, route.$2, format);
+        if (formatId == null) return;
       }
       await _sessionController.recordThinkingLevel(
         session,
         capability.model,
-        level,
+        level == null ? null : (level: level, formatId: formatId),
       );
       if (ref.mounted) _refreshRoute();
     }();
@@ -1107,9 +1119,19 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     final inheritedThinkingLevel = state.thinkingLevel;
     await _sessionController.newSession();
     _refreshRoute();
-    if (_routeCache?.$1.id == route?.$1.id &&
-        _routeCache?.$2 == route?.$2 &&
-        state.availableThinkingLevels.contains(inheritedThinkingLevel) &&
+    final next = _routeCache;
+    if (inheritedThinkingLevel == null ||
+        route == null ||
+        next == null ||
+        route.$1.id != next.$1.id ||
+        route.$2 != next.$2) {
+      return;
+    }
+    final model = route.$2;
+    final metadata = _modelCapability(next).metadata;
+    if (next.$1.modelReasoningFormatIds[model] ==
+            route.$1.modelReasoningFormatIds[model] &&
+        metadata.visibleChatLevel(inheritedThinkingLevel) != null &&
         state.thinkingLevel != inheritedThinkingLevel) {
       await setThinkingLevel(inheritedThinkingLevel);
     }
@@ -1128,6 +1150,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
   /// 建立新分支，与 `/rewind` 的语义一致。
   Future<UserMessage?> rewindLastUserMessage() async {
     await ensureInitialized();
+    await _pendingThinking[_sessionController.session];
     final message = await _sessionController.rewindLastUserMessage();
     _refreshRoute();
     return message;
@@ -1221,10 +1244,19 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
     await ensureInitialized();
     await _pendingThinking[_sessionController.session];
     final route = _routeCache;
+    final level = state.thinkingLevel;
     final checkpoint = await _sessionController.beginRewindLastUserMessage(
       keepThinkingSelection: route == null
           ? null
-          : (_modelCapability(route).model, state.thinkingLevel),
+          : (
+              _modelCapability(route).model,
+              level == null
+                  ? null
+                  : (
+                      level: level,
+                      formatId: route.$1.modelReasoningFormatIds[route.$2],
+                    ),
+            ),
     );
     _refreshRoute();
     return checkpoint;

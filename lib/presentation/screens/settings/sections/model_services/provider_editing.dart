@@ -39,20 +39,15 @@ Future<String?> showProviderEditor(
         state,
         _providerIdFromName(name, fallback: result.preset.defaultId),
       );
-  final next = ProviderConfig(
-    modelReasoningFormats:
-        state.providers
-            .where((item) => item.id == id)
-            .firstOrNull
-            ?.modelReasoningFormats ??
-        const {},
-    id: id,
+  final current =
+      state.providers.where((item) => item.id == id).firstOrNull ??
+      result.preset.createConfig(id: id);
+  final next = current.copyWith(
     name: name,
     type: result.preset.legacyType,
     protocol: result.preset.defaultProtocol,
     preset: result.preset,
     baseUrl: result.baseUrl,
-    enabled: provider?.enabled ?? true,
     allowImageInput: result.allowImageInput,
     concurrency: result.concurrency,
   );
