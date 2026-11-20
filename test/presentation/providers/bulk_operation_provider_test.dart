@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/database/database_manager.dart';
+import 'package:nai_launcher/core/database/database_providers.dart';
+import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/services/bulk_gallery_store.dart';
 import 'package:nai_launcher/data/services/bulk_image_state_service.dart';
@@ -25,6 +29,53 @@ void main() {
     addTearDown(container.dispose);
     return container;
   }
+
+  test('跨帧后通过实际服务工厂批量编辑标签和收藏', () async {
+    const paths = ['/a.png'];
+    final dataSource = _MockGalleryDataSource();
+    final databaseManager = _MockDatabaseManager();
+    when(
+      () => databaseManager.getDataSource<GalleryDataSource>('gallery'),
+    ).thenReturn(dataSource);
+    when(
+      () => dataSource.getImageIdsByPaths(paths),
+    ).thenAnswer((_) async => {paths.single: 1});
+    when(() => dataSource.getTagsByImageIds([1])).thenAnswer(
+      (_) async => {
+        1: ['original'],
+      },
+    );
+    when(
+      () => dataSource.setImageTags(1, ['original', 'added']),
+    ).thenAnswer((_) async {});
+    when(
+      () => dataSource.getFavoritesByImageIds([1]),
+    ).thenAnswer((_) async => {1: false});
+    when(() => dataSource.toggleFavorite(1)).thenAnswer((_) async => true);
+    final container = ProviderContainer(
+      overrides: [
+        databaseManagerProvider.overrideWith((ref) async => databaseManager),
+      ],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(bulkOperationNotifierProvider.notifier);
+
+    await container.pump();
+
+    final edited = await notifier.bulkEditMetadata(
+      paths,
+      tagsToAdd: const ['added'],
+    );
+    final favorited = await notifier.bulkToggleFavorite(
+      paths,
+      isFavorite: true,
+    );
+
+    expect(edited.successfulItems, paths);
+    expect(favorited.successfulItems, paths);
+    verify(() => dataSource.setImageTags(1, ['original', 'added'])).called(1);
+    verify(() => dataSource.toggleFavorite(1)).called(1);
+  });
 
   test('批量编辑标签的读取次数随批次增长而不是随图片数增长', () async {
     const count = batchSize * 2 + 1;
@@ -128,6 +179,10 @@ void main() {
 List<String> _paths(int count) => [
   for (var i = 0; i < count; i++) '/img_$i.png',
 ];
+
+class _MockDatabaseManager extends Mock implements DatabaseManager {}
+
+class _MockGalleryDataSource extends Mock implements GalleryDataSource {}
 
 class _RecordingBulkGalleryStore implements BulkGalleryStore {
   final Map<String, int> _idsByPath = {};
