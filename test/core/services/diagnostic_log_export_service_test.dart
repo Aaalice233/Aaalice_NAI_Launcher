@@ -38,6 +38,12 @@ void main() {
           '?ex=6a1b2c3d&is=6a1a0000&hm=0123456789abcdef#frag\n'
           'https://danbooru.donmai.us/posts.json'
           '?api_key=xyz&login=bob&tags=secret\n'
+          'https://api.example.test/items?api_key=archive-fixture-key&limit=1 '
+          'repeated archive-fixture-key\n'
+          'https://legacy.example.test/posts.json'
+          '?api_key= [REDACTED]&login=old-login&tags=old-tag#old-fragment '
+          'status=429\n'
+          'https://legacy.example.test/about?api_key= [REDACTED], status=401\n'
           'Cookie: sessionid=live-session-secret\n'
           'cookie=raw-cookie-value session_key=raw-session-key\n'
           'unlabelled=ghp_12345678901234567890\n'
@@ -87,6 +93,19 @@ void main() {
       contains('https://cdn.discordapp.com/attachments/111/222/image.png'),
     );
     expect(exportedLog, contains('https://danbooru.donmai.us/posts.json'));
+    expect(
+      exportedLog,
+      contains('https://api.example.test/items repeated [REDACTED]\n'),
+    );
+    expect(exportedLog, isNot(contains('archive-fixture-key')));
+    expect(
+      exportedLog,
+      contains('https://legacy.example.test/posts.json status=429\n'),
+    );
+    expect(
+      exportedLog,
+      contains('https://legacy.example.test/about, status=401\n'),
+    );
     expect(exportedLog, isNot(contains('ex=')));
     expect(exportedLog, isNot(contains('hm=')));
     expect(exportedLog, isNot(contains('xyz')));

@@ -5,6 +5,8 @@ import 'package:nai_launcher/core/utils/app_error_reporter.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/core/utils/fatal_diagnostics.dart';
 
+import '../../helpers/isolated_app_log_directory.dart';
+
 void main() {
   late Directory tempDir;
 
@@ -95,6 +97,36 @@ void main() {
     expect(content, isNot(contains('hm=')));
     expect(content, isNot(contains('#frag')));
     expect(content, isNot(contains('user:password@')));
+  });
+
+  test('normal and crash logs redact the URL and repeated API key', () async {
+    final logDir = createIsolatedAppLogDirectory('error_reporter_test_');
+    addTearDown(() => deleteIsolatedAppLogDirectory(logDir));
+    await AppLogger.initialize(isTestEnvironment: true);
+    await FatalDiagnostics.initialize(directory: tempDir);
+
+    const endpoint = 'https://danbooru.donmai.us/posts.json';
+    const apiKey = 'fixture-api-key';
+    AppErrorReporter.reportError(
+      Exception('$endpoint?api_key=$apiKey&login=bob&tags=private-tag'),
+      StackTrace.fromString('stack saw $apiKey'),
+      source: 'test',
+      context: 'retry saw $apiKey',
+    );
+    await AppLogger.flush();
+
+    final appLog = await File(AppLogger.currentLogFile!).readAsString();
+    final crashFile = await tempDir.list().cast<File>().single;
+    final crashLog = await crashFile.readAsString();
+    for (final content in [appLog, crashLog]) {
+      expect(content, contains(endpoint));
+      expect(content, contains('retry saw [REDACTED]'));
+      expect(content, isNot(contains('api_key=')));
+      expect(content, isNot(contains('&login=')));
+      expect(content, isNot(contains('private-tag')));
+      expect(content, isNot(contains(apiKey)));
+    }
+    expect(crashLog, contains('stack saw [REDACTED]'));
   });
 
   test('truncates unusually large crash diagnostics', () async {

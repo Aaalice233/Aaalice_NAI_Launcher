@@ -48,16 +48,9 @@ class AppErrorReporter {
     String? context,
     bool fatal = false,
   }) {
-    final safeContext = context == null
-        ? null
-        : FatalDiagnostics.redactSensitiveText(context);
-    final safeError = FatalDiagnostics.redactSensitiveText(error.toString());
-    final safeStackTrace = StackTrace.fromString(
-      FatalDiagnostics.redactSensitiveText(stackTrace.toString()),
-    );
-    final contextText = safeContext == null || safeContext.isEmpty
+    final contextText = context == null || context.isEmpty
         ? ''
-        : ' | context: $safeContext';
+        : ' | context: $context';
     final fatalText = fatal ? ' | fatal' : '';
 
     FatalDiagnostics.writeSync(
@@ -70,8 +63,8 @@ class AppErrorReporter {
 
     AppLogger.e(
       'Unhandled error captured by $source$fatalText$contextText',
-      safeError,
-      safeStackTrace,
+      error,
+      stackTrace,
       'CrashGuard',
     );
   }

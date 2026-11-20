@@ -4,7 +4,6 @@ import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../utils/app_logger.dart';
-import '../../utils/fatal_diagnostics.dart';
 import 'cloud_drive_oauth_client.dart';
 import 'cloud_drive_oauth_config.dart';
 import 'cloud_drive_oauth_models.dart';
@@ -113,11 +112,9 @@ final class GoogleSignInAndroidCloudDriveOAuthClient
     final cancelled =
         error.code == GoogleSignInExceptionCode.canceled ||
         error.code == GoogleSignInExceptionCode.interrupted;
-    final description = error.description == null
-        ? null
-        : FatalDiagnostics.redactSensitiveText(
-            error.description!.replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
-          );
+    final description = error.description
+        ?.replaceAll(RegExp(r'[\r\n]+'), ' ')
+        .trim();
     AppLogger.e(
       'Google native OAuth failed: code=${error.code.name}, '
           'description=${description == null || description.isEmpty ? 'none' : description}',
@@ -501,11 +498,9 @@ void _logAppAuthFailure(
   CloudDriveOAuthProvider provider,
   FlutterAppAuthPlatformErrorDetails details,
 ) {
-  final description = details.errorDescription == null
-      ? null
-      : FatalDiagnostics.redactSensitiveText(
-          details.errorDescription!.replaceAll(RegExp(r'[\r\n]+'), ' ').trim(),
-        );
+  final description = details.errorDescription
+      ?.replaceAll(RegExp(r'[\r\n]+'), ' ')
+      .trim();
   AppLogger.e(
     'Native OAuth failed: provider=${provider.id}, type=${details.type}, '
         'code=${details.code}, oauthError=${details.error ?? 'none'}, '
