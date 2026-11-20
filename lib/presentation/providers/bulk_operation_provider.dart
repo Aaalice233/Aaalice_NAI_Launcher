@@ -182,7 +182,7 @@ class _BulkToggleFavoriteCommand extends HistoryCommand {
 }
 
 /// Provider for BulkOperationService
-@riverpod
+@Riverpod(keepAlive: true)
 BulkOperationService bulkOperationService(Ref ref) {
   return BulkOperationService(ref: ref);
 }
