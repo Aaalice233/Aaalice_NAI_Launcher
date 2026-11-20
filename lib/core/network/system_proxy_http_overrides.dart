@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 
 import '../utils/app_logger.dart';
+import '../utils/log_url_redaction.dart';
 
 /// 系统代理 HTTP 覆盖类
 ///
@@ -45,7 +46,12 @@ class SystemProxyHttpOverrides extends HttpOverrides {
     client.findProxy = (uri) {
       final route = '${uri.host}:${uri.port}';
       if (_loggedRoutes.add(route)) {
-        AppLogger.d('Proxy route: $route -> $_proxyString', 'PROXY');
+        AppLogger.d(() {
+          final destination = _proxyString == 'DIRECT'
+              ? 'DIRECT'
+              : 'PROXY ${formatProxyAddressForLog(_proxyString.substring(6))}';
+          return 'Proxy route: $route -> $destination';
+        }, 'PROXY');
         if (_loggedRoutes.length > 64) {
           _loggedRoutes.remove(_loggedRoutes.first);
         }

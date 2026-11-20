@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:win32_registry/win32_registry.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/log_url_redaction.dart';
 
 /// Windows 系统代理辅助类
 /// 用于读取 Windows 注册表中的代理设置
@@ -63,13 +64,14 @@ class WindowsProxyHelper {
 
       key.close();
 
-      AppLogger.d('Raw Proxy Server string: "$proxyServer"', 'PROXY');
-
       // 解析代理服务器字符串
       final parsedProxy = _parseProxyServer(proxyServer);
 
       if (parsedProxy != null) {
-        AppLogger.d('Parsed proxy: $parsedProxy', 'PROXY');
+        AppLogger.d(
+          () => 'Parsed proxy: ${formatProxyAddressForLog(parsedProxy)}',
+          'PROXY',
+        );
         return 'PROXY $parsedProxy';
       } else {
         AppLogger.d('Invalid proxy format, using DIRECT', 'PROXY');

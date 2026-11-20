@@ -2,6 +2,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/utils/log_url_redaction.dart';
 
 void main() {
+  group('formatProxyAddressForLog', () {
+    test('keeps the host and port of a scheme-less authenticated proxy', () {
+      expect(
+        formatProxyAddressForLog('fixture-user:fixture-pass@127.0.0.1:7890'),
+        '127.0.0.1:7890',
+      );
+    });
+
+    test('drops path, query and fragment from an environment proxy URL', () {
+      expect(
+        formatProxyAddressForLog(
+          'http://fixture-user:fixture-pass@[::1]:80/proxy?login=bob@test#local',
+        ),
+        '[::1]:80',
+      );
+    });
+
+    test('invalid proxy addresses do not fall back to the input', () {
+      const invalidAddresses = [
+        'fixture-user:fixture-pass@localhost:not-a-port',
+        'fixture-user:fixture-pass@:7890',
+      ];
+      for (final address in invalidAddresses) {
+        expect(formatProxyAddressForLog(address), '[invalid proxy address]');
+      }
+    });
+  });
+
   group('redactUriForLog', () {
     test('removes the complete Discord signature without an empty query', () {
       final uri = Uri.parse(

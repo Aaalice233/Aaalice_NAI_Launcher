@@ -12,6 +12,7 @@ import 'package:nai_launcher/core/network/system_proxy_http_overrides.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/models/settings/proxy_settings.dart';
 
+import '../../helpers/log_capture.dart';
 import '../../helpers/memory_local_storage.dart';
 
 void main() {
@@ -116,6 +117,31 @@ void main() {
       expect(await request(), 'origin');
     },
   );
+
+  test('authenticated proxy routing logs only the endpoint', () async {
+    const username = 'proxy-fixture-user';
+    const password = 'proxy-fixture-password';
+    final address = '127.0.0.1:${proxyA.server.port}';
+    await settings().setManualProxy(
+      '$username:$password@127.0.0.1',
+      proxyA.server.port,
+    );
+    await settings().setEnabled(true);
+
+    expect(
+      container.read(currentProxyAddressProvider),
+      '$username:$password@$address',
+    );
+    final logs = await captureLogs(() async {
+      expect(await requestWithDio(), 'proxy-a');
+    });
+
+    final text = logs.join('\n');
+    expect(text, contains('Dio using HTTP/1.1 adapter (proxy: $address)'));
+    expect(text, contains('-> PROXY $address'));
+    expect(text, isNot(contains(username)));
+    expect(text, isNot(contains(password)));
+  });
 
   test('switching from automatic to manual applies the saved address', () async {
     await settings().setMode(ProxyMode.auto);
