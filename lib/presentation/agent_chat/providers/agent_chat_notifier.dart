@@ -653,7 +653,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
 
   RetryCallbacks _compactionRetryCallbacks() => RetryCallbacks(
     onRetryScheduled: (attempt, maxAttempts, delayMs, errorMessage) {
-      if (!mounted) return;
+      if (!ref.mounted) return;
       state = state.copyWith(
         retryStatus: AgentChatRetryStatus(
           attempt: attempt,
@@ -664,10 +664,10 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
       );
     },
     onRetryAttemptStart: () {
-      if (mounted) state = state.copyWith(clearRetryStatus: true);
+      if (ref.mounted) state = state.copyWith(clearRetryStatus: true);
     },
     onRetryFinished: (success, attempt, finalError) {
-      if (mounted) state = state.copyWith(clearRetryStatus: true);
+      if (ref.mounted) state = state.copyWith(clearRetryStatus: true);
     },
   );
 
@@ -1406,13 +1406,13 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
         stackTrace,
         'AgentChat',
       );
-      if (mounted) state = state.copyWith(error: error.toString());
+      if (ref.mounted) state = state.copyWith(error: error.toString());
       return false;
     }
   }
 
   void _handleRetryStart(AgentChatRetryStatus status) {
-    if (!mounted) return;
+    if (!ref.mounted) return;
     state = state.copyWith(
       workPhase: AgentChatWorkPhase.retrying,
       retryStatus: status,
@@ -1421,7 +1421,7 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
   }
 
   void _handleRetryEnd() {
-    if (!mounted) return;
+    if (!ref.mounted) return;
     state = state.copyWith(clearRetryStatus: true);
   }
 
