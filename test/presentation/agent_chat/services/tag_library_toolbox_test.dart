@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference_codec.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/data/services/tag_library_portable_thumbnail_store.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/agent_resource_resolver.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/tag_library_toolbox.dart';
@@ -17,6 +18,58 @@ import 'package:nai_launcher/presentation/providers/tag_library_page_provider.da
 final _refProvider = Provider<Ref>((ref) => ref);
 
 void main() {
+  test(
+    'list search treats underscores and spaces equally before paging',
+    () async {
+      final created = DateTime.utc(2026);
+      TagLibraryEntry entry(
+        String id, {
+        String categoryId = 'styles',
+        bool isFavorite = true,
+        String content = 'long hair',
+        List<String> tags = const [],
+      }) => TagLibraryEntry(
+        id: id,
+        name: id,
+        content: content,
+        tags: tags,
+        categoryId: categoryId,
+        isFavorite: isFavorite,
+        createdAt: created,
+        updatedAt: created,
+      );
+
+      final storage = _MemoryStorage();
+      await storage.setTagLibraryEntriesJson(
+        jsonEncode([
+          entry('by-content'),
+          entry('by-tag', content: 'portrait', tags: ['long hair']),
+          entry('other-category', categoryId: 'characters'),
+          entry('not-favorite', isFavorite: false),
+          entry('other-content', content: 'short hair'),
+        ]),
+      );
+      final container = _container(storage: storage);
+      addTearDown(container.dispose);
+      final list = TagLibraryToolbox(
+        container.read(_refProvider),
+        resourceLoader: (reference) async => null,
+      ).tools().singleWhere((tool) => tool.name == 'list_tag_library_entries');
+
+      final result = await list.execute('list-spaced-tag', {
+        'query': 'long_hair',
+        'category_id': 'styles',
+        'favorite_only': true,
+        'offset': 1,
+        'limit': 1,
+      });
+
+      expect(result.isError, isFalse);
+      expect(result.details['total'], 2);
+      expect(result.details['entries'], [containsPair('id', 'by-tag')]);
+    },
+  );
+
   test('create schema makes resource_ref mandatory inside thumbnail', () {
     final container = _container();
     addTearDown(container.dispose);

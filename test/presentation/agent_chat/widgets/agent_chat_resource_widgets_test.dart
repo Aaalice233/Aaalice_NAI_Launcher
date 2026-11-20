@@ -183,6 +183,11 @@ void main() {
     expect(find.text('标签词库'), findsOneWidget);
     expect(find.text('Vibe 库'), findsOneWidget);
     expect(find.text('精准参考库'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('agent-chat-resource-search')),
+      'long_hair',
+    );
+    await tester.pump();
     await tester.tap(find.text('测试资源'));
     await tester.pumpAndSettle();
 
@@ -466,7 +471,7 @@ class _FakeTagLibraryPageNotifier extends TagLibraryPageNotifier {
     entries: [
       TagLibraryEntry.create(
         name: '测试资源',
-        content: 'resource content',
+        content: 'long hair',
       ).copyWith(id: 'tag-1'),
     ],
   );

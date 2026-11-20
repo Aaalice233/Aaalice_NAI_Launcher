@@ -10,6 +10,7 @@ import '../../../core/agent/resources/agent_chat_resource_reference.dart';
 import '../../../core/cache/local_file_image.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
+import '../../../data/models/tag_library/tag_library_entry.dart';
 import '../../../data/services/gallery/local_gallery_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
@@ -615,9 +616,7 @@ class _AgentChatResourcePickerBodyState
       final entries = ref
           .watch(tagLibraryPageNotifierProvider)
           .filteredEntries
-          .where(
-            (entry) => _matchesQuery([entry.displayName, entry.contentPreview]),
-          );
+          .search(_query);
       return _list(
         entries.map(
           (entry) => _PickerItem(

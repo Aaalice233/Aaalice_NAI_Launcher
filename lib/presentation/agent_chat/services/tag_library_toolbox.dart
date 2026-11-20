@@ -81,7 +81,7 @@ class TagLibraryToolbox {
     ),
     executeFn: (_, params) async {
       final state = _ref.read(tagLibraryPageNotifierProvider);
-      final query = (params['query'] as String? ?? '').trim().toLowerCase();
+      final query = (params['query'] as String? ?? '').trim();
       final categoryId = params['category_id'] as String?;
       final favoriteOnly = params['favorite_only'] as bool? ?? false;
       final offset = ((params['offset'] as num?)?.toInt() ?? 0).clamp(
@@ -90,17 +90,13 @@ class TagLibraryToolbox {
       );
       final limit = ((params['limit'] as num?)?.toInt() ?? 50).clamp(1, 200);
       final matching = state.entries
-          .where((entry) {
-            return (query.isEmpty ||
-                    entry.name.toLowerCase().contains(query) ||
-                    entry.content.toLowerCase().contains(query) ||
-                    entry.tags.any(
-                      (tag) => tag.toLowerCase().contains(query),
-                    )) &&
+          .where(
+            (entry) =>
                 (categoryId == null || entry.categoryId == categoryId) &&
-                (!favoriteOnly || entry.isFavorite);
-          })
-          .toList(growable: false);
+                (!favoriteOnly || entry.isFavorite),
+          )
+          .toList(growable: false)
+          .search(query);
       return agentToolJsonResult({
         'ok': true,
         'total': matching.length,
