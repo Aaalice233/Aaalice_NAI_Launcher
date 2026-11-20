@@ -8,8 +8,26 @@ String redactUriForLog(Uri uri) {
   ).toString();
 }
 
+const _scheme = r'[A-Za-z][A-Za-z0-9+.-]*';
+const _urlDelimiters =
+    r'''\s"<>`‘’“”\u3000-\u303F'''
+    r'\uFF01-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40\uFF5B-\uFF65';
+// 紧随查询赋值符的 URL 是查询值。
+const _nextUrl =
+    r'(?:(?<![?=&#])(?:https?|wss?)|(?<=[,;])'
+    '$_scheme)://';
+const _joinedField = r"""[')](?=[A-Za-z_][\w-]*[:=])""";
+final _legacyQueryValue = RegExp(r'= \[REDACTED\]', caseSensitive: false);
+
 final _absoluteLogUrl = RegExp(
-  r'''([A-Za-z][A-Za-z0-9+.-]*://)([^/\s"<>`?#]*)([^\s"<>`?#]*)([?#](?:= \[REDACTED\]|[^\s"<>`])*)?''',
+  '($_scheme://)'
+  '((?:(?!$_nextUrl)[^/$_urlDelimiters?#])*)'
+  '((?:(?!$_nextUrl)[^$_urlDelimiters?#])*)'
+  '([?#](?:${_legacyQueryValue.pattern}'
+  r'|(?<=[=#])\p{Script=Han}+'
+  '|(?!$_nextUrl|$_joinedField)[^$_urlDelimiters\\p{Script=Han}])*)?',
+  caseSensitive: false,
+  unicode: true,
 );
 
 String redactUrlsInLogText(String text) {
@@ -21,9 +39,7 @@ String redactUrlsInLogText(String text) {
     final tail = match.group(4);
     var punctuation = '';
     if (tail != null) {
-      const legacyValue = '= [REDACTED]';
-      final legacyStart = tail.lastIndexOf(legacyValue);
-      final legacyEnd = legacyStart < 0 ? 0 : legacyStart + legacyValue.length;
+      final legacyEnd = _legacyQueryValue.allMatches(tail).lastOrNull?.end ?? 0;
       var start = tail.length;
       while (start > legacyEnd && ",.;:!)]}'".contains(tail[start - 1])) {
         start--;
