@@ -22,6 +22,7 @@ import '../../../screens/watermark/watermark_editor_launcher.dart';
 import '../../../utils/clipboard_image.dart';
 import '../../shortcuts/shortcuts.dart';
 import '../app_toast.dart';
+import '../app_state_view.dart';
 import '../horizontal_resize_handle.dart';
 import '../resizable_pane.dart';
 import 'components/detail_image_page.dart';
@@ -30,6 +31,9 @@ import 'components/prompt_copy_dialog.dart';
 import 'components/detail_thumbnail_bar.dart';
 import 'components/detail_top_bar.dart';
 import 'image_detail_data.dart';
+import 'image_detail_delete_result.dart';
+
+export 'image_detail_delete_result.dart';
 
 /// 图像详情查看器回调函数
 class ImageDetailCallbacks {
@@ -49,10 +53,15 @@ class ImageDetailCallbacks {
   final Future<void> Function(ImageDetailData image)? onCopyImage;
 
   /// 发送到图生图回调
-  final Future<void> Function(ImageDetailData image)? onSendToImg2Img;
+  final Future<void> Function(ImageDetailData image, VoidCallback closeViewer)?
+  onSendToImg2Img;
 
   /// 发送到反推模块回调
-  final Future<void> Function(ImageDetailData image)? onSendToReversePrompt;
+  final Future<void> Function(ImageDetailData image, VoidCallback closeViewer)?
+  onSendToReversePrompt;
+
+  final Future<ImageDetailDeleteResult?> Function(ImageDetailData image)?
+  onDelete;
 
   const ImageDetailCallbacks({
     this.onFavoriteToggle,
@@ -62,6 +71,7 @@ class ImageDetailCallbacks {
     this.onCopyImage,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.onDelete,
   });
 }
 
@@ -203,6 +213,10 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   static const double _minimumImagePaneWidth = 480;
 
   late PageController _pageController;
+  List<ImageDetailData>? _updatedImages;
+  List<ImageDetailData> get _images => _updatedImages ?? widget.images;
+  bool _deleting = false;
+  ImageDetailDeletePageError? _deletePageError;
   late ScrollController _thumbnailController;
   late int _currentIndex;
   // 始终显示控制栏（不自动收起）
@@ -236,19 +250,19 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   // 滑动只会到相邻页，提前预取让切页后的首帧就有元数据
   void _prefetchNeighbors(int index) {
     for (final neighbor in [index - 1, index + 1]) {
-      if (neighbor < 0 || neighbor >= widget.images.length) continue;
-      unawaited(widget.images[neighbor].prefetchMetadata());
+      if (neighbor < 0 || neighbor >= _images.length) continue;
+      unawaited(_images[neighbor].prefetchMetadata());
     }
   }
 
   // 预取超时时页面已先行显示；读完后重建一次，顶栏等同步读取方才能拿到元数据
   void _refreshWhenPrefetched(int index) {
-    if (index < 0 || index >= widget.images.length) return;
-    final image = widget.images[index];
+    if (index < 0 || index >= _images.length) return;
+    final image = _images[index];
     if (!image.isPrefetchingMetadata) return;
     unawaited(
       image.prefetchMetadata().then((_) {
-        if (mounted && _currentIndex == index) setState(() {});
+        if (mounted && identical(_currentImage, image)) setState(() {});
       }),
     );
   }
@@ -279,11 +293,11 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   void _goToPage(int index) {
-    if (index < 0 || index >= widget.images.length) return;
+    if (index < 0 || index >= _images.length) return;
     _navigationRequest++;
 
     // 动画过半才切页，预取多半已完成；没读完的切页后由 _onPageChanged 回填
-    unawaited(widget.images[index].prefetchMetadata());
+    unawaited(_images[index].prefetchMetadata());
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -292,13 +306,13 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   }
 
   void _jumpToPage(int index) {
-    if (index < 0 || index >= widget.images.length) return;
+    if (index < 0 || index >= _images.length) return;
     unawaited(_jumpAfterPrefetch(index, ++_navigationRequest));
   }
 
   // 缩略图可跳到任意页，立即切页前先等预取；等待期间又切了页则放弃这次跳转
   Future<void> _jumpAfterPrefetch(int index, int request) async {
-    await _prefetchWithinLimit(widget.images[index], widget.prefetchWaitLimit);
+    await _prefetchWithinLimit(_images[index], widget.prefetchWaitLimit);
     if (!mounted ||
         request != _navigationRequest ||
         !_pageController.hasClients) {
@@ -353,8 +367,6 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       );
       return;
     }
-    _lastCloseRequestedAt = now;
-
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) {
       AppLogger.d(
@@ -364,11 +376,16 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       return;
     }
 
+    _lastCloseRequestedAt = now;
     _isClosing = true;
     AppLogger.d('Viewer close requested: $reason', 'ImageDetailViewer');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (route?.isCurrent == false) {
+        _isClosing = false;
+        return;
+      }
       Navigator.of(context).maybePop().whenComplete(() {
         if (mounted) {
           _isClosing = false;
@@ -379,7 +396,13 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
-  ImageDetailData get _currentImage => widget.images[_currentIndex];
+  void _closeAfterSend() {
+    if (mounted && ModalRoute.of(context)?.isCurrent == true) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  ImageDetailData get _currentImage => _images[_currentIndex];
 
   /// 获取当前图片的 TransformationController
   TransformationController get _currentTransformController {
@@ -498,19 +521,76 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     }
   }
 
-  /// 删除图片
-  void _deleteImage() {
-    // 查看器本身不直接处理删除，通过回调通知父组件
-    // 这里显示一个提示，实际删除由调用方处理
-    if (context.mounted) {
-      AppToast.info(context, context.l10n.toast_useDeleteButton);
+  Future<void> _deleteImage(ImageDetailData target) async {
+    if (!mounted ||
+        _deleting ||
+        _isClosing ||
+        target.identifier != _currentImage.identifier) {
+      return;
+    }
+    _navigationRequest++;
+    _pageController.jumpToPage(_currentIndex);
+    await _updateAfterDelete(() => widget.callbacks!.onDelete!(target));
+  }
+
+  Future<void> _updateAfterDelete(
+    Future<ImageDetailDeleteResult?> Function() load,
+  ) async {
+    final oldImages = [..._images];
+    final index = _currentIndex;
+    setState(() => _deleting = true);
+    try {
+      final page = await load();
+      if (!mounted || page == null) return;
+      if (page is ImageDetailDeletePageError) {
+        setState(() => _deletePageError = page);
+        return;
+      }
+      page as ImageDetailDeletePage;
+      if (page.images.isEmpty) {
+        _requestClose('empty-after-delete');
+        return;
+      }
+      final next = page.indexAfterRemoving(oldImages, index);
+      final oldController = _pageController;
+      setState(() {
+        _deletePageError = null;
+        _updatedImages = page.images;
+        _currentIndex = next;
+        _pageController = PageController(initialPage: next, keepPage: false);
+      });
+      unawaited(_currentImage.prefetchMetadata());
+      _refreshWhenPrefetched(next);
+      _prefetchNeighbors(next);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        oldController.dispose();
+        if (mounted) _scrollToThumbnail(_currentIndex, animate: false);
+      });
+      await WidgetsBinding.instance.endOfFrame;
+    } finally {
+      if (mounted) setState(() => _deleting = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // 定义快捷键映射
-    final shortcuts = <String, VoidCallback>{
+  Widget _buildPageError(ImageDetailDeletePageError error) {
+    return SafeArea(
+      child: AppStateView.error(
+        title: error.message,
+        actionLabel: context.l10n.common_retry,
+        actionLoading: _deleting,
+        onAction: () {
+          if (!_deleting) _updateAfterDelete(error.retry);
+        },
+      ),
+    );
+  }
+
+  Map<String, VoidCallback> get _viewerShortcuts {
+    if (_deleting) return const {};
+    if (_deletePageError != null) {
+      return {ShortcutIds.closeViewer: _handleKeyboardCloseRequest};
+    }
+    return {
       // 上一张
       ShortcutIds.previousImage: () => _goToPage(_currentIndex - 1),
       // 下一张
@@ -518,7 +598,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       // 第一张
       ShortcutIds.firstImage: () => _goToPage(0),
       // 最后一张
-      ShortcutIds.lastImage: () => _goToPage(widget.images.length - 1),
+      ShortcutIds.lastImage: () => _goToPage(_images.length - 1),
       // 放大
       ShortcutIds.zoomIn: _zoomIn,
       // 缩小
@@ -536,21 +616,36 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
       // 复用参数
       ShortcutIds.reuseGalleryParams: _reuseGalleryParams,
       // 删除图片
-      ShortcutIds.deleteImage: _deleteImage,
+      if (widget.callbacks?.onDelete != null)
+        ShortcutIds.deleteImage: () => _deleteImage(_currentImage),
     };
+  }
 
-    return PageShortcuts(
+  @override
+  Widget build(BuildContext context) {
+    final pageError = _deletePageError;
+    final viewer = PageShortcuts(
       contextType: ShortcutContext.viewer,
-      shortcuts: shortcuts,
+      shortcuts: _viewerShortcuts,
       reclaimFallbackFocus: false,
       child: FallbackFocusHome(
         focusNode: _focusNode,
         child: Focus(
           focusNode: _focusNode,
           child: Scaffold(
-            backgroundColor: ImageViewportSurface.background,
+            appBar: pageError == null
+                ? null
+                : AppBar(
+                    leading: CloseButton(
+                      onPressed: () => _requestClose('top-bar-close'),
+                    ),
+                  ),
+            backgroundColor: pageError == null
+                ? ImageViewportSurface.background
+                : null,
             body: LayoutBuilder(
               builder: (context, constraints) {
+                if (pageError != null) return _buildPageError(pageError);
                 final showSideMetadata = constraints.maxWidth >= 1100;
                 if (!showSideMetadata || !widget.showMetadataPanel) {
                   return _buildMainContent(
@@ -597,21 +692,24 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         ),
       ),
     );
+    return AbsorbPointer(absorbing: _deleting, child: viewer);
   }
 
   Widget _buildMainContent({required bool showMetadataAction}) {
-    final showThumbnails = widget.showThumbnails && widget.images.length > 1;
+    final showThumbnails = widget.showThumbnails && _images.length > 1;
+    final current = _currentImage;
 
     return Stack(
       children: [
         // 主图预览区域
         // 注意：移除 onTap 切换控制栏，让顶部工具栏始终显示
         PageView.builder(
+          key: ObjectKey(_pageController),
           controller: _pageController,
-          itemCount: widget.images.length,
+          itemCount: _images.length,
           onPageChanged: _onPageChanged,
           itemBuilder: (context, index) {
-            final data = widget.images[index];
+            final data = _images[index];
             final heroTag =
                 widget.heroTagPrefix != null && index == _currentIndex
                 ? '${widget.heroTagPrefix}_${data.identifier}'
@@ -623,6 +721,9 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
               data: data,
               heroTag: heroTag,
               transformationController: transformationController,
+              onDelete: widget.callbacks?.onDelete == null
+                  ? null
+                  : () => _deleteImage(data),
             );
           },
         ),
@@ -637,8 +738,11 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           right: 0,
           child: DetailTopBar(
             currentIndex: _currentIndex,
-            totalImages: widget.images.length,
+            totalImages: _images.length,
             currentImage: _currentImage,
+            onDelete: widget.callbacks?.onDelete == null
+                ? null
+                : () => _deleteImage(current),
             onClose: () => _requestClose('top-bar-close'),
             onShowMetadata: showMetadataAction ? _showMetadataPanel : null,
             onReuseMetadata: widget.callbacks?.onReuseMetadata != null
@@ -662,11 +766,17 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             onWatermark: () => _openWatermarkEditor(context),
             onMosaic: () => _openMosaicEditor(context),
             onSendToImg2Img: widget.callbacks?.onSendToImg2Img != null
-                ? () => widget.callbacks!.onSendToImg2Img!(_currentImage)
+                ? () => widget.callbacks!.onSendToImg2Img!(
+                    current,
+                    _closeAfterSend,
+                  )
                 : null,
             onSendToReversePrompt:
                 widget.callbacks?.onSendToReversePrompt != null
-                ? () => widget.callbacks!.onSendToReversePrompt!(_currentImage)
+                ? () => widget.callbacks!.onSendToReversePrompt!(
+                    current,
+                    _closeAfterSend,
+                  )
                 : null,
           ),
         ),
@@ -684,7 +794,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           ),
 
         // 左右导航按钮
-        if (_showControls && widget.images.length > 1) ...[
+        if (_showControls && _images.length > 1) ...[
           if (_currentIndex > 0)
             Positioned(
               left: 16,
@@ -697,7 +807,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 ),
               ),
             ),
-          if (_currentIndex < widget.images.length - 1)
+          if (_currentIndex < _images.length - 1)
             Positioned(
               right: 16,
               top: 0,
@@ -726,7 +836,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
         ),
       ),
       child: DetailThumbnailBar(
-        images: widget.images,
+        images: _images,
         currentIndex: _currentIndex,
         scrollController: _thumbnailController,
         onTap: _jumpToPage,

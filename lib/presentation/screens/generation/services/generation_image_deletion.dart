@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -121,14 +123,25 @@ class GenerationImageDeletion {
   ) {
     if (result.removedCount == 0) return;
     final failures = result.files.failures;
-    if (failures.isNotEmpty) {
-      AppToast.warningOnOverlay(
-        overlay,
+    final cleanupErrors = [
+      for (final path in result.files.cleanupFailures.keys)
+        '${p.basename(path)}: ${l10n.localGallery_deleteRegistryCleanupFailed}',
+      if (result.files.indexCleanupFailure != null)
+        l10n.localGallery_deleteIndexCleanupFailed,
+    ];
+    final warnings = [
+      if (failures.isNotEmpty)
         l10n.generation_deleteImageFilesFailed(
           failures.length,
-          failures.values.first,
+          failures.values.first is PathAccessException
+              ? l10n.localGallery_errorPermissionDenied
+              : l10n.localGallery_unknownError,
         ),
-      );
+      if (cleanupErrors.isNotEmpty)
+        l10n.localGallery_deleteCleanupFailed(cleanupErrors.join('\n')),
+    ];
+    if (warnings.isNotEmpty) {
+      AppToast.warningOnOverlay(overlay, warnings.join('\n'));
       return;
     }
     AppToast.successOnOverlay(

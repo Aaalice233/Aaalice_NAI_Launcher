@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/mosaic/mosaic_derivative_registry.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/watermark/watermark_derivative_registry.dart';
@@ -51,10 +52,46 @@ void main() {
     expect(deleted, isFalse);
     expect(watermarks.find(missing), isNotNull);
   });
+
+  test('文件的父目录不可达时保留路径异常', () async {
+    final path = '${directory.path}/unreachable/image.png';
+    await expectLater(
+      GalleryImageFileDeleter(storage).delete(path),
+      throwsA(isA<PathNotFoundException>()),
+    );
+  });
+
+  test('登记写入失败时文件已消失，另一种登记仍完成清理', () async {
+    final output = await File('${directory.path}/output.png').create();
+    final watermarks = WatermarkDerivativeRegistry(storage);
+    final mosaics = MosaicDerivativeRegistry(storage);
+    for (final registry in [watermarks, mosaics]) {
+      await registry.register(
+        outputPath: output.path,
+        sourcePath: 'source.png',
+      );
+    }
+    storage.failWritesTo = StorageKeys.watermarkDerivativeRegistryV1;
+
+    await expectLater(
+      GalleryImageFileDeleter(storage).delete(output.path),
+      throwsA(
+        isA<GalleryImageCleanupException>().having(
+          (error) => error.cause,
+          'cause',
+          isA<StateError>(),
+        ),
+      ),
+    );
+    expect(await output.exists(), isFalse);
+    expect(watermarks.find(output.path), isNotNull);
+    expect(mosaics.find(output.path), isNull);
+  });
 }
 
 class _MemoryStorage extends LocalStorageService {
   final values = <String, Object?>{};
+  String? failWritesTo;
 
   @override
   T? getSetting<T>(String key, {T? defaultValue}) =>
@@ -62,6 +99,7 @@ class _MemoryStorage extends LocalStorageService {
 
   @override
   Future<void> setSetting<T>(String key, T value) async {
+    if (key == failWritesTo) throw StateError('registry write failed');
     values[key] = value;
   }
 }

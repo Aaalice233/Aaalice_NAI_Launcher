@@ -10,6 +10,8 @@ import '../../../../providers/local_gallery_provider.dart';
 import '../../../../providers/mosaic_settings_provider.dart';
 import '../../../../providers/watermark_settings_provider.dart';
 import '../../animated_favorite_button.dart';
+import '../../card_action_buttons.dart';
+import '../../menu_action_label.dart';
 import '../image_detail_data.dart';
 
 /// 顶部控制栏
@@ -20,6 +22,7 @@ class DetailTopBar extends StatelessWidget {
   final int totalImages;
   final ImageDetailData currentImage;
   final VoidCallback onClose;
+  final VoidCallback? onDelete;
   final VoidCallback? onShowMetadata;
   final VoidCallback? onReuseMetadata;
   final VoidCallback? onFavoriteToggle;
@@ -38,6 +41,7 @@ class DetailTopBar extends StatelessWidget {
     required this.totalImages,
     required this.currentImage,
     required this.onClose,
+    this.onDelete,
     this.onShowMetadata,
     this.onReuseMetadata,
     this.onFavoriteToggle,
@@ -115,6 +119,7 @@ class DetailTopBar extends StatelessWidget {
               child: _DetailTopBarActions(
                 currentImage: currentImage,
                 hasMetadata: metadata != null,
+                onDelete: onDelete,
                 onShowMetadata: onShowMetadata,
                 onReuseMetadata: onReuseMetadata,
                 onFavoriteToggle: onFavoriteToggle,
@@ -152,6 +157,7 @@ class _DetailTopBarActions extends ConsumerWidget {
   const _DetailTopBarActions({
     required this.currentImage,
     required this.hasMetadata,
+    this.onDelete,
     this.onShowMetadata,
     this.onReuseMetadata,
     this.onFavoriteToggle,
@@ -167,6 +173,7 @@ class _DetailTopBarActions extends ConsumerWidget {
 
   final ImageDetailData currentImage;
   final bool hasMetadata;
+  final VoidCallback? onDelete;
   final VoidCallback? onShowMetadata;
   final VoidCallback? onReuseMetadata;
   final VoidCallback? onFavoriteToggle;
@@ -320,6 +327,20 @@ class _DetailTopBarActions extends ConsumerWidget {
             ),
           ),
       ];
+      if (onDelete != null) {
+        overflowActions.addAll([
+          if (overflowActions.isNotEmpty) const PopupMenuDivider(),
+          PopupMenuItem(
+            onTap: onDelete,
+            child: MenuActionLabel(
+              leading: const Icon(Icons.delete_outline),
+              label: l10n.common_delete,
+              iconSize: 24,
+              destructive: true,
+            ),
+          ),
+        ]);
+      }
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -447,6 +468,18 @@ class _DetailTopBarActions extends ConsumerWidget {
             tooltip: l10n.shortcut_action_copy_image,
           ),
         if (favorite != null) favorite,
+        if (onDelete != null)
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: Icon(
+              Icons.delete_outline,
+              color: ImageOverlayControlStyle.errorForeground(
+                Theme.of(context).colorScheme,
+              ),
+            ),
+            onPressed: onDelete,
+            tooltip: l10n.common_delete,
+          ),
       ],
     );
   }

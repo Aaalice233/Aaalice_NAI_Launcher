@@ -1728,8 +1728,6 @@
     }
   },
   "gallery_upscale": "拡大",
-  "gallery_sentToImg2Img": "画像を Image2Image に送信しました",
-  "gallery_sentToReversePrompt": "画像がリバースプロンプトモジュールに送信されました",
   "gallery_sendFailed": "送信失敗: {error}",
   "@gallery_sendFailed": {
     "placeholders": {
@@ -2696,6 +2694,7 @@
   },
   "localGallery_indexingLocalImages": "ローカル画像のインデックスを作成しています...",
   "localGallery_emptyTitle": "ローカル イメージがありません",
+  "localGallery_emptyScopeTitle": "ここにはまだ画像がありません",
   "localGallery_emptySubtitle": "生成された画像はここに保存されます",
   "localGallery_noMatchingResults": "一致する結果はありません",
   "localGallery_loadingGroupedImages": "グループ化された画像を読み込み中...",
@@ -2739,6 +2738,14 @@
     }
   },
   "localGallery_imageDeleted": "画像が削除されました",
+  "localGallery_deleteCleanupFailed": "画像ファイルはすでにありません。ギャラリーの記録を整理できませんでした。{error}",
+  "@localGallery_deleteCleanupFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_deleteRegistryCleanupFailed": "派生画像の登録情報を削除できませんでした。",
+  "localGallery_deleteIndexCleanupFailed": "ギャラリーの記録を更新できませんでした。",
   "localGallery_deleteFailed": "削除に失敗しました: {error}",
   "@localGallery_deleteFailed": {
     "placeholders": {
@@ -2753,7 +2760,6 @@
   "localGallery_confirmMoveImageContent": "これにより、画像がターゲット カテゴリ フォルダーに移動されます。これが誤ってドラッグされたものではないことを確認します。",
   "localGallery_confirmMove": "移動の確認",
   "localGallery_imageMovedToCategory": "画像がカテゴリに移動されました",
-  "localGallery_categoriesSynced": "カテゴリとフォルダーが同期されました",
   "localGallery_saveDirectoryNotSet": "保存ディレクトリが設定されていません",
   "localGallery_folderNotFound": "フォルダーが見つかりません",
   "localGallery_openFolderFailed": "フォルダーを開けませんでした: {error}",
@@ -5641,7 +5647,6 @@
   "toast_presetSaved": "プリセットは正常に保存されました",
   "toast_imagePromptCopied": "プロンプトがコピーされました",
   "toast_imageHasNoPrompt": "この画像にはプロンプトがありません",
-  "toast_useDeleteButton": "UI の削除ボタンを使用します。",
   "toast_imageHasNoMetadata": "この画像にはメタデータがありません",
   "toast_imageDataUnavailable": "画像データが利用できないため、コピーできません",
   "toast_vibeDataCopied": "Vibe データをコピーしました",

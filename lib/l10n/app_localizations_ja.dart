@@ -3790,12 +3790,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gallery_upscale => '拡大';
 
   @override
-  String get gallery_sentToImg2Img => '画像を Image2Image に送信しました';
-
-  @override
-  String get gallery_sentToReversePrompt => '画像がリバースプロンプトモジュールに送信されました';
-
-  @override
   String gallery_sendFailed(Object error) {
     return '送信失敗: $error';
   }
@@ -5966,6 +5960,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_emptyTitle => 'ローカル イメージがありません';
 
   @override
+  String get localGallery_emptyScopeTitle => 'ここにはまだ画像がありません';
+
+  @override
   String get localGallery_emptySubtitle => '生成された画像はここに保存されます';
 
   @override
@@ -6068,6 +6065,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get localGallery_imageDeleted => '画像が削除されました';
 
   @override
+  String localGallery_deleteCleanupFailed(Object error) {
+    return '画像ファイルはすでにありません。ギャラリーの記録を整理できませんでした。$error';
+  }
+
+  @override
+  String get localGallery_deleteRegistryCleanupFailed =>
+      '派生画像の登録情報を削除できませんでした。';
+
+  @override
+  String get localGallery_deleteIndexCleanupFailed => 'ギャラリーの記録を更新できませんでした。';
+
+  @override
   String localGallery_deleteFailed(Object error) {
     return '削除に失敗しました: $error';
   }
@@ -6098,9 +6107,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get localGallery_imageMovedToCategory => '画像がカテゴリに移動されました';
-
-  @override
-  String get localGallery_categoriesSynced => 'カテゴリとフォルダーが同期されました';
 
   @override
   String get localGallery_saveDirectoryNotSet => '保存ディレクトリが設定されていません';
@@ -11446,9 +11452,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get toast_imageHasNoPrompt => 'この画像にはプロンプトがありません';
-
-  @override
-  String get toast_useDeleteButton => 'UI の削除ボタンを使用します。';
 
   @override
   String get toast_imageHasNoMetadata => 'この画像にはメタデータがありません';

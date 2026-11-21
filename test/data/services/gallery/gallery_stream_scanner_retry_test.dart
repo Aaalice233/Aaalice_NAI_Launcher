@@ -23,6 +23,34 @@ import '../../../helpers/gallery_database_sandbox.dart';
 import '../../../helpers/webp_metadata_fixture.dart';
 
 void main() {
+  test(
+    'discovered and supplied snapshots use identical normalized paths',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'gallery_snapshot_',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final file = await File(p.join(tempDir.path, 'image.png')).create();
+      final forwardPath = tempDir.path.replaceAll(Platform.pathSeparator, '/');
+      final root = Directory('$forwardPath/./');
+      final scanner = GalleryStreamScanner.forTesting(
+        dataSource: GalleryDataSource(),
+        metadataService: IsolateMetadataService.instance,
+      );
+      addTearDown(scanner.dispose);
+
+      final supplied = scanner.freezeFileSnapshot(root, [
+        File('${root.path}image.png'),
+        file,
+      ]);
+      final discovered = await scanner.createFileSnapshot(root);
+
+      expect(supplied.single.path, p.normalize(p.absolute(file.path)));
+      expect(discovered.single.path, supplied.single.path);
+      expect(() => discovered.add(file), throwsUnsupportedError);
+    },
+  );
+
   group('GalleryStreamScanner retryMissingMetadata', () {
     final sandbox = useGalleryDatabaseSandbox('gallery_stream_scanner_retry_');
     late GalleryDataSource dataSource;
@@ -452,7 +480,7 @@ void main() {
     });
 
     test('snapshot and scanning share the gallery file policy', () async {
-      final cacheDir = Directory(p.join(tempDir.path, 'cache'));
+      final cacheDir = Directory(p.join(tempDir.path, '.thumbs'));
       await cacheDir.create();
       final excluded = await _createWrappedNovelAiPng(
         cacheDir,
@@ -479,7 +507,7 @@ void main() {
       await scanner.startScanning(
         tempDir,
         retryMissingMetadata: true,
-        fileSnapshot: [included],
+        fileSnapshot: [included, excluded],
       );
 
       expect(await dataSource.getImageIdByPath(included.path), isNotNull);

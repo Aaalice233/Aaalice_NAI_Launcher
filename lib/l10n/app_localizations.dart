@@ -6905,18 +6905,6 @@ abstract class AppLocalizations {
   /// **'Upscale'**
   String get gallery_upscale;
 
-  /// No description provided for @gallery_sentToImg2Img.
-  ///
-  /// In en, this message translates to:
-  /// **'Image sent to Image2Image'**
-  String get gallery_sentToImg2Img;
-
-  /// No description provided for @gallery_sentToReversePrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'Image sent to reverse-prompt module'**
-  String get gallery_sentToReversePrompt;
-
   /// No description provided for @gallery_sendFailed.
   ///
   /// In en, this message translates to:
@@ -10809,6 +10797,12 @@ abstract class AppLocalizations {
   /// **'No local images'**
   String get localGallery_emptyTitle;
 
+  /// No description provided for @localGallery_emptyScopeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No images here yet'**
+  String get localGallery_emptyScopeTitle;
+
   /// No description provided for @localGallery_emptySubtitle.
   ///
   /// In en, this message translates to:
@@ -11001,6 +10995,24 @@ abstract class AppLocalizations {
   /// **'Image deleted'**
   String get localGallery_imageDeleted;
 
+  /// No description provided for @localGallery_deleteCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The image files are gone. Cleanup of their gallery records failed. {error}'**
+  String localGallery_deleteCleanupFailed(Object error);
+
+  /// No description provided for @localGallery_deleteRegistryCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The derivative records could not be cleared.'**
+  String get localGallery_deleteRegistryCleanupFailed;
+
+  /// No description provided for @localGallery_deleteIndexCleanupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The gallery records could not be updated.'**
+  String get localGallery_deleteIndexCleanupFailed;
+
   /// No description provided for @localGallery_deleteFailed.
   ///
   /// In en, this message translates to:
@@ -11054,12 +11066,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image moved to category'**
   String get localGallery_imageMovedToCategory;
-
-  /// No description provided for @localGallery_categoriesSynced.
-  ///
-  /// In en, this message translates to:
-  /// **'Categories synced with folders'**
-  String get localGallery_categoriesSynced;
 
   /// No description provided for @localGallery_saveDirectoryNotSet.
   ///
@@ -20471,12 +20477,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This image has no Prompt'**
   String get toast_imageHasNoPrompt;
-
-  /// No description provided for @toast_useDeleteButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Use the delete button in the UI'**
-  String get toast_useDeleteButton;
 
   /// No description provided for @toast_imageHasNoMetadata.
   ///

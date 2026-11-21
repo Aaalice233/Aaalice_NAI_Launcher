@@ -31,7 +31,6 @@ class LocalGalleryCategoryPanel extends ConsumerStatefulWidget {
     required this.onAddSubCategory,
     required this.onCategoryMove,
     required this.onImagesDrop,
-    required this.onSyncWithFileSystem,
     required this.onCreateAlbum,
     required this.onAlbumSelected,
     required this.onAlbumRename,
@@ -61,7 +60,6 @@ class LocalGalleryCategoryPanel extends ConsumerStatefulWidget {
 
   final Future<void> Function(List<String> imagePaths, String? categoryId)
   onImagesDrop;
-  final Future<void> Function() onSyncWithFileSystem;
   final Future<void> Function(String? parentId) onCreateAlbum;
   final ValueChanged<String?> onAlbumSelected;
   final Future<void> Function(String albumId, String newName) onAlbumRename;
@@ -206,7 +204,6 @@ class _LocalGalleryCategoryPanelState
                     onCategoryMove: widget.onCategoryMove,
                     onCategoryMoveToSlot: widget.onCategoryMoveToSlot,
                     onImagesDrop: widget.onImagesDrop,
-                    onSyncWithFileSystem: widget.onSyncWithFileSystem,
                   ),
               ],
             ),

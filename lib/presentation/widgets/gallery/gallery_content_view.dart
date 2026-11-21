@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/cache/gallery_aspect_ratio_cache.dart';
 import '../../../core/platform/platform_capabilities.dart';
@@ -9,11 +8,8 @@ import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/services/image_metadata_service.dart';
 import '../../providers/krita/krita_bridge_notifier.dart';
 import '../../providers/local_gallery_provider.dart';
-import '../../providers/reverse_prompt_provider.dart';
-import '../../router/app_routes.dart';
-import '../../services/image_workflow_launcher.dart';
+import '../../services/local_gallery_deletion.dart';
 import '../../providers/selection_mode_provider.dart';
-import '../common/app_toast.dart';
 import '../../widgets/grouped_grid_view.dart';
 import '../../utils/image_detail_opener.dart';
 import 'local_image_card_3d.dart';
@@ -401,7 +397,7 @@ class _LocalGalleryStateAdapter implements GalleryState<LocalImageRecord> {
   bool get isGroupedLoading => _state.isGroupedLoading;
 
   @override
-  bool get hasFilters => _state.hasFilters;
+  bool get hasFilters => _state.filterCriteria.hasClearableFilters;
 
   @override
   List<LocalImageRecord> get filteredFiles =>
@@ -426,11 +422,14 @@ class LocalGalleryContentView extends ConsumerWidget {
   final int columns;
   final double itemWidth;
   final void Function(LocalImageRecord record)? onReuseMetadata;
+  final Future<GalleryImageDeleteResult> Function(LocalImageRecord record)?
+  onDelete;
   final void Function(LocalImageRecord record, Offset position)? onContextMenu;
   final Future<void> Function(
     LocalImageRecord record,
-    LocalImageContextAction action,
-  )?
+    LocalImageContextAction action, {
+    VoidCallback? onSent,
+  })?
   onSendAction;
   final GlobalKey<GroupedGridViewState>? groupedGridViewKey;
 
@@ -439,6 +438,7 @@ class LocalGalleryContentView extends ConsumerWidget {
     required this.columns,
     required this.itemWidth,
     this.onReuseMetadata,
+    this.onDelete,
     this.onContextMenu,
     this.onSendAction,
     this.groupedGridViewKey,
@@ -460,8 +460,12 @@ class LocalGalleryContentView extends ConsumerWidget {
       List<LocalImageRecord> images,
       int initialIndex,
     ) {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final gallery = container.read(localGalleryNotifierProvider.notifier);
+      final l10n = context.l10n;
+      var pageNumber = state.currentPage;
       bool getFavoriteStatus(String path) {
-        final providerState = ref.read(localGalleryNotifierProvider);
+        final providerState = container.read(localGalleryNotifierProvider);
         final image = providerState.currentImages
             .cast<LocalImageRecord?>()
             .firstWhere((img) => img?.path == path, orElse: () => null);
@@ -469,63 +473,70 @@ class LocalGalleryContentView extends ConsumerWidget {
       }
 
       final metadataService = ref.read(imageMetadataServiceProvider);
+      LocalImageDetailData detailFor(LocalImageRecord record) =>
+          LocalImageDetailData(
+            record,
+            getFavoriteStatus: getFavoriteStatus,
+            metadataService: metadataService,
+          );
+      Future<ImageDetailDeleteResult> pageAfterDelete() async {
+        final page = await gallery.settledPage();
+        if (page.pageNeedsRetry) {
+          return ImageDetailDeletePageError(
+            l10n.localGallery_loadFailed(
+              page.error?.localized(l10n) ?? l10n.localGallery_unknownError,
+            ),
+            retry: () async {
+              await gallery.loadPage(page.currentPage);
+              return pageAfterDelete();
+            },
+          );
+        }
+        final previousPage = page.currentPage < pageNumber;
+        pageNumber = page.currentPage;
+        return ImageDetailDeletePage(
+          page.currentImages.map(detailFor).toList(),
+          previousPage: previousPage,
+        );
+      }
+
+      final send = onSendAction;
       ImageDetailOpener.showMultipleImmediate(
         context,
-        images: images
-            .map(
-              (r) => LocalImageDetailData(
-                r,
-                getFavoriteStatus: getFavoriteStatus,
-                metadataService: metadataService,
-              ),
-            )
-            .toList(),
+        images: images.map(detailFor).toList(),
         initialIndex: initialIndex,
         showMetadataPanel: true,
-        showThumbnails: images.length > 1,
         callbacks: ImageDetailCallbacks(
+          onDelete: onDelete == null
+              ? null
+              : (data) async {
+                  final result = await onDelete!(
+                    (data as LocalImageDetailData).record,
+                  );
+                  if (!result.fileIsGone) return null;
+                  return pageAfterDelete();
+                },
           onReuseMetadata: onReuseMetadata != null
               ? (data) async =>
                     onReuseMetadata?.call((data as LocalImageDetailData).record)
               : null,
-          onFavoriteToggle: (data) => ref
+          onFavoriteToggle: (data) => container
               .read(localGalleryNotifierProvider.notifier)
               .toggleFavorite((data as LocalImageDetailData).record.path),
-          onSendToImg2Img: (data) async {
-            try {
-              final bytes = await data.getImageBytes();
-              ImageWorkflowLauncher.openImageToImage(ref, bytes);
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-              context.go(AppRoutes.home);
-              AppToast.success(context, context.l10n.gallery_sentToImg2Img);
-            } catch (e) {
-              if (context.mounted) {
-                AppToast.error(context, context.l10n.gallery_sendFailed('$e'));
-              }
-            }
-          },
-          onSendToReversePrompt: (data) async {
-            try {
-              await ref
-                  .read(reversePromptProvider.notifier)
-                  .addImage(
-                    await data.getImageBytes(),
-                    name: data.fileInfo?.fileName ?? 'gallery-image',
-                  );
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-              context.go(AppRoutes.home);
-              AppToast.success(
-                context,
-                context.l10n.gallery_sentToReversePrompt,
-              );
-            } catch (e) {
-              if (context.mounted) {
-                AppToast.error(context, context.l10n.gallery_sendFailed('$e'));
-              }
-            }
-          },
+          onSendToImg2Img: send == null
+              ? null
+              : (data, closeViewer) => send(
+                  (data as LocalImageDetailData).record,
+                  LocalImageContextAction.sendToImg2Img,
+                  onSent: closeViewer,
+                ),
+          onSendToReversePrompt: send == null
+              ? null
+              : (data, closeViewer) => send(
+                  (data as LocalImageDetailData).record,
+                  LocalImageContextAction.sendToReversePrompt,
+                  onSent: closeViewer,
+                ),
         ),
       );
     }
@@ -546,8 +557,9 @@ class LocalGalleryContentView extends ConsumerWidget {
           .read(localGalleryNotifierProvider.notifier)
           .toggleFavorite(record.path),
       onContextMenu: onContextMenu,
-      onClearFilters: () =>
-          ref.read(localGalleryNotifierProvider.notifier).clearAllFilters(),
+      onClearFilters: () => ref
+          .read(localGalleryNotifierProvider.notifier)
+          .clearFiltersWithinScope(),
       groupedGridViewKey: groupedGridViewKey,
       view3DConfig: Gallery3DViewConfig<LocalImageRecord>(
         images: state.currentImages,

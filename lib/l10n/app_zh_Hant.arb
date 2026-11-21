@@ -1646,8 +1646,6 @@
     }
   },
   "gallery_upscale": "放大",
-  "gallery_sentToImg2Img": "圖片已傳送到圖生圖",
-  "gallery_sentToReversePrompt": "圖片已傳送到反推模組",
   "gallery_sendFailed": "傳送失敗: {error}",
   "@gallery_sendFailed": {
     "placeholders": {
@@ -2746,6 +2744,7 @@
   },
   "localGallery_indexingLocalImages": "索引本地圖片中...",
   "localGallery_emptyTitle": "暫無本地圖片",
+  "localGallery_emptyScopeTitle": "這裡還沒有圖片",
   "localGallery_emptySubtitle": "生成的圖片將儲存在此處",
   "localGallery_noMatchingResults": "無匹配結果",
   "localGallery_loadingGroupedImages": "載入分組圖片中...",
@@ -2789,6 +2788,14 @@
     }
   },
   "localGallery_imageDeleted": "圖片已刪除",
+  "localGallery_deleteCleanupFailed": "圖片檔案已不存在，清理圖庫記錄時發生錯誤。{error}",
+  "@localGallery_deleteCleanupFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "localGallery_deleteRegistryCleanupFailed": "無法清理衍生圖片登記。",
+  "localGallery_deleteIndexCleanupFailed": "無法更新圖庫記錄。",
   "localGallery_deleteFailed": "刪除失敗: {error}",
   "@localGallery_deleteFailed": {
     "placeholders": {
@@ -2803,7 +2810,6 @@
   "localGallery_confirmMoveImageContent": "將把圖片移動到目標分類資料夾。請確認不是誤拖拽。",
   "localGallery_confirmMove": "確認移動",
   "localGallery_imageMovedToCategory": "圖片已移動到分類",
-  "localGallery_categoriesSynced": "分類已與資料夾同步",
   "localGallery_saveDirectoryNotSet": "未設定儲存目錄",
   "localGallery_folderNotFound": "資料夾不存在",
   "localGallery_openFolderFailed": "開啟資料夾失敗: {error}",
@@ -5440,7 +5446,6 @@
   "toast_presetSaved": "預設儲存成功",
   "toast_imagePromptCopied": "已複製 Prompt",
   "toast_imageHasNoPrompt": "此圖片沒有 Prompt",
-  "toast_useDeleteButton": "請使用介面刪除按鈕",
   "toast_imageHasNoMetadata": "此圖片沒有後設資料",
   "toast_imageDataUnavailable": "影象資料不可用，無法複製",
   "toast_vibeDataCopied": "Vibe 資料已複製",

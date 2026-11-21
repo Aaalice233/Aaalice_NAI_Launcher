@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
+import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_scan_coordinator.dart';
+import 'package:nai_launcher/data/services/gallery/local_gallery_query.dart';
 import 'package:nai_launcher/data/services/gallery/local_gallery_repository.dart';
 
 void main() {
@@ -14,14 +16,19 @@ void main() {
 
   late _GatedRepository repository;
   late GalleryScanCoordinator coordinator;
+  late LocalGalleryQuery query;
   late List<List<String>> loaded;
 
   setUp(() {
     final dataSource = GalleryDataSource();
     repository = _GatedRepository(dataSource);
+    query = LocalGalleryQuery(
+      repository: repository,
+      filterService: GalleryFilterService(dataSource),
+    );
     coordinator = GalleryScanCoordinator(
       dataSource: dataSource,
-      repository: repository,
+      loadFiles: query.reloadFiles,
     );
     loaded = [];
   });
@@ -54,6 +61,27 @@ void main() {
     repository.releaseListing();
     await second;
     expect(loaded.last, ['a.png']);
+  });
+
+  test('旧目录枚举不能恢复已删除路径，后续刷新可以收录同名新图', () async {
+    repository.files = ['a.png', 'b.png'];
+    final initial = refresh();
+    repository.releaseListing();
+    await initial;
+    repository.files = ['a.png', 'b.png', 'untracked.png'];
+    final stale = refresh();
+    expect(repository.pendingListings, 1);
+    expect(query.removePaths(['a.png', 'untracked.png']), ['a.png']);
+    repository.releaseListing();
+    await stale;
+    expect(loaded.last, ['b.png']);
+    expect(query.totalCount, 1);
+    expect(query.effectiveFiles.map((f) => f.path), ['b.png']);
+    repository.files = ['a.png', 'b.png'];
+    final recreated = refresh();
+    repository.releaseListing();
+    await recreated;
+    expect(loaded.last, ['a.png', 'b.png']);
   });
 
   test('在途期间的多次请求合并为一轮尾随刷新', () async {
@@ -124,7 +152,7 @@ class _GatedRepository extends LocalGalleryRepository {
   void releaseListing() => _gates.removeAt(0).complete();
 
   @override
-  Future<List<File>> findGalleryFiles() async {
+  Future<List<File>> findGalleryFiles([String? rootPath]) async {
     listingCount++;
     // 枚举在开始时就看到了磁盘，挂起的只是返回，模拟大目录的慢速 stat。
     final snapshot = [for (final path in files) File(path)];

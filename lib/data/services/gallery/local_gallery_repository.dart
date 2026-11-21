@@ -11,7 +11,7 @@ import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
 import '../../repositories/gallery_folder_repository.dart';
 import '../image_metadata_service.dart';
-import 'scan_config.dart';
+import 'gallery_image_files.dart';
 
 /// File-system and persistence boundary for the local gallery.
 class LocalGalleryRepository {
@@ -20,8 +20,8 @@ class LocalGalleryRepository {
 
   final GalleryDataSource _dataSource;
 
-  Future<List<File>> findGalleryFiles() async {
-    final rootPath = await GalleryFolderRepository.instance.getRootPath();
+  Future<List<File>> findGalleryFiles([String? rootPath]) async {
+    rootPath ??= await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null || rootPath.isEmpty) {
       throw GalleryPermissionDeniedException(
         path: rootPath,
@@ -37,17 +37,8 @@ class LocalGalleryRepository {
       );
     }
 
-    var files = <File>[];
-    const scanConfig = ScanConfig();
     try {
-      await for (final entity in rootDir.list(
-        recursive: true,
-        followLinks: false,
-      )) {
-        if (entity is File && scanConfig.acceptsGalleryImagePath(entity.path)) {
-          files.add(entity);
-        }
-      }
+      final files = await const GalleryImageFiles().list(rootDir);
 
       const statBatchSize = 32;
       final validStats = <({File file, FileStat stat})>[];
@@ -66,8 +57,8 @@ class LocalGalleryRepository {
         await Future<void>.delayed(Duration.zero);
       }
       validStats.sort((a, b) => b.stat.modified.compareTo(a.stat.modified));
-      files = validStats.map((entry) => entry.file).toList();
-    } catch (error) {
+      return validStats.map((entry) => entry.file).toList();
+    } on FileSystemException catch (error) {
       AppLogger.e(
         'Failed to get image files',
         error,
@@ -81,7 +72,6 @@ class LocalGalleryRepository {
         cause: error,
       );
     }
-    return files;
   }
 
   Future<List<LocalImageRecord>> loadRecords(

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,8 @@ import 'package:nai_launcher/presentation/widgets/common/image_detail/components
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_thumbnail_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
+import 'package:nai_launcher/presentation/widgets/common/themed_confirm_dialog.dart';
+import 'package:nai_launcher/presentation/widgets/shortcuts/shortcut_aware_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -241,6 +244,260 @@ void main() {
 
     expect(saved, ['two']);
   });
+
+  for (final menu in ['右键菜单', '窄屏更多菜单']) {
+    testWidgets('翻页途中打开的$menu不能确认或删除下一张图', (tester) async {
+      final contextMenu = menu == '右键菜单';
+      await tester.binding.setSurfaceSize(Size(contextMenu ? 840 : 320, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final dir = Directory.systemTemp.createTempSync('viewer_menu_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final files = {
+        for (final name in ['a.png', 'b.png'])
+          name: File('${dir.path}/$name')..writeAsBytesSync(_validPngBytes),
+      };
+      final confirmations = <String>[];
+      await _pumpViewer(
+        tester,
+        images: [
+          for (final name in files.keys) _TestImageData(name, _validPngBytes),
+        ],
+        callbacks: ImageDetailCallbacks(
+          onDelete: (image) async {
+            confirmations.add(image.identifier);
+            if (await ThemedConfirmDialog.showDelete(
+              context: tester.element(find.byType(ImageDetailViewer)),
+              itemName: image.identifier,
+            )) {
+              files[image.identifier]!.deleteSync();
+              return ImageDetailDeletePage([
+                _TestImageData('a.png', _validPngBytes),
+              ], previousPage: false);
+            }
+            return null;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      final pageView = find.byType(PageView);
+      final rightClick = contextMenu
+          ? await tester.startGesture(
+              tester.getCenter(pageView),
+              kind: PointerDeviceKind.mouse,
+              buttons: kSecondaryMouseButton,
+            )
+          : null;
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 40));
+      final scroll = tester.widget<PageView>(pageView).controller!;
+      expect(scroll.page, inExclusiveRange(0, 0.5));
+      if (rightClick != null) {
+        await rightClick.up();
+      } else {
+        await tester.tap(find.byIcon(Icons.more_vert));
+      }
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(find.text('Delete'), findsOneWidget);
+      expect(scroll.page, inExclusiveRange(0, 0.5));
+      await tester.pumpAndSettle();
+      expect(scroll.page, 1);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(confirmations, isEmpty);
+      expect(find.byType(ThemedConfirmDialog), findsNothing);
+      expect(files.values.every((file) => file.existsSync()), isTrue);
+      if (contextMenu) {
+        await tester.tap(
+          pageView,
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryMouseButton,
+        );
+      } else {
+        await tester.tap(find.byIcon(Icons.more_vert));
+      }
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('b.png'), findsOneWidget);
+      expect(confirmations, ['b.png']);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(files['b.png']!.existsSync(), isFalse);
+      expect(files['a.png']!.existsSync(), isTrue);
+    });
+  }
+
+  for (final entry in ['toolbar', 'menu', 'shortcut', 'right click']) {
+    testWidgets('$entry only confirms once for the displayed image', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(
+        Size(entry == 'menu' ? 320 : 840, 700),
+      );
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final targets = <String>[];
+      await _pumpViewer(
+        tester,
+        images: [
+          for (final id in ['one', 'two']) _TestImageData(id, _validPngBytes),
+        ],
+        callbacks: ImageDetailCallbacks(
+          onDelete: (image) async {
+            targets.add(image.identifier);
+            await ThemedConfirmDialog.showDelete(
+              context: tester.element(find.byType(ImageDetailViewer)),
+              itemName: image.identifier,
+            );
+            return null;
+          },
+        ),
+      );
+      await _press(tester, LogicalKeyboardKey.end);
+      switch (entry) {
+        case 'toolbar':
+          await tester.tap(find.byTooltip('Delete'));
+        case 'menu':
+          await tester.tap(find.byIcon(Icons.more_vert));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Delete'));
+        case 'right click':
+          await tester.tap(
+            find.byType(PageView),
+            kind: PointerDeviceKind.mouse,
+            buttons: kSecondaryMouseButton,
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Delete'));
+        default:
+          await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+      }
+      await tester.pumpAndSettle();
+      await _press(tester, LogicalKeyboardKey.delete);
+      expect(targets, ['two']);
+      expect(find.textContaining('two'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 / 2'), findsOneWidget);
+    });
+  }
+
+  for (final (width, height, scale) in [
+    (320.0, 700.0, 3.0),
+    (600.0, 320.0, 1.0),
+    (840.0, 700.0, 1.0),
+    (1180.0, 700.0, 1.0),
+    (1600.0, 700.0, 1.0),
+  ]) {
+    testWidgets(
+      'deletion target remains reachable at $width × $height, text $scale',
+      (tester) async {
+        await tester.binding.setSurfaceSize(Size(width, height));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        const colors = ColorScheme.dark(error: Color(0xFFF9DEDC));
+        await _pumpViewer(
+          tester,
+          theme: ThemeData(colorScheme: colors),
+          images: [_TestImageData('image', _validPngBytes)],
+          callbacks: ImageDetailCallbacks(
+            onDelete: (_) async => null,
+            onSave: (_) async {},
+            onSendToImg2Img: (_, closeViewer) async {},
+          ),
+          textScaler: TextScaler.linear(scale),
+        );
+        await tester.pump();
+        Finder target;
+        if (width < 720) {
+          expect(find.byTooltip('Delete'), findsNothing);
+          await tester.tap(find.byIcon(Icons.more_vert));
+          await tester.pumpAndSettle();
+          final label = find.text('Delete');
+          final icon = find.byIcon(Icons.delete_outline);
+          target = find.ancestor(
+            of: label,
+            matching: find.byWidgetPredicate(
+              (widget) => widget is PopupMenuItem,
+            ),
+          );
+          await tester.ensureVisible(target);
+          expect(find.byType(PopupMenuDivider), findsOneWidget);
+          expect(tester.widget<Text>(label).style?.color, colors.error);
+          expect(IconTheme.of(tester.element(icon)).color, colors.error);
+        } else {
+          target = find.byTooltip('Delete');
+          expect(
+            tester.widget<Icon>(find.byIcon(Icons.delete_outline)).color,
+            colors.error,
+          );
+        }
+        expect(target.hitTestable(), findsOneWidget);
+        expect(tester.getSize(target).shortestSide, greaterThanOrEqualTo(48));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  for (final mode in ['rebound', 'binding off', 'all off']) {
+    testWidgets('viewer deletion follows $mode shortcut configuration', (
+      tester,
+    ) async {
+      final defaults = ShortcutConfig.createDefault();
+      var count = 0;
+      await _pumpViewer(
+        tester,
+        images: [_TestImageData('image', _validPngBytes)],
+        config: switch (mode) {
+          'rebound' => defaults.setCustomShortcut(
+            ShortcutIds.deleteImage,
+            'ctrl+d',
+          ),
+          'binding off' => defaults.setEnabled(ShortcutIds.deleteImage, false),
+          _ => defaults.copyWith(enableShortcuts: false),
+        },
+        callbacks: ImageDetailCallbacks(
+          onDelete: (_) async {
+            count++;
+            return null;
+          },
+        ),
+      );
+      await tester.pump();
+      await _press(tester, LogicalKeyboardKey.delete);
+      expect(count, 0);
+      await _press(tester, LogicalKeyboardKey.keyD, control: true);
+      expect(count, mode == 'rebound' ? 1 : 0);
+    });
+  }
+
+  testWidgets(
+    'a viewer without delete capability has no binding, menu action or button',
+    (tester) async {
+      final image = _TestImageData('other-source', _validPngBytes);
+      for (final width in [840.0, 320.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 700));
+        await _pumpViewer(
+          tester,
+          images: [image],
+          callbacks: ImageDetailCallbacks(onSave: (_) async {}),
+        );
+        await tester.pump();
+        expect(
+          tester.widget<PageShortcuts>(find.byType(PageShortcuts)).shortcuts,
+          isNot(contains(ShortcutIds.deleteImage)),
+        );
+        await _press(tester, LogicalKeyboardKey.delete);
+        expect(find.byIcon(Icons.delete_outline), findsNothing);
+        if (width == 320) {
+          await tester.tap(find.byIcon(Icons.more_vert));
+          await tester.pumpAndSettle();
+          expect(find.text('Delete'), findsNothing);
+        }
+      }
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
 
   testWidgets('close action returns to the previous route', (tester) async {
     await tester.binding.setSurfaceSize(const Size(360, 700));
@@ -509,6 +766,7 @@ Future<void> _pumpViewer(
   bool showMetadataPanel = true,
   TextScaler textScaler = TextScaler.noScaling,
   ShortcutConfig? config,
+  ThemeData? theme,
 }) {
   return tester.pumpWidget(
     ProviderScope(
@@ -518,6 +776,7 @@ Future<void> _pumpViewer(
         ),
       ],
       child: MaterialApp(
+        theme: theme,
         locale: const Locale('en'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,

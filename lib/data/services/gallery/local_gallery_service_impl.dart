@@ -10,7 +10,9 @@ import '../../../core/utils/app_logger.dart';
 import '../../models/gallery/gallery_index_admission.dart';
 import '../../models/gallery/local_image_record.dart';
 import '../../models/gallery/nai_image_metadata.dart';
+import '../../repositories/gallery_folder_repository.dart';
 import 'gallery_filter_service.dart';
+import 'gallery_image_files.dart';
 import 'gallery_path_utils.dart';
 import 'gallery_scan_coordinator.dart';
 import 'local_gallery_query.dart';
@@ -34,15 +36,16 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     required LocalGalleryRepository repository,
     Duration admissionRetryDelay = const Duration(milliseconds: 300),
   }) {
+    final query = LocalGalleryQuery(
+      repository: repository,
+      filterService: filterService,
+    );
     return LocalGalleryServiceImpl._composed(
       repository: repository,
-      query: LocalGalleryQuery(
-        repository: repository,
-        filterService: filterService,
-      ),
+      query: query,
       scanCoordinator: GalleryScanCoordinator(
         dataSource: dataSource,
-        repository: repository,
+        loadFiles: query.reloadFiles,
       ),
       admissionRetryDelay: admissionRetryDelay,
     );
@@ -72,6 +75,8 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   bool get isInitialized => _isInitialized;
   @override
   int get filteredCount => _query.filteredCount;
+  @override
+  int imageCountInFolder(String path) => _query.folderCounts.countIn(path);
   @override
   int get totalCount => _query.totalCount;
   @override
@@ -103,7 +108,6 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<List<File>> _initialize() async {
     try {
       final files = await _scanCoordinator.initialize();
-      _query.replaceAll(files);
       _isInitialized = true;
       return files;
     } on GalleryException {
@@ -126,13 +130,15 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) {
     _ensureInitialized();
     return _query.queryPage(
       page: page,
       pageSize: pageSize,
-      searchQuery: searchQuery,
+      criteria: criteria,
+      includeFilePathMatches: includeFilePathMatches,
     );
   }
 
@@ -184,7 +190,8 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     try {
       final resolvedPath = _query.resolveTrackedPath(filePath);
       final isFavorite = await _repository.toggleFavorite(resolvedPath);
-      if (isFavorite || await File(resolvedPath).exists()) {
+      if ((isFavorite || await File(resolvedPath).exists()) &&
+          await _accepts(resolvedPath)) {
         await _query.syncAfterMutation(File(resolvedPath));
       }
       return isFavorite;
@@ -283,6 +290,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       );
       return GalleryIndexAdmission.failed;
     }
+    if (!await _accepts(file.path)) return GalleryIndexAdmission.excluded;
     if (_query.containsPath(file.path)) {
       AppLogger.d(
         '[AddNewImage] File already exists in gallery: $filePath',
@@ -295,6 +303,14 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
     return GalleryIndexAdmission.added;
   }
 
+  Future<bool> _accepts(String filePath) async {
+    final rootPath = await GalleryFolderRepository.instance.getRootPath();
+    return GalleryImageFiles.accepts(
+      normalizeGalleryFilePath(rootPath!),
+      filePath,
+    );
+  }
+
   @override
   Future<int> removeDeletedImagesImmediately(List<String> filePaths) async {
     _ensureInitialized();
@@ -304,20 +320,10 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       // 调用方传错路径时不能把磁盘上还在的图从图库里藏起来。
       if (!await File(tracked).exists()) missing.add(tracked);
     }
+    if (missing.isEmpty) return 0;
     final removed = _query.removePaths(missing);
-    if (removed.isEmpty) return 0;
-    try {
-      await _repository.markAsDeleted(removed);
-      GalleryCacheManager().invalidateStatistics();
-    } catch (error, stackTrace) {
-      // 列表已按磁盘移除；残留的索引行由下一次扫描的一致性检查清掉。
-      AppLogger.e(
-        '[RemoveDeletedImages] Failed to mark index rows as deleted',
-        error,
-        stackTrace,
-        'LocalGalleryService',
-      );
-    }
+    await _repository.markAsDeleted(missing);
+    GalleryCacheManager().invalidateStatistics();
     return removed.length;
   }
 
@@ -328,10 +334,7 @@ class LocalGalleryServiceImpl implements LocalGalleryService {
       await _scanCoordinator.refresh(
         scan: scan,
         previousCount: _query.totalCount,
-        onFilesLoaded: (files) async {
-          _query.replaceAll(files);
-          await _query.applyFilter(_query.currentFilter);
-        },
+        onFilesLoaded: (_) => _query.applyFilter(_query.currentFilter),
       );
     } catch (error) {
       if (error is GalleryException) rethrow;

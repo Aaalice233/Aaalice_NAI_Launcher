@@ -3735,12 +3735,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gallery_upscale => '放大';
 
   @override
-  String get gallery_sentToImg2Img => '图片已发送到图生图';
-
-  @override
-  String get gallery_sentToReversePrompt => '图片已发送到反推模块';
-
-  @override
   String gallery_sendFailed(Object error) {
     return '发送失败: $error';
   }
@@ -5860,6 +5854,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_emptyTitle => '暂无本地图片';
 
   @override
+  String get localGallery_emptyScopeTitle => '这里还没有图片';
+
+  @override
   String get localGallery_emptySubtitle => '生成的图片将保存在此处';
 
   @override
@@ -5961,6 +5958,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_imageDeleted => '图片已删除';
 
   @override
+  String localGallery_deleteCleanupFailed(Object error) {
+    return '图片文件已不存在，清理图库记录时出错。$error';
+  }
+
+  @override
+  String get localGallery_deleteRegistryCleanupFailed => '无法清理衍生图片登记。';
+
+  @override
+  String get localGallery_deleteIndexCleanupFailed => '无法更新图库记录。';
+
+  @override
   String localGallery_deleteFailed(Object error) {
     return '删除失败: $error';
   }
@@ -5989,9 +5997,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_imageMovedToCategory => '图片已移动到分类';
-
-  @override
-  String get localGallery_categoriesSynced => '分类已与文件夹同步';
 
   @override
   String get localGallery_saveDirectoryNotSet => '未设置保存目录';
@@ -11252,9 +11257,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get toast_imageHasNoPrompt => '此图片没有 Prompt';
-
-  @override
-  String get toast_useDeleteButton => '请使用界面删除按钮';
 
   @override
   String get toast_imageHasNoMetadata => '此图片没有元数据';
@@ -19418,12 +19420,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gallery_upscale => '放大';
 
   @override
-  String get gallery_sentToImg2Img => '圖片已傳送到圖生圖';
-
-  @override
-  String get gallery_sentToReversePrompt => '圖片已傳送到反推模組';
-
-  @override
   String gallery_sendFailed(Object error) {
     return '傳送失敗: $error';
   }
@@ -21543,6 +21539,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_emptyTitle => '暫無本地圖片';
 
   @override
+  String get localGallery_emptyScopeTitle => '這裡還沒有圖片';
+
+  @override
   String get localGallery_emptySubtitle => '生成的圖片將儲存在此處';
 
   @override
@@ -21644,6 +21643,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_imageDeleted => '圖片已刪除';
 
   @override
+  String localGallery_deleteCleanupFailed(Object error) {
+    return '圖片檔案已不存在，清理圖庫記錄時發生錯誤。$error';
+  }
+
+  @override
+  String get localGallery_deleteRegistryCleanupFailed => '無法清理衍生圖片登記。';
+
+  @override
+  String get localGallery_deleteIndexCleanupFailed => '無法更新圖庫記錄。';
+
+  @override
   String localGallery_deleteFailed(Object error) {
     return '刪除失敗: $error';
   }
@@ -21672,9 +21682,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_imageMovedToCategory => '圖片已移動到分類';
-
-  @override
-  String get localGallery_categoriesSynced => '分類已與資料夾同步';
 
   @override
   String get localGallery_saveDirectoryNotSet => '未設定儲存目錄';
@@ -26935,9 +26942,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get toast_imageHasNoPrompt => '此圖片沒有 Prompt';
-
-  @override
-  String get toast_useDeleteButton => '請使用介面刪除按鈕';
 
   @override
   String get toast_imageHasNoMetadata => '此圖片沒有後設資料';
