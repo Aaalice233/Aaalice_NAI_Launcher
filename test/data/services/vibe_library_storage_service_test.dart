@@ -50,6 +50,33 @@ void main() {
     }
   });
 
+  Future<VibeLibraryEntry> savePartiallyUnreadableBundle(
+    Map<String, Object> unreadableChild,
+  ) async {
+    await VibeLibraryPathHelper.instance.setPath('${hiveTempDir.path}/vibes');
+    addTearDown(VibeLibraryPathHelper.instance.resetToDefault);
+    final saved = await storage.saveBundleEntry(const [
+      VibeReference(
+        displayName: 'first',
+        vibeEncoding: 'first-encoding',
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+      VibeReference(
+        displayName: 'second',
+        vibeEncoding: 'second-encoding',
+        encodingModel: ImageModels.animeDiffusionV4Full,
+        sourceType: VibeSourceType.naiv4vibebundle,
+      ),
+    ], name: 'partial bundle');
+    final file = File(saved.filePath!);
+    final document =
+        jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    (document['vibes'] as List<dynamic>)[1] = unreadableChild;
+    await file.writeAsString(jsonEncode(document));
+    return saved;
+  }
+
   test(
     'getAllEntries returns persisted entries as the current UI source of truth',
     () async {
@@ -818,6 +845,31 @@ void main() {
     expect(extracted.map((v) => v.infoExtracted), [0.22, 0.55]);
   });
 
+  test('saveBundleChildParams 在 Bundle 部分子项不可读时取消写入', () async {
+    final saved = await savePartiallyUnreadableBundle({
+      'name': 'second',
+      'importInfo': 'invalid',
+    });
+    final file = File(saved.filePath!);
+    final before = await file.readAsBytes();
+
+    await expectLater(
+      storage.saveBundleChildParams(
+        saved.id,
+        childIndex: 0,
+        strength: 0.44,
+        infoExtracted: 0.55,
+      ),
+      throwsStateError,
+    );
+
+    final stored = await Hive.lazyBox<VibeLibraryEntry>(
+      'vibe_library_entries',
+    ).get(saved.id);
+    expect(stored?.bundledVibeEncodings, saved.bundledVibeEncodings);
+    expect(await file.readAsBytes(), before);
+  });
+
   test('saveBundleEntry 会把每个子 Vibe 的原图写入 bundle 文件', () async {
     final vibeDirectory =
         '${hiveTempDir.path}${Platform.pathSeparator}vibes_bundle_raw_images';
@@ -985,6 +1037,26 @@ void main() {
     expect(updated, isNull);
     expect(await File(filePath).readAsString(), before);
     expect((await storage.getEntry(entry.id))!.encodingModel, isNull);
+  });
+
+  test('updateEntryEncodingModel 在 Bundle 部分子项不可读时取消写入', () async {
+    final saved = await savePartiallyUnreadableBundle({'name': 'second'});
+    final file = File(saved.filePath!);
+    final before = await file.readAsBytes();
+
+    await expectLater(
+      storage.updateEntryEncodingModel(
+        saved.id,
+        ImageModels.animeDiffusionV45Full,
+      ),
+      throwsStateError,
+    );
+
+    final stored = await Hive.lazyBox<VibeLibraryEntry>(
+      'vibe_library_entries',
+    ).get(saved.id);
+    expect(stored?.bundledVibeEncodings, saved.bundledVibeEncodings);
+    expect(await file.readAsBytes(), before);
   });
 
   test('updateEntryEncodingModel 只标记 mixed bundle 中确有 encoding 的子项', () async {
