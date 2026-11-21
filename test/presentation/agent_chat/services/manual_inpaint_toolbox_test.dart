@@ -1258,7 +1258,7 @@ class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
   ImageGenerationState build() => const ImageGenerationState();
 
   @override
-  Future<void> generate(
+  Future<String?> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
@@ -1268,5 +1268,6 @@ class _RecordingImageGenerationNotifier extends ImageGenerationNotifier {
     prompt = params.prompt;
     this.bypassRandomPrompt = bypassRandomPrompt;
     state = const ImageGenerationState(status: GenerationStatus.completed);
+    return null;
   }
 }

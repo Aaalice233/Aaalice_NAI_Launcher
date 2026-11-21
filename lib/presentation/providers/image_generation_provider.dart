@@ -294,8 +294,10 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
   Future<void> waitUntilGenerationInvocationSettled() =>
       _generationInvocationSettled?.future ?? Future<void>.value();
 
+  /// 返回本次请求预检拒绝的错误码，供队列结算。
+  ///
   /// [bypassRandomPrompt]：智能体、MCP 等外部提交方显式给出的提示词不被随机模式替换。
-  Future<void> generate(
+  Future<String?> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
@@ -303,7 +305,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     bool bypassRandomPrompt = false,
   }) async {
     if (_isDisposed || state.isBusy) {
-      return;
+      return null;
     }
     _setSubmitting(true);
     final invocationSettled = Completer<void>();
@@ -319,7 +321,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
 
     try {
       if (!requireAuthenticatedAction(ref, AuthPromptReason.imageGeneration)) {
-        return;
+        return null;
       }
       final request = await _validatedRequest(
         params,
@@ -330,15 +332,16 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
       if (request == null ||
           !_isCurrentLifecycle(epoch) ||
           _activeInvocationId != invocationId) {
-        return;
+        return null;
       }
+      if (request.error != null) return request.error;
       if (!ref.read(generationCooldownProvider.notifier).tryStartGeneration()) {
-        return;
+        return null;
       }
 
       releaseForeground = await _acquireGenerationForeground();
       if (!_isCurrentLifecycle(epoch) || _activeInvocationId != invocationId) {
-        return;
+        return null;
       }
 
       await _runGeneration(
@@ -390,6 +393,7 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         subscription?.schedulePostBillingRefresh();
       }
     }
+    return null;
   }
 
   Future<Future<void> Function()?> _acquireGenerationForeground() async {
@@ -405,7 +409,9 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
     }
   }
 
-  Future<({ImageParams params, GenerationFocusedSnapshot focused})?>
+  Future<
+    ({ImageParams params, GenerationFocusedSnapshot focused, String? error})?
+  >
   _validatedRequest(
     ImageParams params,
     GenerationFocusedSnapshot? focusedOverride,
@@ -441,9 +447,8 @@ class ImageGenerationNotifier extends _$ImageGenerationNotifier {
         errorMessage: error,
         progress: 0,
       );
-      return null;
     }
-    return (params: effectiveParams, focused: focused);
+    return (params: effectiveParams, focused: focused, error: error);
   }
 
   Future<void> _runGeneration(
