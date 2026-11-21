@@ -95,6 +95,8 @@ class VibeLibraryStorageService {
   Future<List<VibeLibraryEntry>> getDisplayEntries() => _reader.display();
 
   Stream<VibeLibraryEntry> streamStoredEntries() => _repository.streamEntries();
+  Future<List<VibeLibraryCategory>> readStoredCategories() =>
+      _repository.readCategories();
 
   Future<List<VibeLibraryEntry>> getEntriesByCategory(String? categoryId) =>
       _reader.byCategory(categoryId);
