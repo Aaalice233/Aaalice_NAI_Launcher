@@ -91,8 +91,8 @@ class VibeLibraryMigrationService {
       );
     }
 
-    const backupDirPath = '';
-    final createdFiles = <String>[];
+    final previousSchemaVersion = settingsBox.get(_schemaVersionKey);
+    final attempt = _MigrationAttempt();
 
     try {
       if (!await _needsMigration()) {
@@ -100,23 +100,24 @@ class VibeLibraryMigrationService {
         return const VibeLibraryMigrationResult(success: true, exportedCount: 0, failedCount: 0);
       }
 
-      final result = await _executeMigration(onProgress, createdFiles);
-
-      return VibeLibraryMigrationResult(
-        success: true,
-        exportedCount: result.exportedCount,
-        failedCount: 0,
-        backupPath: result.backupPath,
-      );
+      return await _executeMigration(onProgress, attempt);
     } catch (e, stackTrace) {
       AppLogger.e('Vibe 库迁移失败', e, stackTrace, _tag);
-      await _rollback(backupDirPath: backupDirPath, createdFiles: createdFiles);
+      // 主表会还原成旧格式，版本号留在新值会让它被当成已迁移
+      if (settingsBox.get(_schemaVersionKey) != previousSchemaVersion) {
+        if (previousSchemaVersion == null) {
+          await settingsBox.delete(_schemaVersionKey);
+        } else {
+          await settingsBox.put(_schemaVersionKey, previousSchemaVersion);
+        }
+      }
+      await _rollback(attempt);
       return VibeLibraryMigrationResult(
         success: false,
         exportedCount: 0,
         failedCount: 1,
         error: e.toString(),
-        backupPath: backupDirPath.isEmpty ? null : backupDirPath,
+        backupPath: attempt.backupPath,
       );
     } finally {
       await _releaseLock();
@@ -125,20 +126,20 @@ class VibeLibraryMigrationService {
 
   Future<VibeLibraryMigrationResult> _executeMigration(
     ProgressCallback? onProgress,
-    List<String> createdFiles,
+    _MigrationAttempt attempt,
   ) async {
-    var totalExported = 0;
     // 迁移绕过仓库直接重建、删除或回滚主表，展示表必须从新主表重建
     await _repository.setDisplayCacheReady(false);
     onProgress?.call(const VibeLibraryMigrationProgress(
       stage: 'backup', current: 0, total: 1, message: '开始备份 Hive 数据', percentage: 0,
     ),);
-    final backupDirPath = await _backupHiveFiles();
+    await _closeCurrentEntriesBox();
+    attempt.backupPath = await _backupHiveFiles();
     onProgress?.call(const VibeLibraryMigrationProgress(
       stage: 'backup', current: 1, total: 1, message: 'Hive 数据备份完成', percentage: 0.15,
     ),);
 
-    final legacyEntries = await _readLegacyEntries();
+    final (legacyEntries, currentCount) = await _readEntries(attempt);
     final total = legacyEntries.length;
 
     if (total == 0) {
@@ -150,64 +151,29 @@ class VibeLibraryMigrationService {
         success: true,
         exportedCount: 0,
         failedCount: 0,
-        backupPath: backupDirPath,
+        backupPath: attempt.backupPath,
       );
     }
 
-    final (exportedEntries, count) = await _exportAllEntries(
-      legacyEntries, onProgress, createdFiles,
+    await _convertEntriesInPlace(
+      legacyEntries,
+      expectedCount: currentCount + total,
+      onProgress: onProgress,
+      attempt: attempt,
     );
-    totalExported = count;
-
-    onProgress?.call(const VibeLibraryMigrationProgress(
-      stage: 'rebuild', current: 0, total: 1, message: '重建 Hive box', percentage: 0.8,
-    ),);
-    await _rebuildEntriesBox(exportedEntries);
-    onProgress?.call(const VibeLibraryMigrationProgress(
-      stage: 'rebuild', current: 1, total: 1, message: 'Hive box 重建完成', percentage: 0.95,
-    ),);
 
     await _markCompleted();
     onProgress?.call(const VibeLibraryMigrationProgress(
       stage: 'verify', current: 1, total: 1, message: '迁移完成', percentage: 1,
     ),);
-    AppLogger.i('Vibe 库迁移完成，导出 $totalExported 条', _tag);
+    AppLogger.i('Vibe 库迁移完成，导出 $total 条', _tag);
 
     return VibeLibraryMigrationResult(
       success: true,
-      exportedCount: totalExported,
+      exportedCount: total,
       failedCount: 0,
-      backupPath: backupDirPath,
+      backupPath: attempt.backupPath,
     );
-  }
-
-  Future<(List<_ExportedEntry>, int)> _exportAllEntries(
-    List<LegacyVibeLibraryEntryV20> legacyEntries,
-    ProgressCallback? onProgress,
-    List<String> createdFiles,
-  ) async {
-    final exportedEntries = <_ExportedEntry>[];
-    final total = legacyEntries.length;
-
-    for (var i = 0; i < total; i++) {
-      final current = i + 1;
-      onProgress?.call(VibeLibraryMigrationProgress(
-        stage: 'export',
-        current: current,
-        total: total,
-        message: '导出条目 $current/$total: ${legacyEntries[i].name}',
-        percentage: 0.15 + (0.6 * i / total),
-      ),);
-      final exported = await _exportEntry(legacyEntries[i]);
-      createdFiles.add(exported.filePath);
-      exportedEntries.add(exported);
-    }
-
-    onProgress?.call(VibeLibraryMigrationProgress(
-      stage: 'export', current: total, total: total, message: '导出完成，共 $total 条', percentage: 0.75,
-    ),);
-
-    return (exportedEntries, total);
   }
 
   Future<bool> _needsMigration() async {
@@ -282,23 +248,31 @@ class VibeLibraryMigrationService {
     return backupDir.path;
   }
 
-  Future<List<LegacyVibeLibraryEntryV20>> _readLegacyEntries() async {
+  Future<(Map<Object, LegacyVibeLibraryEntryV20>, int)> _readEntries(
+    _MigrationAttempt attempt,
+  ) async {
     if (!Hive.isAdapterRegistered(_legacyTypeId)) {
       Hive.registerAdapter(LegacyVibeLibraryEntryV20Adapter());
     }
-
-    await _closeCurrentEntriesBox();
+    if (!Hive.isAdapterRegistered(_targetSchemaVersion)) {
+      Hive.registerAdapter(VibeLibraryEntryAdapter());
+    }
 
     try {
-      final box = await Hive.openLazyBox<LegacyVibeLibraryEntryV20>(
-        _entriesBoxName,
-      );
+      final box = await Hive.openLazyBox<dynamic>(_entriesBoxName);
       try {
-        final entries = [
-          for (final key in box.keys) (await box.get(key))!,
-        ];
-        AppLogger.i('读取到旧条目 ${entries.length} 条', _tag);
-        return entries;
+        final legacyEntries = <Object, LegacyVibeLibraryEntryV20>{};
+        var currentCount = 0;
+        for (final key in box.keys) {
+          final entry = await box.get(key);
+          if (entry is VibeLibraryEntry) {
+            currentCount++;
+          } else {
+            legacyEntries[key as Object] = entry as LegacyVibeLibraryEntryV20;
+          }
+        }
+        AppLogger.i('读取到旧条目 ${legacyEntries.length} 条', _tag);
+        return (legacyEntries, currentCount);
       } finally {
         await box.close();
       }
@@ -317,9 +291,10 @@ class VibeLibraryMigrationService {
         );
 
         final backupPath = await _backupCorruptHiveFiles();
+        attempt.entriesMayHaveChanged = true;
         await _deleteCorruptHiveFiles();
         AppLogger.i('已备份 corrupt 文件到: $backupPath', _tag);
-        return <LegacyVibeLibraryEntryV20>[];
+        return (<Object, LegacyVibeLibraryEntryV20>{}, 0);
       }
       rethrow;
     }
@@ -377,7 +352,7 @@ class VibeLibraryMigrationService {
     }
   }
 
-  Future<_ExportedEntry> _exportEntry(LegacyVibeLibraryEntryV20 entry) async {
+  Future<String> _exportEntry(LegacyVibeLibraryEntryV20 entry) async {
     final vibePath = await VibeLibraryPathHelper.instance.getPath();
     await VibeLibraryPathHelper.instance.ensurePathExists(vibePath);
 
@@ -392,75 +367,124 @@ class VibeLibraryMigrationService {
       sourceType: _resolveSourceType(entry.sourceTypeIndex),
     );
 
-    final filePath = entry.sourceTypeIndex ==
-            VibeSourceType.naiv4vibebundle.index
-        ? await _fileStorage.saveBundleToFile([vibe], bundleName: entry.name)
-        : await _fileStorage.saveVibeToFile(vibe, customName: entry.name);
-
-    return _ExportedEntry(legacy: entry, filePath: filePath);
+    return entry.sourceTypeIndex == VibeSourceType.naiv4vibebundle.index
+        ? _fileStorage.saveBundleToFile([vibe], bundleName: entry.name)
+        : _fileStorage.saveVibeToFile(vibe, customName: entry.name);
   }
 
-  Future<void> _rebuildEntriesBox(List<_ExportedEntry> exportedEntries) async {
-    await _closeCurrentEntriesBox();
-
-    final legacyBox =
-        await Hive.openLazyBox<LegacyVibeLibraryEntryV20>(_entriesBoxName);
-    try {
-      await legacyBox.clear();
-    } finally {
-      await legacyBox.close();
-    }
-
-    if (!Hive.isAdapterRegistered(_targetSchemaVersion)) {
-      Hive.registerAdapter(VibeLibraryEntryAdapter());
-    }
-
-    final newBox = await Hive.openLazyBox<VibeLibraryEntry>(_entriesBoxName);
-    for (final exported in exportedEntries) {
-      final old = exported.legacy;
-      final mapped = VibeLibraryEntry(
-        id: old.id,
-        name: old.name,
-        vibeDisplayName: old.vibeDisplayName,
-        vibeEncoding: old.vibeEncoding,
-        vibeThumbnail: old.vibeThumbnail,
-        rawImageData: old.rawImageData,
-        strength: old.strength,
-        infoExtracted: old.infoExtracted,
-        sourceTypeIndex: old.sourceTypeIndex,
-        categoryId: old.categoryId,
-        tags: old.tags,
-        isFavorite: old.isFavorite,
-        usedCount: old.usedCount,
-        lastUsedAt: old.lastUsedAt,
-        createdAt: old.createdAt ?? DateTime.now(),
-        thumbnail: old.thumbnail,
-        filePath: exported.filePath,
-      );
-      await newBox.put(mapped.id, mapped);
-    }
-
-    final expected = exportedEntries.length;
-    final actual = newBox.length;
-    await newBox.close();
-    if (actual != expected) {
-      throw StateError('重建后条目数量不一致: expected=$expected, actual=$actual');
-    }
-  }
-
-  Future<void> _rollback({
-    required String backupDirPath,
-    required List<String> createdFiles,
+  Future<void> _convertEntriesInPlace(
+    Map<Object, LegacyVibeLibraryEntryV20> legacyEntries, {
+    required int expectedCount,
+    required ProgressCallback? onProgress,
+    required _MigrationAttempt attempt,
   }) async {
+    final box = await Hive.openLazyBox<dynamic>(
+      _entriesBoxName,
+      // 逐条覆盖会不断触发自动压缩，每次都重写整个文件；改为结束后压缩一次
+      compactionStrategy: (_, _) => false,
+    );
+    try {
+      await _convertLegacyEntries(box, legacyEntries, onProgress, attempt);
+      onProgress?.call(
+        const VibeLibraryMigrationProgress(
+          stage: 'rebuild',
+          current: 0,
+          total: 1,
+          message: '整理 Hive box',
+          percentage: 0.8,
+        ),
+      );
+      final actualCount = box.length;
+      if (actualCount != expectedCount) {
+        throw StateError(
+          '重建后条目数量不一致: expected=$expectedCount, actual=$actualCount',
+        );
+      }
+      await box.compact();
+    } finally {
+      await box.close();
+    }
+    onProgress?.call(
+      const VibeLibraryMigrationProgress(
+        stage: 'rebuild',
+        current: 1,
+        total: 1,
+        message: 'Hive box 整理完成',
+        percentage: 0.95,
+      ),
+    );
+  }
+
+  Future<void> _convertLegacyEntries(
+    LazyBox<dynamic> box,
+    Map<Object, LegacyVibeLibraryEntryV20> legacyEntries,
+    ProgressCallback? onProgress,
+    _MigrationAttempt attempt,
+  ) async {
+    final total = legacyEntries.length;
+    final obsoleteKeys = legacyEntries.keys.toSet();
+    var index = 0;
+    for (final old in legacyEntries.values) {
+      onProgress?.call(
+        VibeLibraryMigrationProgress(
+          stage: 'export',
+          current: index + 1,
+          total: total,
+          message: '导出条目 ${index + 1}/$total: ${old.name}',
+          percentage: 0.15 + (0.6 * index / total),
+        ),
+      );
+      final filePath = await _exportEntry(old);
+      attempt.createdFiles.add(filePath);
+      final mapped = _mapEntry(old, filePath);
+      attempt.entriesMayHaveChanged = true;
+      await box.put(mapped.id, mapped);
+      obsoleteKeys.remove(mapped.id);
+      index++;
+    }
+    await box.deleteAll(obsoleteKeys);
+    onProgress?.call(
+      VibeLibraryMigrationProgress(
+        stage: 'export',
+        current: total,
+        total: total,
+        message: '导出完成，共 $total 条',
+        percentage: 0.75,
+      ),
+    );
+  }
+
+  VibeLibraryEntry _mapEntry(LegacyVibeLibraryEntryV20 old, String filePath) {
+    return VibeLibraryEntry(
+      id: old.id,
+      name: old.name,
+      vibeDisplayName: old.vibeDisplayName,
+      vibeEncoding: old.vibeEncoding,
+      vibeThumbnail: old.vibeThumbnail,
+      rawImageData: old.rawImageData,
+      strength: old.strength,
+      infoExtracted: old.infoExtracted,
+      sourceTypeIndex: old.sourceTypeIndex,
+      categoryId: old.categoryId,
+      tags: old.tags,
+      isFavorite: old.isFavorite,
+      usedCount: old.usedCount,
+      lastUsedAt: old.lastUsedAt,
+      createdAt: old.createdAt ?? DateTime.now(),
+      thumbnail: old.thumbnail,
+      filePath: filePath,
+    );
+  }
+
+  Future<void> _rollback(_MigrationAttempt attempt) async {
     AppLogger.w('开始回滚 Vibe 库迁移', _tag);
 
-    await _closeCurrentEntriesBox();
-
-    if (backupDirPath.isNotEmpty) {
-      await _restoreFromBackup(backupDirPath);
+    final backupPath = attempt.backupPath;
+    if (attempt.entriesMayHaveChanged && backupPath != null) {
+      await _restoreFromBackup(backupPath);
     }
 
-    for (final filePath in createdFiles) {
+    for (final filePath in attempt.createdFiles) {
       await _fileStorage.deleteVibeFile(filePath);
     }
 
@@ -484,9 +508,14 @@ class VibeLibraryMigrationService {
       if (entity is! File) continue;
 
       final restoredPath = p.join(hivePath, p.basename(entity.path));
-      final dst = File(restoredPath);
-      if (await dst.exists()) await dst.delete();
-      await entity.copy(restoredPath);
+      final temporaryFile = File('$restoredPath.restore');
+      try {
+        await entity.copy(temporaryFile.path);
+        await temporaryFile.rename(restoredPath);
+      } on FileSystemException {
+        if (await temporaryFile.exists()) await temporaryFile.delete();
+        rethrow;
+      }
     }
   }
 
@@ -512,14 +541,10 @@ class VibeLibraryMigrationService {
   }
 }
 
-class _ExportedEntry {
-  const _ExportedEntry({
-    required this.legacy,
-    required this.filePath,
-  });
-
-  final LegacyVibeLibraryEntryV20 legacy;
-  final String filePath;
+class _MigrationAttempt {
+  String? backupPath;
+  bool entriesMayHaveChanged = false;
+  final createdFiles = <String>[];
 }
 
 class LegacyVibeLibraryEntryV20 {
