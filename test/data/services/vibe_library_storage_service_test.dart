@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -5,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/utils/novelai_vibe_codec.dart';
@@ -15,6 +17,8 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_file_storage_service.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _MockDirectory extends Mock implements Directory {}
 
 Uint8List _validPngBytes() {
   final image = img.Image(width: 2, height: 2);
@@ -264,6 +268,48 @@ void main() {
     expect(entries, hasLength(1));
     expect(entries.single.strength, 0.18);
     expect(entries.single.infoExtracted, 0.3);
+  });
+
+  test('folder refresh preserves entries when listing fails', () async {
+    final vibeDirectory = '${hiveTempDir.path}/vibes';
+    await VibeLibraryPathHelper.instance.setPath(vibeDirectory);
+    addTearDown(VibeLibraryPathHelper.instance.resetToDefault);
+
+    final pathsById = <String, String>{};
+    final fileStorage = VibeFileStorageService();
+    for (final name in ['first', 'second']) {
+      final vibe = VibeReference(displayName: name, vibeEncoding: 'encoded');
+      final filePath = await fileStorage.saveVibeToFile(vibe);
+      final entry = await storage.saveEntry(
+        VibeLibraryEntry.fromVibeReference(
+          name: name,
+          vibeData: vibe,
+          filePath: filePath,
+        ),
+      );
+      pathsById[entry.id] = filePath;
+    }
+
+    final realDirectory = Directory(vibeDirectory);
+    final directory = _MockDirectory();
+    when(directory.exists).thenAnswer((_) => realDirectory.exists());
+    when(() => directory.list()).thenAnswer(
+      (_) => Stream<FileSystemEntity>.error(
+        FileSystemException('cannot list Vibe directory', vibeDirectory),
+      ),
+    );
+    final outerZone = Zone.current;
+    final result = await IOOverrides.runZoned(
+      () => storage.syncWithFileSystem(),
+      createDirectory: (path) => path == vibeDirectory
+          ? directory
+          : outerZone.run(() => Directory(path)),
+    );
+
+    expect(result.deletedCount, 0);
+    expect(result.errors, contains(contains('cannot list Vibe directory')));
+    final entries = await storage.streamStoredEntries().toList();
+    expect({for (final entry in entries) entry.id: entry.filePath}, pathsById);
   });
 
   test(
