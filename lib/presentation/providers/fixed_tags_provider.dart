@@ -809,6 +809,36 @@ class FixedTagsNotifier extends _$FixedTagsNotifier {
     );
   }
 
+  /// 词库条目只换了分类（移动、拖动换组、删除分类）时，把新分类同步给关联的
+  /// 固定词。[categoryByEntryId] 以词库条目 id 为键，值为新分类（null 为根级）。
+  Future<void> syncCategoriesFromTagLibrary(
+    Map<String, String?> categoryByEntryId,
+  ) async {
+    if (categoryByEntryId.isEmpty) return;
+    var changed = false;
+    final newEntries = <FixedTagEntry>[];
+    for (final entry in state.entries) {
+      final sourceId = entry.sourceEntryId;
+      if (sourceId == null || !categoryByEntryId.containsKey(sourceId)) {
+        newEntries.add(entry);
+        continue;
+      }
+      final categoryId = categoryByEntryId[sourceId];
+      if (categoryId == entry.categoryId) {
+        newEntries.add(entry);
+        continue;
+      }
+      changed = true;
+      newEntries.add(
+        entry.copyWith(categoryId: categoryId, updatedAt: DateTime.now()),
+      );
+    }
+    if (!changed) return;
+
+    _commitState(state.copyWith(entries: newEntries));
+    await _saveEntries();
+  }
+
   /// 从词库条目补齐已关联固定词缺失的分类。
   Future<void> inferCategoriesFromLibrary() async {
     final tagLibraryState = ref.read(tagLibraryPageNotifierProvider);

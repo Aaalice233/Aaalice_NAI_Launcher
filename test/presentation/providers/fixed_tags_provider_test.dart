@@ -254,6 +254,86 @@ void main() {
     });
   });
 
+  group('词库换分类同步到关联的固定词', () {
+    FixedTagEntry fixedEntry(ProviderContainer container, String id) =>
+        container
+            .read(fixedTagsNotifierProvider)
+            .entries
+            .singleWhere((e) => e.id == id);
+
+    Future<
+      ({
+        ProviderContainer container,
+        TagLibraryPageNotifier library,
+        String libraryId,
+        String fixedId,
+      })
+    >
+    linkedPair() async {
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
+        ],
+      );
+      addTearDown(container.dispose);
+      final library = container.read(tagLibraryPageNotifierProvider.notifier);
+      final entry = await library.addEntry(
+        name: '画风',
+        content: 'watercolor',
+        categoryId: 'style',
+      );
+      final fixed = await container
+          .read(fixedTagsNotifierProvider.notifier)
+          .addEntry(
+            name: '画风',
+            content: 'watercolor',
+            sourceEntryId: entry.id,
+            categoryId: 'style',
+          );
+      return (
+        container: container,
+        library: library,
+        libraryId: entry.id,
+        fixedId: fixed.id,
+      );
+    }
+
+    test('移动到分类', () async {
+      final (:container, :library, :libraryId, :fixedId) = await linkedPair();
+
+      await library.moveEntryToCategory(libraryId, 'v5');
+
+      expect(fixedEntry(container, fixedId).categoryId, 'v5');
+    });
+
+    test('分组视图拖到别的分类', () async {
+      final (:container, :library, :libraryId, :fixedId) = await linkedPair();
+      final other = await library.addEntry(
+        name: '其他',
+        content: 'other',
+        categoryId: 'v5',
+      );
+
+      await library.moveEntries(
+        [libraryId],
+        anchor: (entryId: other.id, after: true),
+        groupedByCategory: true,
+      );
+
+      expect(fixedEntry(container, fixedId).categoryId, 'v5');
+    });
+
+    test('删除分类后跟着回到根级', () async {
+      final (:container, :library, :libraryId, :fixedId) = await linkedPair();
+      final category = await library.addCategory(name: '临时');
+      await library.moveEntryToCategory(libraryId, category!.id);
+
+      await library.deleteCategory(category.id);
+
+      expect(fixedEntry(container, fixedId).categoryId, isNull);
+    });
+  });
+
   group('FixedTagsNotifier.syncFromTagLibrary', () {
     test('按修改前的内容收养未关联的手动固定词并补写 sourceEntryId', () async {
       final storage = _MockLocalStorageService();
