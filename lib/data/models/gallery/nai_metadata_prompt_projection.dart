@@ -16,7 +16,9 @@ bool promptSegmentsMatchAt(
   List<String> expected,
   int start,
 ) {
-  if (expected.isEmpty || start < 0 || start + expected.length > source.length) {
+  if (expected.isEmpty ||
+      start < 0 ||
+      start + expected.length > source.length) {
     return false;
   }
   for (var offset = 0; offset < expected.length; offset++) {
@@ -136,7 +138,8 @@ class NaiMetadataPromptProjection {
   UcPresetSplit get negativePresetSplit {
     final ucPreset = metadata.ucPreset;
     if (ucPreset == null) {
-      return (preset: '', body: metadata.negativePrompt.trim());
+      // 别的渠道生成的图可能不记录预设档位：按开头文字反推，否则负向固定词对不齐开头。
+      return UcPresets.splitLeadingPreset(metadata.negativePrompt);
     }
     return UcPresets.splitPresetByInt(
       metadata.negativePrompt,
