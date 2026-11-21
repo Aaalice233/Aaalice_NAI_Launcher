@@ -504,7 +504,7 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
       }).toList();
     } catch (e, stackTrace) {
       AppLogger.e('列出 Vibe 文件失败: $directoryPath', e, stackTrace, _tag);
-      return const [];
+      rethrow;
     }
   }
 
