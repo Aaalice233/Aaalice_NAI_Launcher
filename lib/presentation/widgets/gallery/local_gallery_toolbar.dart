@@ -101,12 +101,20 @@ class LocalGalleryToolbar extends ConsumerStatefulWidget {
 }
 
 class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
-  final TextEditingController _searchController = TextEditingController();
+  late final TextEditingController _searchController;
   FocusNode? _ownedSearchFocusNode;
   Timer? _debounceTimer;
 
   FocusNode get _searchFocusNode =>
       widget.searchFocusNode ?? (_ownedSearchFocusNode ??= FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: ref.read(localGalleryNotifierProvider).filterCriteria.searchQuery,
+    );
+  }
 
   @override
   void dispose() {
@@ -120,6 +128,7 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   /// Search with debounce
   /// 搜索防抖
   void _onSearchChanged(String value) {
+    setState(() {});
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       ref.read(localGalleryNotifierProvider.notifier).setSearchQuery(value);
@@ -157,6 +166,22 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(localGalleryNotifierProvider);
+    ref.listen(localGalleryNotifierProvider.select((s) => s.filterCriteria), (
+      previous,
+      next,
+    ) {
+      if (previous?.searchQuery != next.searchQuery ||
+          (previous?.hasClearableFilters == true &&
+              !next.hasClearableFilters)) {
+        _debounceTimer?.cancel();
+        if (_searchController.text != next.searchQuery) {
+          _searchController.value = TextEditingValue(
+            text: next.searchQuery,
+            selection: TextSelection.collapsed(offset: next.searchQuery.length),
+          );
+        }
+      }
+    });
     final selectionState = ref.watch(localGallerySelectionNotifierProvider);
     final theme = Theme.of(context);
     final l10n = context.l10n;
@@ -260,7 +285,8 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
           shortcutId: ShortcutIds.openFilterPanel,
           onPressed: () => showGalleryFilterPanel(context),
         ),
-        if (state.hasFilters)
+        if (state.filterCriteria.hasClearableFilters ||
+            _searchController.text.isNotEmpty)
           GalleryLibraryAction(
             icon: Icons.filter_alt_off,
             label: l10n.common_clear,
@@ -268,8 +294,11 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
             shortcutId: ShortcutIds.clearFilter,
             isDanger: true,
             onPressed: () {
-              _searchController.clear();
-              ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+              _debounceTimer?.cancel();
+              setState(_searchController.clear);
+              ref
+                  .read(localGalleryNotifierProvider.notifier)
+                  .clearFiltersWithinScope();
             },
           ),
         if (widget.onToggleCategoryPanel != null)
@@ -326,9 +355,9 @@ class _LocalGalleryToolbarState extends ConsumerState<LocalGalleryToolbar> {
   }
 
   void _clearSearch() {
-    _searchController.clear();
+    _debounceTimer?.cancel();
+    setState(_searchController.clear);
     ref.read(localGalleryNotifierProvider.notifier).setSearchQuery('');
-    setState(() {});
   }
 
   /// Build search field

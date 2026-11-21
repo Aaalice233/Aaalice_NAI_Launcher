@@ -11,6 +11,7 @@ import '../../../core/cache/local_file_image.dart';
 import '../../../core/utils/localization_extension.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/tag_library/tag_library_entry.dart';
+import '../../../data/services/gallery/gallery_filter_service.dart';
 import '../../../data/services/gallery/local_gallery_service.dart';
 import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/interaction_policy.dart';
@@ -844,7 +845,8 @@ class _AgentChatResourcePickerBodyState
       final result = await service.queryPage(
         page: requestedPage,
         pageSize: _localPageSize,
-        searchQuery: requestedQuery,
+        criteria: FilterCriteria(searchQuery: requestedQuery.trim()),
+        includeFilePathMatches: true,
       );
       if (!mounted || requestSerial != _localRequestSerial) return;
 

@@ -6125,6 +6125,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get localGallery_emptyTitle => 'No local images';
 
   @override
+  String get localGallery_emptyScopeTitle => 'No images here yet';
+
+  @override
   String get localGallery_emptySubtitle =>
       'Generated images will be saved here';
 
@@ -6261,9 +6264,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get localGallery_imageMovedToCategory => 'Image moved to category';
-
-  @override
-  String get localGallery_categoriesSynced => 'Categories synced with folders';
 
   @override
   String get localGallery_saveDirectoryNotSet => 'Save directory is not set';

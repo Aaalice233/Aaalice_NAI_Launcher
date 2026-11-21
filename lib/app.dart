@@ -102,7 +102,7 @@ class _AppBootstrapEffectsState extends ConsumerState<AppBootstrapEffects>
     ref
         .read(subscriptionNotifierProvider.notifier)
         .setAppForeground(isForeground);
-    LocalGalleryThumbnailProvider.setAppForeground(isForeground);
+    LocalGalleryThumbnailProvider.setAppLifecycleState(state);
 
     if (state == AppLifecycleState.resumed) {
       InteractiveWorkGate.instance.markInteraction();

@@ -245,7 +245,8 @@ class _LocalGalleryShell extends ConsumerWidget {
             : null,
         body: _buildBody(context, ref),
         footer:
-            !gallery.isIndexing &&
+            !gallery.isGroupedView &&
+                !gallery.isIndexing &&
                 gallery.currentImages.isNotEmpty &&
                 gallery.totalPages > 0
             ? PaginationBar(
@@ -274,8 +275,7 @@ class _LocalGalleryShell extends ConsumerWidget {
     return LocalGalleryToolbar(
       showPageTitle: true,
       searchFocusNode: controller.searchFocusNode,
-      onRefresh: () =>
-          ref.read(localGalleryNotifierProvider.notifier).refresh(),
+      onRefresh: controller.refreshGallery,
       onEnterSelectionMode: () =>
           ref.read(localGallerySelectionNotifierProvider.notifier).enter(),
       canUndo: bulk.canUndo,
@@ -302,13 +302,26 @@ class _LocalGalleryShell extends ConsumerWidget {
             ref.read(localGalleryNotifierProvider.notifier).refresh(),
       );
     }
-    if (gallery.isLoading && gallery.currentImages.isEmpty) {
+    final images = gallery.isGroupedView
+        ? gallery.groupedImages
+        : gallery.currentImages;
+    final loading = gallery.isGroupedView
+        ? gallery.isGroupedLoading
+        : gallery.isLoading;
+    if (loading && images.isEmpty) {
       return const GalleryLoadingView();
     }
-    if (gallery.currentImages.isEmpty) {
-      return gallery.hasFilters
-          ? const GalleryNoResultsView()
-          : const GalleryEmptyView();
+    if (images.isEmpty) {
+      if (gallery.filterCriteria.hasClearableFilters) {
+        return const GalleryNoResultsView();
+      }
+      if (gallery.filterCriteria.hasBrowsingScope) {
+        return GalleryEmptyView(
+          title: context.l10n.localGallery_emptyScopeTitle,
+          subtitle: '',
+        );
+      }
+      return const GalleryEmptyView();
     }
 
     return LocalGalleryContentView(

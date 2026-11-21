@@ -10809,6 +10809,12 @@ abstract class AppLocalizations {
   /// **'No local images'**
   String get localGallery_emptyTitle;
 
+  /// No description provided for @localGallery_emptyScopeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No images here yet'**
+  String get localGallery_emptyScopeTitle;
+
   /// No description provided for @localGallery_emptySubtitle.
   ///
   /// In en, this message translates to:
@@ -11054,12 +11060,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image moved to category'**
   String get localGallery_imageMovedToCategory;
-
-  /// No description provided for @localGallery_categoriesSynced.
-  ///
-  /// In en, this message translates to:
-  /// **'Categories synced with folders'**
-  String get localGallery_categoriesSynced;
 
   /// No description provided for @localGallery_saveDirectoryNotSet.
   ///

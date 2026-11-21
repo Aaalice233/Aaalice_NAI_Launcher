@@ -117,7 +117,9 @@ class GalleryNoResultsView extends ConsumerWidget {
       onAction:
           onClearFilters ??
           () {
-            ref.read(localGalleryNotifierProvider.notifier).clearAllFilters();
+            ref
+                .read(localGalleryNotifierProvider.notifier)
+                .clearFiltersWithinScope();
           },
     );
   }

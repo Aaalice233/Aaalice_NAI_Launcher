@@ -33,7 +33,25 @@ void main() {
     late GalleryFilterService filterService;
 
     setUp(() {
-      filterService = GalleryFilterService(GalleryDataSource());
+      filterService = GalleryFilterService(
+        GalleryDataSource(),
+        getRootPath: () async => _root,
+      );
+    });
+
+    test('Windows 分类路径可在 POSIX 路径上下文中筛选图库', () async {
+      const relativePath = r'A\B';
+      final files = [File('$_root/A/B/x.png'), File('$_root/A/BC/y.png')];
+      final folder = joinGalleryCategoryPath(p.posix, _root, relativePath);
+      expect(files.where((file) => p.posix.isWithin(folder, file.path)), [
+        files.first,
+      ]);
+
+      final result = await filterService.applyFilters(
+        files,
+        const FilterCriteria(categoryFolderPath: relativePath),
+      );
+      expect(result.files, [files.first]);
     });
 
     test('reuses the cached result for the same list and generation', () async {
@@ -53,6 +71,29 @@ void main() {
       expect(first.fromCache, isFalse);
       expect(second.fromCache, isTrue);
       expect(_pathsOf(second.files), _pathsOf(files));
+    });
+
+    test('分类匹配根目录下完整的目录段并遵循平台大小写', () async {
+      final paths = [
+        'cat/a.png',
+        'cat/sub/b.png',
+        'mycat/c.png',
+        'other/cat/d.png',
+        'CAT/e.png',
+        '2026-11-17/f.png',
+        '其他/2026-11-17/g.png',
+      ];
+      final files = [for (final path in paths) File(p.join(_root, path))];
+      final cat = await filterService.applyFilters(
+        files,
+        const FilterCriteria(categoryFolderPath: 'cat'),
+      );
+      expect(cat.files, [files[0], files[1], if (Platform.isWindows) files[4]]);
+      final date = await filterService.applyFilters(
+        files,
+        const FilterCriteria(categoryFolderPath: '2026-11-17'),
+      );
+      expect(date.files, [files[5]]);
     });
 
     test('separates equally sized lists with different paths', () async {
@@ -143,7 +184,10 @@ void main() {
 
     setUp(() {
       final dataSource = GalleryDataSource();
-      filterService = GalleryFilterService(dataSource);
+      filterService = GalleryFilterService(
+        dataSource,
+        getRootPath: () async => _root,
+      );
       query = LocalGalleryQuery(
         repository: LocalGalleryRepository(dataSource: dataSource),
         filterService: filterService,
@@ -266,7 +310,10 @@ void main() {
       );
       dataSource = GalleryDataSource();
       await dataSource.initialize();
-      filterService = GalleryFilterService(dataSource);
+      filterService = GalleryFilterService(
+        dataSource,
+        getRootPath: () async => tempDir.path,
+      );
     });
 
     tearDown(() async {
@@ -332,16 +379,27 @@ void main() {
       ];
 
       query.replaceAll(before);
-      await query.queryPage(page: 0, pageSize: 10, searchQuery: 'needle');
+      await query.queryPage(
+        page: 0,
+        pageSize: 10,
+        criteria: const FilterCriteria(searchQuery: 'needle'),
+        includeFilePathMatches: true,
+      );
       final hitsAfterFirst = filterService.cacheStatistics['hitCount'] as int;
-      await query.queryPage(page: 0, pageSize: 10, searchQuery: 'needle');
+      await query.queryPage(
+        page: 0,
+        pageSize: 10,
+        criteria: const FilterCriteria(searchQuery: 'needle'),
+        includeFilePathMatches: true,
+      );
       final hitsAfterRepeat = filterService.cacheStatistics['hitCount'] as int;
 
       query.replaceAll(after);
       final replacedPage = await query.queryPage(
         page: 0,
         pageSize: 10,
-        searchQuery: 'needle',
+        criteria: const FilterCriteria(searchQuery: 'needle'),
+        includeFilePathMatches: true,
       );
 
       expect(hitsAfterRepeat, hitsAfterFirst + 1);
@@ -350,6 +408,16 @@ void main() {
         replacedPage.records.map((record) => record.path),
         _pathsOf(after),
       );
+      final scoped = await query.queryPage(
+        page: 0,
+        pageSize: 10,
+        criteria: const FilterCriteria(
+          searchQuery: 'needle',
+          categoryFolderPath: 'elsewhere',
+        ),
+        includeFilePathMatches: true,
+      );
+      expect(scoped.records, isEmpty);
     });
   });
 }

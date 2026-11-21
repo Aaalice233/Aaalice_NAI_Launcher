@@ -5860,6 +5860,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get localGallery_emptyTitle => '暂无本地图片';
 
   @override
+  String get localGallery_emptyScopeTitle => '这里还没有图片';
+
+  @override
   String get localGallery_emptySubtitle => '生成的图片将保存在此处';
 
   @override
@@ -5989,9 +5992,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get localGallery_imageMovedToCategory => '图片已移动到分类';
-
-  @override
-  String get localGallery_categoriesSynced => '分类已与文件夹同步';
 
   @override
   String get localGallery_saveDirectoryNotSet => '未设置保存目录';
@@ -21543,6 +21543,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get localGallery_emptyTitle => '暫無本地圖片';
 
   @override
+  String get localGallery_emptyScopeTitle => '這裡還沒有圖片';
+
+  @override
   String get localGallery_emptySubtitle => '生成的圖片將儲存在此處';
 
   @override
@@ -21672,9 +21675,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get localGallery_imageMovedToCategory => '圖片已移動到分類';
-
-  @override
-  String get localGallery_categoriesSynced => '分類已與資料夾同步';
 
   @override
   String get localGallery_saveDirectoryNotSet => '未設定儲存目錄';

@@ -124,7 +124,7 @@ class _GatedRepository extends LocalGalleryRepository {
   void releaseListing() => _gates.removeAt(0).complete();
 
   @override
-  Future<List<File>> findGalleryFiles() async {
+  Future<List<File>> findGalleryFiles([String? rootPath]) async {
     listingCount++;
     // 枚举在开始时就看到了磁盘，挂起的只是返回，模拟大目录的慢速 stat。
     final snapshot = [for (final path in files) File(path)];

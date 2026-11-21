@@ -17,6 +17,7 @@ import '../../data/services/gallery/gallery_stream_scanner.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/gallery/unified_gallery_service.dart';
 import '../../l10n/app_localizations.dart';
+import 'gallery_category_provider.dart';
 
 part 'local_gallery_provider.freezed.dart';
 part 'local_gallery_provider.g.dart';
@@ -214,6 +215,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
     }
     if (addedCount > 0) GalleryCacheManager().invalidateStatistics();
+    await _updateFolders(service, filePaths);
   }
 
   /// 在途的初始化枚举可能早于删除，服务就绪后按磁盘现状再移除一次。
@@ -224,6 +226,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     _deferredRemovals.clear();
     try {
       await service.removeDeletedImagesImmediately(filePaths);
+      await _updateFolders(service, filePaths);
     } catch (e, stackTrace) {
       AppLogger.e(
         '[RemoveDeletedImages] Failed to apply deferred removals',
@@ -406,6 +409,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       _setState(
         state.copyWith(
           currentImages: records,
+          error: null,
           currentPage: normalizedPage,
           totalPages: totalPages,
           filteredCount: service.filteredCount,
@@ -463,14 +467,13 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   ///
   /// 执行增量扫描，更新文件列表和索引
   Future<void> refresh({bool scan = true}) async {
+    _setState(state.copyWith(isLoading: true, error: null));
     if (!state.isInitialized) {
       // 共享服务已被别处初始化时，页面初始化只读它的内存列表，还得真正刷一次磁盘。
       final serviceWasReady = ref.read(galleryServiceProvider).isInitialized;
       await initialize();
       if (!serviceWasReady || !state.isInitialized) return;
     }
-
-    _setState(state.copyWith(isLoading: true));
 
     try {
       final service = await getService();
@@ -540,8 +543,17 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       return GalleryIndexAdmission.deferred;
     }
 
-    return _admitImmediately(service, filePaths);
+    final admission = await _admitImmediately(service, filePaths);
+    await _updateFolders(service, filePaths);
+    return admission;
   }
+
+  Future<void> _updateFolders(
+    LocalGalleryService service,
+    List<String> paths,
+  ) => ref
+      .read(galleryCategoryNotifierProvider.notifier)
+      .updateForImagePaths(paths, service.imageCountInFolder);
 
   /// 文件已从磁盘删掉后调用：直接移出列表，不为几张图重新枚举整个图库根目录。
   Future<void> removeDeletedImages(List<String> filePaths) async {
@@ -561,6 +573,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       final removedCount = await service.removeDeletedImagesImmediately(
         filePaths,
       );
+      await _updateFolders(service, filePaths);
       if (removedCount == 0) return;
       _favoriteCountLoad = null;
       _setState(
@@ -589,7 +602,7 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     LocalGalleryService service,
     List<String> filePaths,
   ) async {
-    var admission = GalleryIndexAdmission.alreadyIndexed;
+    var admission = GalleryIndexAdmission.excluded;
     var anyIndexed = false;
     var addedCount = 0;
 
@@ -892,8 +905,9 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
   /// [categoryFolderPath] 分类的文件夹路径
   Future<void> setSelectedCategory(
     String? categoryId,
-    String? categoryFolderPath,
-  ) async {
+    String? categoryFolderPath, {
+    bool refreshFiles = false,
+  }) async {
     final criteria = state.filterCriteria;
 
     // 检查是否有变化
@@ -914,7 +928,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       ),
     );
 
-    await _applyFilters();
+    if (refreshFiles) {
+      await refresh(scan: false);
+    } else {
+      await _applyFilters();
+    }
   }
 
   /// 设置选中的相簿
@@ -976,7 +994,11 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
       }
 
       _setState(
-        state.copyWith(groupedImages: allRecords, isGroupedLoading: false),
+        state.copyWith(
+          groupedImages: allRecords,
+          isGroupedLoading: false,
+          error: null,
+        ),
       );
     } catch (e) {
       AppLogger.e(
@@ -989,9 +1011,12 @@ class LocalGalleryNotifier extends _$LocalGalleryNotifier {
     }
   }
 
-  Future<void> clearAllFilters() async {
+  Future<void> clearFiltersWithinScope() async {
     _setState(
-      state.copyWith(filterCriteria: const FilterCriteria(), currentPage: 0),
+      state.copyWith(
+        filterCriteria: state.filterCriteria.browsingScope,
+        currentPage: 0,
+      ),
     );
     await _applyFilters();
   }

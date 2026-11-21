@@ -401,7 +401,7 @@ class _LocalGalleryStateAdapter implements GalleryState<LocalImageRecord> {
   bool get isGroupedLoading => _state.isGroupedLoading;
 
   @override
-  bool get hasFilters => _state.hasFilters;
+  bool get hasFilters => _state.filterCriteria.hasClearableFilters;
 
   @override
   List<LocalImageRecord> get filteredFiles =>
@@ -546,8 +546,9 @@ class LocalGalleryContentView extends ConsumerWidget {
           .read(localGalleryNotifierProvider.notifier)
           .toggleFavorite(record.path),
       onContextMenu: onContextMenu,
-      onClearFilters: () =>
-          ref.read(localGalleryNotifierProvider.notifier).clearAllFilters(),
+      onClearFilters: () => ref
+          .read(localGalleryNotifierProvider.notifier)
+          .clearFiltersWithinScope(),
       groupedGridViewKey: groupedGridViewKey,
       view3DConfig: Gallery3DViewConfig<LocalImageRecord>(
         images: state.currentImages,

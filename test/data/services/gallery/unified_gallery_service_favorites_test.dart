@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive_ce.dart';
@@ -10,6 +11,10 @@ import 'package:nai_launcher/core/database/connection_pool_holder.dart';
 import 'package:nai_launcher/core/database/datasources/gallery_data_source.dart';
 import 'package:nai_launcher/core/utils/app_logger.dart';
 import 'package:nai_launcher/data/services/gallery/gallery_filter_service.dart';
+import 'package:nai_launcher/data/services/gallery/gallery_image_files.dart';
+import 'package:nai_launcher/data/repositories/gallery_category_repository.dart';
+import 'package:nai_launcher/presentation/providers/gallery_category_provider.dart';
+import 'package:nai_launcher/presentation/providers/local_gallery_provider.dart';
 import 'package:nai_launcher/data/services/gallery/unified_gallery_service.dart';
 
 void main() {
@@ -74,6 +79,99 @@ void main() {
       expect(identical(first, concurrent), isTrue);
       expect((await concurrent).map((file) => file.path), contains(image.path));
       expect(service.isInitialized, isTrue);
+    });
+
+    test('跨日保存、并发批量、重复通知与删除仅更新路径上的侧栏文件夹且可读回', () async {
+      final enumerated = <String>[];
+      final repository = GalleryCategoryRepository(
+        images: GalleryImageFiles(
+          listDirectory: (dir) {
+            enumerated.add(p.relative(dir.path, from: galleryRoot.path));
+            return dir.list(followLinks: false);
+          },
+        ),
+      );
+      Future<File> save(String path) =>
+          File(p.join(galleryRoot.path, path)).create(recursive: true);
+      await save('2026-11-17/old.png');
+      await save('2026-11-17/sub/nested.png');
+      final container = ProviderContainer(
+        overrides: [
+          galleryServiceProvider.overrideWith(
+            () => GalleryService(createService: () => service),
+          ),
+          galleryCategoryNotifierProvider.overrideWith(
+            () => GalleryCategoryNotifier(repository: repository),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final gallery = container.read(localGalleryNotifierProvider.notifier);
+      final sidebar = container.read(galleryCategoryNotifierProvider.notifier);
+      await gallery.initialize();
+      await sidebar.whenLoaded();
+      Map<String, int> counts() => {
+        for (final c
+            in container.read(galleryCategoryNotifierProvider).categories)
+          c.folderPath.replaceAll('\\', '/'): c.imageCount,
+      };
+      expect(counts()['2026-11-17'], 2);
+      expect(enumerated.toSet().length, enumerated.length);
+      enumerated.clear();
+      final first = await save('2026-11-18/one.png');
+      await gallery.addNewlySavedImages([first.path]);
+      expect(counts()['2026-11-18'], 1);
+      final second = await save('2026-11-18/two.png');
+      await gallery.addNewlySavedImages([second.path]);
+      await gallery.addNewlySavedImages([first.path, second.path]);
+      expect(counts()['2026-11-18'], 2);
+      final sub = await save('2026-11-18/sub/a.png');
+      final sub2 = await save('2026-11-18/sub/b.png');
+      final third = await save('2026-11-18/three.png');
+      await Future.wait([
+        gallery.addNewlySavedImages([sub.path, sub2.path]),
+        gallery.addNewlySavedImages([third.path]),
+      ]);
+      expect(counts()['2026-11-18'], 5);
+      expect(counts()['2026-11-18/sub'], 2);
+      await sub.delete();
+      await gallery.removeDeletedImages([sub.path]);
+      expect(counts()['2026-11-18'], 4);
+      expect(counts()['2026-11-18/sub'], 1);
+      final suppressed = container
+          .read(galleryCategoryNotifierProvider)
+          .categories
+          .firstWhere(
+            (c) => c.name == 'sub' && c.folderPath.startsWith('2026-11-18'),
+          );
+      await sidebar.deleteCategory(suppressed.id, deleteFolder: false);
+      final underSuppressed = await save('2026-11-18/sub/deeper/new.png');
+      await gallery.addNewlySavedImages([underSuppressed.path]);
+      expect(
+        counts().keys.where((k) => k.startsWith('2026-11-18/sub')),
+        isEmpty,
+      );
+      expect(counts()['2026-11-18'], 5);
+      final hidden = await save('2026-11-18/.private/new.png');
+      await sidebar.updateForImagePaths([
+        hidden.path,
+      ], (_) => fail('隐藏目录不参与侧栏计数'));
+      await sidebar.updateForImagePaths([
+        p.join(tempDir.path, 'outside.png'),
+        p.join(galleryRoot.path, 'at-root.png'),
+      ], (_) => fail('根级和图库外文件不触发分类计数'));
+      expect(enumerated, isEmpty);
+      expect(counts()['2026-11-17'], 2);
+      final fromDisk = await GalleryCategoryRepository().loadCategories(
+        galleryRoot.path,
+      );
+      expect({
+        for (final c in fromDisk)
+          c.folderPath.replaceAll('\\', '/'): c.imageCount,
+      }, counts());
+      await sidebar.syncWithFileSystem();
+      expect(enumerated.toSet().length, enumerated.length);
+      expect(counts()['2026-11-18'], 5);
     });
 
     test(
@@ -252,7 +350,7 @@ void main() {
         final searchPage = await service.queryPage(
           page: 0,
           pageSize: 10,
-          searchQuery: 'needle',
+          criteria: const FilterCriteria(searchQuery: 'needle'),
         );
 
         expect(historicalPage.records.map((record) => record.path), [

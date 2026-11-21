@@ -26,7 +26,10 @@ void main() {
     final dataSource = GalleryDataSource();
     query = LocalGalleryQuery(
       repository: LocalGalleryRepository(dataSource: dataSource),
-      filterService: GalleryFilterService(dataSource),
+      filterService: GalleryFilterService(
+        dataSource,
+        getRootPath: () async => _root,
+      ),
     );
   });
 

@@ -28,38 +28,47 @@ part 'unified_gallery_service.g.dart';
 
 @Riverpod(keepAlive: true)
 class GalleryService extends _$GalleryService {
+  GalleryService({
+    LocalGalleryService Function() createService = _createService,
+  }) : _create = createService;
+
+  final LocalGalleryService Function() _create;
   LocalGalleryService? _service;
   Future<void>? _initialization;
 
   @override
   LocalGalleryService build() {
-    _initialization = Future<void>.microtask(_initializeService);
+    unawaited(ensureInitialized());
     ref.onDispose(() {
       _service?.dispose();
       _service = null;
+      _initialization = null;
     });
     return _PlaceholderGalleryService();
   }
 
   Future<void> ensureInitialized() {
-    return _initialization ??= _initializeService();
+    return _initialization ??= Future<void>.microtask(_initializeService);
+  }
+
+  static LocalGalleryService _createService() {
+    final dataSource = DatabaseManager.instance
+        .getDataSource<GalleryDataSource>('gallery');
+    if (dataSource == null) {
+      throw const GalleryDatabaseException(
+        message: 'GalleryDataSource not available',
+      );
+    }
+    return LocalGalleryServiceImpl(
+      dataSource: dataSource,
+      filterService: GalleryFilterService(dataSource),
+    );
   }
 
   Future<void> _initializeService() async {
     if (!ref.mounted) return;
     try {
-      final dataSource = DatabaseManager.instance
-          .getDataSource<GalleryDataSource>('gallery');
-      if (dataSource == null) {
-        throw const GalleryDatabaseException(
-          message: 'GalleryDataSource not available',
-        );
-      }
-
-      final service = LocalGalleryServiceImpl(
-        dataSource: dataSource,
-        filterService: GalleryFilterService(dataSource),
-      );
+      final service = _create();
       _service = service;
       await service.initialize();
       if (!ref.mounted) {
@@ -90,14 +99,13 @@ class GalleryService extends _$GalleryService {
       if (ref.mounted) {
         state = ErrorGalleryService(error: '画廊初始化失败: $error');
       }
+    } finally {
+      if (ref.mounted && state is ErrorGalleryService) {
+        await _service?.dispose();
+        _service = null;
+        _initialization = null;
+      }
     }
-  }
-
-  Future<void> reinitialize() async {
-    await _service?.dispose();
-    _service = null;
-    _initialization = null;
-    await ensureInitialized();
   }
 }
 
@@ -118,6 +126,9 @@ class ErrorGalleryService implements LocalGalleryService {
   Never _throwError() => throw GalleryDatabaseException(message: error);
 
   @override
+  int imageCountInFolder(String path) => _throwError();
+
+  @override
   Future<List<File>> initialize() => _throwError();
   @override
   Future<List<LocalImageRecord>> getPage(int page, {int? pageSize}) =>
@@ -126,7 +137,8 @@ class ErrorGalleryService implements LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) => _throwError();
   @override
   Future<int?> getImageIdByPath(String filePath) => _throwError();
@@ -171,6 +183,8 @@ class ErrorGalleryService implements LocalGalleryService {
 
 class _PlaceholderGalleryService implements LocalGalleryService {
   @override
+  int imageCountInFolder(String path) => _throwNotInitialized();
+  @override
   bool get isInitialized => false;
   @override
   int get filteredCount => 0;
@@ -192,7 +206,8 @@ class _PlaceholderGalleryService implements LocalGalleryService {
   Future<LocalGalleryQueryPage> queryPage({
     required int page,
     int pageSize = 50,
-    String searchQuery = '',
+    FilterCriteria criteria = const FilterCriteria(),
+    bool includeFilePathMatches = false,
   }) => _throwNotInitialized();
   @override
   Future<int?> getImageIdByPath(String filePath) => _throwNotInitialized();

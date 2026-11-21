@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
+import '../../../core/database/base_data_source.dart'
+    show DataSourceOperationException;
 import '../../../core/database/datasources/gallery_data_source.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../repositories/gallery_folder_repository.dart';
 import 'gallery_album_sidecar_service.dart';
+import 'gallery_image_files.dart';
 import 'gallery_stream_scanner.dart';
 import 'local_gallery_repository.dart';
 import 'scan_state_manager.dart';
@@ -16,9 +21,7 @@ GalleryStartupIndexAction chooseStartupIndexAction({
   required int fileSystemImageCount,
   int? unparsedImageCount = 0,
 }) {
-  if (databaseImageCount > 0 &&
-      databaseImageCount == fileSystemImageCount &&
-      unparsedImageCount == 0) {
+  if (databaseImageCount == fileSystemImageCount && unparsedImageCount == 0) {
     return GalleryStartupIndexAction.none;
   }
   return GalleryStartupIndexAction.fullScan;
@@ -64,12 +67,15 @@ class GalleryScanCoordinator {
   }
 
   Future<List<File>> _initialize() async {
-    final files = await _repository.findGalleryFiles();
+    final rootPath = await GalleryFolderRepository.instance.getRootPath();
+    final files = await _repository.findGalleryFiles(rootPath);
     AppLogger.i(
       'Found ${files.length} image files in file system',
       'LocalGalleryService',
     );
-    unawaited(_initializeIndexInBackground(List<File>.unmodifiable(files)));
+    unawaited(
+      _initializeIndexInBackground(rootPath!, List<File>.unmodifiable(files)),
+    );
     return files;
   }
 
@@ -135,7 +141,46 @@ class GalleryScanCoordinator {
     await _rebindAlbumPendingPaths();
   }
 
-  Future<void> _initializeIndexInBackground(List<File> files) async {
+  @visibleForTesting
+  Future<GalleryStartupIndexAction> startupIndexAction(
+    String rootPath,
+    int fileCount,
+  ) async {
+    final existingCount = await _dataSource.countImages();
+    AppLogger.i(
+      'Database has $existingCount images, file system has $fileCount images',
+      'LocalGalleryService',
+    );
+    try {
+      final metadataCounts = await _dataSource.countImagesByMetadataStatus();
+      final action = chooseStartupIndexAction(
+        databaseImageCount: existingCount,
+        fileSystemImageCount: fileCount,
+        unparsedImageCount: metadataCounts['none'],
+      );
+      if (action == GalleryStartupIndexAction.none) return action;
+
+      final counts = await _dataSource.countImagesForPaths(
+        (path) => GalleryImageFiles.accepts(rootPath, path),
+      );
+      return chooseStartupIndexAction(
+        databaseImageCount: counts.total,
+        fileSystemImageCount: fileCount,
+        unparsedImageCount: counts.unparsed,
+      );
+    } on DataSourceOperationException catch (error) {
+      AppLogger.w(
+        'Metadata status count unavailable; running startup scan: $error',
+        'LocalGalleryService',
+      );
+      return GalleryStartupIndexAction.fullScan;
+    }
+  }
+
+  Future<void> _initializeIndexInBackground(
+    String rootPath,
+    List<File> files,
+  ) async {
     if (_isBackgroundScanning) {
       AppLogger.d(
         'Background scan already in progress, skipping',
@@ -149,26 +194,7 @@ class GalleryScanCoordinator {
       'LocalGalleryService',
     );
     try {
-      final existingCount = await _dataSource.countImages();
-      AppLogger.i(
-        'Database has $existingCount images, file system has ${files.length} images',
-        'LocalGalleryService',
-      );
-      int? unparsedImageCount;
-      try {
-        final metadataCounts = await _dataSource.countImagesByMetadataStatus();
-        unparsedImageCount = metadataCounts['none'];
-      } catch (error) {
-        AppLogger.w(
-          'Metadata status count unavailable; running startup scan: $error',
-          'LocalGalleryService',
-        );
-      }
-      final action = chooseStartupIndexAction(
-        databaseImageCount: existingCount,
-        fileSystemImageCount: files.length,
-        unparsedImageCount: unparsedImageCount,
-      );
+      final action = await startupIndexAction(rootPath, files.length);
       if (action == GalleryStartupIndexAction.none) {
         AppLogger.i(
           'Skipping startup metadata scan: database and file system counts match',
@@ -179,7 +205,7 @@ class GalleryScanCoordinator {
           'Performing startup file index scan (${files.length} files)',
           'LocalGalleryService',
         );
-        await _performScan(files, full: true);
+        await _performScan(files, full: true, rootPath: rootPath);
       }
       AppLogger.i(
         'Background index initialization completed',
@@ -241,8 +267,12 @@ class GalleryScanCoordinator {
     }
   }
 
-  Future<void> _performScan(List<File> files, {required bool full}) async {
-    final rootPath = await GalleryFolderRepository.instance.getRootPath();
+  Future<void> _performScan(
+    List<File> files, {
+    required bool full,
+    String? rootPath,
+  }) async {
+    rootPath ??= await GalleryFolderRepository.instance.getRootPath();
     if (rootPath == null) {
       AppLogger.w(
         '[UGS] ${full ? '_performFullScan' : '_performIncrementalScan'}: '
