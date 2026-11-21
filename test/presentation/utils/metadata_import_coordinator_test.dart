@@ -341,6 +341,125 @@ void main() {
     expect(params.scale, 5.5);
   });
 
+  test(
+    'model import keeps the previous model memory free of image values',
+    () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      notifier
+        ..updateSteps(30)
+        ..updateScale(6.0)
+        ..updateSampler(Samplers.kDpmpp2m);
+
+      const metadata = NaiImageMetadata(
+        model: ImageModels.animeDiffusionV5Full,
+        steps: 28,
+        scale: 4.0,
+        sampler: Samplers.kEulerAncestral,
+      );
+      const options = MetadataImportOptions(
+        importPrompt: false,
+        importNegativePrompt: false,
+        importFixedTags: false,
+        importQualityTags: false,
+        importCharacterPrompts: false,
+        importVibeReferences: false,
+        importPreciseReferences: false,
+        importSteps: true,
+        importScale: true,
+        importSampler: true,
+        importModel: true,
+      );
+
+      await MetadataImportCoordinator.apply(
+        read: container.read,
+        metadata: metadata,
+        options: options,
+        l10n: AppLocalizationsEn(),
+      );
+      var params = container.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV5Full);
+      expect(params.steps, 28);
+      expect(params.scale, 4.0);
+      expect(params.sampler, Samplers.kEulerAncestral);
+
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
+      params = container.read(generationParamsNotifierProvider);
+      expect(params.steps, 30);
+      expect(params.scale, 6.0);
+      expect(params.sampler, Samplers.kDpmpp2m);
+    },
+  );
+
+  test(
+    'a model-only import round trip persists restored sampling settings',
+    () async {
+      final first = ProviderContainer();
+      try {
+        final initial = first.read(generationParamsNotifierProvider);
+        expect(initial.model, ImageModels.animeDiffusionV5Full);
+        expect(initial.steps, 28);
+        expect(initial.scale, 4.0);
+
+        await MetadataImportCoordinator.apply(
+          read: first.read,
+          metadata: const NaiImageMetadata(
+            model: ImageModels.animeDiffusionV45Full,
+            steps: 23,
+            scale: 5.0,
+          ),
+          options: const MetadataImportOptions(
+            importPrompt: false,
+            importNegativePrompt: false,
+            importFixedTags: false,
+            importQualityTags: false,
+            importCharacterPrompts: false,
+            importVibeReferences: false,
+            importPreciseReferences: false,
+            importModel: true,
+          ),
+          l10n: AppLocalizationsEn(),
+        );
+        final imported = first.read(generationParamsNotifierProvider);
+        expect(imported.model, ImageModels.animeDiffusionV45Full);
+        expect(imported.steps, 28);
+        expect(imported.scale, 4.0);
+        final settings = Hive.box(StorageKeys.settingsBox);
+        expect(settings.containsKey(StorageKeys.defaultSteps), isFalse);
+        expect(settings.containsKey(StorageKeys.defaultScale), isFalse);
+
+        first.read(generationParamsNotifierProvider.notifier)
+          ..updateModel(ImageModels.animeDiffusionV5Full)
+          ..updateModel(ImageModels.animeDiffusionV45Full);
+        final restored = first.read(generationParamsNotifierProvider);
+        expect(restored.steps, 28);
+        expect(restored.scale, 4.0);
+      } finally {
+        first.dispose();
+      }
+
+      await Hive.box(StorageKeys.settingsBox).close();
+      final settings = await Hive.openBox(StorageKeys.settingsBox);
+      final restarted = ProviderContainer();
+      addTearDown(restarted.dispose);
+
+      final params = restarted.read(generationParamsNotifierProvider);
+      expect(params.model, ImageModels.animeDiffusionV45Full);
+      expect(params.steps, 28);
+      expect(params.scale, 4.0);
+      expect(settings.get(StorageKeys.defaultSteps), params.steps);
+      expect(settings.get(StorageKeys.defaultScale), params.scale);
+      expect(settings.get(StorageKeys.lastCfgRescale), params.cfgRescale);
+      expect(settings.get(StorageKeys.defaultSampler), params.sampler);
+      expect(settings.get(StorageKeys.lastNoiseSchedule), params.noiseSchedule);
+      expect(settings.get(StorageKeys.lastVarietyPlus), params.varietyPlus);
+    },
+  );
+
   test('structured fixed tags replace the enabled scope', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
