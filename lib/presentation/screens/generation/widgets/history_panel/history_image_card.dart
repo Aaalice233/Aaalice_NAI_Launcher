@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/platform/platform_capabilities.dart';
 import '../../../../../core/utils/localization_extension.dart';
@@ -160,58 +161,71 @@ class HistoryImageCard extends StatelessWidget {
   }
 }
 
-class HistoryStreamPreviewCard extends StatelessWidget {
+typedef _HistoryStreamPreviewData = ({
+  int currentImage,
+  int totalImages,
+  double progress,
+  Uint8List? previewBytes,
+  FocusedStreamPreviewPlacement? focusedPreviewPlacement,
+});
+
+class HistoryStreamPreviewCard extends ConsumerWidget {
   const HistoryStreamPreviewCard({
     super.key,
-    required this.state,
     required this.generationIndex,
     required this.imageWidth,
     required this.imageHeight,
   });
 
-  final ImageGenerationState state;
   final int generationIndex;
   final int imageWidth;
   final int imageHeight;
 
   @override
-  Widget build(BuildContext context) {
-    if (!state.isGenerating) {
-      return const SizedBox.shrink();
-    }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final preview = ref.watch(
+      imageGenerationNotifierProvider.select(_selectPreview),
+    );
+    if (preview == null) return const SizedBox.shrink();
 
+    return SelectableImageCard(
+      isGenerating: true,
+      currentImage: preview.currentImage,
+      totalImages: preview.totalImages,
+      progress: preview.progress,
+      streamPreview: preview.previewBytes,
+      focusedPreviewPlacement: preview.focusedPreviewPlacement,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+      enableSelection: false,
+      enableContextMenu: false,
+    );
+  }
+
+  _HistoryStreamPreviewData? _selectPreview(ImageGenerationState state) {
+    if (!state.isGenerating) return null;
     final previewSlots = visibleHistoryStreamPreviewSlots(state);
     if (previewSlots.isNotEmpty && generationIndex < previewSlots.length) {
       final slot = previewSlots[generationIndex];
-      return SelectableImageCard(
-        isGenerating: true,
+      return (
         currentImage: slot.imageNumber,
         totalImages: slot.totalImages,
         progress: slot.progress,
-        streamPreview: slot.previewBytes,
+        previewBytes: slot.previewBytes,
         focusedPreviewPlacement: slot.focusedPreviewPlacement,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
-        enableSelection: false,
-        enableContextMenu: false,
       );
     }
 
     if (previewSlots.isEmpty && generationIndex == 0) {
-      return SelectableImageCard(
-        isGenerating: true,
+      return (
         currentImage: state.currentImage,
         totalImages: state.totalImages,
         progress: state.progress,
-        streamPreview: state.streamPreview,
+        previewBytes: state.streamPreview,
         focusedPreviewPlacement: state.focusedPreviewPlacement,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
-        enableSelection: false,
-        enableContextMenu: false,
       );
     }
 
-    return const SizedBox.shrink();
+    return null;
   }
 }

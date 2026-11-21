@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.dart';
 import 'package:nai_launcher/data/models/gallery/local_image_record.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
@@ -18,6 +20,131 @@ import 'package:nai_launcher/presentation/providers/tag_library_page_provider.da
 import 'package:nai_launcher/presentation/providers/vibe_library_provider.dart';
 
 void main() {
+  testWidgets('generated resource picker ignores chunks but updates history', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _TestApp(
+        galleryOverride: () =>
+            _FakeLocalGalleryNotifier(_FakeLocalGalleryService()),
+        onSelected: (_) async {},
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FilledButton).first),
+    );
+    final notifier = container.read(imageGenerationNotifierProvider.notifier);
+    final image = GeneratedImage(
+      id: 'generated',
+      bytes: Uint8List.fromList(img.encodePng(img.Image(width: 4, height: 4))),
+      width: 400,
+      height: 100,
+    );
+    notifier.state = notifier.state.copyWith(
+      status: GenerationStatus.generating,
+      history: [image],
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final itemFinder = find.byKey(
+      const ValueKey('agent-chat-gallery-generated'),
+    );
+    final searchFinder = find.byKey(
+      const ValueKey('agent-chat-resource-search'),
+    );
+    final item = tester.widget(itemFinder);
+    final search = tester.widget(searchFinder);
+
+    notifier.state = notifier.state.copyWith(
+      progress: 0.5,
+      streamPreview: image.bytes,
+    );
+    await tester.pump();
+    expect(tester.widget(itemFinder), same(item));
+    expect(tester.widget(searchFinder), same(search));
+
+    notifier.state = notifier.state.copyWith(
+      history: [
+        GeneratedImage(id: 'new', bytes: image.bytes, width: 400, height: 100),
+        image,
+      ],
+    );
+    await tester.pump();
+    expect(itemFinder, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('agent-chat-gallery-new')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dragging the resource picker keeps one history subscription', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 800);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(
+      _TestApp(
+        galleryOverride: () =>
+            _FakeLocalGalleryNotifier(_FakeLocalGalleryService()),
+        onSelected: (_) async {},
+      ),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.text('open')),
+    );
+    final notifier = container.read(imageGenerationNotifierProvider.notifier);
+    final bytes = Uint8List.fromList(
+      img.encodePng(img.Image(width: 4, height: 4)),
+    );
+    final history = [
+      GeneratedImage(id: 'recent', bytes: bytes, width: 400, height: 100),
+      GeneratedImage(id: 'older', bytes: bytes, width: 200, height: 100),
+    ];
+    notifier.state = ImageGenerationState(
+      status: GenerationStatus.generating,
+      history: history,
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final list = find.descendant(
+      of: find.byKey(const ValueKey('adaptive-bottom-sheet')),
+      matching: find.byType(ListView),
+    );
+    final drag = await tester.startGesture(tester.getCenter(list));
+    await drag.moveBy(const Offset(0, 24));
+    await tester.pump();
+    for (var step = 0; step < 4; step++) {
+      final previousHeight = tester.getSize(list).height;
+      await drag.moveBy(const Offset(0, 32));
+      await tester.pump();
+      expect(tester.getSize(list).height, lessThan(previousHeight));
+    }
+
+    final chunk = _CountingHistoryState(history: history, streamPreview: bytes);
+    notifier.state = chunk;
+    expect(
+      chunk.historyReads,
+      1,
+      reason: 'The history projection reads this field once per subscription.',
+    );
+    await tester.pump();
+
+    final recent = find.text('400 × 100');
+    final older = find.text('200 × 100');
+    expect(recent, findsOneWidget);
+    expect(older, findsOneWidget);
+    expect(tester.getTopLeft(recent).dy, lessThan(tester.getTopLeft(older).dy));
+    await drag.up();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 600.0, 840.0, 1180.0]) {
     testWidgets(
       'local reference gallery reaches history and searches the complete library at ${width.toInt()}',
@@ -458,6 +585,19 @@ class _QueryRequest {
 
   @override
   int get hashCode => Object.hash(page, searchQuery);
+}
+
+class _CountingHistoryState extends ImageGenerationState {
+  _CountingHistoryState({required super.history, required super.streamPreview})
+    : super(status: GenerationStatus.generating, progress: 0.5);
+
+  int historyReads = 0;
+
+  @override
+  List<GeneratedImage> get history {
+    historyReads++;
+    return super.history;
+  }
 }
 
 class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
