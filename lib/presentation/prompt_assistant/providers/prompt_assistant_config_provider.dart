@@ -1,11 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/constants/storage_keys.dart';
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import '../models/assistant_model_capability.dart';
 
 final promptAssistantConfigProvider =
     NotifierProvider<PromptAssistantConfigNotifier, PromptAssistantConfigState>(
@@ -114,15 +117,48 @@ class PromptAssistantConfigNotifier
   }
 
   Future<void> upsertProvider(ProviderConfig provider) async {
+    state = _withProvider(provider);
+    await _save();
+  }
+
+  PromptAssistantConfigState _withProvider(ProviderConfig provider) {
     final providers = [...state.providers];
     final idx = providers.indexWhere((p) => p.id == provider.id);
+    final previous = idx < 0 ? null : providers[idx];
+    final supported = ModelReasoningFormat.forProtocol(provider.protocol);
+    final formats = Map.fromEntries(
+      provider.modelReasoningFormats.entries.where(
+        (entry) => supported.contains(entry.value),
+      ),
+    );
+    final changed = {
+      for (final model in {
+        ...?previous?.modelReasoningFormats.keys,
+        ...provider.modelReasoningFormats.keys,
+      })
+        if (previous?.modelReasoningFormats[model] != formats[model] ||
+            !formats.containsKey(model))
+          model,
+    };
+    final next = provider.copyWith(
+      modelReasoningFormats: formats,
+      modelReasoningFormatIds: {
+        for (final model in formats.keys)
+          if (changed.contains(model))
+            model: const Uuid().v4()
+          else if (previous?.modelReasoningFormatIds[model] case final id?)
+            model: id,
+      },
+    );
     if (idx >= 0) {
-      providers[idx] = provider;
+      providers[idx] = next;
     } else {
-      providers.add(provider);
+      providers.add(next);
     }
-    state = state.copyWith(providers: providers);
-    await _save();
+    return state.copyWith(
+      providers: providers,
+      routing: state.routing.withoutThinkingFor(provider.id, changed),
+    );
   }
 
   /// 同 [setProviderApiKey]，服务商已删除时不能被延迟提交写回来。
@@ -261,6 +297,18 @@ class PromptAssistantConfigNotifier
     ];
     if (models.length == state.models.length) return;
     state = state.copyWith(
+      providers: [
+        for (final provider in state.providers)
+          if (provider.id == providerId)
+            provider.copyWith(
+              modelReasoningFormats: {...provider.modelReasoningFormats}
+                ..removeWhere((id, _) => removed.contains(id)),
+              modelReasoningFormatIds: {...provider.modelReasoningFormatIds}
+                ..removeWhere((id, _) => removed.contains(id)),
+            )
+          else
+            provider,
+      ],
       models: models,
       routing: _repointRoutes(providerId, models),
     );
@@ -324,6 +372,89 @@ class PromptAssistantConfigNotifier
 
   Future<void> setRouting(TaskRoutingConfig routing) async {
     state = state.copyWith(routing: routing);
+    await _save();
+  }
+
+  PromptAssistantConfigState _withReasoningFormat(
+    ProviderConfig provider,
+    String model,
+    ModelReasoningFormat? format,
+  ) {
+    if (provider.modelReasoningFormats[model] == format) return state;
+    final formats = {...provider.modelReasoningFormats}..remove(model);
+    if (format != null) formats[model] = format;
+    return _withProvider(provider.copyWith(modelReasoningFormats: formats));
+  }
+
+  Future<String?> setModelReasoningFormat(
+    String providerId,
+    String model,
+    ModelReasoningFormat? format,
+  ) async {
+    if (!state.models.any(
+      (item) =>
+          item.providerId == providerId &&
+          item.name == model &&
+          !item.isPlaceholder,
+    )) {
+      return null;
+    }
+    final provider = state.providers.firstWhere(
+      (item) => item.id == providerId,
+    );
+    if (format != null &&
+        !AssistantModelCatalog.resolveProvider(
+          provider: provider,
+          model: model,
+        ).configurableFormats.contains(format)) {
+      return null;
+    }
+    state = _withReasoningFormat(provider, model, format);
+    final formatId = state.providers
+        .firstWhere((item) => item.id == providerId)
+        .modelReasoningFormatIds[model];
+    await _save();
+    return formatId;
+  }
+
+  Future<void> setTaskThinkingLevel(
+    AssistantTaskType task,
+    String providerId,
+    String model,
+    AssistantThinkingLevel level,
+  ) async {
+    if (!state
+        .modelsForProviderTask(providerId: providerId, taskType: task)
+        .any((item) => item.name == model && !item.isPlaceholder)) {
+      return;
+    }
+    final provider = state.providers.firstWhere(
+      (item) => item.id == providerId,
+    );
+    final metadata = AssistantModelCatalog.resolveProvider(
+      provider: provider,
+      model: model,
+    );
+    if (level != AssistantThinkingLevel.automatic &&
+        !metadata.offeredThinkingLevels.any(
+          (item) => item.name == level.name,
+        )) {
+      return;
+    }
+    final format = metadata.quickFormat;
+    final next = format != null && level != AssistantThinkingLevel.automatic
+        ? _withReasoningFormat(provider, model, format)
+        : state;
+    final route = next.routing.copyWithTask(
+      taskType: task,
+      providerId: providerId,
+      model: model,
+    );
+    state = next.copyWith(
+      routing: route.copyWith(
+        thinkingLevels: {...route.thinkingLevels, task: level},
+      ),
+    );
     await _save();
   }
 

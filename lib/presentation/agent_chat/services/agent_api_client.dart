@@ -7,12 +7,14 @@ import '../../prompt_assistant/services/provider_adapters/gemini_generate_conten
 import '../../prompt_assistant/services/provider_adapters/openai_chat_completions_adapter.dart';
 import '../../prompt_assistant/services/provider_adapters/openai_responses_adapter.dart';
 import '../../prompt_assistant/services/provider_adapters/prompt_assistant_adapter.dart';
+import '../../prompt_assistant/services/provider_adapters/reasoning_rejection.dart';
 
 /// Agent HTTP 请求分发。
 class AgentApiClient {
-  AgentApiClient(this._dio);
+  AgentApiClient(this._dio, {this.reasoningRejectionHint});
 
   final Dio _dio;
+  final String Function()? reasoningRejectionHint;
   final Map<String, CancelToken> _cancelTokens = {};
 
   void cancel(String sessionId) {
@@ -42,8 +44,24 @@ class AgentApiClient {
     _cancelTokens.remove(cancelSessionId)?.cancel('replaced by new request');
     final cancelToken = CancelToken();
     _cancelTokens[cancelSessionId] = cancelToken;
-    return _adapterFor(
-      request.provider,
-    ).completeAgent(dio: _dio, request: request, cancelToken: cancelToken);
+    return _adapterFor(request.provider)
+        .completeAgent(dio: _dio, request: request, cancelToken: cancelToken)
+        .map((event) {
+          if (event case AgentWireError(
+            :final message,
+            rejectedReasoningField: final field?,
+          )) {
+            return AgentWireError(
+              reasoningRejectionMessage(
+                message,
+                field,
+                reasoningRejectionHint?.call(),
+              ),
+              retryMessage: event.retryMessage,
+              rejectedReasoningField: field,
+            );
+          }
+          return event;
+        });
   }
 }

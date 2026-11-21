@@ -190,7 +190,7 @@ void main() {
           entry.model,
         );
 
-        expect(capability.levels, entry.levels);
+        expect(capability.metadata.thinkingLevels, entry.levels);
         expect(capability.model.reasoning, isTrue);
         expect(capability.model.contextWindow, greaterThan(0));
       });
@@ -219,11 +219,26 @@ void main() {
         baseUrl: 'https://proxy.example/v1',
       );
       expect(
-        AgentChatModelCapability.resolve(provider, entry.$2).levels,
+        AgentChatModelCapability.resolve(
+          provider,
+          entry.$2,
+        ).metadata.thinkingLevels,
         isNotEmpty,
         reason: entry.$1.name,
       );
     }
+  });
+
+  test('the deepseek-chat alias preserves reasoning when high is selected', () {
+    final capability = AgentChatModelCapability.resolve(
+      ProviderPreset.deepseek.createConfig(),
+      'deepseek-chat',
+    );
+
+    expect(
+      capability.resolveReasoningRequest('high')?.preserveReasoningContent,
+      isTrue,
+    );
   });
 
   test('maps DeepSeek effort and preserves Mistral level aliases', () {
@@ -247,13 +262,13 @@ void main() {
       'magistral-medium-latest',
     );
 
-    expect(deepSeek.levels, [
+    expect(deepSeek.metadata.thinkingLevels, [
       ThinkingLevel.off,
       ThinkingLevel.low,
       ThinkingLevel.high,
       ThinkingLevel.max,
     ]);
-    expect(mistral.levels, [
+    expect(mistral.metadata.thinkingLevels, [
       ThinkingLevel.off,
       ThinkingLevel.minimal,
       ThinkingLevel.low,
@@ -294,7 +309,7 @@ void main() {
     );
   });
 
-  test('Gemini 3 missing reasoning uses its supported hidden minimum', () {
+  test('Gemini 3 uses the hidden minimum only for explicit off', () {
     final provider = ProviderPreset.gemini.createConfig(id: 'google');
     final proCapability = AgentChatModelCapability.resolve(
       provider,
@@ -305,13 +320,19 @@ void main() {
       'gemini-3.8-flash',
     );
 
-    final proRequest = proCapability.resolveReasoningRequest(null);
-    final flashRequest = flashCapability.resolveReasoningRequest(null);
+    for (final capability in [proCapability, flashCapability]) {
+      final modelDefault = capability.resolveReasoningRequest(null)!;
+      expect(modelDefault.enabled, isNull);
+      expect(modelDefault.effort, isNull);
+      expect(modelDefault.sendWhenDisabled, isFalse);
+    }
+    final proRequest = proCapability.resolveReasoningRequest('off');
+    final flashRequest = flashCapability.resolveReasoningRequest('off');
 
     expect(proRequest?.enabled, isFalse);
     expect(proRequest?.sendWhenDisabled, isTrue);
     expect(proRequest?.effort, 'LOW');
-    expect(flashCapability.levels, [
+    expect(flashCapability.metadata.thinkingLevels, [
       ThinkingLevel.low,
       ThinkingLevel.medium,
       ThinkingLevel.high,
@@ -330,7 +351,7 @@ void main() {
 
     expect(capability.model.contextWindow, 1048576);
     expect(capability.model.maxTokens, 65536);
-    expect(capability.levels, [
+    expect(capability.metadata.thinkingLevels, [
       ThinkingLevel.low,
       ThinkingLevel.medium,
       ThinkingLevel.high,
@@ -343,13 +364,13 @@ void main() {
     expect(capability.resolveReasoningRequest('high')?.effort, 'high');
   });
 
-  test('omits missing reasoning on models whose off mapping is null', () {
+  test('omits explicit off on models whose off mapping is null', () {
     final capability = AgentChatModelCapability.resolve(
       ProviderPreset.openaiResponses.createConfig(id: 'openai'),
       'gpt-5',
     );
 
-    final request = capability.resolveReasoningRequest(null);
+    final request = capability.resolveReasoningRequest('off');
 
     expect(request?.enabled, isFalse);
     expect(request?.sendWhenDisabled, isFalse);
@@ -373,20 +394,126 @@ void main() {
     expect(metadata.resolveReasoningRequest('low')?.effort, 'custom-low');
   });
 
-  test('keeps unknown custom endpoints explicitly unavailable', () {
-    const provider = ProviderConfig(
-      id: 'custom',
-      name: 'Custom',
-      protocol: ProviderProtocol.openaiChatCompletions,
-      baseUrl: 'https://example.test',
-      preset: ProviderPreset.openaiCompatibleChat,
+  test(
+    'unknown compatible models offer direct selection without sending an undeclared effort',
+    () {
+      const provider = ProviderConfig(
+        id: 'custom',
+        name: 'Custom',
+        protocol: ProviderProtocol.openaiChatCompletions,
+        baseUrl: 'https://example.test',
+        preset: ProviderPreset.openaiCompatibleChat,
+      );
+
+      final capability = AgentChatModelCapability.resolve(
+        provider,
+        'private-v9',
+      );
+
+      expect(capability.model.contextWindow, 0);
+      expect(capability.model.reasoning, isFalse);
+      expect(capability.metadata.thinkingLevels, isEmpty);
+      expect(capability.metadata.quickFormat, ModelReasoningFormat.chatEffort);
+      expect(capability.metadata.chatThinkingLevels, [
+        null,
+        ThinkingLevel.low,
+        ThinkingLevel.medium,
+        ThinkingLevel.high,
+      ]);
+      expect(capability.resolveReasoningRequest('high'), isNull);
+      for (final id in ['', 'default-model']) {
+        expect(
+          AgentChatModelCapability.resolve(provider, id).metadata.configurable,
+          isFalse,
+        );
+      }
+    },
+  );
+
+  test(
+    'native formats are explicit and declarations cannot override catalog or protocol restrictions',
+    () {
+      const id = 'gemini-carbon';
+      final native = ProviderPreset.gemini.createConfig();
+      AssistantModelMetadata forFormat(ModelReasoningFormat? format) =>
+          AssistantModelCatalog.resolveProvider(
+            provider: native.copyWith(
+              modelReasoningFormats: {if (format != null) id: format},
+            ),
+            model: id,
+          );
+      expect(forFormat(null).chatThinkingLevels, [null]);
+      expect(
+        forFormat(
+          ModelReasoningFormat.chatEffort,
+        ).resolveReasoningRequest('high'),
+        isNull,
+      );
+      final autoBudget = forFormat(ModelReasoningFormat.geminiBudget);
+      expect(autoBudget.chatThinkingLevels, [null, ThinkingLevel.high]);
+      expect(autoBudget.thinkingIsToggle, isTrue);
+      final relay = ProviderPreset.openaiCompatibleChat.createConfig();
+      for (final (name, match) in [
+        ('gpt-4o', AssistantModelCatalogMatch.nonReasoning),
+        ('gemini-2.5-pro', AssistantModelCatalogMatch.incompatibleProtocol),
+        ('gpt-5', AssistantModelCatalogMatch.reasoning),
+      ]) {
+        final metadata = AssistantModelCatalog.resolveProvider(
+          provider: relay.copyWith(
+            modelReasoningFormats: {name: ModelReasoningFormat.chatEffort},
+          ),
+          model: name,
+        );
+        expect(metadata.catalogMatch, match);
+        expect(metadata.configurable, isFalse);
+        if (match != AssistantModelCatalogMatch.reasoning) {
+          expect(metadata.resolveReasoningRequest('high'), isNull);
+        }
+      }
+    },
+  );
+
+  test('OpenAI Chat only reserves exact GPT-4.1 catalog IDs on relays', () {
+    final relay = ProviderPreset.openaiChat.createConfig().copyWith(
+      baseUrl: 'https://relay.example/v1',
     );
-
-    final capability = AgentChatModelCapability.resolve(provider, 'private-v9');
-
-    expect(capability.model.contextWindow, 0);
-    expect(capability.model.reasoning, isFalse);
-    expect(capability.levels, isEmpty);
+    for (final base in ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano']) {
+      for (final id in [base, '$base-2025-04-14']) {
+        final known = AssistantModelCatalog.resolveProvider(
+          provider: relay,
+          model: id,
+        );
+        expect(
+          known.catalogMatch,
+          AssistantModelCatalogMatch.nonReasoning,
+          reason: id,
+        );
+        expect(known.contextWindow, 1047576);
+        expect(known.offeredThinkingLevels, isEmpty);
+      }
+    }
+    const id = 'gpt-4.1-private-thinking';
+    final private = AssistantModelCatalog.resolveProvider(
+      provider: relay,
+      model: id,
+    );
+    expect(private.quickFormat, ModelReasoningFormat.chatEffort);
+    expect(private.offeredThinkingLevels, [
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+    ]);
+    expect(private.chatThinkingLevels, [
+      null,
+      ...private.offeredThinkingLevels,
+    ]);
+    final declared = AssistantModelCatalog.resolveProvider(
+      provider: relay.copyWith(
+        modelReasoningFormats: {id: ModelReasoningFormat.chatEffort},
+      ),
+      model: id,
+    );
+    expect(declared.resolveReasoningRequest('high')?.effort, 'high');
   });
 
   group('unrecognised gateways fall back to the model name', () {
@@ -414,7 +541,7 @@ void main() {
 
       expect(capability.model.contextWindow, 1048576);
       expect(capability.model.maxTokens, 65536);
-      expect(capability.levels, [
+      expect(capability.metadata.thinkingLevels, [
         ThinkingLevel.low,
         ThinkingLevel.medium,
         ThinkingLevel.high,
@@ -427,10 +554,7 @@ void main() {
     });
 
     test('borrows the window for a transparently proxied model', () {
-      final capability = AgentChatModelCapability.resolve(
-        relay,
-        'kimi-k2.6',
-      );
+      final capability = AgentChatModelCapability.resolve(relay, 'kimi-k2.6');
 
       expect(capability.model.contextWindow, 262144);
     });
@@ -466,7 +590,7 @@ void main() {
         );
 
         expect(capability.model.contextWindow, greaterThan(0));
-        expect(capability.levels, isEmpty);
+        expect(capability.metadata.thinkingLevels, isEmpty);
         expect(capability.model.reasoning, isFalse);
       },
     );
@@ -515,7 +639,7 @@ void main() {
         'claude-opus-4-8',
       );
 
-      expect(capability.levels, isEmpty);
+      expect(capability.metadata.thinkingLevels, isEmpty);
     },
   );
 }

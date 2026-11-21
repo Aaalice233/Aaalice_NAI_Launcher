@@ -221,20 +221,6 @@ String contentToText(dynamic content) {
   return '';
 }
 
-String? extractErrorMessage(Map<String, dynamic> obj) {
-  final error = obj['error'];
-  if (error is String && error.trim().isNotEmpty) {
-    return error.trim();
-  }
-  if (error is Map<String, dynamic>) {
-    final message = error['message'] ?? error['error'] ?? error['type'];
-    if (message is String && message.trim().isNotEmpty) {
-      return message.trim();
-    }
-  }
-  return null;
-}
-
 List<String> extractModelNames(dynamic raw) {
   final names = <String>[];
 

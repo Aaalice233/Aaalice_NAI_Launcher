@@ -8,6 +8,7 @@ import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'prompt_assistant_adapter.dart';
 import 'reasoning_payload.dart';
+import 'reasoning_rejection.dart';
 
 class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
   const OpenAiChatCompletionsAdapter({this.ollamaTagsFallback = false});
@@ -91,7 +92,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       payload: payload,
       cancelToken: cancelToken,
     );
-    return _extractResponseContent(response.data);
+    return _extractResponseContent(checkedProviderResponse(response));
   }
 
   @override
@@ -142,10 +143,10 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
         if (json == null) {
           return;
         }
-        final error = extractErrorMessage(json);
-        if (error != null) {
+        if (ProviderResponseError.fromResponse(json, payload)
+            case final error?) {
           sawError = true;
-          pending.add(AgentWireError('LLM service returned an error: $error'));
+          pending.add(agentWireErrorFrom(error, request));
           return;
         }
         final usageRaw = json['usage'];
@@ -248,7 +249,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       if (pending.isNotEmpty) {
         yield* Stream.fromIterable(List.of(pending));
       }
-      yield agentWireErrorFrom(error, request.provider);
+      yield agentWireErrorFrom(error, request);
       return;
     }
 
@@ -303,13 +304,8 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
         ),
         cancelToken: cancelToken,
       );
-      final raw = response.data;
+      final raw = checkedProviderResponse(response);
       if (raw is Map<String, dynamic>) {
-        final error = extractErrorMessage(raw);
-        if (error != null) {
-          yield AgentWireError('LLM service returned an error: $error');
-          return;
-        }
         final choices = raw['choices'];
         if (choices is List && choices.isNotEmpty) {
           final first = choices.first;
@@ -363,7 +359,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       }
       yield const AgentWireError('LLM service returned an unexpected response');
     } on Object catch (error) {
-      yield agentWireErrorFrom(error, request.provider);
+      yield agentWireErrorFrom(error, request);
     }
   }
 
@@ -402,11 +398,10 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
   Map<String, dynamic> _reasoningPayload(AgentChatRequest request) {
     final reasoning = request.reasoningRequest;
     if (reasoning == null) {
-      if (request.provider.preset == ProviderPreset.deepseek) {
+      if (request.provider.preset == ProviderPreset.deepseek &&
+          request.reasoning != null) {
         return {
-          'thinking': {
-            'type': request.reasoning == null ? 'disabled' : 'enabled',
-          },
+          'thinking': {'type': 'enabled'},
         };
       }
       return const {};
@@ -425,7 +420,8 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
           allowImageInput: request.provider.allowImageInput,
           preserveReasoning:
               request.reasoningRequest?.preserveReasoningContent == true ||
-              (request.provider.preset == ProviderPreset.deepseek &&
+              (request.reasoningRequest == null &&
+                  request.provider.preset == ProviderPreset.deepseek &&
                   request.reasoning != null),
           useMistralContent:
               request.reasoningRequest?.api ==
@@ -590,10 +586,15 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       );
     } on DioException catch (e) {
       final status = e.response?.statusCode;
+      final explicit = request.reasoningRequest?.enabled != null;
       final shouldRetryDeepSeek =
           request.provider.preset == ProviderPreset.deepseek &&
+          endpoint.endsWith('/v1/chat/completions') &&
           (status == 400 || status == 404) &&
-          endpoint.endsWith('/v1/chat/completions');
+          (!explicit || _isEndpointError(e.response?.data, status));
+      if (status == 400 && explicit && rejectedReasoningField(e) != null) {
+        rethrow;
+      }
       if (shouldRetryDeepSeek) {
         return dio.post<dynamic>(
           endpoint.replaceFirst('/v1/chat/completions', '/chat/completions'),
@@ -613,6 +614,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
             'model': payload['model'],
             'stream': false,
             'messages': payload['messages'],
+            if (explicit) ...chatReasoningPayload(request.reasoningRequest),
           },
           options: Options(
             headers: headers,
@@ -624,6 +626,48 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       }
       rethrow;
     }
+  }
+
+  bool _isEndpointError(Object? body, int? status) {
+    final error = body is Map ? body['error'] ?? body : body;
+    if (error is Map &&
+        const {
+          'invalid_url',
+          'invalid_path',
+          'unknown_endpoint',
+          'endpoint_not_found',
+          'route_not_found',
+        }.contains(error['code'])) {
+      return true;
+    }
+    final message = providerErrorDetail(body)?.trim() ?? '';
+    if (status == 404) {
+      if (body == null || (body is String && message.isEmpty)) return true;
+      if (body is String &&
+          RegExp(
+            r'^(?:<!doctype\s+html\b|<html\b)',
+            caseSensitive: false,
+          ).hasMatch(message)) {
+        return !RegExp(
+          r'\b(?:unknown|invalid|unsupported|unrecognized|missing)\s+(?:model|field|parameter|argument)\b'
+          r'|\b(?:model|field|parameter|argument)\b[^<\n]*\b(?:not found|does not exist|not supported|is invalid)\b',
+          caseSensitive: false,
+        ).hasMatch(message);
+      }
+    }
+    if (status == 404 &&
+        RegExp(
+          r'^(?:404 )?(?:page )?not found$',
+          caseSensitive: false,
+        ).hasMatch(message)) {
+      return true;
+    }
+    return RegExp(
+      r'\b(?:unknown|invalid|unsupported|unrecognized|incorrect)\s+(?:(?:request|api)\s+)?(?:url|path|endpoint|route)\b'
+      r'|\b(?:url|path|endpoint|route)\b[^\n]{0,80}\b(?:not found|does not exist)\b'
+      r'|cannot post /v1/chat/completions\b',
+      caseSensitive: false,
+    ).hasMatch(message);
   }
 
   List<Map<String, dynamic>> _buildMessages(PromptAssistantRequest request) {
@@ -735,10 +779,6 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
 
   String _extractResponseContent(dynamic raw) {
     if (raw is Map<String, dynamic>) {
-      final error = extractErrorMessage(raw);
-      if (error != null) {
-        throw StateError('LLM service returned an error: $error');
-      }
       final choices = raw['choices'];
       if (choices is List && choices.isNotEmpty) {
         final first = choices.first;

@@ -63,6 +63,30 @@ enum ProviderProtocol {
   ollamaChatCompletions,
 }
 
+enum ModelReasoningFormat {
+  chatEffort,
+  responsesEffort,
+  geminiLevel,
+  geminiBudget,
+  anthropicAdaptive,
+  anthropicBudget;
+
+  static List<ModelReasoningFormat> forProtocol(ProviderProtocol protocol) =>
+      switch (protocol) {
+        ProviderProtocol.openaiChatCompletions ||
+        ProviderProtocol.ollamaChatCompletions => const [chatEffort],
+        ProviderProtocol.openaiResponses => const [responsesEffort],
+        ProviderProtocol.geminiGenerateContent => const [
+          geminiLevel,
+          geminiBudget,
+        ],
+        ProviderProtocol.anthropicMessages => const [
+          anthropicAdaptive,
+          anthropicBudget,
+        ],
+      };
+}
+
 extension ProviderProtocolLabel on ProviderProtocol {
   String get label {
     switch (this) {
@@ -524,6 +548,10 @@ extension ProviderPresetDefaults on ProviderPreset {
 }
 
 class ProviderConfig {
+  final Map<String, ModelReasoningFormat> modelReasoningFormats;
+
+  /// 格式重置后即使再次声明相同格式，旧会话档位也不再适用。
+  final Map<String, String> modelReasoningFormatIds;
   final AssistantConcurrencySettings concurrency;
   final String id;
   final String name;
@@ -535,6 +563,8 @@ class ProviderConfig {
   final bool allowImageInput;
 
   const ProviderConfig({
+    this.modelReasoningFormats = const {},
+    this.modelReasoningFormatIds = const {},
     this.concurrency = const AssistantConcurrencySettings(),
     required this.id,
     required this.name,
@@ -547,6 +577,8 @@ class ProviderConfig {
   });
 
   ProviderConfig copyWith({
+    Map<String, ModelReasoningFormat>? modelReasoningFormats,
+    Map<String, String>? modelReasoningFormatIds,
     AssistantConcurrencySettings? concurrency,
     String? id,
     String? name,
@@ -559,6 +591,10 @@ class ProviderConfig {
     bool? allowImageInput,
   }) {
     return ProviderConfig(
+      modelReasoningFormats:
+          modelReasoningFormats ?? this.modelReasoningFormats,
+      modelReasoningFormatIds:
+          modelReasoningFormatIds ?? this.modelReasoningFormatIds,
       concurrency: concurrency ?? this.concurrency,
       id: id ?? this.id,
       name: name ?? this.name,
@@ -581,6 +617,12 @@ class ProviderConfig {
     'enabled': enabled,
     'allowImageInput': allowImageInput,
     'concurrency': concurrency.toJson(),
+    if (modelReasoningFormats.isNotEmpty)
+      'modelReasoningFormats': modelReasoningFormats.map(
+        (id, format) => MapEntry(id, format.name),
+      ),
+    if (modelReasoningFormatIds.isNotEmpty)
+      'modelReasoningFormatIds': modelReasoningFormatIds,
   };
 
   factory ProviderConfig.fromJson(Map<String, dynamic> json) {
@@ -594,7 +636,21 @@ class ProviderConfig {
       legacyType: type,
       preset: preset,
     );
+    final rawFormats = json['modelReasoningFormats'];
+    final byName = ModelReasoningFormat.forProtocol(protocol).asNameMap();
+    final formats = {
+      if (rawFormats is Map<String, dynamic>)
+        for (final entry in rawFormats.entries)
+          if (byName[entry.value] case final format?) entry.key: format,
+    };
+    final ids = json['modelReasoningFormatIds'];
     return ProviderConfig(
+      modelReasoningFormats: formats,
+      modelReasoningFormatIds: {
+        if (ids is Map)
+          for (final model in formats.keys)
+            if (ids[model] case final String id) model: id,
+      },
       concurrency: AssistantConcurrencySettings.fromJson(
         json['concurrency'] as Map<String, dynamic>? ?? const {},
       ),
@@ -777,6 +833,19 @@ class TaskRoutingConfig {
 
   AssistantThinkingLevel thinkingFor(AssistantTaskType task) =>
       thinkingLevels[task] ?? AssistantThinkingLevel.automatic;
+
+  TaskRoutingConfig withoutThinkingFor(String providerId, Set<String> models) {
+    if (models.isEmpty) return this;
+    return copyWith(
+      thinkingLevels: {...thinkingLevels}
+        ..removeWhere(
+          (task, _) =>
+              providerIdFor(task) == providerId &&
+              models.contains(modelFor(task)),
+        ),
+    );
+  }
+
   final String llmProviderId;
   final String llmModel;
   final String translateProviderId;
@@ -1229,12 +1298,28 @@ class PromptAssistantConfigState {
     final json = jsonDecode(raw) as Map<String, dynamic>;
     final defaults = PromptAssistantConfigState.defaults();
 
+    var routing = TaskRoutingConfig.fromJson(
+      (json['routing'] as Map?)?.cast<String, dynamic>() ??
+          defaults.routing.toJson(),
+    );
     final providersRaw = json['providers'];
-    var providers = providersRaw is List && providersRaw.isNotEmpty
-        ? providersRaw
-              .map((e) => ProviderConfig.fromJson(e as Map<String, dynamic>))
-              .toList()
-        : defaults.providers;
+    var providers = defaults.providers;
+    if (providersRaw is List && providersRaw.isNotEmpty) {
+      providers = [];
+      for (final raw in providersRaw.cast<Map<String, dynamic>>()) {
+        final provider = ProviderConfig.fromJson(raw);
+        providers.add(provider);
+        if (raw['modelReasoningFormats']
+            case final Map<String, dynamic> formats) {
+          routing = routing.withoutThinkingFor(
+            provider.id,
+            formats.keys.toSet().difference(
+              provider.modelReasoningFormats.keys.toSet(),
+            ),
+          );
+        }
+      }
+    }
 
     final modelsRaw = json['models'];
     var decodedModels = modelsRaw is List && modelsRaw.isNotEmpty
@@ -1242,11 +1327,6 @@ class PromptAssistantConfigState {
               .map((e) => ModelConfig.fromJson(e as Map<String, dynamic>))
               .toList()
         : defaults.models;
-
-    var routing = TaskRoutingConfig.fromJson(
-      (json['routing'] as Map?)?.cast<String, dynamic>() ??
-          defaults.routing.toJson(),
-    );
 
     if (migrateLegacyChatRouting &&
         routing.chatProviderId.isEmpty &&

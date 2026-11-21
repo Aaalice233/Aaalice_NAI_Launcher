@@ -2,6 +2,7 @@ import '../../../core/agent/agent.dart';
 import '../../../core/agent/harness/context_overflow.dart';
 import '../../../core/agent/harness/llm_helpers.dart';
 import '../providers/agent_chat_state.dart';
+import 'agent_stream_bridge.dart';
 
 /// 智能体回合的自动重试：瞬时错误退避后，剔除失败回合并从之前的状态续跑。
 
@@ -49,8 +50,11 @@ class AgentChatAutoRetry {
   }
 
   // 上下文溢出交给压缩处理，重发同样的上下文只会再次溢出。
-  bool isRetryable(AssistantMessage message) =>
-      !isContextOverflow(message) && isRetryableAssistantError(message);
+  bool isRetryable(AssistantMessage message) {
+    if (isReasoningRejection(message)) return false;
+    final failure = agentMessageForRetry(message);
+    return !isContextOverflow(failure) && isRetryableAssistantError(failure);
+  }
 
   /// run 结束事件处是否将接着重试；与 [takeRetry] 的判定一致。
   bool willRetryAfter(List<AgentMessage> messages) {

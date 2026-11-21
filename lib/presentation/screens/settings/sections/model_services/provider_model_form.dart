@@ -6,9 +6,13 @@ import '../../../../adaptive/adaptive_form_footer.dart';
 import '../../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../prompt_assistant/models/assistant_model_capability.dart';
 
-typedef ProviderModelFormResult = ({String id, String displayName});
+typedef ProviderModelFormResult = ({
+  String id,
+  String displayName,
+  ModelReasoningFormat? reasoningFormat,
+});
 
-/// 传入 [model] 时只改显示名；模型 ID 是路由和请求的依据，编辑时不可改。
+/// 模型 ID 是路由和请求的依据，编辑时不可改。
 class ProviderModelForm extends StatefulWidget {
   const ProviderModelForm({
     super.key,
@@ -31,6 +35,7 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
   late final TextEditingController _idController;
   late final TextEditingController _nameController;
   String? _idError;
+  ModelReasoningFormat? _reasoningFormat;
 
   bool get _editing => widget.model != null;
 
@@ -38,6 +43,7 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
   void initState() {
     super.initState();
     final model = widget.model;
+    _reasoningFormat = widget.provider.modelReasoningFormats[model?.name];
     _idController = TextEditingController(text: model?.name ?? '');
     final custom = model?.displayName.trim() ?? '';
     _nameController = TextEditingController(
@@ -74,6 +80,7 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
     Navigator.pop<ProviderModelFormResult>(context, (
       id: id,
       displayName: _nameController.text.trim(),
+      reasoningFormat: _reasoningFormat,
     ));
   }
 
@@ -81,6 +88,10 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final id = _idController.text.trim();
+    final formats = AssistantModelCatalog.resolveProvider(
+      provider: widget.provider,
+      model: id,
+    ).configurableFormats;
     return ContentSizedAdaptiveForm(
       key: const ValueKey('model-services-model-form'),
       scrollController: widget.scrollController,
@@ -97,7 +108,10 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
             hintText: 'deepseek-flash',
             errorText: _idError,
           ),
-          onChanged: (_) => setState(() => _idError = null),
+          onChanged: (_) => setState(() {
+            _idError = null;
+            _reasoningFormat = null;
+          }),
           onSubmitted: (_) => _save(),
         ),
         const SizedBox(height: 12),
@@ -113,6 +127,15 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
           ),
           onSubmitted: (_) => _save(),
         ),
+        if (formats.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _ReasoningFormatField(
+            key: ValueKey('model-reasoning-format-$id'),
+            formats: formats,
+            value: _reasoningFormat,
+            onChanged: (format) => setState(() => _reasoningFormat = format),
+          ),
+        ],
       ],
       footer: AdaptiveFormFooter(
         primary: FilledButton(
@@ -120,6 +143,54 @@ class _ProviderModelFormState extends State<ProviderModelForm> {
           child: Text(context.l10n.common_save),
         ),
       ),
+    );
+  }
+}
+
+class _ReasoningFormatField extends StatelessWidget {
+  const _ReasoningFormatField({
+    super.key,
+    required this.formats,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final List<ModelReasoningFormat> formats;
+  final ModelReasoningFormat? value;
+  final ValueChanged<ModelReasoningFormat?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return DropdownButtonFormField<ModelReasoningFormat?>(
+      initialValue: formats.contains(value) ? value : null,
+      isExpanded: true,
+      itemHeight: null,
+      decoration: InputDecoration(
+        labelText: l10n.promptAssistant_reasoningFormat,
+      ),
+      items: [
+        DropdownMenuItem(
+          value: null,
+          child: Text(l10n.promptAssistant_thinkingDefault),
+        ),
+        for (final format in formats)
+          DropdownMenuItem(
+            value: format,
+            child: Text(switch (format) {
+              ModelReasoningFormat.chatEffort => 'reasoning_effort',
+              ModelReasoningFormat.responsesEffort => 'reasoning.effort',
+              ModelReasoningFormat.geminiLevel =>
+                l10n.promptAssistant_reasoningLevelFormat,
+              ModelReasoningFormat.geminiBudget ||
+              ModelReasoningFormat.anthropicBudget =>
+                l10n.promptAssistant_reasoningBudgetFormat,
+              ModelReasoningFormat.anthropicAdaptive =>
+                l10n.promptAssistant_reasoningAdaptiveFormat,
+            }),
+          ),
+      ],
+      onChanged: onChanged,
     );
   }
 }

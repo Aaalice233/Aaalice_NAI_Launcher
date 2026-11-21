@@ -3,34 +3,33 @@ import 'dart:math' as math;
 import '../../models/agent_protocol.dart';
 
 Map<String, dynamic> chatReasoningPayload(AgentReasoningRequest? reasoning) {
-  if (reasoning == null) return const {};
+  final enabled = reasoning?.enabled;
+  if (reasoning == null || enabled == null) return const {};
   return switch (reasoning.api) {
     AgentReasoningApi.deepSeek => {
-      if (reasoning.enabled || reasoning.sendWhenDisabled)
-        'thinking': {'type': reasoning.enabled ? 'enabled' : 'disabled'},
-      if (reasoning.enabled)
+      if (enabled || reasoning.sendWhenDisabled)
+        'thinking': {'type': enabled ? 'enabled' : 'disabled'},
+      if (enabled)
         if (reasoning.effort case final effort?) 'reasoning_effort': effort,
     },
     AgentReasoningApi.qwen => {
-      'enable_thinking': reasoning.enabled,
+      'enable_thinking': enabled,
       if (reasoning.effort case final effort?) 'reasoning_effort': effort,
     },
     AgentReasoningApi.openRouter => {
-      if (reasoning.enabled || reasoning.sendWhenDisabled)
+      if (enabled || reasoning.sendWhenDisabled)
         'reasoning': {
-          'effort': reasoning.enabled
-              ? reasoning.effort
-              : reasoning.effort ?? 'none',
+          'effort': enabled ? reasoning.effort : reasoning.effort ?? 'none',
         },
     },
     AgentReasoningApi.openAiCompletions => {
       if (reasoning.effort case final effort?) 'reasoning_effort': effort,
     },
     AgentReasoningApi.mistralPromptMode => {
-      if (reasoning.enabled) 'prompt_mode': 'reasoning',
+      if (enabled) 'prompt_mode': 'reasoning',
     },
     AgentReasoningApi.mistralEffort => {
-      if (reasoning.enabled) 'reasoning_effort': reasoning.effort ?? 'high',
+      if (enabled) 'reasoning_effort': reasoning.effort ?? 'high',
     },
     _ => const {},
   };
@@ -89,13 +88,13 @@ Map<String, dynamic> anthropicReasoningPayload({
 Map<String, dynamic>? geminiThinkingConfig(AgentReasoningRequest? reasoning) {
   return switch (reasoning?.api) {
     AgentReasoningApi.geminiBudget =>
-      reasoning!.enabled
+      reasoning!.enabled == true
           ? {'includeThoughts': true, 'thinkingBudget': reasoning.budgetTokens}
           : reasoning.sendWhenDisabled
           ? {'thinkingBudget': 0}
           : null,
     AgentReasoningApi.geminiLevel =>
-      reasoning!.enabled
+      reasoning!.enabled == true
           ? {'includeThoughts': true, 'thinkingLevel': reasoning.effort}
           : reasoning.sendWhenDisabled
           ? {'thinkingLevel': reasoning.effort}
@@ -109,7 +108,7 @@ String? responsesReasoningEffort(
   String? legacyLevel,
 ) {
   return reasoning?.api == AgentReasoningApi.openAiResponses
-      ? reasoning!.enabled
+      ? reasoning!.enabled == true
             ? reasoning.effort
             : reasoning.sendWhenDisabled
             ? reasoning.effort ?? 'none'

@@ -9,9 +9,11 @@ import '../../../data/models/agent/agent_settings.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../agent_settings/providers/agent_settings_provider.dart';
 import '../../adaptive/adaptive_presenter.dart';
+import '../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/models/assistant_model_capability.dart';
+import '../../screens/settings/sections/model_services/provider_model_actions.dart';
 import '../../widgets/common/menu_action_label.dart';
 import '../../widgets/common/searchable_model_picker.dart';
 import '../../widgets/common/model_family_icon.dart';
@@ -43,11 +45,11 @@ class AgentChatConfigurationControl extends StatelessWidget {
   final AgentSettingsState agentSettings;
   final String routeLabel;
   final String routeError;
-  final ThinkingLevel thinkingLevel;
-  final List<ThinkingLevel> availableThinkingLevels;
+  final ThinkingLevel? thinkingLevel;
+  final List<ThinkingLevel?> availableThinkingLevels;
   final bool enabled;
   final Future<void> Function(String providerId, String model) onModelSelected;
-  final Future<void> Function(ThinkingLevel level) onThinkingSelected;
+  final Future<void> Function(ThinkingLevel? level) onThinkingSelected;
   final FocusNode? restoreFocusNode;
   final bool showModelName;
 
@@ -62,7 +64,11 @@ class AgentChatConfigurationControl extends StatelessWidget {
       routeLabel: routeLabel,
       emptyLabel: l10n.agentChat_noModel,
     );
-    final thinkingName = thinkingLevelLabel(l10n, thinkingLevel);
+    final thinkingName = thinkingLevelLabel(
+      l10n,
+      thinkingLevel,
+      current?.metadata,
+    );
     final interactive =
         enabled && (options.isNotEmpty || availableThinkingLevels.isNotEmpty);
     final tooltip = routeError.isNotEmpty
@@ -167,8 +173,10 @@ class AgentChatConfigurationControl extends StatelessWidget {
         );
     if (selection?.model case final model?) {
       await onModelSelected(model.provider.id, model.model.name);
-    } else if (selection?.thinkingLevel case final level?) {
-      await onThinkingSelected(level);
+    } else if (selection?.configure case final option? when context.mounted) {
+      await showEditModelForm(context, option.provider, option.model);
+    } else if (selection != null && selection.configure == null) {
+      await onThinkingSelected(selection.thinkingLevel);
     }
     if (context.mounted &&
         restoreFocus &&
@@ -180,11 +188,18 @@ class AgentChatConfigurationControl extends StatelessWidget {
 
 class _AgentChatConfigurationSelection {
   const _AgentChatConfigurationSelection.model(this.model)
-    : thinkingLevel = null;
+    : thinkingLevel = null,
+      configure = null;
 
   const _AgentChatConfigurationSelection.thinking(this.thinkingLevel)
-    : model = null;
+    : model = null,
+      configure = null;
 
+  const _AgentChatConfigurationSelection.configure(this.configure)
+    : thinkingLevel = null,
+      model = null;
+
+  final _AgentChatModelOption? configure;
   final _AgentChatModelOption? model;
   final ThinkingLevel? thinkingLevel;
 }
@@ -200,8 +215,8 @@ class _AgentChatConfigurationPickerBody extends StatefulWidget {
 
   final List<_AgentChatModelOption> options;
   final _AgentChatModelOption? selectedModel;
-  final ThinkingLevel thinkingLevel;
-  final List<ThinkingLevel> availableThinkingLevels;
+  final ThinkingLevel? thinkingLevel;
+  final List<ThinkingLevel?> availableThinkingLevels;
   final ScrollController scrollController;
 
   @override
@@ -216,78 +231,30 @@ class _AgentChatConfigurationPickerBodyState
   @override
   Widget build(BuildContext context) {
     if (_showModels) {
-      final l10n = context.l10n;
-      return SearchableModelPickerBody<_AgentChatModelOption>(
-        title: l10n.agentChat_modelPickerTitle,
-        searchLabel: l10n.agentChat_searchModels,
-        searchHint: l10n.agentChat_searchModelsHint,
-        clearSearchTooltip: l10n.agentChat_clearModelSearch,
-        emptyMessage: l10n.agentChat_noModelResults,
-        options: _pickerOptions(widget.options),
-        selectedId: widget.selectedModel?.pickerId,
-        scrollController: widget.scrollController,
-        keyPrefix: 'agent-chat-model',
-        headerKeyPrefix: 'agent-chat-model-picker',
-        onBack: () => setState(() => _showModels = false),
-        onSelected: (option) => Navigator.pop(
-          context,
-          _AgentChatConfigurationSelection.model(option.value),
-        ),
-      );
+      return _modelPicker(context);
     }
 
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final currentModel =
-        widget.selectedModel?.displayName ?? l10n.agentChat_noModel;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _PickerHeader(
-          title:
-              '${l10n.agentChat_modelLabel} · ${l10n.agentChat_reasoningLevel}',
+    return CustomScrollView(
+      key: const ValueKey('agent-chat-configuration-options'),
+      controller: widget.scrollController,
+      shrinkWrap: true,
+      slivers: [
+        AdaptivePinnedHeaderSliver(
+          backgroundColor: theme.colorScheme.surface,
+          child: _PickerHeader(
+            title:
+                '${l10n.agentChat_modelLabel} · ${l10n.agentChat_reasoningLevel}',
+          ),
         ),
-        Flexible(
-          fit: FlexFit.loose,
-          child: ListView(
-            controller: widget.scrollController,
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+          sliver: SliverList.list(
             children: [
-              Material(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.52,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                child: ListTile(
-                  key: const ValueKey('agent-chat-model-submenu'),
-                  leading: ModelFamilyIcon(
-                    modelId: widget.selectedModel?.model.name ?? currentModel,
-                    displayName: currentModel,
-                    size: 22,
-                  ),
-                  minTileHeight: math.max(56, _agentChatControlExtent(context)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-                  title: Text(
-                    l10n.agentChat_modelLabel,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    currentModel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => setState(() => _showModels = true),
-                ),
+              _CurrentModelTile(
+                option: widget.selectedModel,
+                onTap: () => setState(() => _showModels = true),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 18, 12, 4),
@@ -299,30 +266,117 @@ class _AgentChatConfigurationPickerBodyState
                   ),
                 ),
               ),
-              for (final option in widget.availableThinkingLevels)
+              if (widget.selectedModel case final option?
+                  when option.metadata.configurable)
                 ListTile(
-                  key: ValueKey('agent-chat-thinking-option-${option.name}'),
-                  minTileHeight: _agentChatControlExtent(context),
-                  leading: SizedBox(
-                    width: 20,
-                    child: option == widget.thinkingLevel
-                        ? Icon(
-                            Icons.check_rounded,
-                            size: 18,
-                            color: theme.colorScheme.primary,
-                          )
-                        : null,
-                  ),
-                  title: Text(thinkingLevelLabel(l10n, option)),
+                  key: const ValueKey('agent-chat-configure-reasoning'),
+                  leading: const Icon(Icons.tune_rounded),
+                  title: Text(l10n.promptAssistant_configureReasoning),
                   onTap: () => Navigator.pop(
                     context,
-                    _AgentChatConfigurationSelection.thinking(option),
+                    _AgentChatConfigurationSelection.configure(option),
                   ),
                 ),
+              for (final level in widget.availableThinkingLevels)
+                _thinkingOption(context, level),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _modelPicker(BuildContext context) {
+    final l10n = context.l10n;
+    return SearchableModelPickerBody<_AgentChatModelOption>(
+      title: l10n.agentChat_modelPickerTitle,
+      searchLabel: l10n.agentChat_searchModels,
+      searchHint: l10n.agentChat_searchModelsHint,
+      clearSearchTooltip: l10n.agentChat_clearModelSearch,
+      emptyMessage: l10n.agentChat_noModelResults,
+      options: _pickerOptions(widget.options),
+      selectedId: widget.selectedModel?.pickerId,
+      scrollController: widget.scrollController,
+      keyPrefix: 'agent-chat-model',
+      headerKeyPrefix: 'agent-chat-model-picker',
+      onBack: () => setState(() => _showModels = false),
+      onSelected: (option) => Navigator.pop(
+        context,
+        _AgentChatConfigurationSelection.model(option.value),
+      ),
+    );
+  }
+
+  Widget _thinkingOption(BuildContext context, ThinkingLevel? level) =>
+      ListTile(
+        key: ValueKey('agent-chat-thinking-option-${level?.name ?? 'default'}'),
+        minTileHeight: _agentChatControlExtent(context),
+        leading: SizedBox(
+          width: 20,
+          child: level == widget.thinkingLevel
+              ? Icon(
+                  Icons.check_rounded,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                )
+              : null,
+        ),
+        title: Text(
+          thinkingLevelLabel(
+            context.l10n,
+            level,
+            widget.selectedModel?.metadata,
+          ),
+        ),
+        onTap: () => Navigator.pop(
+          context,
+          _AgentChatConfigurationSelection.thinking(level),
+        ),
+      );
+}
+
+class _CurrentModelTile extends StatelessWidget {
+  const _CurrentModelTile({required this.option, required this.onTap});
+
+  final _AgentChatModelOption? option;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final name = option?.displayName ?? l10n.agentChat_noModel;
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.52),
+      borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        key: const ValueKey('agent-chat-model-submenu'),
+        leading: ModelFamilyIcon(
+          modelId: option?.model.name ?? name,
+          displayName: name,
+          size: 22,
+        ),
+        minTileHeight: math.max(56, _agentChatControlExtent(context)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+        title: Text(
+          l10n.agentChat_modelLabel,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: onTap,
+      ),
     );
   }
 }
@@ -610,6 +664,10 @@ class _AgentChatModelOption {
   final ProviderConfig provider;
   final ModelConfig model;
   final String displayName;
+  late final metadata = AssistantModelCatalog.resolveProvider(
+    provider: provider,
+    model: model.name,
+  );
 
   String get pickerId => '${provider.id}\u0000${model.name}';
 }
@@ -673,13 +731,19 @@ List<_AgentChatModelOption> _modelOptions(PromptAssistantConfigState config) =>
           ]..sortByKey((option) => option.displayName.toLowerCase()),
     ];
 
-String thinkingLevelLabel(AppLocalizations l10n, ThinkingLevel level) =>
-    switch (level) {
-      ThinkingLevel.off => l10n.agentChat_reasoningOff,
-      ThinkingLevel.minimal => l10n.agentChat_reasoningMinimal,
-      ThinkingLevel.low => l10n.agentChat_reasoningLow,
-      ThinkingLevel.medium => l10n.agentChat_reasoningMedium,
-      ThinkingLevel.high => l10n.agentChat_reasoningHigh,
-      ThinkingLevel.xhigh => l10n.agentChat_reasoningXHigh,
-      ThinkingLevel.max => l10n.agentChat_reasoningMax,
-    };
+String thinkingLevelLabel(
+  AppLocalizations l10n,
+  ThinkingLevel? level, [
+  AssistantModelMetadata? metadata,
+]) => switch (level) {
+  null => l10n.promptAssistant_thinkingDefault,
+  ThinkingLevel.high when metadata?.thinkingIsToggle == true =>
+    l10n.promptAssistant_thinkingEnabled,
+  ThinkingLevel.off => l10n.agentChat_reasoningOff,
+  ThinkingLevel.minimal => l10n.agentChat_reasoningMinimal,
+  ThinkingLevel.low => l10n.agentChat_reasoningLow,
+  ThinkingLevel.medium => l10n.agentChat_reasoningMedium,
+  ThinkingLevel.high => l10n.agentChat_reasoningHigh,
+  ThinkingLevel.xhigh => l10n.agentChat_reasoningXHigh,
+  ThinkingLevel.max => l10n.agentChat_reasoningMax,
+};

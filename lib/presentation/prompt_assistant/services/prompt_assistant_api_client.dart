@@ -13,14 +13,17 @@ import 'provider_adapters/gemini_generate_content_adapter.dart';
 import 'provider_adapters/openai_chat_completions_adapter.dart';
 import 'provider_adapters/openai_responses_adapter.dart';
 import 'provider_adapters/prompt_assistant_adapter.dart';
+import 'provider_adapters/reasoning_rejection.dart';
 
 class PromptAssistantApiClient {
   PromptAssistantApiClient({
     required Dio dio,
+    this.reasoningRejectionHint,
     this.imageUploadMaxBytes = promptAssistantImageUploadMaxBytes,
   }) : _dio = dio;
 
   final Dio _dio;
+  final String Function()? reasoningRejectionHint;
   final int imageUploadMaxBytes;
   final Map<String, Set<CancelToken>> _cancelTokens = {};
   final scheduler = AssistantRequestScheduler();
@@ -109,6 +112,17 @@ class PromptAssistantApiClient {
       yield const StreamingChunk(delta: '', done: true);
     } on DioException catch (e) {
       throw PromptAssistantRequestException(_formatDioException(e, request), e);
+    } on ProviderResponseError catch (e) {
+      final message = e.describe(request.provider.name, request.model);
+      throw StateError(
+        e.field == null
+            ? message
+            : reasoningRejectionMessage(
+                message,
+                e.field!,
+                reasoningRejectionHint?.call(),
+              ),
+      );
     } finally {
       tokens.remove(cancelToken);
       if (tokens.isEmpty &&
@@ -148,12 +162,13 @@ class PromptAssistantApiClient {
     final response = error.response;
     final status = response?.statusCode;
     final requestOptions = response?.requestOptions;
+    final field = rejectedReasoningField(error);
     final detail =
-        _extractDioErrorDetail(response?.data) ??
+        _extractDioErrorDetail(response?.data, preserveBody: field != null) ??
         error.message ??
         error.error?.toString();
 
-    return [
+    final message = [
       'LLM request failed',
       if (status != null) 'HTTP $status',
       'provider=${request.provider.name}',
@@ -165,28 +180,28 @@ class PromptAssistantApiClient {
         'endpoint=${redactUriForLog(requestOptions.uri)}',
       if (detail != null && detail.trim().isNotEmpty) detail.trim(),
     ].join(': ');
+    return field == null
+        ? message
+        : reasoningRejectionMessage(
+            message,
+            field,
+            reasoningRejectionHint?.call(),
+          );
   }
 
-  String? _extractDioErrorDetail(dynamic data) {
+  String? _extractDioErrorDetail(dynamic data, {required bool preserveBody}) {
     if (data == null) return null;
-    if (data is Map<String, dynamic>) {
-      final message = extractErrorMessage(data);
-      if (message != null) return message;
-      return _previewBody(_encodeErrorData(data));
-    }
     if (data is Map) {
       final normalized = data.map(
         (key, value) => MapEntry(key.toString(), value),
       );
-      final message = extractErrorMessage(normalized);
+      final message = providerErrorDetail(normalized);
       if (message != null) return message;
-      return _previewBody(_encodeErrorData(normalized));
+      data = normalized;
     }
-    if (data is String) {
-      final trimmed = data.trim();
-      return trimmed.isEmpty ? null : _previewBody(trimmed);
-    }
-    return _previewBody(_encodeErrorData(data));
+    final body = data is String ? data.trim() : _encodeErrorData(data);
+    if (body.isEmpty) return null;
+    return preserveBody ? body : _previewBody(body);
   }
 
   String _encodeErrorData(dynamic data) {

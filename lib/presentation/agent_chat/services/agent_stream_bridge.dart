@@ -1,6 +1,19 @@
 import '../../../core/agent/agent_types.dart';
 import '../../prompt_assistant/models/agent_protocol.dart' as wire;
 
+// 重试依据只在当前回合使用，会话仍按 Harness 消息格式保存。
+final _wireErrors = Expando<wire.AgentWireError>();
+
+bool isReasoningRejection(AssistantMessage message) =>
+    _wireErrors[message]?.rejectedReasoningField != null;
+
+AssistantMessage agentMessageForRetry(AssistantMessage message) {
+  final retryMessage = _wireErrors[message]?.retryMessage;
+  return retryMessage == null
+      ? message
+      : message.copyWith(errorMessage: retryMessage);
+}
+
 /// 把适配器的线事件流（[wire.AgentWireEvent]）组装为 LLM 类型层 语义的
 /// [AssistantMessageEventStream]——即 LLM 类型层 中 provider 流式实现
 /// （如 stream-openai.ts）所做的工作：维护 partial 消息快照并发出
@@ -20,12 +33,13 @@ AssistantMessageEventStream agentWireEventStream(
     var stopReason = StopReason.stop;
     Usage? usage;
     String? errorMessage;
+    wire.AgentWireError? wireError;
     var started = false;
     var sawFinish = false;
     final thinkingIndexes = <String, int>{};
 
     AssistantMessage finalMessage() {
-      return _snapshot(
+      final message = _snapshot(
         content,
         stopReason,
         usage,
@@ -33,6 +47,8 @@ AssistantMessageEventStream agentWireEventStream(
         provider: provider,
         model: model,
       );
+      if (wireError case final error?) _wireErrors[message] = error;
+      return message;
     }
 
     void emitStart() {
@@ -44,6 +60,7 @@ AssistantMessageEventStream agentWireEventStream(
     }
 
     try {
+      events:
       await for (final event in wireEvents) {
         switch (event) {
           case wire.AgentWireThinkingDelta():
@@ -144,6 +161,7 @@ AssistantMessageEventStream agentWireEventStream(
             stream.push(AmDone(partial: finalMessage()));
           case wire.AgentWireError():
             sawFinish = true;
+            wireError = event;
             if (event.message == 'aborted') {
               stopReason = StopReason.aborted;
             } else {
@@ -152,6 +170,7 @@ AssistantMessageEventStream agentWireEventStream(
             }
             emitStart();
             stream.push(AmError(partial: finalMessage(), error: errorMessage));
+            if (event.rejectedReasoningField != null) break events;
         }
       }
       if (!sawFinish) {

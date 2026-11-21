@@ -14,6 +14,7 @@ import 'package:nai_launcher/presentation/agent_settings/providers/agent_setting
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/provider_remote_models_provider.dart';
 import 'package:nai_launcher/presentation/screens/settings/sections/model_services/model_services_settings_section.dart';
+import 'package:nai_launcher/presentation/screens/settings/widgets/prompt_assistant_settings_forms.dart';
 
 import '../../../../../helpers/memory_local_storage.dart';
 
@@ -179,6 +180,52 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  testWidgets('在模型设置声明格式后刷新列表、编辑渠道并重载仍保留声明', (tester) async {
+    const id = 'gemini-carbon';
+    final harness = await _pump(
+      tester,
+      config: _seed(relayModels: [_model('relay', id)]),
+      remote: [id],
+    );
+    await _tapVisible(tester, _key('model-services-provider-relay'));
+    await _tapVisible(tester, _key('model-services-model-edit-$id'));
+    await _tapVisible(tester, _key('model-reasoning-format-$id'));
+    await _tapVisible(tester, find.text('reasoning_effort').last);
+    await tester.enterText(_key('model-services-model-display-name'), '自选模型');
+    await _tapVisible(tester, find.text('保存'));
+    await _tapVisible(tester, _key('model-services-manage-models'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, _key('model-services-provider-menu'));
+    await _tapVisible(tester, find.text('编辑服务商'));
+    final name = find
+        .descendant(
+          of: find.byType(PromptAssistantProviderForm),
+          matching: find.byType(TextField),
+        )
+        .first;
+    await tester.enterText(name, '新渠道名');
+    await _tapVisible(tester, find.text('保存'));
+    final restored = PromptAssistantConfigState.decode(
+      harness.config(tester).encode(),
+    );
+    final provider = restored.providers.singleWhere(
+      (provider) => provider.id == 'relay',
+    );
+    expect(provider.name, '新渠道名');
+    expect(provider.modelReasoningFormats, {
+      id: ModelReasoningFormat.chatEffort,
+    });
+    expect(
+      restored.models
+          .where((m) => m.providerId == 'relay' && m.name == id)
+          .map((m) => m.displayName)
+          .toSet(),
+      {'自选模型'},
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('宽屏左右分栏，模型显示官方名、ID 与能力标签', (tester) async {
     await _pump(tester, config: _seed());
 

@@ -6,7 +6,7 @@ import 'package:dio/dio.dart';
 
 import '../../models/agent_protocol.dart';
 import '../llm_request_retry_policy.dart';
-import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'reasoning_rejection.dart';
 
 /// SSE（Server-Sent Events）增量解析器。
 ///
@@ -91,7 +91,8 @@ class AgentSseParser {
 const _networkErrorLabel = 'network error';
 
 /// 把 dio/网络异常映射为线错误事件。
-AgentWireError agentWireErrorFrom(Object error, ProviderConfig provider) {
+AgentWireError agentWireErrorFrom(Object error, AgentChatRequest request) {
+  final provider = request.provider;
   final networkLabel = _isTransientConnectionError(error)
       ? ': $_networkErrorLabel'
       : '';
@@ -100,9 +101,11 @@ AgentWireError agentWireErrorFrom(Object error, ProviderConfig provider) {
       return const AgentWireError('aborted');
     }
     final status = error.response?.statusCode;
+    final field = rejectedReasoningField(error);
+    final responseDetail = providerErrorDetail(error.response?.data);
     final detail =
-        _extractDetail(error.response?.data) ??
-        error.message ??
+        responseDetail ??
+        (field == null ? error.message : error.response?.data.toString()) ??
         error.error?.toString() ??
         '';
     return AgentWireError(
@@ -110,34 +113,29 @@ AgentWireError agentWireErrorFrom(Object error, ProviderConfig provider) {
       '${status != null ? ': HTTP $status' : ''}'
       '$networkLabel'
       ': provider=${provider.name}'
+      '${field == null ? '' : ', model=${request.model}'}'
       '${detail.trim().isNotEmpty ? ': $detail' : ''}',
+      retryMessage: status == null
+          ? '$detail$networkLabel'
+          : [
+              'HTTP $status',
+              if (responseDetail != null) responseDetail,
+            ].join(': '),
+      rejectedReasoningField: field,
     );
   }
+  if (error is ProviderResponseError) {
+    return AgentWireError(
+      error.describe(provider.name, request.model),
+      retryMessage: error.message,
+      rejectedReasoningField: error.field,
+    );
+  }
+  final detail = error.toString();
   return AgentWireError(
-    'LLM request failed$networkLabel: provider=${provider.name}: '
-    '${error.toString()}',
+    'LLM request failed$networkLabel: provider=${provider.name}: $detail',
+    retryMessage: '$detail$networkLabel',
   );
-}
-
-String? _extractDetail(dynamic data) {
-  if (data is Map) {
-    if (data['error'] is Map) {
-      final message = data['error']['message'];
-      if (message is String && message.trim().isNotEmpty) {
-        return message;
-      }
-    }
-    if (data['error'] is String) {
-      return data['error'] as String;
-    }
-    if (data['message'] is String) {
-      return data['message'] as String;
-    }
-  }
-  if (data is String && data.trim().isNotEmpty) {
-    return data;
-  }
-  return null;
 }
 
 /// 解析一条 SSE data 为 JSON 对象；非 JSON 返回 null。

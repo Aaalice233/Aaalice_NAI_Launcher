@@ -8,6 +8,7 @@ import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
 import 'prompt_assistant_adapter.dart';
 import 'reasoning_payload.dart';
+import 'reasoning_rejection.dart';
 
 class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
   const AnthropicMessagesAdapter();
@@ -57,7 +58,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
       ),
       cancelToken: cancelToken,
     );
-    return _extractResponseContent(response.data);
+    return _extractResponseContent(checkedProviderResponse(response));
   }
 
   @override
@@ -91,12 +92,8 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
         switch (event) {
           case 'error':
             sawError = true;
-            final error = json['error'];
-            final message = error is Map<String, dynamic>
-                ? error['message'] as String? ?? 'unknown error'
-                : 'unknown error';
             pending.add(
-              AgentWireError('LLM service returned an error: $message'),
+              agentWireErrorFrom(ProviderResponseError(json, payload), request),
             );
           case 'message_start':
             final message = json['message'];
@@ -213,7 +210,7 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
       if (pending.isNotEmpty) {
         yield* Stream.fromIterable(List.of(pending));
       }
-      yield agentWireErrorFrom(error, request.provider);
+      yield agentWireErrorFrom(error, request);
       return;
     }
 
@@ -418,10 +415,6 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
 
   String _extractResponseContent(dynamic raw) {
     if (raw is Map<String, dynamic>) {
-      final error = extractErrorMessage(raw);
-      if (error != null) {
-        throw StateError('LLM service returned an error: $error');
-      }
       final content = raw['content'];
       if (content is List) {
         return content.map(contentToText).where((e) => e.isNotEmpty).join();

@@ -15272,6 +15272,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get promptAssistant_thinkingDefault => '模型默认';
 
   @override
+  String get promptAssistant_configureReasoning => '配置推理';
+
+  @override
+  String get promptAssistant_reasoningFormat => '推理参数格式';
+
+  @override
+  String get promptAssistant_reasoningLevelFormat => '等级';
+
+  @override
+  String get promptAssistant_reasoningBudgetFormat => 'Token 预算';
+
+  @override
+  String get promptAssistant_reasoningAdaptiveFormat => '自适应';
+
+  @override
+  String get promptAssistant_reasoningRejectedHint => '请切回“模型默认”后重试。';
+
+  @override
   String get promptAssistant_thinkingUnavailable => '未识别到可调思考等级，使用模型默认行为。';
 
   @override
@@ -30955,6 +30973,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get promptAssistant_thinkingDefault => '模型預設';
+
+  @override
+  String get promptAssistant_configureReasoning => '設定推理';
+
+  @override
+  String get promptAssistant_reasoningFormat => '推理參數格式';
+
+  @override
+  String get promptAssistant_reasoningLevelFormat => '等級';
+
+  @override
+  String get promptAssistant_reasoningBudgetFormat => 'Token 預算';
+
+  @override
+  String get promptAssistant_reasoningAdaptiveFormat => '自適應';
+
+  @override
+  String get promptAssistant_reasoningRejectedHint => '請切回「模型預設」後重試。';
 
   @override
   String get promptAssistant_thinkingUnavailable => '未識別到可調思考等級，使用模型預設行為。';

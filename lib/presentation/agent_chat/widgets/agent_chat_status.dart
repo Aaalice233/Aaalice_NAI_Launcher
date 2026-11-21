@@ -240,7 +240,13 @@ class _AgentChatErrorCard extends StatefulWidget {
 }
 
 class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
-  bool _detailsExpanded = false;
+  bool? _detailsExpanded;
+
+  @override
+  void didUpdateWidget(_AgentChatErrorCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.error != widget.error) _detailsExpanded = null;
+  }
 
   String _summary(BuildContext context) =>
       _requestFailureSummary(context, widget.error) ??
@@ -251,6 +257,9 @@ class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final foreground = theme.colorScheme.onErrorContainer;
+    final expanded =
+        _detailsExpanded ??
+        widget.error.endsWith(l10n.promptAssistant_reasoningRejectedHint);
     final controlExtent = context.interactionPolicy.minimumControlExtent;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -320,7 +329,7 @@ class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
                     ),
                   ),
                 ),
-              if (_detailsExpanded)
+              if (expanded)
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 140),
                   child: SingleChildScrollView(
@@ -343,9 +352,9 @@ class _AgentChatErrorCardState extends State<_AgentChatErrorCard> {
                   TextButton.icon(
                     key: const ValueKey('agent-chat-error-details-toggle'),
                     onPressed: () =>
-                        setState(() => _detailsExpanded = !_detailsExpanded),
+                        setState(() => _detailsExpanded = !expanded),
                     icon: Icon(
-                      _detailsExpanded
+                      expanded
                           ? Icons.expand_less_rounded
                           : Icons.expand_more_rounded,
                       size: 17,

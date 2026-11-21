@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -9,6 +10,133 @@ import 'package:nai_launcher/presentation/agent_settings/providers/agent_setting
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
 
 void main() {
+  for (final size in [
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) Size(width, 800),
+    const Size(840, 360),
+  ]) {
+    final short = size.height < 400;
+    final viewport = short ? 'short landscape with IME' : '${size.width}';
+    testWidgets(
+      'combined menu opens model settings and selects effort at $viewport and 3x',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = size;
+        if (short) {
+          tester.view.padding = const FakeViewPadding(
+            left: 12,
+            top: 12,
+            right: 12,
+          );
+          tester.view.viewInsets = const FakeViewPadding(bottom: 100);
+        }
+        addTearDown(tester.view.reset);
+        await tester.binding.setSurfaceSize(size);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final selected = <ThinkingLevel?>[];
+        final selector = find.byKey(
+          const ValueKey('agent-chat-model-selector'),
+        );
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              locale: const Locale('en'),
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(3)),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: Center(
+                  child: AgentChatConfigurationControl(
+                    config: _config,
+                    agentSettings: _settings,
+                    routeLabel: 'First Cloud / aurora-chat-v2',
+                    routeError: '',
+                    thinkingLevel: null,
+                    availableThinkingLevels: const [
+                      null,
+                      ThinkingLevel.low,
+                      ThinkingLevel.medium,
+                      ThinkingLevel.high,
+                    ],
+                    enabled: true,
+                    onModelSelected: (_, _) async {},
+                    onThinkingSelected: (level) async {
+                      selected.add(level);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        Future<void> openPicker() async {
+          await tester.tap(selector);
+          await tester.pumpAndSettle();
+        }
+
+        final menu = find.byKey(
+          const ValueKey('agent-chat-configuration-options'),
+        );
+        Future<void> reveal(Finder target, Finder panel) async {
+          final scrollable = find
+              .descendant(of: panel, matching: find.byType(Scrollable))
+              .first;
+          await tester.scrollUntilVisible(target, 100, scrollable: scrollable);
+          await Scrollable.ensureVisible(
+            tester.element(target),
+            alignment: 0.5,
+          );
+          await tester.pumpAndSettle();
+          expect(target.hitTestable(), findsOneWidget);
+        }
+
+        await openPicker();
+        final defaultOption = find.byKey(
+          const ValueKey('agent-chat-thinking-option-default'),
+        );
+        await reveal(defaultOption, menu);
+        expect(
+          find.descendant(
+            of: defaultOption,
+            matching: find.text('Model default'),
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(defaultOption);
+        await tester.pumpAndSettle();
+        expect(selected, [null]);
+        await openPicker();
+        final configure = find.byKey(
+          const ValueKey('agent-chat-configure-reasoning'),
+        );
+        await reveal(configure, menu);
+        await tester.tap(configure);
+        await tester.pumpAndSettle();
+        final format = find.byKey(
+          const ValueKey('model-reasoning-format-aurora-chat-v2'),
+        );
+        await reveal(
+          format,
+          find.byKey(const ValueKey('model-services-model-form')),
+        );
+        Navigator.of(tester.element(format)).pop();
+        await tester.pumpAndSettle();
+        await openPicker();
+        final high = find.byKey(
+          const ValueKey('agent-chat-thinking-option-high'),
+        );
+        await reveal(high, menu);
+        await tester.tap(high);
+        await tester.pumpAndSettle();
+        expect(selected, [null, ThinkingLevel.high]);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets(
     'model and reasoning are independent controls with visible values',
     (tester) async {
@@ -76,7 +204,11 @@ void main() {
     );
     expect(surface, findsOneWidget);
     expect(lastOption, findsOneWidget);
-    expect(tester.getSize(surface).height, lessThan(360));
+    expect(
+      find.byKey(const ValueKey('agent-chat-configure-reasoning')),
+      findsOneWidget,
+    );
+    expect(tester.getSize(surface).height, lessThan(420));
     expect(
       tester.getRect(surface).bottom - tester.getRect(lastOption).bottom,
       lessThanOrEqualTo(20),
@@ -173,7 +305,9 @@ void main() {
         tester
             .getTopLeft(
               find.byKey(
-                ValueKey('agent-chat-model-option-${deepSeek.id}-deepseek-flash'),
+                ValueKey(
+                  'agent-chat-model-option-${deepSeek.id}-deepseek-flash',
+                ),
               ),
             )
             .dy,

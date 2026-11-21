@@ -42,6 +42,21 @@ AgentChatPanelViewData _viewData(AgentChatState state, double width) =>
 
 final _commands = inertAgentChatPanelCommands();
 
+class _ErrorView extends Fake implements AgentChatPanelViewData {
+  _ErrorView(this.state);
+  @override
+  final AgentChatState state;
+}
+
+class _ErrorCommands extends Fake implements AgentChatPanelCommands {
+  _ErrorCommands(this.retryLastMessage);
+
+  @override
+  VoidCallback get dismissError => () {};
+  @override
+  final Future<void> Function() retryLastMessage;
+}
+
 void main() {
   Widget app({
     required double width,
@@ -62,6 +77,44 @@ void main() {
       ),
     );
   }
+
+  testWidgets(
+    'reasoning rejection shows the raw error and retry hint immediately',
+    (tester) async {
+      const detail =
+          'HTTP 400: Relay / gemini-carbon: unsupported reasoning_effort';
+      var retries = 0;
+      await tester.pumpWidget(
+        app(
+          width: 320,
+          textScaler: const TextScaler.linear(3),
+          child: Builder(
+            builder: (context) {
+              final hint = AppLocalizations.of(
+                context,
+              )!.promptAssistant_reasoningRejectedHint;
+              return AgentChatStatus(
+                viewData: _ErrorView(
+                  AgentChatState(
+                    error: '$detail\nreasoning_effort · $hint',
+                    messages: [UserMessage.text('retry this prompt')],
+                  ),
+                ),
+                commands: _ErrorCommands(() async => retries++),
+              );
+            },
+          ),
+        ),
+      );
+      final details = find.byKey(const ValueKey('agent-chat-error-details'));
+      expect(tester.widget<SelectableText>(details).data, contains(detail));
+      final retry = find.byKey(const ValueKey('agent-chat-error-retry'));
+      expect(retry.hitTestable(), findsOneWidget);
+      await tester.tap(retry);
+      expect(retries, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('running work status is static and bounded at narrow width', (
     tester,
