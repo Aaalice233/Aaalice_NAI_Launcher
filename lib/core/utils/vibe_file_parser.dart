@@ -13,6 +13,16 @@ import 'novelai_vibe_codec.dart';
 // 注意：已移除 png_chunks_extract 依赖，使用 image 包替代
 // image 包的 PngDecoder.startDecode() 提供纯 Dart 的 PNG chunks 解析
 
+class VibeBundleRead {
+  const VibeBundleRead({required this.vibes, required this.unreadableCount});
+
+  final List<VibeReference> vibes;
+  final int unreadableCount;
+
+  bool dropsKnownEntries(int knownCount) =>
+      unreadableCount > 0 && vibes.length < knownCount;
+}
+
 /// Vibe 文件解析器
 ///
 /// 支持以下格式:
@@ -798,6 +808,14 @@ class VibeFileParser {
     String fileName,
     Uint8List bytes, {
     double defaultStrength = 0.6,
+  }) async =>
+      (await readBundle(fileName, bytes, defaultStrength: defaultStrength))
+          .vibes;
+
+  static Future<VibeBundleRead> readBundle(
+    String fileName,
+    Uint8List bytes, {
+    double defaultStrength = 0.6,
   }) {
     if (bytes.length < _backgroundParseThreshold) {
       return Future.sync(
@@ -824,6 +842,16 @@ class VibeFileParser {
     String filePath, {
     required String fileName,
     double defaultStrength = 0.6,
+  }) async => (await readBundleFile(
+    filePath,
+    fileName: fileName,
+    defaultStrength: defaultStrength,
+  )).vibes;
+
+  static Future<VibeBundleRead> readBundleFile(
+    String filePath, {
+    required String fileName,
+    double defaultStrength = 0.6,
   }) async {
     final file = File(filePath);
     final fileLength = await file.length();
@@ -844,7 +872,7 @@ class VibeFileParser {
     }, debugName: 'VibeFileParser.fromBundleFile');
   }
 
-  static List<VibeReference> _parseBundleBytesSync(
+  static VibeBundleRead _parseBundleBytesSync(
     String fileName,
     Uint8List bytes, {
     required double defaultStrength,
@@ -917,7 +945,10 @@ class VibeFileParser {
       throw ArgumentError('No valid vibes found in bundle: $fileName');
     }
 
-    return results;
+    return VibeBundleRead(
+      vibes: results,
+      unreadableCount: vibesList.length - results.length,
+    );
   }
 
   /// 从 JSON 数据中提取 Vibe 编码

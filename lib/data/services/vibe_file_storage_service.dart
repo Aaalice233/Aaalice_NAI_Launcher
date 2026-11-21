@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/utils/vibe_file_parser.dart';
 import '../models/vibe/vibe_library_entry.dart';
 import '../models/vibe/vibe_reference.dart';
 import 'vibe_file_repository.dart';
@@ -88,6 +89,9 @@ class VibeFileStorageService {
 
   Future<String?> renameVibeFile(String oldPath, String newName) =>
       _repository.renameVibeFile(oldPath, newName);
+
+  Future<VibeBundleRead?> readBundle(String bundlePath) =>
+      _repository.readBundle(bundlePath);
 
   Future<List<VibeReference>> extractVibesFromBundle(
     String bundlePath, {

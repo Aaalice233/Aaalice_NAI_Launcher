@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import '../../core/utils/vibe_file_parser.dart';
 import '../models/vibe/vibe_reference.dart';
 import 'vibe_file_storage_types.dart';
 
@@ -31,6 +32,7 @@ abstract interface class VibeFileRepositoryProtocol {
   Future<VibeStoredImportParams?> loadImportParams(String filePath);
   Future<bool> deleteVibeFile(String filePath);
   Future<String?> renameVibeFile(String oldPath, String newName);
+  Future<VibeBundleRead?> readBundle(String bundlePath);
   Future<List<VibeReference>> extractVibesFromBundle(
     String bundlePath, {
     int startIndex = 0,

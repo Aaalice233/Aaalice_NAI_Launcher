@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/utils/novelai_vibe_codec.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 import 'package:nai_launcher/data/services/vibe_file_storage_protocol.dart';
@@ -134,6 +135,49 @@ void main() {
       expect(updated.bundledVibeEncodingModels, ['nai-diffusion-4-full']);
     },
   );
+
+  test('bundle resync preserves entries with unreadable children', () async {
+    final tempDir = await Directory.systemTemp.createTemp('vibe_folder_sync_');
+    addTearDown(() => tempDir.delete(recursive: true));
+    const vibe = VibeReference(
+      displayName: 'first',
+      vibeEncoding: 'first-encoding',
+      sourceType: VibeSourceType.naiv4vibebundle,
+    );
+    final document = NovelAiVibeCodec.buildBundleMap([vibe]);
+    document['vibes'] = [...document['vibes'] as List<dynamic>, null];
+    final file = await File(
+      '${tempDir.path}/partial.naiv4vibebundle',
+    ).writeAsString(jsonEncode(document));
+    final existing = VibeLibraryEntry.fromVibeReference(
+      name: 'partial',
+      vibeData: vibe,
+      filePath: file.path,
+    ).copyWith(
+      bundledVibeNames: const ['first', 'second'],
+      bundledVibeEncodings: const ['first-encoding', 'second-encoding'],
+    );
+    final repository = _FileRepository();
+    when(repository.listVibeFiles).thenAnswer((_) async => [file]);
+    when(
+      () => repository.extractPreviewsFromBundle(file.path),
+    ).thenAnswer((_) async => []);
+    final upserts = <VibeLibraryEntry>[];
+    final deleted = <String>[];
+
+    final result = await VibeFolderSync(repository).syncFolderToHive(
+      existingFilePathsById: {existing.id: file.path},
+      loadExistingEntry: (_) async => existing,
+      onUpsertEntry: (entry) async => upserts.add(entry),
+      onDeleteEntry: (id) async => deleted.add(id),
+    );
+
+    expect(result.upsertedCount, 0);
+    expect(result.deletedCount, 0);
+    expect(result.errors, ['读取或解析失败: ${file.path}']);
+    expect(upserts, isEmpty);
+    expect(deleted, isEmpty);
+  });
 
   group('existing entries indexed by file path', () {
     final file = File('C:/vibes/kept.naiv4vibe');

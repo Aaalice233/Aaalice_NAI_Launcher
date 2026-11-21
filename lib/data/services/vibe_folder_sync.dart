@@ -166,7 +166,12 @@ class VibeFolderSync {
   ) async {
     final file = File(filePath);
     final bytes = await file.readAsBytes();
-    final vibes = await VibeFileParser.fromBundle(p.basename(filePath), bytes);
+    final read = await VibeFileParser.readBundle(p.basename(filePath), bytes);
+    if (existingEntry != null &&
+        read.dropsKnownEntries(existingEntry.bundledVibeCount)) {
+      return null;
+    }
+    final vibes = read.vibes;
     if (vibes.isEmpty) return null;
 
     final previews = await _repository.extractPreviewsFromBundle(filePath);

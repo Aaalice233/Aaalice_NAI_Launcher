@@ -78,6 +78,45 @@ void main() {
     });
   }
 
+  const sensitiveText = 'secret lighthouse keeper';
+  final brokenDocuments = <String, List<int>>{
+    '读取失败': [0xff, ...sensitiveText.codeUnits],
+    'JSON 无效': '{"name":"$sensitiveText",'.codeUnits,
+    'JSON 不是对象': '["$sensitiveText"]'.codeUnits,
+  };
+  for (final MapEntry(key: scenario, value: bytes) in brokenDocuments.entries) {
+    test('Vibe 单文件 $scenario 时拒绝覆盖且不泄露内容', () async {
+      final file = await File(
+        p.join(tempDir.path, 'broken.naiv4vibe'),
+      ).writeAsBytes(bytes);
+      final repository = VibeFileRepository();
+
+      final logs = await captureLogs(() async {
+        await expectLater(
+          repository.overwriteVibeFile(
+            file.path,
+            const VibeReference(
+              displayName: 'replacement',
+              vibeEncoding: 'encoded',
+            ),
+            displayName: 'replacement',
+            defaultModel: 'nai-diffusion-4-full',
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              isNot(contains('lighthouse')),
+            ),
+          ),
+        );
+      });
+
+      expect(await file.readAsBytes(), bytes);
+      expect(logs.join('\n'), isNot(contains('lighthouse')));
+    });
+  }
+
   test('损坏的 Bundle 读取与覆盖失败时，日志和异常都不带出文件内容', () async {
     final bundle = File(p.join(tempDir.path, 'broken.naiv4vibebundle'))
       ..writeAsStringSync('{"vibes":[{"name":"secret lighthouse keeper",');
