@@ -472,15 +472,22 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
         snapshotParams: snapshotParams,
       );
 
-      // generate() 在首次异步让出前会把状态切到 generating；此后由生成状态
-      // 本身阻止重复提交，不要让该锁跨越整次生成而吞掉下一任务的触发。
+      final revision = _executionRevision;
+      // generate() 同步标记提交中，触发锁无需覆盖整次生成。
       _generationTriggerPending = false;
-      await generationNotifier.generate(
+      final preflightError = await generationNotifier.generate(
         params,
         batchSizeOverride: batchSizeOverride,
         preserveCharacterSnapshot: snapshot != null,
         focusedOverride: focusedOverride,
       );
+      if (preflightError != null &&
+          !_isDisposed &&
+          revision == _executionRevision &&
+          state.isReady &&
+          identical(_currentQueueTask(), task)) {
+        await _settleUnretryableTaskError(preflightError);
+      }
     } on FormatException catch (error, stackTrace) {
       final taskId = state.currentTaskId;
       AppLogger.e(
@@ -731,6 +738,7 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
 
   /// 同一份任务参数必然再次失败时直接结算，原因留在任务上供失败池查看
   Future<void> _settleUnretryableTaskError(String errorMessage) async {
+    final revision = _executionRevision;
     final taskId = state.currentTaskId;
     if (taskId != null) {
       await ref
@@ -740,6 +748,11 @@ class QueueExecutionNotifier extends _$QueueExecutionNotifier {
             ReplicationTaskStatus.running,
             errorMessage: errorMessage,
           );
+    }
+    if (_isDisposed ||
+        revision != _executionRevision ||
+        state.currentTaskId != taskId) {
+      return;
     }
     await _handleFailedTask(errorMessage: errorMessage, retryable: false);
   }

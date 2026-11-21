@@ -2002,7 +2002,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
   ImageGenerationState build() => const ImageGenerationState();
 
   @override
-  Future<void> generate(
+  Future<String?> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
@@ -2029,6 +2029,7 @@ class _FakeImageGenerationNotifier extends ImageGenerationNotifier {
         ),
       ],
     );
+    return null;
   }
 }
 
