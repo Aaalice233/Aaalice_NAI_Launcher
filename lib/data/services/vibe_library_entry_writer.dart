@@ -61,7 +61,7 @@ class VibeLibraryEntryWriter {
     if (entry == null || !entry.isBundle || path?.isNotEmpty != true) {
       return null;
     }
-    var children = await _files.extractVibesFromBundle(path!);
+    var children = await _readBundleChildrenForWrite(path!, entry);
     if (children.isEmpty) children = buildBundleReferences(entry);
     if (childIndex < 0 || childIndex >= children.length) return null;
     children = List.of(children);
@@ -186,7 +186,7 @@ class VibeLibraryEntryWriter {
     }
 
     if (path?.isNotEmpty != true) return null;
-    final children = await _files.extractVibesFromBundle(path!);
+    final children = await _readBundleChildrenForWrite(path!, entry);
     if (children.isEmpty || !children.any((vibe) => vibe.hasVibeEncoding)) {
       return null;
     }
@@ -302,6 +302,17 @@ class VibeLibraryEntryWriter {
   Future<void> _persist(VibeLibraryEntry entry) async {
     await _repository.putEntry(entry);
     await _displayCache.entryChanged(entry);
+  }
+
+  Future<List<VibeReference>> _readBundleChildrenForWrite(
+    String path,
+    VibeLibraryEntry entry,
+  ) async {
+    final read = await _files.readBundle(path);
+    if (read?.dropsKnownEntries(entry.bundledVibeCount) == true) {
+      throw StateError('Vibe Bundle 有子项无法读取，已取消写入');
+    }
+    return read?.vibes ?? const [];
   }
 
   Future<VibeLibraryEntry> _saveFile(VibeLibraryEntry entry) async {

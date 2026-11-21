@@ -87,15 +87,16 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
       throw UnsupportedError('仅支持覆盖单个 $_singleFileExtension 文件');
     }
 
-    Map<String, dynamic> jsonData;
+    final Object? existingJson;
     try {
-      final existingJson = await file.readAsString();
-      final decoded = jsonDecode(existingJson);
-      jsonData = decoded is Map<String, dynamic>
-          ? decoded
-          : <String, dynamic>{};
-    } catch (_) {
-      jsonData = <String, dynamic>{};
+      existingJson = jsonDecode(await file.readAsString());
+    } catch (error) {
+      throw StateError(
+        '无法安全解析现有 Vibe 文件，已取消覆盖: ${metadataErrorSummary(error)}',
+      );
+    }
+    if (existingJson is! Map<String, dynamic>) {
+      throw StateError('现有 Vibe 文件结构无效，已取消覆盖');
     }
 
     final vibeForFile = vibe.normalizedForLibraryStorage();
@@ -104,7 +105,7 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
       name: displayName,
       fallbackModel: defaultModel ?? _fallbackEncodingModel,
     );
-    final merged = _codec.mergeCompatibleVibeMap(jsonData, replacement);
+    final merged = _codec.mergeCompatibleVibeMap(existingJson, replacement);
 
     await file.writeAsString(NovelAiVibeCodec.encodeJson(merged));
     AppLogger.i('Vibe 文件覆盖成功: $filePath', _tag);
@@ -356,6 +357,25 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
     }
   }
 
+  @override
+  Future<VibeBundleRead?> readBundle(String bundlePath) async {
+    try {
+      final file = File(bundlePath);
+      if (!await file.exists()) {
+        AppLogger.w('Bundle 文件不存在: $bundlePath', _tag);
+        return null;
+      }
+
+      return await VibeFileParser.readBundleFile(
+        bundlePath,
+        fileName: p.basename(bundlePath),
+      );
+    } catch (e, stackTrace) {
+      AppLogger.e('从 Bundle 批量提取 Vibe 失败: $bundlePath', e, stackTrace, _tag);
+      return null;
+    }
+  }
+
   /// 从 bundle 中批量提取 vibe。
   ///
   /// 导入多个子 Vibe 时必须走这个入口，避免按索引重复读取和解析整份 bundle。
@@ -365,42 +385,29 @@ class VibeFileRepository implements VibeFileRepositoryProtocol {
     int startIndex = 0,
     int? limit,
   }) async {
-    try {
-      final file = File(bundlePath);
-      if (!await file.exists()) {
-        AppLogger.w('Bundle 文件不存在: $bundlePath', _tag);
-        return const [];
-      }
-
-      final safeStartIndex = startIndex < 0 ? 0 : startIndex;
-      final safeLimit = limit == null || limit >= 0 ? limit : 0;
-      if (safeLimit == 0) {
-        return const [];
-      }
-
-      final vibes = await VibeFileParser.fromBundleFile(
-        bundlePath,
-        fileName: p.basename(bundlePath),
-      );
-
-      if (safeStartIndex >= vibes.length) {
-        AppLogger.w(
-          'Bundle 起始索引越界: $safeStartIndex, length: ${vibes.length}',
-          _tag,
-        );
-        return const [];
-      }
-
-      final endIndex = safeLimit == null
-          ? vibes.length
-          : (safeStartIndex + safeLimit)
-                .clamp(safeStartIndex, vibes.length)
-                .toInt();
-      return vibes.sublist(safeStartIndex, endIndex);
-    } catch (e, stackTrace) {
-      AppLogger.e('从 Bundle 批量提取 Vibe 失败: $bundlePath', e, stackTrace, _tag);
+    final safeStartIndex = startIndex < 0 ? 0 : startIndex;
+    final safeLimit = limit == null || limit >= 0 ? limit : 0;
+    if (safeLimit == 0) {
       return const [];
     }
+
+    final read = await readBundle(bundlePath);
+    if (read == null) return const [];
+    final vibes = read.vibes;
+    if (safeStartIndex >= vibes.length) {
+      AppLogger.w(
+        'Bundle 起始索引越界: $safeStartIndex, length: ${vibes.length}',
+        _tag,
+      );
+      return const [];
+    }
+
+    final endIndex = safeLimit == null
+        ? vibes.length
+        : (safeStartIndex + safeLimit)
+              .clamp(safeStartIndex, vibes.length)
+              .toInt();
+    return vibes.sublist(safeStartIndex, endIndex);
   }
 
   /// 从 bundle 中提取单个 vibe
