@@ -4,6 +4,28 @@ import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 
 void main() {
   group('MetadataImportOptions', () {
+    test('only selected characters count, independently of the mode', () {
+      const legacy = NaiImageMetadata(characterPrompts: ['A']);
+      const detailed = NaiImageMetadata(
+        characterPrompts: ['A'],
+        characterInfos: [CharacterPromptInfo(prompt: 'A')],
+      );
+      for (final mode in CharacterImportMode.values) {
+        final off = MetadataImportOptions.none().copyWith(
+          characterImportMode: mode,
+        );
+        final on = off.copyWith(importCharacterPrompts: true);
+        expect(off.selectedCount, 0);
+        expect(off.selectedCountFor(legacy), 0);
+        expect(on.selectedCountFor(legacy), 1);
+        expect(on.selectedCountFor(detailed), 0);
+        expect(
+          on.copyWith(selectedCharacterIndices: [0]).selectedCountFor(detailed),
+          1,
+        );
+      }
+    });
+
     test('all should include generation parameters', () {
       final options = MetadataImportOptions.all();
 

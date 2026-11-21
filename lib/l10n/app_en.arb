@@ -4209,6 +4209,30 @@
     }
   },
   "metadataImport_negativePrompt": "Undesired Content",
+  "metadataImport_characterMode": "Character import mode",
+  "metadataImport_characterReplace": "Replace existing characters",
+  "metadataImport_characterAppend": "Append to the end",
+  "metadataImport_characterAppendResult": "Characters added: {added}. Skipped: {skipped}. Limit: {limit}.",
+  "@metadataImport_characterAppendResult": {
+    "placeholders": {
+      "added": {"type": "int"},
+      "skipped": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
+  "metadataImport_characterModelConflict": "This model supports up to {limit} characters. Choose another model or turn off character import.",
+  "@metadataImport_characterModelConflict": {
+    "placeholders": {
+      "limit": {"type": "int"}
+    }
+  },
+  "metadataImport_characterAppendModelConflict": "You already have {count} characters, exceeding the selected model’s limit of {limit}. Uncheck “Model” to append, or choose “Replace existing characters”.",
+  "@metadataImport_characterAppendModelConflict": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "limit": {"type": "int"}
+    }
+  },
   "metadataImport_characterPromptsCount": "Character Prompts ({count})",
   "@metadataImport_characterPromptsCount": {
     "placeholders": {

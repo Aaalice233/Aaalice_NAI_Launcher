@@ -8557,6 +8557,34 @@ class AppLocalizationsZh extends AppLocalizations {
   String get metadataImport_negativePrompt => '负向提示词';
 
   @override
+  String get metadataImport_characterMode => '角色导入方式';
+
+  @override
+  String get metadataImport_characterReplace => '覆盖现有角色';
+
+  @override
+  String get metadataImport_characterAppend => '增添到末尾';
+
+  @override
+  String metadataImport_characterAppendResult(
+    int added,
+    int skipped,
+    int limit,
+  ) {
+    return '已增添 $added 个角色，跳过 $skipped 个（上限 $limit）';
+  }
+
+  @override
+  String metadataImport_characterModelConflict(int limit) {
+    return '所选模型最多支持 $limit 个角色。请更换模型或取消角色导入。';
+  }
+
+  @override
+  String metadataImport_characterAppendModelConflict(int count, int limit) {
+    return '当前已有 $count 个角色，超过所选模型的上限 $limit 个。请取消勾选「模型」后增添，或改用「覆盖现有角色」。';
+  }
+
+  @override
   String metadataImport_characterPromptsCount(int count) {
     return '角色提示词 ($count个)';
   }
@@ -24238,6 +24266,34 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get metadataImport_negativePrompt => '負向提示詞';
+
+  @override
+  String get metadataImport_characterMode => '角色匯入方式';
+
+  @override
+  String get metadataImport_characterReplace => '覆蓋現有角色';
+
+  @override
+  String get metadataImport_characterAppend => '新增至末尾';
+
+  @override
+  String metadataImport_characterAppendResult(
+    int added,
+    int skipped,
+    int limit,
+  ) {
+    return '已新增 $added 個角色，略過 $skipped 個（上限 $limit）';
+  }
+
+  @override
+  String metadataImport_characterModelConflict(int limit) {
+    return '所選模型最多支援 $limit 個角色。請更換模型或取消匯入角色。';
+  }
+
+  @override
+  String metadataImport_characterAppendModelConflict(int count, int limit) {
+    return '目前已有 $count 個角色，超過所選模型的上限 $limit 個。請取消勾選「模型」後新增，或改用「覆蓋現有角色」。';
+  }
 
   @override
   String metadataImport_characterPromptsCount(int count) {

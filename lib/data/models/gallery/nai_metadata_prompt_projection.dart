@@ -57,6 +57,12 @@ class NaiMetadataPromptProjection {
 
   bool get hasCharacters => metadata.characterPrompts.isNotEmpty;
 
+  String characterPositive(int index) {
+    final prompt = metadata.characterPrompts.elementAtOrNull(index) ?? '';
+    if (prompt.trim().isNotEmpty) return prompt;
+    return metadata.characterInfos.elementAtOrNull(index)?.prompt ?? prompt;
+  }
+
   bool get hasSeparatedFields =>
       metadata.fixedPrefixTags.isNotEmpty ||
       metadata.fixedSuffixTags.isNotEmpty ||

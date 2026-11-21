@@ -8693,6 +8693,34 @@ class AppLocalizationsJa extends AppLocalizations {
   String get metadataImport_negativePrompt => '除外したい要素';
 
   @override
+  String get metadataImport_characterMode => 'キャラクターの読み込み方法';
+
+  @override
+  String get metadataImport_characterReplace => '既存のキャラクターを置き換える';
+
+  @override
+  String get metadataImport_characterAppend => '末尾に追加';
+
+  @override
+  String metadataImport_characterAppendResult(
+    int added,
+    int skipped,
+    int limit,
+  ) {
+    return '$added 人を追加し、$skipped 人をスキップしました（上限 $limit 人）。';
+  }
+
+  @override
+  String metadataImport_characterModelConflict(int limit) {
+    return '選択したモデルの上限は $limit 人です。モデルを変更するか、キャラクターの読み込みをオフにしてください。';
+  }
+
+  @override
+  String metadataImport_characterAppendModelConflict(int count, int limit) {
+    return '現在のキャラクター数は $count 人で、選択したモデルの上限（$limit 人）を超えています。「モデル」のチェックを外して追加するか、「既存のキャラクターを置き換える」を選んでください。';
+  }
+
+  @override
   String metadataImport_characterPromptsCount(int count) {
     return 'キャラクタープロンプト ($count)';
   }

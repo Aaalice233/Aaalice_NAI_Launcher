@@ -112,6 +112,7 @@ class TranslatedPromptText extends ConsumerStatefulWidget {
     this.translationStyle,
     this.selectable = true,
     this.maxLines,
+    this.translationMaxLines,
     this.originalText,
     this.includeUntranslated = false,
     this.reserveTranslationSpace = false,
@@ -122,6 +123,7 @@ class TranslatedPromptText extends ConsumerStatefulWidget {
   final TextStyle? translationStyle;
   final bool selectable;
   final int? maxLines;
+  final int? translationMaxLines;
   final String? originalText;
 
   /// Keeps every parsed source tag visible in the translated summary by
@@ -208,6 +210,7 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
       return original;
     }
     final translationText = _translations.join('，');
+    final translationMaxLines = widget.translationMaxLines ?? widget.maxLines;
     final theme = Theme.of(context);
     final baseTranslationStyle =
         widget.style ??
@@ -227,7 +230,7 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
             child: Text(
               '\u00a0',
               style: translationStyle.copyWith(color: Colors.transparent),
-              maxLines: widget.maxLines,
+              maxLines: translationMaxLines,
             ),
           )
         else
@@ -235,8 +238,10 @@ class _TranslatedPromptTextState extends ConsumerState<TranslatedPromptText> {
             translationText,
             key: const ValueKey('translated-prompt-translation'),
             style: translationStyle,
-            maxLines: widget.maxLines,
-            overflow: widget.maxLines == null ? null : TextOverflow.ellipsis,
+            maxLines: translationMaxLines,
+            overflow: translationMaxLines == null
+                ? null
+                : TextOverflow.ellipsis,
           ),
       ],
     );

@@ -49,9 +49,35 @@ void main() {
       importFixedNegativeSuffix: false,
       importVibeReferences: false,
       unknownFixedTagPolicy: UnknownFixedTagPolicy.keepCurrent,
+      characterImportMode: CharacterImportMode.append,
     );
 
     expect(roundTrip(options), options);
+    expect(encodedMap(options)['characterImportMode'], 'append');
+  });
+
+  test('missing and unknown character modes preserve other stored choices', () {
+    for (final field in <Map<String, Object?>>[
+      {},
+      {'characterImportMode': 'future'},
+      {'characterImportMode': 1},
+    ]) {
+      final decoded = MetadataImportSelectionCodec.decode(
+        jsonEncode({
+          'seed': false,
+          'unknownFixedTagPolicy': 'keepCurrent',
+          ...field,
+        }),
+      );
+      expect(
+        decoded,
+        MetadataImportOptions.all().copyWith(
+          importSeed: false,
+          unknownFixedTagPolicy: UnknownFixedTagPolicy.keepCurrent,
+          characterImportMode: CharacterImportMode.replace,
+        ),
+      );
+    }
   });
 
   test('per-image item selections are not persisted', () {
