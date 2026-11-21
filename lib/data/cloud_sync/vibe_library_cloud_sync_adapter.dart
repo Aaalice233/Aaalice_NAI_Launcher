@@ -59,7 +59,7 @@ class VibeLibraryCloudSyncAdapter extends ValidatingCloudSyncDataAdapter
 
   @override
   Stream<PortableSyncRecord> exportRecords() async* {
-    for (final category in await _storage.getAllCategories()) {
+    for (final category in await _storage.readStoredCategories()) {
       yield PortableSyncRecord(
         adapterId: id,
         id: 'category:${category.id}',
