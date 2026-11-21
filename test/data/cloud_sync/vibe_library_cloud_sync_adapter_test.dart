@@ -93,6 +93,15 @@ void main() {
 
     await expectLater(adapter.exportRecords().toList(), throwsStateError);
   });
+
+  test('export propagates a failed read of stored Vibe categories', () async {
+    final storage = VibeLibraryStorageService(
+      repository: _UnreadableVibeCategoryRepository(),
+    );
+    final adapter = VibeLibraryCloudSyncAdapter(storage);
+
+    await expectLater(adapter.exportRecords().toList(), throwsStateError);
+  });
 }
 
 class _MemoryVibeStorage extends VibeLibraryStorageService {
@@ -104,7 +113,7 @@ class _MemoryVibeStorage extends VibeLibraryStorageService {
   bool failCommit = false;
 
   @override
-  Future<List<VibeLibraryCategory>> getAllCategories() async => const [];
+  Future<List<VibeLibraryCategory>> readStoredCategories() async => const [];
 
   @override
   Future<String> importPortableFile(
@@ -159,4 +168,14 @@ class _UnreadableVibeRepository extends HiveVibeLibraryRepository {
   Stream<VibeLibraryEntry> streamEntries() async* {
     throw StateError('source entry unavailable');
   }
+}
+
+class _UnreadableVibeCategoryRepository extends HiveVibeLibraryRepository {
+  @override
+  Future<List<VibeLibraryCategory>> readCategories() async {
+    throw StateError('source category unavailable');
+  }
+
+  @override
+  Stream<VibeLibraryEntry> streamEntries() => const Stream.empty();
 }
