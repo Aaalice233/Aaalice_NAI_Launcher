@@ -5128,6 +5128,14 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get generation_invalidInpaintFrameHint =>
+      'フレームを画像内に収め、出力サイズに縮小しても残る大きさでフレーム内にマスクを描いてください。';
+
+  @override
+  String get generation_unreadableInpaintImageHint =>
+      '元画像またはマスクを読み込めません。画像またはマスクを読み込み直してから、もう一度お試しください。';
+
+  @override
   String get generation_emptyInpaintMask => 'インペイントマスクがサンプリング後に空になりました';
 
   @override

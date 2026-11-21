@@ -1,17 +1,23 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' show Rect;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:mocktail/mocktail.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/queue_state_storage.dart';
 import 'package:nai_launcher/core/storage/replication_queue_storage.dart';
+import 'package:nai_launcher/core/utils/focused_inpaint_input_exception.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/core/utils/isolate_pool.dart';
+import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart'
-    show ImageParams;
+    show ImageGenerationAction, ImageParams;
 import 'package:nai_launcher/data/models/queue/failure_handling_strategy.dart';
 import 'package:nai_launcher/data/models/queue/replication_task.dart';
 import 'package:nai_launcher/data/models/queue/replication_task_generation_snapshot.dart';
@@ -211,6 +217,99 @@ void main() {
     expect(failedTask.id, tasks[0].id);
     expect(EmptyInpaintMaskException.matches(failedTask.errorMessage), isTrue);
     expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
+  });
+
+  for (final (fixedFrame, expectedError) in [
+    (false, startsWith('GENERATION_ERROR_INVALID_RESOLUTION|1664|2432|')),
+    (true, equals(FocusedInpaintInputException.invalidCropCode)),
+  ]) {
+    final reason = fixedFrame ? '固定取景框无效' : '整图尺寸非法';
+    test('$reason在预检失败后跳过重试并开始下一项', () async {
+      final first = fixedFrame
+          ? await _taskWithEmptyFixedFrame()
+          : ReplicationTask.create(
+              prompt: 'invalid dimensions',
+              width: 1664,
+              height: 2432,
+            );
+      final next = ReplicationTask.create(prompt: 'next');
+      final api = _MockGenerationApi();
+      final generation = _PreflightImageGenerationNotifier(first.prompt);
+      final container = _buildControlledQueueContainer(
+        [first, next],
+        generation,
+        localStorage: _RetryingLocalStorageService(),
+        overrides: [
+          naiImageGenerationApiServiceProvider.overrideWithValue(api),
+        ],
+      );
+      addTearDown(container.dispose);
+      final execution =
+          container.read(queueExecutionNotifierProvider.notifier)
+              as _TestQueueExecutionNotifier;
+      execution.setStrategyForTest(FailureHandlingStrategy.autoRetry);
+
+      expect(await execution.startQueue(), QueueStartResult.started);
+      await expectLater(
+        generation.preflightResult.future,
+        completion(expectedError),
+      );
+      await pumpEventQueue(times: 1);
+
+      final queue = container.read(replicationQueueNotifierProvider);
+      expect(queue.failedTasks, hasLength(1));
+      final failed = queue.failedTasks.single;
+      expect(failed.id, first.id);
+      expect(failed.status, ReplicationTaskStatus.failed);
+      expect(failed.errorMessage, expectedError);
+      expect(queue.tasks.single.id, next.id);
+      expect(queue.tasks.single.status, ReplicationTaskStatus.running);
+      expect(container.read(queueExecutionNotifierProvider).failedCount, 1);
+      expect(generation.startedPrompts, [next.prompt]);
+      verifyZeroInteractions(api);
+    });
+  }
+
+  test('旧预检拒绝不会结算已切换的队列任务', () async {
+    final first = ReplicationTask.create(
+      prompt: 'invalid dimensions',
+      width: 1664,
+      height: 2432,
+    );
+    final next = ReplicationTask.create(prompt: 'next');
+    final releaseResult = Completer<void>();
+    final generation = _PreflightImageGenerationNotifier(
+      first.prompt,
+      beforeReturn: releaseResult.future,
+    );
+    final container = _buildControlledQueueContainer(
+      [first, next],
+      generation,
+      overrides: [
+        naiImageGenerationApiServiceProvider.overrideWithValue(
+          _MockGenerationApi(),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final execution = container.read(queueExecutionNotifierProvider.notifier);
+    final queue = container.read(replicationQueueNotifierProvider.notifier);
+
+    expect(await execution.startQueue(), QueueStartResult.started);
+    try {
+      expect(await generation.preflightResult.future, isNotNull);
+      expect(await queue.remove(first.id), isTrue);
+      execution.prepareNextTask();
+    } finally {
+      releaseResult.complete();
+    }
+    await pumpEventQueue(times: 1);
+
+    final queued = container.read(replicationQueueNotifierProvider);
+    expect(queued.failedTasks, isEmpty);
+    expect(queued.tasks.single.id, next.id);
+    expect(queued.tasks.single.status, ReplicationTaskStatus.pending);
+    expect(container.read(queueExecutionNotifierProvider).currentTaskId, next.id);
   });
 
   test('取消会释放运行任务但不会启动下一任务', () async {
@@ -572,8 +671,9 @@ void main() {
 
 ProviderContainer _buildControlledQueueContainer(
   List<ReplicationTask> tasks,
-  _ControlledImageGenerationNotifier generation, {
+  ImageGenerationNotifier generation, {
   LocalStorageService? localStorage,
+  List<Override> overrides = const [],
 }) {
   return ProviderContainer(
     overrides: [
@@ -603,7 +703,31 @@ ProviderContainer _buildControlledQueueContainer(
       ),
       imageGenerationNotifierProvider.overrideWith(() => generation),
       kritaBridgeNotifierProvider.overrideWith(KritaBridgeNotifier.new),
+      ...overrides,
     ],
+  );
+}
+
+Future<ReplicationTask> _taskWithEmptyFixedFrame() async {
+  final source = img.Image(width: 128, height: 128);
+  final mask = img.Image(width: 128, height: 128)
+    ..setPixelRgb(100, 100, 255, 255, 255);
+  return ReplicationTask.create(
+    prompt: 'empty fixed frame',
+    generationSnapshot: await ReplicationTaskGenerationSnapshot.encode(
+      ImageParams(
+        width: 128,
+        height: 128,
+        action: ImageGenerationAction.infill,
+        sourceImage: img.encodePng(source),
+        maskImage: img.encodePng(mask),
+      ),
+      focused: const QueuedFocusedInpaint(
+        enabled: true,
+        contextPadding: 96,
+        contextCrop: Rect.fromLTWH(0, 0, 64, 64),
+      ),
+    ),
   );
 }
 
@@ -710,6 +834,44 @@ class _TestAuthNotifier extends AuthNotifier {
   AuthState build() => AuthState(status: authStatus);
 }
 
+class _MockGenerationApi extends Mock implements NAIImageGenerationApiService {}
+
+class _PreflightImageGenerationNotifier extends ImageGenerationNotifier {
+  _PreflightImageGenerationNotifier(this.preflightPrompt, {this.beforeReturn});
+
+  final String preflightPrompt;
+  final Future<void>? beforeReturn;
+  final preflightResult = Completer<String?>();
+  final startedPrompts = <String>[];
+
+  @override
+  Future<String?> generate(
+    ImageParams params, {
+    int? batchSizeOverride,
+    bool preserveCharacterSnapshot = false,
+    GenerationFocusedSnapshot? focusedOverride,
+    bool bypassRandomPrompt = false,
+  }) async {
+    if (params.prompt == preflightPrompt) {
+      final result = super.generate(
+        params,
+        batchSizeOverride: batchSizeOverride,
+        preserveCharacterSnapshot: preserveCharacterSnapshot,
+        focusedOverride: focusedOverride,
+        bypassRandomPrompt: bypassRandomPrompt,
+      );
+      preflightResult.complete(result);
+      final error = await result;
+      await beforeReturn;
+      return error;
+    }
+
+    startedPrompts.add(params.prompt);
+    state = state.copyWith(status: GenerationStatus.generating);
+    return null;
+  }
+}
+
 class _DisabledNotificationSettingsNotifier
     extends NotificationSettingsNotifier {
   @override
@@ -781,14 +943,14 @@ class _ControlledImageGenerationNotifier extends ImageGenerationNotifier {
       _activeInvocation?.settled.future ?? Future<void>.value();
 
   @override
-  Future<void> generate(
+  Future<String?> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
     bool bypassRandomPrompt = false,
   }) async {
-    if (_activeInvocation != null) return;
+    if (_activeInvocation != null) return null;
     final invocation = _ControlledGenerationInvocation();
     _activeInvocation = invocation;
     _invocations.add(invocation);
@@ -803,6 +965,7 @@ class _ControlledImageGenerationNotifier extends ImageGenerationNotifier {
     }
     await invocation.cleanup.future;
     invocation.cleanupFinished.complete();
+    return null;
   }
 
   Future<void> waitForStart(int index) => _startSignals[index].future;
@@ -878,13 +1041,13 @@ class _TestImageGenerationNotifier extends ImageGenerationNotifier {
   ImageGenerationState build() => const ImageGenerationState();
 
   @override
-  Future<void> generate(
+  Future<String?> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
     GenerationFocusedSnapshot? focusedOverride,
     bool bypassRandomPrompt = false,
-  }) async {}
+  }) async => null;
 }
 
 class _CapturingImageGenerationNotifier extends _TestImageGenerationNotifier {
@@ -892,7 +1055,7 @@ class _CapturingImageGenerationNotifier extends _TestImageGenerationNotifier {
   final firstGeneration = Completer<ImageParams>();
 
   @override
-  Future<void> generate(
+  Future<String?> generate(
     ImageParams params, {
     int? batchSizeOverride,
     bool preserveCharacterSnapshot = false,
@@ -901,6 +1064,7 @@ class _CapturingImageGenerationNotifier extends _TestImageGenerationNotifier {
   }) async {
     generated = params;
     if (!firstGeneration.isCompleted) firstGeneration.complete(params);
+    return null;
   }
 }
 

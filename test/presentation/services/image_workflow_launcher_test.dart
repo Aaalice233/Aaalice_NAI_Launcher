@@ -7,7 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_request_resolution.dart';
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/services/image_workflow_launcher.dart';
 import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
@@ -42,6 +44,105 @@ void main() {
 
   ImageWorkflowController workflow() =>
       container.read(imageWorkflowControllerProvider.notifier);
+
+  test(
+    'ordinary editing honors compression and reuses the live page size for a smaller source',
+    () {
+      final settings = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      for (final (compressed, width, height, pageWidth, pageHeight, expected)
+          in [
+            (true, 768, 768, 1024, 1024, (768, 768)),
+            (true, 1664, 2432, 1024, 1024, (1472, 2112)),
+            (false, 416, 608, 832, 1216, (832, 1216)),
+            (false, 960, 640, 1152, 768, (1152, 768)),
+          ]) {
+        settings.updateSize(pageWidth, pageHeight, persist: false);
+        final bytes = _png(width: width, height: height);
+        expect(
+          ImageWorkflowLauncher.applyEditResult(
+            workflow(),
+            ImageEditorResult(
+              modifiedImage: bytes,
+              outputWidth: width,
+              outputHeight: height,
+              compressionApplied: compressed,
+            ),
+          ),
+          isTrue,
+        );
+        final params = container.read(generationParamsNotifierProvider);
+        final state = container.read(imageWorkflowControllerProvider);
+        expect(params.sourceImage, same(bytes));
+        expect(
+          (state.sourceImageWidth, state.sourceImageHeight),
+          (width, height),
+        );
+        expect((params.width, params.height), expected);
+      }
+    },
+  );
+
+  test(
+    'edited full canvas, mask and selection survive inpainting and a preset change',
+    () async {
+      final source = _png(width: 1664, height: 2432);
+      final maskImage = img.Image(width: 1664, height: 2432, numChannels: 1);
+      img.fillRect(
+        maskImage,
+        x1: 400,
+        y1: 950,
+        x2: 450,
+        y2: 1000,
+        color: img.ColorRgb8(255, 255, 255),
+      );
+      final mask = img.encodePng(maskImage, level: 1);
+      const selection = Rect.fromLTWH(288, 900, 1088, 576);
+      ImageWorkflowLauncher.applyEditResult(
+        workflow(),
+        ImageEditorResult(
+          modifiedImage: source,
+          outputWidth: 1664,
+          outputHeight: 2432,
+        ),
+      );
+      ImageWorkflowLauncher.applyInpaintEditorResult(
+        workflow(),
+        ImageEditorResult(
+          maskImage: mask,
+          hasMaskChanges: true,
+          focusedInpaintEnabled: true,
+          focusAreaRect: selection,
+          minimumContextMegaPixels: 96,
+        ),
+        mask,
+      );
+      final settings = container.read(generationParamsNotifierProvider);
+      expect((settings.width, settings.height), (1472, 2112));
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updateSize(1024, 1024, persist: false);
+      final params = container.read(generationParamsNotifierProvider);
+      final state = container.read(imageWorkflowControllerProvider);
+      expect((state.sourceImageWidth, state.sourceImageHeight), (1664, 2432));
+      expect(params.sourceImage, same(source));
+      expect(params.maskImage, same(mask));
+      expect(state.focusedSelectionRect, selection);
+      expect(state.focusedInpaintEnabled, isTrue);
+      expect(params.isOutpaint, isFalse);
+      expect(state.isOutpaint, isFalse);
+      final subscription = container.listen(
+        generationPageRequestGeometryProvider,
+        (_, _) {},
+      );
+      addTearDown(subscription.close);
+      final geometry = await container.read(
+        generationPageRequestGeometryProvider.future,
+      );
+      expect((geometry?.requestWidth, geometry?.requestHeight), (1280, 768));
+    },
+  );
 
   group('applyInpaintEditorResult', () {
     final canvas = _png(width: 1216, height: 1216);
@@ -80,7 +181,7 @@ void main() {
       expect(params.isOutpaint, isFalse);
     });
 
-    test('without a usable mask only the canvas is taken over', () {
+    test('an empty exported mask retains the fixed frame for validation', () {
       ImageWorkflowLauncher.applyInpaintEditorResult(
         workflow(),
         focusOutpaintResult,
@@ -89,10 +190,11 @@ void main() {
 
       final state = container.read(imageWorkflowControllerProvider);
       final params = container.read(generationParamsNotifierProvider);
-      expect(state.focusedInpaintEnabled, isFalse);
-      expect(state.focusedContextCrop, isNull);
+      expect(state.focusedInpaintEnabled, isTrue);
+      expect(state.focusedContextCrop, crop);
       expect(params.sourceImage, same(canvas));
-      expect(params.maskImage, isNull);
+      expect(params.maskImage, same(mask));
+      expect(params.isInpainting, isTrue);
     });
 
     test('an edited source without a mask stays in inpaint mode', () {

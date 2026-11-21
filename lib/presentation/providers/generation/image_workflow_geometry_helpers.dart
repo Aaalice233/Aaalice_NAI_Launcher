@@ -138,29 +138,8 @@ ImageWorkflowState resolveInpaintEditorWorkflowState({
   final actualSourceHeight = hasReplacementSource
       ? (importInfo?.originalHeight ?? sourceHeight)
       : (currentState.sourceImageHeight ?? currentState.sourceHeight);
-  final contextCrop = switch ((
-    forceDisableFocusedInpaint,
-    focusedContextCrop,
-    actualSourceWidth,
-    actualSourceHeight,
-  )) {
-    (false, final Rect crop, final int width, final int height)
-        when FocusedInpaintUtils.resolveGeometryForCrop(
-              sourceWidth: width,
-              sourceHeight: height,
-              crop: crop,
-            ) !=
-            null =>
-      crop,
-    _ => null,
-  };
-  if (focusedContextCrop != null && contextCrop == null) {
-    AppLogger.w(
-      'Discarded focus outpaint crop $focusedContextCrop for source '
-          '${actualSourceWidth}x$actualSourceHeight',
-      'ImageWorkflow',
-    );
-  }
+  // 保留固定取景框到请求校验，丢弃越界框会把聚焦外扩变成整图重绘。
+  final contextCrop = forceDisableFocusedInpaint ? null : focusedContextCrop;
   final constrainedSelection = switch ((
     forceDisableFocusedInpaint || contextCrop != null,
     focusedSelectionRect,

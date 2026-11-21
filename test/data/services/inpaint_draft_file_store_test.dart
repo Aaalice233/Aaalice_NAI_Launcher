@@ -10,9 +10,9 @@ import 'package:nai_launcher/data/services/inpaint_draft_file_store.dart';
 import 'package:nai_launcher/data/services/inpaint_draft_repository.dart';
 import 'package:nai_launcher/data/services/metadata/hash_calculator.dart';
 
-import '../../helpers/shared_compute_gate.dart';
-
+import '../../helpers/corrupt_png.dart';
 import '../../helpers/exif_orientation_fixture.dart';
+import '../../helpers/shared_compute_gate.dart';
 
 void main() {
   group('inspectImage', () {
@@ -49,7 +49,7 @@ void main() {
     });
 
     test('keeps the decoder error type across the isolate boundary', () async {
-      final corrupt = _pngWithCorruptPixelData();
+      final corrupt = corruptPngPixelData(_png());
       expect(
         () => img.decodeImage(corrupt),
         throwsA(isA<img.ImageException>()),
@@ -251,19 +251,4 @@ Uint8List _rotatedJpeg({required int width, required int height}) {
   img.fill(image, color: img.ColorRgb8(90, 120, 150));
   image.exif.imageIfd.orientation = 6;
   return Uint8List.fromList(img.encodeJpg(image));
-}
-
-Uint8List _pngWithCorruptPixelData() {
-  final bytes = _png();
-  const idat = [0x49, 0x44, 0x41, 0x54];
-  for (var i = 0; i + idat.length < bytes.length; i++) {
-    if (bytes[i] == idat[0] &&
-        bytes[i + 1] == idat[1] &&
-        bytes[i + 2] == idat[2] &&
-        bytes[i + 3] == idat[3]) {
-      bytes[i + idat.length] ^= 0xFF;
-      return bytes;
-    }
-  }
-  throw StateError('Encoded PNG has no IDAT chunk');
 }

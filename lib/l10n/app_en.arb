@@ -2311,6 +2311,8 @@
       "suggestedHeight": { "type": "int" }
     }
   },
+  "generation_invalidInpaintFrameHint": "Keep the frame inside the image and paint a mask large enough to remain visible inside the frame at the output size.",
+  "generation_unreadableInpaintImageHint": "The source image or mask could not be read. Reload the image or mask and try again.",
   "generation_emptyInpaintMask": "Inpaint mask is empty after sampling",
   "generation_emptyInpaintMaskHint": "The mask is too thin or too small: nothing is left to repaint after sampling it on the {gridSize}-pixel grid. Make the mask thicker or larger and try again.",
   "@generation_emptyInpaintMaskHint": {

@@ -76,7 +76,7 @@ class EditorSessionInitializer {
     }
 
     if (!isMounted() || !session.accepts(operationEpoch)) return;
-    compressionController.initializePlan();
+    compressionController.refreshPlan();
 
     onMarkInitialized();
 

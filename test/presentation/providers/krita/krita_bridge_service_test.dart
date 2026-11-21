@@ -20,6 +20,7 @@ import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/krita/krita_bridge_service.dart';
 
 import '../../../helpers/browser_multipart_reader.dart';
+import '../../../helpers/corrupt_png.dart';
 
 void main() {
   group('KritaBridgeService', () {
@@ -1095,6 +1096,87 @@ void main() {
     const canvasSize = 256;
     const selection = KritaSelectionRect(x: 112, y: 112, width: 32, height: 32);
 
+    for (final (focused, name) in [
+      (
+        true,
+        'unreadable focused input allows an immediate retry without billing',
+      ),
+      (
+        false,
+        'illegal whole size is rejected before mask processing or busy state',
+      ),
+    ]) {
+      test(name, () async {
+        final width = focused ? canvasSize : 1664;
+        final height = focused ? canvasSize : 2432;
+        final png = img.encodePng(
+          img.Image(width: width, height: height, numChannels: 1),
+          level: 1,
+        );
+        final mask = focused
+            ? _kritaSelectionMaskPng(canvasSize, selection, selectedValue: 255)
+            : png;
+        final sent = <Map<String, dynamic>>[];
+        final activeRequests = <String?>[];
+        var transportCalls = 0;
+        var billingRefreshes = 0;
+        final service = KritaBridgeService(
+          readBaseParams: () => ImageParams(width: width, height: height),
+          send: sent.add,
+          isUiGenerating: () => false,
+          authGuard: () => true,
+          generateStream: (_) {
+            transportCalls++;
+            return const Stream.empty();
+          },
+          generateFallback: (_) async {
+            transportCalls++;
+            return const [];
+          },
+          registerExternalImage: (_, {required params, addToDisplay}) async =>
+              null,
+          cancelGeneration: () {},
+          schedulePostBillingRefresh: () => billingRefreshes++,
+          clock: () => DateTime.utc(2026),
+        )..setActiveRequestReporter(activeRequests.add);
+
+        for (var i = 0; i < 2; i++) {
+          final handling = service.handle(
+            KritaInpaintMessage(
+              id: 'retry-$i',
+              image: focused && i == 0 ? corruptPngPixelData(png) : png,
+              mask: focused && i == 1 ? corruptPngPixelData(mask) : mask,
+              prompt: '',
+              negativePrompt: '',
+              strength: 0.7,
+              noise: 0,
+              inpaintStrength: 1,
+              minimumContextPixels: 88,
+              maskClosingIterations: 0,
+              maskExpansionIterations: 0,
+              focusedInpaint: focused,
+              selectionRect: focused ? selection : null,
+            ),
+          );
+          if (!focused) {
+            // The response is synchronous, before the first await for binary mask conversion.
+            expect(sent, hasLength(i + 1));
+            expect(activeRequests, isEmpty);
+          }
+          await handling;
+          expect(sent.last['id'], 'retry-$i');
+          expect(sent.last['code'], KritaBridgeErrorCode.invalidRequest.value);
+          expect(
+            sent.last['message'],
+            focused ? contains('could not be read') : contains('1472x2112'),
+          );
+          expect(service.isBridgeGenerating, isFalse);
+        }
+        expect(transportCalls, 0);
+        expect(billingRefreshes, 0);
+      });
+    }
+
     test(
       'old 39/0 and new 255/0 plugin masks send the same request mask',
       () async {
@@ -1109,6 +1191,40 @@ void main() {
         final decoded = img.decodeImage(oldPlugin)!;
         expect(decoded.getPixel(128, 128).r.toInt(), 255);
         expect(decoded.getPixel(0, 0).r.toInt(), 0);
+      },
+    );
+
+    test(
+      'Krita checks the focused upload and rejects the same canvas for ordinary inpaint',
+      () async {
+        final mask = _maskPng(1664, 2432, [
+          for (var y = 992; y < 1024; y++)
+            for (var x = 400; x < 432; x++) (x, y),
+        ]);
+        final adapter = _RecordingGenerationAdapter();
+        final rejected = await _runKritaInpaint(mask, adapter: adapter);
+        expect(
+          rejected.single['code'],
+          KritaBridgeErrorCode.invalidRequest.value,
+        );
+        expect(adapter.requests, isEmpty);
+        await _runKritaInpaint(
+          mask,
+          adapter: adapter,
+          focusedSelection: const KritaSelectionRect(
+            x: 288,
+            y: 900,
+            width: 1104,
+            height: 592,
+          ),
+        );
+        final request = jsonDecode(
+          utf8.decode(_multipartPart(adapter.requests.single, 'request')),
+        );
+        expect(
+          (request['parameters']['width'], request['parameters']['height']),
+          (1280, 768),
+        );
       },
     );
 

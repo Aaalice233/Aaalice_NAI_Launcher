@@ -1,8 +1,11 @@
+import '../../../core/utils/focused_inpaint_input_exception.dart';
 import '../../../core/utils/inpaint_mask/empty_inpaint_mask_exception.dart';
 
 /// Rejected locally from the same inputs, so retrying only delays the error.
 bool isDeterministicGenerationError(Object? error) =>
-    EmptyInpaintMaskException.matches(error);
+    EmptyInpaintMaskException.matches(error) ||
+    error.toString().contains(FocusedInpaintInputException.invalidCropCode) ||
+    error.toString().contains(FocusedInpaintInputException.decodeFailedCode);
 
 /// Whether a generation error says the endpoint cannot serve streaming output.
 bool isStreamingGenerationUnsupportedError(Object? error) {

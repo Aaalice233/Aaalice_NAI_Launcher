@@ -11,9 +11,11 @@ import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/comfyui/comfyui_provider.dart';
 import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_workflow_controller.dart';
+import 'package:nai_launcher/presentation/providers/generation/generation_params_notifier.dart';
 import 'package:nai_launcher/presentation/providers/generation/novel_ai_upscale_task_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_panel.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/img2img_source_preview.dart';
+import 'package:nai_launcher/presentation/widgets/image_editor/image_editor_types.dart';
 
 import '../../../../helpers/ink_expectations.dart';
 import '../../../../helpers/light_theme_contrast.dart';
@@ -109,6 +111,49 @@ void main() {
         container.dispose();
       }
       await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets('绘制草图沿用编辑器明确选择的压缩尺寸', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updateSize(1024, 1024, persist: false);
+      container
+          .read(imageWorkflowControllerProvider.notifier)
+          .setPanelExpanded(true);
+      final navigator = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            navigatorKey: navigator,
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: const Scaffold(
+              body: SingleChildScrollView(child: Img2ImgPanel()),
+            ),
+          ),
+        ),
+      );
+      final button = find.byKey(const ValueKey('img2img-draw-source'));
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      expect(navigator.currentState!.canPop(), isTrue);
+      final bytes = img.encodePng(img.Image(width: 768, height: 768));
+      navigator.currentState!.pop(
+        ImageEditorResult(
+          modifiedImage: bytes,
+          outputWidth: 768,
+          outputHeight: 768,
+          compressionApplied: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final params = container.read(generationParamsNotifierProvider);
+      expect((params.width, params.height), (768, 768));
+      expect(params.sourceImage, same(bytes));
     });
 
     testWidgets('点击导演工具会导航到独立页面而不抛异常', (tester) async {
