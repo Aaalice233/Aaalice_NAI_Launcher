@@ -10434,6 +10434,10 @@ class AppLocalizationsZh extends AppLocalizations {
       'Pi 本体不带 MCP，需先安装 pi-mcp-adapter 包，再把以下内容合并进 ~/.pi/agent/mcp.json。';
 
   @override
+  String get settings_mcpServerAntigravityHint =>
+      '把以下内容合并进 Antigravity 的 ~/.gemini/config/mcp_config.json（全局）或 .agents/mcp_config.json（工作区）；timeoutSeconds 已留足应用内审批时间。';
+
+  @override
   String get settings_mcpServerClaudeDesktopHint =>
       '把以下内容合并进 Claude Desktop 配置；它通过随包 CLI 以 stdio 方式接入。';
 
@@ -26283,6 +26287,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get settings_mcpServerPiHint =>
       'Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。';
+
+  @override
+  String get settings_mcpServerAntigravityHint =>
+      '把以下內容合併進 Antigravity 的 ~/.gemini/config/mcp_config.json（全域）或 .agents/mcp_config.json（工作區）；timeoutSeconds 已留足應用內審批時間。';
 
   @override
   String get settings_mcpServerClaudeDesktopHint =>

@@ -18976,6 +18976,12 @@ abstract class AppLocalizations {
   /// **'Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.'**
   String get settings_mcpServerPiHint;
 
+  /// No description provided for @settings_mcpServerAntigravityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge this into Antigravity\'s ~/.gemini/config/mcp_config.json (global) or .agents/mcp_config.json (workspace); timeoutSeconds already covers the in-app approval wait.'**
+  String get settings_mcpServerAntigravityHint;
+
   /// No description provided for @settings_mcpServerClaudeDesktopHint.
   ///
   /// In en, this message translates to:

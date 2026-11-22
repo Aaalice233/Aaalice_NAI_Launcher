@@ -237,6 +237,7 @@ String _displayName(McpClientKind kind) {
     McpClientKind.cursor => 'Cursor',
     McpClientKind.cherryStudio => 'Cherry Studio',
     McpClientKind.pi => 'Pi',
+    McpClientKind.antigravity => 'Antigravity',
     McpClientKind.claudeDesktop => 'Claude Desktop',
   };
 }
@@ -249,6 +250,7 @@ String _instruction(BuildContext context, McpClientKind kind) {
     McpClientKind.cursor => l10n.settings_mcpServerCursorHint,
     McpClientKind.cherryStudio => l10n.settings_mcpServerCherryStudioHint,
     McpClientKind.pi => l10n.settings_mcpServerPiHint,
+    McpClientKind.antigravity => l10n.settings_mcpServerAntigravityHint,
     McpClientKind.claudeDesktop => l10n.settings_mcpServerClaudeDesktopHint,
   };
 }
