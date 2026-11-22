@@ -17,6 +17,7 @@ enum McpClientKind {
   cursor('cursor'),
   cherryStudio('cherry-studio'),
   pi('pi'),
+  antigravity('antigravity'),
   claudeDesktop('claude-desktop');
 
   const McpClientKind(this.cliName);
@@ -110,6 +111,16 @@ String renderMcpClientConfig(
             'auth': 'bearer',
             'bearerToken': token,
             'requestTimeoutMs': _clientCallTimeout.inMilliseconds,
+          },
+        },
+      });
+    case McpClientKind.antigravity:
+      return _prettyJson.convert({
+        'mcpServers': {
+          name: {
+            'serverUrl': endpoint.toString(),
+            'headers': {'Authorization': 'Bearer $token'},
+            'timeoutSeconds': _clientCallTimeout.inSeconds,
           },
         },
       });

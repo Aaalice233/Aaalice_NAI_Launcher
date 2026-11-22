@@ -113,6 +113,24 @@ void main() {
       );
     });
 
+    test('prints a Streamable HTTP snippet for antigravity', () async {
+      expect(
+        await run([
+          'print-config',
+          'antigravity',
+          '--endpoint',
+          'http://127.0.0.1:20624/mcp',
+          '--token',
+          'abc',
+        ]),
+        0,
+      );
+      final printed = await output.text();
+      expect(printed, contains('"serverUrl": "http://127.0.0.1:20624/mcp"'));
+      expect(printed, contains('"Authorization": "Bearer abc"'));
+      expect(printed, contains('"timeoutSeconds": 600'));
+    });
+
     test('falls back to the discovery file for endpoint and token', () async {
       await publishDiscovery();
 

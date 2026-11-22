@@ -10452,6 +10452,10 @@ class AppLocalizationsJa extends AppLocalizations {
       'Pi 本体に MCP はありません。先に pi-mcp-adapter パッケージをインストールし、次の内容を ~/.pi/agent/mcp.json に統合してください。';
 
   @override
+  String get settings_mcpServerAntigravityHint =>
+      '次の内容を Antigravity の ~/.gemini/config/mcp_config.json（グローバル）または .agents/mcp_config.json（ワークスペース）に統合してください。timeoutSeconds にはアプリ内の承認待ちに十分な余裕があります。';
+
+  @override
   String get settings_mcpServerClaudeDesktopHint =>
       '次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。';
 

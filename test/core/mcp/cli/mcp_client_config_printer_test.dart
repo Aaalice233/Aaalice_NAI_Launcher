@@ -27,6 +27,7 @@ void main() {
         'cursor',
         'cherry-studio',
         'pi',
+        'antigravity',
         'claude-desktop',
       ]);
       for (final kind in McpClientKind.values) {
@@ -131,6 +132,21 @@ void main() {
 }''');
     });
 
+    test('antigravity prints a Streamable HTTP mcp_config.json entry', () {
+      expect(render(McpClientKind.antigravity), '''
+{
+  "mcpServers": {
+    "nai-launcher": {
+      "serverUrl": "http://127.0.0.1:20624/mcp",
+      "headers": {
+        "Authorization": "Bearer tok_abcdef0123456789"
+      },
+      "timeoutSeconds": 600
+    }
+  }
+}''');
+    });
+
     Map<String, dynamic> serverEntry(McpClientKind kind) {
       final servers =
           (jsonDecode(render(kind)) as Map<String, dynamic>)['mcpServers']
@@ -148,6 +164,10 @@ void main() {
       expect(
         serverEntry(McpClientKind.pi)['requestTimeoutMs'] as int,
         greaterThan(approval.inMilliseconds),
+      );
+      expect(
+        serverEntry(McpClientKind.antigravity)['timeoutSeconds'] as int,
+        greaterThan(approval.inSeconds),
       );
     });
 

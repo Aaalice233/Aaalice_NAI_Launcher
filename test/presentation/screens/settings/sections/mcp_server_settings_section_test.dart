@@ -37,6 +37,10 @@ const _claudeCodePanel = ValueKey<String>(
   'mcp-server-client-config-claude-code',
 );
 const _copyClaudeCode = ValueKey<String>('mcp-server-copy-config-claude-code');
+const _antigravityPanel = ValueKey<String>(
+  'mcp-server-client-config-antigravity',
+);
+const _copyAntigravity = ValueKey<String>('mcp-server-copy-config-antigravity');
 const _agentPromptPanel = ValueKey<String>(
   'mcp-server-client-config-agent-prompt',
 );
@@ -514,6 +518,45 @@ void main() {
     expect(written, [
       renderMcpClientConfig(
         McpClientKind.claudeCode,
+        endpoint: _endpoint,
+        token: _fakeToken,
+        cliPath: cliPath,
+      ),
+    ]);
+    await settleToast(tester);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Antigravity 配置预览打码、无 CLI 警告且复制时写入真实令牌', (tester) async {
+    final written = mockClipboard(tester);
+    final notifier = await pumpSection(tester, initialState: listeningState());
+    final cliPath = resolveBundledMcpCliPath();
+    final masked = renderMcpClientConfig(
+      McpClientKind.antigravity,
+      endpoint: _endpoint,
+      token: '••••',
+      cliPath: cliPath,
+    );
+
+    expect(find.byKey(_antigravityPanel), findsOneWidget);
+    await tester.tap(find.text('Antigravity'));
+    await tester.pumpAndSettle();
+    expect(find.text(masked), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(_antigravityPanel),
+        matching: find.byKey(const ValueKey('mcp-server-cli-missing')),
+      ),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(_copyAntigravity));
+    await tester.pumpAndSettle();
+    expect(notifier.readTokenCount, 1);
+    expect(written, [
+      renderMcpClientConfig(
+        McpClientKind.antigravity,
         endpoint: _endpoint,
         token: _fakeToken,
         cliPath: cliPath,
