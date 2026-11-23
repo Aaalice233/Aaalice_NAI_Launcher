@@ -57,18 +57,22 @@ class _PendingMessageQueue {
     return index < 0 ? null : _entries.removeAt(index).message;
   }
 
-  List<AgentMessage> drain() {
+  List<AgentMessage> peek() {
     if (mode == QueueMode.all) {
-      final drained = [for (final entry in _entries) entry.message];
-      _entries.clear();
-      return drained;
+      return [for (final entry in _entries) entry.message];
     }
-
     if (_entries.isEmpty) {
       return const [];
     }
-    final first = _entries.removeAt(0);
-    return [first.message];
+    return [_entries.first.message];
+  }
+
+  List<AgentMessage> drain() {
+    final drained = peek();
+    if (drained.isNotEmpty) {
+      _entries.removeRange(0, drained.length);
+    }
+    return drained;
   }
 
   void clear() {
@@ -102,6 +106,8 @@ class AgentOptions {
     this.getApiKey,
     this.beforeToolCall,
     this.afterToolCall,
+    this.finishTurn,
+    this.prepareRequest,
     this.shouldStopAfterTurn,
     this.prepareNextTurn,
     this.prepareNextTurnWithContext,
@@ -135,6 +141,16 @@ class AgentOptions {
     AbortSignal? signal,
   )?
   afterToolCall;
+  final Future<AgentTurnDecision?> Function(
+    FinishTurnContext context,
+    AbortSignal? signal,
+  )?
+  finishTurn;
+  final Future<AgentRequestUpdate?> Function(
+    PrepareRequestContext context,
+    AbortSignal? signal,
+  )?
+  prepareRequest;
   final Future<bool> Function(
     ShouldStopAfterTurnContext context,
     AbortSignal? signal,
@@ -172,6 +188,8 @@ class Agent {
     getApiKey = options.getApiKey;
     beforeToolCall = options.beforeToolCall;
     afterToolCall = options.afterToolCall;
+    finishTurn = options.finishTurn;
+    prepareRequest = options.prepareRequest;
     _shouldStopAfterTurnOption = options.shouldStopAfterTurn;
     _prepareNextTurnOption = options.prepareNextTurn;
     prepareNextTurnWithContext = options.prepareNextTurnWithContext;
@@ -212,6 +230,16 @@ class Agent {
     AbortSignal? signal,
   )?
   afterToolCall;
+  late final Future<AgentTurnDecision?> Function(
+    FinishTurnContext context,
+    AbortSignal? signal,
+  )?
+  finishTurn;
+  late final Future<AgentRequestUpdate?> Function(
+    PrepareRequestContext context,
+    AbortSignal? signal,
+  )?
+  prepareRequest;
   late final Future<bool> Function(
     ShouldStopAfterTurnContext context,
     AbortSignal? signal,
@@ -287,6 +315,12 @@ class Agent {
 
   bool hasQueuedMessages() =>
       _steeringQueue.hasItems() || _followUpQueue.hasItems();
+
+  /// 预览下一轮将被选中的排队消息而不消费队列（对齐 pi-agent-core 1.6.0）。
+  List<AgentMessage> peekQueuedMessages() {
+    final steering = _steeringQueue.peek();
+    return steering.isNotEmpty ? steering : _followUpQueue.peek();
+  }
 
   int get queuedMessageCount => _steeringQueue.length + _followUpQueue.length;
 
@@ -456,6 +490,8 @@ class Agent {
       convertToLlm: convertToLlm,
       transformContext: transformContext,
       getApiKey: getApiKey,
+      finishTurn: finishTurn,
+      prepareRequest: prepareRequest,
       shouldStopAfterTurn: _shouldStopAfterTurnOption == null
           ? null
           : (context) async {
@@ -518,6 +554,8 @@ class Agent {
       content: const [AssistantTextContent('')],
       stopReason: aborted ? StopReason.aborted : StopReason.error,
       errorMessage: error.toString(),
+      provider: _state.model.provider,
+      model: _state.model.id,
       timestamp: DateTime.now().millisecondsSinceEpoch,
     );
     await _processEvents(AgentEventMessageStart(message: failureMessage));

@@ -100,8 +100,21 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
             if (message is Map<String, dynamic>) {
               final usageRaw = message['usage'];
               if (usageRaw is Map<String, dynamic>) {
+                final input = (usageRaw['input_tokens'] as num?)?.toInt() ?? 0;
+                final output =
+                    (usageRaw['output_tokens'] as num?)?.toInt() ?? 0;
+                final cacheRead =
+                    (usageRaw['cache_read_input_tokens'] as num?)?.toInt() ?? 0;
+                final cacheWrite =
+                    (usageRaw['cache_creation_input_tokens'] as num?)
+                        ?.toInt() ??
+                    0;
                 usage = Usage(
-                  input: (usageRaw['input_tokens'] as num?)?.toInt() ?? 0,
+                  input: input,
+                  output: output,
+                  cacheRead: cacheRead,
+                  cacheWrite: cacheWrite,
+                  totalTokens: input + output + cacheRead + cacheWrite,
                 );
               }
             }
@@ -165,17 +178,41 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
                 stopReason = switch (reason) {
                   'tool_use' => StopReason.toolUse,
                   'max_tokens' => StopReason.length,
+                  'refusal' || 'sensitive' => StopReason.error,
                   _ => StopReason.stop,
                 };
+                if (stopReason == StopReason.error) {
+                  sawError = true;
+                  pending.add(
+                    AgentWireError('Provider stopped with: $reason'),
+                  );
+                }
               }
             }
             final usageRaw = json['usage'];
             if (usageRaw is Map<String, dynamic>) {
-              final output = (usageRaw['output_tokens'] as num?)?.toInt() ?? 0;
+              final input =
+                  (usageRaw['input_tokens'] as num?)?.toInt() ??
+                  usage?.input ??
+                  0;
+              final output =
+                  (usageRaw['output_tokens'] as num?)?.toInt() ??
+                  usage?.output ??
+                  0;
+              final cacheRead =
+                  (usageRaw['cache_read_input_tokens'] as num?)?.toInt() ??
+                  usage?.cacheRead ??
+                  0;
+              final cacheWrite =
+                  (usageRaw['cache_creation_input_tokens'] as num?)?.toInt() ??
+                  usage?.cacheWrite ??
+                  0;
               usage = Usage(
-                input: usage?.input ?? 0,
+                input: input,
                 output: output,
-                totalTokens: (usage?.input ?? 0) + output,
+                cacheRead: cacheRead,
+                cacheWrite: cacheWrite,
+                totalTokens: input + output + cacheRead + cacheWrite,
               );
             }
           case 'message_stop':
@@ -255,7 +292,8 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
       }
     }
 
-    for (final message in request.messages) {
+    for (var i = 0; i < request.messages.length; i++) {
+      final message = request.messages[i];
       if (message is UserMessage) {
         final images = inlineImagesOf(message);
         if (images.isEmpty) {
@@ -276,8 +314,14 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
           }
         }
       } else if (message is AssistantMessage) {
+        final isDifferentModel =
+            (message.provider != null || message.model != null) &&
+            (message.provider != request.provider.id ||
+                message.model != request.model);
         for (final block in message.content) {
           switch (block) {
+            case AssistantThinkingContent() when isDifferentModel:
+              break;
             case AssistantThinkingContent()
                 when block.signature?.isNotEmpty == true:
               appendTurn('assistant', {
@@ -309,33 +353,57 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
           }
         }
       } else if (message is ToolResultMessage) {
-        final images = toolResultImagesOf(message);
-        appendTurn('user', {
-          'type': 'tool_result',
-          'tool_use_id': message.toolCallId,
-          'content': images.isEmpty
-              ? message.text
-              : [
-                  if (message.text.trim().isNotEmpty)
-                    {'type': 'text', 'text': message.text},
-                  for (final image in images)
-                    if (image.source.base64Data case final data?)
-                      {
-                        'type': 'image',
-                        'source': {
-                          'type': 'base64',
-                          'media_type': image.source.mimeType,
-                          'data': data,
-                        },
-                      }
-                    else if (image.source.url case final url?)
-                      {
-                        'type': 'image',
-                        'source': {'type': 'url', 'url': url},
-                      },
-                ],
-          'is_error': message.isError,
-        });
+        // Anthropic rejects images inside is_error tool_result blocks (#10794).
+        // Collect consecutive tool_results first, then append any split error
+        // images to the same user turn after all tool_result blocks.
+        final errorImageBlocks = <Map<String, dynamic>>[];
+        var j = i;
+        while (j < request.messages.length &&
+            request.messages[j] is ToolResultMessage) {
+          final toolMsg = request.messages[j] as ToolResultMessage;
+          final images = toolResultImagesOf(toolMsg);
+          if (toolMsg.isError && images.isNotEmpty) {
+            final sanitizedContent = _replaceErrorToolImagesWithPlaceholder(
+              toolMsg.content,
+            );
+            appendTurn('user', {
+              'type': 'tool_result',
+              'tool_use_id': toolMsg.toolCallId,
+              'content': sanitizedContent,
+              'is_error': true,
+            });
+            errorImageBlocks.add({
+              'type': 'text',
+              'text':
+                  'Images from the error result of tool call '
+                  '${toolMsg.toolCallId} (${toolMsg.toolName}):',
+            });
+            for (final image in images) {
+              final encoded = _encodeAnthropicImage(image);
+              if (encoded != null) errorImageBlocks.add(encoded);
+            }
+          } else {
+            appendTurn('user', {
+              'type': 'tool_result',
+              'tool_use_id': toolMsg.toolCallId,
+              'content': images.isEmpty
+                  ? toolMsg.text
+                  : [
+                      if (toolMsg.text.trim().isNotEmpty)
+                        {'type': 'text', 'text': toolMsg.text},
+                      for (final image in images)
+                        if (_encodeAnthropicImage(image) case final encoded?)
+                          encoded,
+                    ],
+              'is_error': toolMsg.isError,
+            });
+          }
+          j++;
+        }
+        for (final block in errorImageBlocks) {
+          appendTurn('user', block);
+        }
+        i = j - 1;
       }
     }
 
@@ -421,6 +489,50 @@ class AnthropicMessagesAdapter extends PromptAssistantProviderAdapter {
       }
     }
     return contentToText(raw);
+  }
+
+  static const _errorToolImagePlaceholder =
+      '(image attached after the tool results)';
+
+  static List<Map<String, dynamic>> _replaceErrorToolImagesWithPlaceholder(
+    List<ToolResultContent> content,
+  ) {
+    final result = <Map<String, dynamic>>[];
+    var previousWasPlaceholder = false;
+    for (final block in content) {
+      if (block is ToolResultImageContent) {
+        if (!previousWasPlaceholder) {
+          result.add({'type': 'text', 'text': _errorToolImagePlaceholder});
+        }
+        previousWasPlaceholder = true;
+      } else if (block is ToolResultTextContent) {
+        if (block.text.trim().isNotEmpty) {
+          result.add({'type': 'text', 'text': block.text});
+          previousWasPlaceholder = block.text == _errorToolImagePlaceholder;
+        }
+      }
+    }
+    return result;
+  }
+
+  static Map<String, dynamic>? _encodeAnthropicImage(ImageContent image) {
+    if (image.source.base64Data case final data?) {
+      return {
+        'type': 'image',
+        'source': {
+          'type': 'base64',
+          'media_type': image.source.mimeType,
+          'data': data,
+        },
+      };
+    }
+    if (image.source.url case final url?) {
+      return {
+        'type': 'image',
+        'source': {'type': 'url', 'url': url},
+      };
+    }
+    return null;
   }
 }
 

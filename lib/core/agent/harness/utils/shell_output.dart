@@ -104,6 +104,7 @@ executeShellWithCapture(
   ShellCaptureOptions? options,
 ]) async {
   var tailOutput = '';
+  var tailStartsAtLineBoundary = true;
   const maxOutputBytes = defaultMaxBytes * 2;
 
   var totalBytes = 0;
@@ -166,8 +167,19 @@ executeShellWithCapture(
     });
   }
 
+  String getSnapshotText() {
+    if (tailStartsAtLineBoundary) {
+      return tailOutput;
+    }
+    final firstNewline = tailOutput.indexOf('\n');
+    return firstNewline == -1 ? tailOutput : tailOutput.substring(firstNewline + 1);
+  }
+
   ShellCaptureProgress createProgress() {
-    final tailTruncation = truncateTail(tailOutput);
+    // 裁剪首条不完整行时，若整个滚动尾部都是单条超长行的末尾，保留 tailOutput 本身 (#12092)。
+    final clipped = getSnapshotText();
+    final snapshotText = clipped.isNotEmpty ? clipped : tailOutput;
+    final tailTruncation = truncateTail(snapshotText);
     final totalLines = completedLines + (hasOpenLine ? 1 : 0);
     final truncated = totalLines > defaultMaxLines || totalBytes > defaultMaxBytes;
     final truncation = TruncationResult(
@@ -224,7 +236,13 @@ executeShellWithCapture(
       } else if (fullOutputRequested) {
         appendFullOutput(text);
       }
-      tailOutput = _trimToLastUtf8Bytes(tailOutput, maxOutputBytes);
+      final trimmed = _trimToLastUtf8Bytes(
+        tailOutput,
+        maxOutputBytes,
+        tailStartsAtLineBoundary,
+      );
+      tailOutput = trimmed.text;
+      tailStartsAtLineBoundary = trimmed.startsAtLineBoundary;
       options?.onChunk?.call(text, createProgress);
     } catch (error) {
       captureError = _toExecutionError(error);
@@ -310,14 +328,24 @@ executeShellWithCapture(
   }
 }
 
-String _trimToLastUtf8Bytes(String text, int maxBytes) {
+({String text, bool startsAtLineBoundary}) _trimToLastUtf8Bytes(
+  String text,
+  int maxBytes,
+  bool currentStartsAtLineBoundary,
+) {
   final bytes = utf8.encode(text);
   if (bytes.length <= maxBytes) {
-    return text;
+    return (text: text, startsAtLineBoundary: currentStartsAtLineBoundary);
   }
   var start = bytes.length - maxBytes;
   while (start < bytes.length && (bytes[start] & 0xc0) == 0x80) {
     start++;
   }
-  return utf8DecodeAllowMalformed(bytes.sublist(start));
+  final startsAtLineBoundary = start == 0
+      ? currentStartsAtLineBoundary
+      : bytes[start - 1] == 0x0a;
+  return (
+    text: utf8DecodeAllowMalformed(bytes.sublist(start)),
+    startsAtLineBoundary: startsAtLineBoundary,
+  );
 }

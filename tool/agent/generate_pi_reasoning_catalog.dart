@@ -21,6 +21,7 @@ const _providers = <String>[
   'qwen-token-plan',
   'qwen-token-plan-cn',
   'qwen-token-plan-individual',
+  'qwen-token-plan-individual-cn',
 ];
 const _levels = <String>[
   'off',
@@ -336,6 +337,7 @@ String? _disabledEffort(
 bool _usesGoogleThinkingLevel(String modelId) {
   final id = modelId.toLowerCase();
   return RegExp(r'gemini-3(?:\.\d+)?-(?:pro|flash)').hasMatch(id) ||
+      RegExp(r'gemini-(?:[4-9]|[1-9]\d)').hasMatch(id) ||
       id == 'gemini-flash-latest' ||
       id == 'gemini-flash-lite-latest' ||
       RegExp(r'gemma-?4').hasMatch(id);

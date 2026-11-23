@@ -29,6 +29,64 @@ String restoreLineEndings(String text, LineEnding ending) {
   return ending == LineEnding.crlf ? text.replaceAll('\n', '\r\n') : text;
 }
 
+/// 将在 `normalizeToLF(originalContent)` 空间内匹配到的替换应用回 [originalContent] 本身。
+///
+/// 未被替换区间覆盖的文本（包括其原有行尾 CRLF/LF/CR）逐字节保留；新文本内的换行
+/// 沿用替换起始所在行的行尾风格（对齐 Pi 1.6.0 `applyReplacementsToOriginal`，#11751）。
+String applyReplacementsToOriginal(
+  String originalContent,
+  List<TextReplacement> replacements,
+) {
+  var crlfBefore = 0;
+  var nextCrlf = originalContent.indexOf('\r\n');
+  int toOriginal(int offset) {
+    while (nextCrlf != -1 && nextCrlf - crlfBefore < offset) {
+      crlfBefore++;
+      nextCrlf = originalContent.indexOf('\r\n', nextCrlf + 2);
+    }
+    return offset + crlfBefore;
+  }
+
+  final parts = <String>[];
+  var endsWithCr = false;
+  void push(String part) {
+    if (part.isEmpty) {
+      return;
+    }
+    if (endsWithCr && part.codeUnitAt(0) == 0x0a) {
+      parts.add('\n');
+    }
+    parts.add(part);
+    endsWithCr = part.codeUnitAt(part.length - 1) == 0x0d;
+  }
+
+  var position = 0;
+  for (final replacement in replacements) {
+    final start = toOriginal(replacement.matchIndex);
+    push(originalContent.substring(position, start));
+    final ending = _getLineEndingAt(originalContent, start);
+    push(
+      ending == '\n'
+          ? replacement.newText
+          : replacement.newText.replaceAll('\n', ending),
+    );
+    position = toOriginal(replacement.matchIndex + replacement.matchLength);
+  }
+  push(originalContent.substring(position));
+  return parts.join('');
+}
+
+String _getLineEndingAt(String content, int offset) {
+  var lineFeed = content.indexOf('\n', offset);
+  if (lineFeed == -1) {
+    lineFeed = content.lastIndexOf('\n', offset);
+  }
+  if (lineFeed == -1) {
+    return content.contains('\r') ? '\r' : '\n';
+  }
+  return lineFeed > 0 && content.codeUnitAt(lineFeed - 1) == 0x0d ? '\r\n' : '\n';
+}
+
 /// 模糊匹配归一化（逐级变换）：
 /// - 去每行行尾空白；
 /// - 智能引号 → ASCII 引号；
@@ -75,8 +133,9 @@ class _LineSpan {
   final int end;
 }
 
-class _TextReplacement {
-  const _TextReplacement({
+/// LF 归一化内容空间内的单次替换区间。
+class TextReplacement {
+  const TextReplacement({
     required this.matchIndex,
     required this.matchLength,
     required this.newText,
@@ -87,7 +146,7 @@ class _TextReplacement {
   final String newText;
 }
 
-class _MatchedEdit implements _TextReplacement {
+class _MatchedEdit implements TextReplacement {
   const _MatchedEdit({
     required this.editIndex,
     required this.matchIndex,
@@ -118,7 +177,7 @@ List<_LineSpan> _getLineSpans(String content) {
 
 ({int startLine, int endLine}) _getReplacementLineRange(
   List<_LineSpan> lines,
-  _TextReplacement replacement,
+  TextReplacement replacement,
 ) {
   final replacementStart = replacement.matchIndex;
   final replacementEnd = replacement.matchIndex + replacement.matchLength;
@@ -148,7 +207,7 @@ List<_LineSpan> _getLineSpans(String content) {
 
 String _applyReplacements(
   String content,
-  List<_TextReplacement> replacements, [
+  List<TextReplacement> replacements, [
   int offset = 0,
 ]) {
   var result = content;
@@ -163,18 +222,14 @@ String _applyReplacements(
   return result;
 }
 
-/// 把对 [baseContent] 匹配的替换应用到 [originalContent]，同时保留未变更
-/// 行块的原始字节。
-///
-/// 适用场景：baseContent 是 original 的归一化视图。每个替换会扩展到其
-/// 实际触碰的行；被触碰的行用归一化后的 base 重写，其余行原样复制回
-/// original。以实际替换范围驱动保留策略，避免重复的归一化行错位对齐。
-String _applyReplacementsPreservingUnchangedLines(
+/// 把对 [baseContent] 匹配的替换扩展为 [originalContent] 空间的行级替换，
+/// 保证未变更行块原样保留（对齐 Pi 1.6.0 `widenReplacementsToLines`）。
+List<TextReplacement> _widenReplacementsToLines(
   String originalContent,
   String baseContent,
-  List<_TextReplacement> replacements,
+  List<TextReplacement> replacements,
 ) {
-  final originalLines = _splitLinesWithEndings(originalContent);
+  final originalLines = _getLineSpans(originalContent);
   final baseLines = _getLineSpans(baseContent);
   if (originalLines.length != baseLines.length) {
     throw StateError(
@@ -183,9 +238,8 @@ String _applyReplacementsPreservingUnchangedLines(
     );
   }
 
-  // 按源顺序分组相邻/重叠的替换，组间行块从 original 复制。
   final groups =
-      <({int startLine, int endLine, List<_TextReplacement> replacements})>[];
+      <({int startLine, int endLine, List<TextReplacement> replacements})>[];
   final sortedReplacements = List.of(replacements)
     ..sort((a, b) => a.matchIndex.compareTo(b.matchIndex));
   for (final replacement in sortedReplacements) {
@@ -207,24 +261,23 @@ String _applyReplacementsPreservingUnchangedLines(
     ));
   }
 
-  var originalLineIndex = 0;
-  var result = '';
-  for (final group in groups) {
-    result +=
-        originalLines.sublist(originalLineIndex, group.startLine).join('');
-
-    final groupStartOffset = baseLines[group.startLine].start;
-    final groupEndOffset = baseLines[group.endLine - 1].end;
-    result += _applyReplacements(
-      baseContent.substring(groupStartOffset, groupEndOffset),
-      group.replacements,
-      groupStartOffset,
-    );
-    originalLineIndex = group.endLine;
-  }
-  result += originalLines.sublist(originalLineIndex).join('');
-
-  return result;
+  return [
+    for (final group in groups)
+      TextReplacement(
+        matchIndex: originalLines[group.startLine].start,
+        matchLength:
+            originalLines[group.endLine - 1].end -
+            originalLines[group.startLine].start,
+        newText: _applyReplacements(
+          baseContent.substring(
+            baseLines[group.startLine].start,
+            baseLines[group.endLine - 1].end,
+          ),
+          group.replacements,
+          baseLines[group.startLine].start,
+        ),
+      ),
+  ];
 }
 
 /// 单次文本查找的结果。
@@ -264,10 +317,12 @@ class AppliedEditsResult {
   const AppliedEditsResult({
     required this.baseContent,
     required this.newContent,
+    required this.replacements,
   });
 
   final String baseContent;
   final String newContent;
+  final List<TextReplacement> replacements;
 }
 
 /// 先精确匹配、后模糊匹配查找 oldText。
@@ -447,19 +502,24 @@ AppliedEditsResult applyEditsToNormalizedContent(
   }
 
   final baseContent = normalizedContent;
-  final newContent = usedFuzzyMatch
-      ? _applyReplacementsPreservingUnchangedLines(
+  final List<TextReplacement> replacements = usedFuzzyMatch
+      ? _widenReplacementsToLines(
           normalizedContent,
           replacementBaseContent,
           matchedEdits,
         )
-      : _applyReplacements(replacementBaseContent, matchedEdits);
+      : matchedEdits;
+  final newContent = _applyReplacements(baseContent, replacements);
 
   if (baseContent == newContent) {
     throw _getNoChangeError(path, normalizedEdits.length);
   }
 
-  return AppliedEditsResult(baseContent: baseContent, newContent: newContent);
+  return AppliedEditsResult(
+    baseContent: baseContent,
+    newContent: newContent,
+    replacements: replacements,
+  );
 }
 
 // ---------------------------------------------------------------------------

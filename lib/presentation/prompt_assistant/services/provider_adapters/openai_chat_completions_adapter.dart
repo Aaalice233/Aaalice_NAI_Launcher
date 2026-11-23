@@ -151,13 +151,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
         }
         final usageRaw = json['usage'];
         if (usageRaw is Map<String, dynamic>) {
-          final input = (usageRaw['prompt_tokens'] as num?)?.toInt() ?? 0;
-          final output = (usageRaw['completion_tokens'] as num?)?.toInt() ?? 0;
-          usage = Usage(
-            input: input,
-            output: output,
-            totalTokens: (usageRaw['total_tokens'] as num?)?.toInt() ?? 0,
-          );
+          usage = _parseOpenAiUsage(usageRaw);
         }
         final choices = json['choices'];
         if (choices is List && choices.isNotEmpty) {
@@ -165,6 +159,14 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
           if (first is Map<String, dynamic>) {
             final delta = first['delta'];
             if (delta is Map<String, dynamic>) {
+              final reasoning = _firstNonEmptyString([
+                delta['reasoning_content'],
+                delta['reasoning'],
+                delta['reasoning_text'],
+              ]);
+              if (reasoning != null) {
+                pending.add(AgentWireThinkingDelta(reasoning));
+              }
               final content = delta['content'];
               if (content is String && content.isNotEmpty) {
                 pending.add(AgentWireTextDelta(content));
@@ -181,11 +183,6 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
                     }
                   }
                 }
-              }
-              final reasoning =
-                  delta['reasoning_content'] ?? delta['reasoning'];
-              if (reasoning is String && reasoning.isNotEmpty) {
-                pending.add(AgentWireThinkingDelta(reasoning));
               }
               final calls = delta['tool_calls'];
               if (calls is List) {
@@ -343,11 +340,7 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
             final usageRaw = raw['usage'];
             Usage? usage;
             if (usageRaw is Map<String, dynamic>) {
-              usage = Usage(
-                input: (usageRaw['prompt_tokens'] as num?)?.toInt() ?? 0,
-                output: (usageRaw['completion_tokens'] as num?)?.toInt() ?? 0,
-                totalTokens: (usageRaw['total_tokens'] as num?)?.toInt() ?? 0,
-              );
+              usage = _parseOpenAiUsage(usageRaw);
             }
             yield AgentWireFinish(
               stopReason: stopReasonFromName(first['finish_reason'] as String?),
@@ -411,18 +404,23 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
   }
 
   List<Map<String, dynamic>> _buildAgentMessages(AgentChatRequest request) {
+    final requiresReasoningContent =
+        request.reasoningRequest?.preserveReasoningContent == true;
     return [
       if (request.systemPrompt.trim().isNotEmpty)
         {'role': 'system', 'content': request.systemPrompt.trim()},
       for (final message in request.messages)
         ..._mapAgentMessage(
           message,
+          requestProviderId: request.provider.id,
+          requestModel: request.model,
           allowImageInput: request.provider.allowImageInput,
           preserveReasoning:
-              request.reasoningRequest?.preserveReasoningContent == true ||
+              requiresReasoningContent ||
               (request.reasoningRequest == null &&
                   request.provider.preset == ProviderPreset.deepseek &&
                   request.reasoning != null),
+          requiresReasoningContent: requiresReasoningContent,
           useMistralContent:
               request.reasoningRequest?.api ==
                   AgentReasoningApi.mistralPromptMode ||
@@ -433,8 +431,11 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
 
   List<Map<String, dynamic>> _mapAgentMessage(
     Message message, {
+    required String requestProviderId,
+    required String requestModel,
     required bool allowImageInput,
     required bool preserveReasoning,
+    required bool requiresReasoningContent,
     required bool useMistralContent,
   }) {
     if (message is UserMessage) {
@@ -464,10 +465,16 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       ];
     }
     if (message is AssistantMessage) {
-      final reasoning = message.content
-          .whereType<AssistantThinkingContent>()
-          .map((content) => content.thinking)
-          .join();
+      final isDifferentModel =
+          (message.provider != null || message.model != null) &&
+          (message.provider != requestProviderId ||
+              message.model != requestModel);
+      final reasoning = isDifferentModel
+          ? ''
+          : message.content
+                .whereType<AssistantThinkingContent>()
+                .map((content) => content.thinking)
+                .join();
       return [
         {
           'role': 'assistant',
@@ -479,19 +486,23 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
                     'type': 'text',
                     'text': block.text,
                   },
-                  AssistantThinkingContent() when block.thinking.isNotEmpty => {
-                    'type': 'thinking',
-                    'thinking': [
-                      {'type': 'text', 'text': block.thinking},
-                    ],
-                  },
+                  AssistantThinkingContent()
+                      when !isDifferentModel && block.thinking.isNotEmpty =>
+                    {
+                      'type': 'thinking',
+                      'thinking': [
+                        {'type': 'text', 'text': block.thinking},
+                      ],
+                    },
                   _ => null,
                 },
             ].whereType<Map<String, dynamic>>().toList()
           else if (message.text.isNotEmpty)
             'content': message.text,
           if (!useMistralContent && preserveReasoning && reasoning.isNotEmpty)
-            'reasoning_content': reasoning,
+            'reasoning_content': reasoning
+          else if (!useMistralContent && requiresReasoningContent)
+            'reasoning_content': '',
           if (message.toolCalls.isNotEmpty)
             'tool_calls': [
               for (final call in message.toolCalls)
@@ -509,11 +520,15 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
     }
     if (message is ToolResultMessage) {
       final images = allowImageInput ? toolResultImagesOf(message) : const [];
+      final hasText = message.text.trim().isNotEmpty;
+      final toolResultText = hasText
+          ? message.text
+          : (images.isNotEmpty ? '(see attached image)' : '(no tool output)');
       return [
         {
           'role': 'tool',
           'tool_call_id': message.toolCallId,
-          'content': message.text,
+          'content': toolResultText,
         },
         if (images.isNotEmpty)
           {
@@ -534,6 +549,48 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
       ];
     }
     return const [];
+  }
+
+  static String? _firstNonEmptyString(List<dynamic> candidates) {
+    for (final candidate in candidates) {
+      if (candidate is String && candidate.isNotEmpty) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  static Usage _parseOpenAiUsage(Map<String, dynamic> usageRaw) {
+    final promptTokens = (usageRaw['prompt_tokens'] as num?)?.toInt() ?? 0;
+    final promptDetails = usageRaw['prompt_tokens_details'];
+    final cacheRead =
+        ((promptDetails is Map<String, dynamic>
+                    ? promptDetails['cached_tokens']
+                    : null)
+                as num?)
+            ?.toInt() ??
+        (usageRaw['prompt_cache_hit_tokens'] as num?)?.toInt() ??
+        (usageRaw['cached_tokens'] as num?)?.toInt() ??
+        0;
+    final cacheWrite =
+        ((promptDetails is Map<String, dynamic>
+                    ? promptDetails['cache_write_tokens']
+                    : null)
+                as num?)
+            ?.toInt() ??
+        0;
+    final rawInput = promptTokens - cacheRead - cacheWrite;
+    final input = rawInput < 0 ? 0 : rawInput;
+    final output = (usageRaw['completion_tokens'] as num?)?.toInt() ?? 0;
+    final computedTotal = input + output + cacheRead + cacheWrite;
+    final reportedTotal = (usageRaw['total_tokens'] as num?)?.toInt() ?? 0;
+    return Usage(
+      input: input,
+      output: output,
+      cacheRead: cacheRead,
+      cacheWrite: cacheWrite,
+      totalTokens: computedTotal > 0 ? computedTotal : reportedTotal,
+    );
   }
 
   static String _mistralThinkingText(dynamic value) {
@@ -718,6 +775,9 @@ class OpenAiChatCompletionsAdapter extends PromptAssistantProviderAdapter {
         baseUrl.contains('api.mistral.ai') ||
         id == 'deepseek' ||
         baseUrl.contains('deepseek.com') ||
+        provider.preset == ProviderPreset.kimiCoding ||
+        id == 'kimi-coding' ||
+        baseUrl.contains('api.kimi.com/coding') ||
         id == 'moonshotai' ||
         id == 'moonshotai-cn' ||
         baseUrl.contains('api.moonshot.') ||

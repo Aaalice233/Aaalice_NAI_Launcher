@@ -1,15 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/context_usage.dart';
 import 'package:nai_launcher/core/agent/harness/compaction/compaction.dart';
+import 'package:nai_launcher/core/agent/harness/compaction/compaction_utils.dart';
 import 'package:nai_launcher/core/agent/harness/harness_messages.dart';
-import 'package:nai_launcher/core/agent/harness/harness_result.dart';
+import 'package:nai_launcher/core/agent/harness/harness_types.dart';
 import 'package:nai_launcher/core/agent/harness/session/session.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_context.dart';
 import 'package:nai_launcher/core/agent/harness/session/session_jsonl.dart';
+import 'package:nai_launcher/core/agent/harness/tools/edit_diff.dart';
+import 'package:nai_launcher/core/agent/harness/tools/image.dart';
+import 'package:nai_launcher/core/agent/harness/utils/truncate.dart';
 
 const _model = Model(
   id: 'm',
@@ -717,6 +722,179 @@ void main() {
 
       final listed = await repo.listWithFileInfo();
       expect([for (final item in listed) item.metadata.id], [validId]);
+    });
+  });
+
+  group('Pi 1.6 harness alignment', () {
+    test('sliceHead, sliceTail, and truncateLine do not split surrogate pairs', () {
+      const emoji = '\u{1F600}'; // 2 UTF-16 code units
+      const sample = 'ab${emoji}cd';
+      expect(sliceHead(sample, 3), 'ab');
+      expect(sliceHead(sample, 4), 'ab$emoji');
+      expect(sliceTail(sample, 3), 'cd');
+      expect(sliceTail(sample, 4), '${emoji}cd');
+      expect(truncateLine(sample, 3).text, 'ab... [truncated]');
+    });
+
+    test('serializeConversation omits thinking blocks and keeps surrogate integrity', () {
+      const emoji = '\u{1F600}';
+      final oversizedTool = '${'a' * (toolResultMaxChars - 1)}${emoji}tail';
+      final serialized = serializeConversation([
+        UserMessage.text('question'),
+        AssistantMessage(
+          content: const [
+            AssistantThinkingContent('private reasoning'),
+            AssistantTextContent('visible answer'),
+          ],
+          stopReason: StopReason.stop,
+        ),
+        ToolResultMessage(
+          toolCallId: 'c1',
+          toolName: 'read',
+          content: [ToolResultTextContent(oversizedTool)],
+        ),
+      ]);
+
+      expect(serialized, isNot(contains('private reasoning')));
+      expect(serialized, contains('[Assistant]: visible answer'));
+      // Verify no lone high surrogate was emitted at truncation boundary.
+      final units = serialized.codeUnits;
+      for (var i = 0; i < units.length; i++) {
+        final isHigh = units[i] >= 0xD800 && units[i] <= 0xDBFF;
+        if (isHigh) {
+          expect(i + 1 < units.length, isTrue);
+          expect(units[i + 1] >= 0xDC00 && units[i + 1] <= 0xDFFF, isTrue);
+        }
+      }
+    });
+
+    test('findCutPoint keeps preceding assistant tool call when trailing tool result exceeds budget', () {
+      final entries = <SessionEntry>[
+        MessageEntry(id: 'u1', message: UserMessage.text('old question')),
+        MessageEntry(id: 'a1', message: _assistant('old answer')),
+        MessageEntry(id: 'u2', message: UserMessage.text('second question')),
+        MessageEntry(
+          id: 'a2',
+          message: AssistantMessage(
+            content: const [
+              ToolCallContent(id: 'tc1', name: 'read', arguments: {}),
+            ],
+            stopReason: StopReason.toolUse,
+          ),
+        ),
+        MessageEntry(
+          id: 't2',
+          message: ToolResultMessage(
+            toolCallId: 'tc1',
+            toolName: 'read',
+            content: [ToolResultTextContent('x' * 4000)],
+          ),
+        ),
+      ];
+
+      final cut = findCutPoint(entries, 0, entries.length, 200);
+      expect(cut.firstKeptEntryIndex, 3);
+      expect(cut.isSplitTurn, isTrue);
+      expect(cut.turnStartIndex, 2);
+    });
+
+    test('compact rejects length-truncated summaries and tool calls, and omits fixed maxTokens cap', () async {
+      final entries = <SessionEntry>[
+        for (var i = 0; i < 6; i++) ...[
+          MessageEntry(id: 'u$i', message: UserMessage.text('msg ${'a' * 200} $i')),
+          MessageEntry(id: 'a$i', message: _assistant('reply $i')),
+        ],
+      ];
+      final prep = prepareCompaction(
+        entries,
+        const CompactionSettings(
+          enabled: true,
+          reserveTokens: 100,
+          keepRecentTokens: 100,
+        ),
+      ).valueOrNull!;
+
+      SimpleStreamOptions? receivedOptions;
+      final lengthResult = await compact(
+        prep,
+        (model, context, [options]) async {
+          receivedOptions = options;
+          return AssistantMessage(
+            content: const [AssistantTextContent('truncated summary')],
+            stopReason: StopReason.length,
+          );
+        },
+        _model,
+      );
+      expect(receivedOptions?.maxTokens, isNull);
+      expect(lengthResult.errorOrNull?.code, CompactionErrorCode.summarizationFailed);
+      expect(lengthResult.errorOrNull?.message, contains('incomplete'));
+
+      final toolCallResult = await compact(
+        prep,
+        (model, context, [options]) async => AssistantMessage(
+          content: const [
+            ToolCallContent(id: 't1', name: 'read', arguments: {}),
+          ],
+          stopReason: StopReason.toolUse,
+        ),
+        _model,
+      );
+      expect(toolCallResult.errorOrNull?.code, CompactionErrorCode.summarizationFailed);
+      expect(toolCallResult.errorOrNull?.message, contains('attempted to call a tool'));
+    });
+
+    test('detectSupportedImageMimeType requires full GIF87a or GIF89a header', () {
+      expect(
+        detectSupportedImageMimeType(Uint8List.fromList('GIF89a...'.codeUnits)),
+        'image/gif',
+      );
+      expect(
+        detectSupportedImageMimeType(Uint8List.fromList('GIF87a...'.codeUnits)),
+        'image/gif',
+      );
+      expect(
+        detectSupportedImageMimeType(Uint8List.fromList('GIFxxxx'.codeUnits)),
+        isNull,
+      );
+    });
+
+    test('applyReplacementsToOriginal preserves line endings of untouched lines', () {
+      const original = 'line1\r\nline2\nline3\r\n';
+      final normalized = normalizeToLF(original);
+      final applied = applyEditsToNormalizedContent(
+        normalized,
+        const [Edit(oldText: 'line2', newText: 'updated2')],
+        'mixed.txt',
+      );
+      final updated = applyReplacementsToOriginal(original, applied.replacements);
+      expect(updated, 'line1\r\nupdated2\nline3\r\n');
+    });
+
+    test('SessionJsonlCodec round-trips thinkingLevel and tool durationMs', () {
+      final assistant = AssistantMessage(
+        content: const [AssistantTextContent('ok')],
+        stopReason: StopReason.stop,
+        provider: 'openai',
+        model: 'gpt-6.2-sol',
+        thinkingLevel: 'xhigh',
+        timestamp: 100,
+      );
+      final toolResult = ToolResultMessage(
+        toolCallId: 'c1',
+        toolName: 'read',
+        content: const [ToolResultTextContent('data')],
+        durationMs: 42,
+        timestamp: 101,
+      );
+
+      final decodedAssistant =
+          decodeMessage(encodeMessage(assistant)) as AssistantMessage;
+      final decodedTool =
+          decodeMessage(encodeMessage(toolResult)) as ToolResultMessage;
+
+      expect(decodedAssistant.thinkingLevel, 'xhigh');
+      expect(decodedTool.durationMs, 42);
     });
   });
 }

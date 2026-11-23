@@ -119,7 +119,7 @@ class JsonlSessionStorage implements SessionStorage {
   }
 
   void _applyForkMutation(SessionMutation mutation) {
-    _state.applyMutation(mutation);
+    // 先落盘再变更内存状态，写盘失败时内存与 JSONL 文件保持一致 (#11486)。
     switch (mutation) {
       case EntryMutation():
         _append({
@@ -155,6 +155,7 @@ class JsonlSessionStorage implements SessionStorage {
           'Fork mutations must not contain records',
         );
     }
+    _state.applyMutation(mutation);
   }
 
   // -- 编码 ---------------------------------------------------------------
@@ -306,30 +307,28 @@ class JsonlSessionStorage implements SessionStorage {
   Future<void> createLane(String lane, String? at) async {
     _state.validateNewLane(lane);
     _state.validateTarget(at);
-    _state.applyMutation(
-      LaneMutation(seq: _state.nextSequence, lane: lane, leafId: at),
-    );
+    final seq = _state.nextSequence;
     _append({
       'op': 'lane',
-      'seq': _state.nextSequence - 1,
+      'seq': seq,
       'lane': lane,
       'leafId': at,
     });
+    _state.applyMutation(LaneMutation(seq: seq, lane: lane, leafId: at));
   }
 
   @override
   Future<void> moveLane(String lane, String? to) async {
     _state.requireLane(lane);
     _state.validateTarget(to);
-    _state.applyMutation(
-      LaneMutation(seq: _state.nextSequence, lane: lane, leafId: to),
-    );
+    final seq = _state.nextSequence;
     _append({
       'op': 'lane',
-      'seq': _state.nextSequence - 1,
+      'seq': seq,
       'lane': lane,
       'leafId': to,
     });
+    _state.applyMutation(LaneMutation(seq: seq, lane: lane, leafId: to));
   }
 
   @override
@@ -339,8 +338,8 @@ class JsonlSessionStorage implements SessionStorage {
     entry.parentId = parentId;
     entry.seq = _state.nextSequence;
     entry.timestamp = DateTime.now().millisecondsSinceEpoch;
-    _state.applyMutation(EntryMutation(entry: entry, lane: lane));
     _append({'op': 'entry', 'lane': lane, 'entry': encodeEntry(entry)});
+    _state.applyMutation(EntryMutation(entry: entry, lane: lane));
     return entry;
   }
 
@@ -360,9 +359,8 @@ class JsonlSessionStorage implements SessionStorage {
     record.seq = _state.nextSequence;
     record.timestamp = DateTime.now().millisecondsSinceEpoch;
     final encodedRecord = _encodeRecord(record);
-    jsonEncode(encodedRecord);
-    _state.applyMutation(RecordMutation(record: record));
     _append({'op': 'record', 'record': encodedRecord});
+    _state.applyMutation(RecordMutation(record: record));
     return record;
   }
 
@@ -407,8 +405,8 @@ class JsonlSessionStorage implements SessionStorage {
   @override
   Future<void> setName(String? name) async {
     final seq = _state.nextSequence;
-    _state.applyMutation(NameFactMutation(seq: seq, name: name));
     _append({'op': 'fact', 'seq': seq, 'fact': 'name', 'name': name});
+    _state.applyMutation(NameFactMutation(seq: seq, name: name));
   }
 
   @override
@@ -418,9 +416,6 @@ class JsonlSessionStorage implements SessionStorage {
   Future<void> setLabel(String id, String? label) async {
     _state.validateTarget(id);
     final seq = _state.nextSequence;
-    _state.applyMutation(
-      LabelFactMutation(seq: seq, targetId: id, label: label),
-    );
     _append({
       'op': 'fact',
       'seq': seq,
@@ -428,6 +423,9 @@ class JsonlSessionStorage implements SessionStorage {
       'targetId': id,
       'label': label,
     });
+    _state.applyMutation(
+      LabelFactMutation(seq: seq, targetId: id, label: label),
+    );
   }
 
   @override

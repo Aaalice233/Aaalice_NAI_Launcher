@@ -67,6 +67,8 @@ abstract final class SessionJsonlCodec {
         'usage': message.usage?.toJson(),
         'provider': message.provider,
         'model': message.model,
+        if (message.thinkingLevel != null)
+          'thinkingLevel': message.thinkingLevel,
         'timestamp': message.timestamp,
       };
     }
@@ -97,6 +99,7 @@ abstract final class SessionJsonlCodec {
         if (message.addedToolNames != null)
           'addedToolNames': message.addedToolNames,
         'isError': message.isError,
+        if (message.durationMs != null) 'durationMs': message.durationMs,
         'timestamp': message.timestamp,
       };
     }
@@ -155,6 +158,7 @@ abstract final class SessionJsonlCodec {
           usage: decodeUsage(value['usage']),
           provider: value['provider'] as String?,
           model: value['model'] as String?,
+          thinkingLevel: value['thinkingLevel'] as String?,
           timestamp: timestamp,
         );
       case 'toolResult':
@@ -168,6 +172,7 @@ abstract final class SessionJsonlCodec {
               ?.whereType<String>()
               .toList(growable: false),
           isError: value['isError'] as bool? ?? false,
+          durationMs: (value['durationMs'] as num?)?.toInt(),
           timestamp: timestamp,
         );
       case 'custom':

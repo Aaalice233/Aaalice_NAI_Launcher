@@ -209,10 +209,26 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
               }
               final usageRaw = response['usage'];
               if (usageRaw is Map<String, dynamic>) {
+                final rawInput =
+                    (usageRaw['input_tokens'] as num?)?.toInt() ?? 0;
+                final inputDetails = usageRaw['input_tokens_details'];
+                final cacheRead =
+                    ((inputDetails is Map<String, dynamic>
+                                ? inputDetails['cached_tokens']
+                                : null)
+                            as num?)
+                        ?.toInt() ??
+                    0;
+                final input = rawInput - cacheRead;
+                final output =
+                    (usageRaw['output_tokens'] as num?)?.toInt() ?? 0;
                 usage = Usage(
-                  input: (usageRaw['input_tokens'] as num?)?.toInt() ?? 0,
-                  output: (usageRaw['output_tokens'] as num?)?.toInt() ?? 0,
-                  totalTokens: (usageRaw['total_tokens'] as num?)?.toInt() ?? 0,
+                  input: input < 0 ? 0 : input,
+                  output: output,
+                  cacheRead: cacheRead,
+                  totalTokens:
+                      (usageRaw['total_tokens'] as num?)?.toInt() ??
+                      (rawInput + output),
                 );
               }
             }
@@ -243,7 +259,11 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
         dio,
         endpoint: _resolveEndpoint(request.provider),
         payload: payload,
-        headers: _agentHeaders(request.apiKey),
+        headers: _agentHeaders(
+          request.apiKey,
+          provider: request.provider,
+          sessionId: request.sessionId,
+        ),
         cancelToken: cancelToken,
       );
       await for (final chunk in stream) {
@@ -418,11 +438,26 @@ class OpenAiResponsesAdapter extends PromptAssistantProviderAdapter {
     return 'data:$mimeType;base64,$data';
   }
 
-  Map<String, dynamic> _agentHeaders(String? apiKey) {
+  Map<String, dynamic> _agentHeaders(
+    String? apiKey, {
+    required ProviderConfig provider,
+    required String sessionId,
+  }) {
+    final trimmedSession = sessionId.trim();
+    final baseUrl = provider.baseUrl.toLowerCase();
+    final isOpenRouter =
+        provider.preset == ProviderPreset.openRouter ||
+        baseUrl.contains('openrouter.ai');
+    final isOpenAi =
+        provider.preset == ProviderPreset.openaiResponses ||
+        baseUrl.contains('api.openai.com');
     return {
       'Content-Type': 'application/json',
       if (apiKey != null && apiKey.trim().isNotEmpty)
         'Authorization': 'Bearer ${apiKey.trim()}',
+      if (trimmedSession.isNotEmpty && isOpenRouter)
+        'x-session-id': trimmedSession,
+      if (trimmedSession.isNotEmpty && isOpenAi) 'session-id': trimmedSession,
     };
   }
 

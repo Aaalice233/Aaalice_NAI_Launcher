@@ -30,6 +30,7 @@ void main() {
         '(262144 tokens).',
     'the request exceeds the available context size, try increasing it',
     'invalid params, context window exceeds limit',
+    'litellm.ContextWindowExceededError: context window exceeded',
     'Range of input length should be [1, 98304]',
     'prompt too long; exceeded max context length by 1200 tokens',
     'github-copilot API error (413): {"message":"failed to parse request"}',
@@ -81,5 +82,17 @@ void main() {
     expect(isContextOverflow(lengthStop(input: 995), 1000), isTrue);
     expect(isContextOverflow(lengthStop(input: 900), 1000), isFalse);
     expect(isContextOverflow(lengthStop(input: 995, output: 4), 1000), isFalse);
+  });
+
+  test('isRecoverableLength detects length stops below desired max output', () {
+    AssistantMessage msg(StopReason reason, int output) => AssistantMessage(
+      content: const [],
+      stopReason: reason,
+      usage: Usage(input: 500, output: output),
+    );
+    expect(isRecoverableLength(msg(StopReason.length, 100), 1024), isTrue);
+    expect(isRecoverableLength(msg(StopReason.length, 1024), 1024), isFalse);
+    expect(isRecoverableLength(msg(StopReason.stop, 100), 1024), isFalse);
+    expect(isRecoverableLength(msg(StopReason.length, 100), 0), isFalse);
   });
 }

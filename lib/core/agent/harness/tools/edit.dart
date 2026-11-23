@@ -190,19 +190,32 @@ class EditHarnessTool extends AgentHarnessTool {
       final bomAndText = stripBom(readValue);
       final bom = bomAndText.$1;
       final content = bomAndText.$2;
-      final originalEnding = detectLineEnding(content);
       final normalizedContent = normalizeToLF(content);
       final applied = applyEditsToNormalizedContent(
         normalizedContent,
         edits,
         path,
       );
+      // 写盘前先计算 diff 与 patch，避免写盘成功后才抛出异常（对齐 Pi 1.6.0）。
+      final diffResult = generateDiffString(
+        applied.baseContent,
+        applied.newContent,
+      );
+      final patch = generateUnifiedPatch(
+        path,
+        applied.baseContent,
+        applied.newContent,
+      );
       if (signal?.aborted == true) {
         throw StateError('Operation aborted');
       }
 
+      // 仅对替换区间写回，未变更行保留原文件行尾（对齐 Pi 1.6.0 #11751）。
       final finalContent =
-          bom + restoreLineEndings(applied.newContent, originalEnding);
+          bom +
+          (content == normalizedContent
+              ? applied.newContent
+              : applyReplacementsToOriginal(content, applied.replacements));
       final writeResult = await env.writeFile(
         absolutePath,
         finalContent,
@@ -216,8 +229,6 @@ class EditHarnessTool extends AgentHarnessTool {
         throw StateError('Operation aborted');
       }
 
-      final diffResult =
-          generateDiffString(applied.baseContent, applied.newContent);
       return AgentToolResult(
         content: [
           ToolResultTextContent(
@@ -226,11 +237,7 @@ class EditHarnessTool extends AgentHarnessTool {
         ],
         details: EditToolDetails(
           diff: diffResult.diff,
-          patch: generateUnifiedPatch(
-            path,
-            applied.baseContent,
-            applied.newContent,
-          ),
+          patch: patch,
           firstChangedLine: diffResult.firstChangedLine,
         ),
       );

@@ -570,6 +570,8 @@ class AssistantModelCatalog {
         return 'qwen-token-plan-cn';
       case ProviderPreset.qwenTokenPlanIndividual:
         return 'qwen-token-plan-individual';
+      case ProviderPreset.qwenTokenPlanIndividualCn:
+        return 'qwen-token-plan-individual-cn';
       case ProviderPreset.openaiCompatibleResponses:
         if (_lookupRule('openai', model) != null) return 'openai';
       default:
@@ -598,10 +600,12 @@ class AssistantModelCatalog {
     }
     if (host == 'api.moonshot.ai') return 'moonshotai';
     if (host == 'api.moonshot.cn') return 'moonshotai-cn';
-    if (host == 'token-plan.cn-beijing.maas.aliyuncs.com') {
+    if (host == 'token-plan.maas.qianwenaiapi.com' ||
+        host == 'token-plan.cn-beijing.maas.aliyuncs.com') {
       return 'qwen-token-plan-cn';
     }
-    if (host == 'token-plan.ap-southeast-1.maas.aliyuncs.com') {
+    if (host == 'token-plan.maas.qwencloudapi.com' ||
+        host == 'token-plan.ap-southeast-1.maas.aliyuncs.com') {
       return 'qwen-token-plan';
     }
     return null;

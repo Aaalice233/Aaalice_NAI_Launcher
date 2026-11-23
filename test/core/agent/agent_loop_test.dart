@@ -682,9 +682,228 @@ void main() {
         expect(toolResults.length, 2);
         expect(toolResults[0].toolName, 'tool_a');
         expect(toolResults[1].toolName, 'tool_b');
+        expect(toolResults[0].durationMs, isNotNull);
+        expect(toolResults[1].durationMs, isNotNull);
       },
     );
+
+    test(
+      'aborted sequential and parallel tool batches answer every tool call (#9986)',
+      () async {
+        for (final mode in ToolExecutionMode.values) {
+          final abort = AbortController();
+          var secondExecuted = false;
+          final firstTool = _CallbackTool('first', (signal) async {
+            abort.abort('cancelled');
+            return AgentToolResult(
+              content: const [ToolResultTextContent('first done')],
+              details: const {},
+            );
+          });
+          final secondTool = _CallbackTool('second', (signal) async {
+            secondExecuted = true;
+            return AgentToolResult(
+              content: const [ToolResultTextContent('second done')],
+              details: const {},
+            );
+          });
+          final scripted = ScriptedStreamFn([
+            ScriptedResponse(
+              toolCalls: const [
+                ToolCallContent(id: 'c1', name: 'first', arguments: {}),
+                ToolCallContent(id: 'c2', name: 'second', arguments: {}),
+              ],
+              stopReason: StopReason.toolUse,
+            ),
+            ScriptedResponse(
+              textChunks: const [],
+              stopReason: StopReason.aborted,
+            ),
+          ]);
+
+          final endEvents = <AgentEventToolExecutionEnd>[];
+          final stream = agentLoop(
+            [UserMessage.text('go')],
+            AgentContext(
+              systemPrompt: '',
+              messages: const [],
+              tools: [firstTool, secondTool],
+            ),
+            AgentLoopConfig(
+              model: _testModel,
+              convertToLlm: (messages) async => messages,
+              toolExecution: mode,
+            ),
+            abort.signal,
+            scripted.fn,
+          );
+          await for (final event in stream.stream) {
+            if (event is AgentEventToolExecutionEnd) {
+              endEvents.add(event);
+            }
+          }
+          final result = await stream.result();
+          final toolResults = result.whereType<ToolResultMessage>().toList();
+
+          expect(toolResults.map((r) => r.toolCallId), ['c1', 'c2'], reason: mode.name);
+          expect(endEvents.map((e) => e.toolCallId), containsAll(['c1', 'c2']));
+          if (mode == ToolExecutionMode.sequential) {
+            expect(secondExecuted, isFalse);
+            expect(toolResults[1].isError, isTrue);
+            expect(toolResults[1].text, 'Operation aborted');
+            expect(toolResults[1].durationMs, isNull);
+          }
+          expect(toolResults[0].durationMs, isNotNull);
+        }
+      },
+    );
+
+    test(
+      'stamps thinkingLevel on AssistantMessage and omits durationMs for unexecuted tools',
+      () async {
+        final scripted = ScriptedStreamFn([
+          ScriptedResponse(
+            toolCalls: const [
+              ToolCallContent(id: 'missing', name: 'ghost', arguments: {}),
+            ],
+            stopReason: StopReason.toolUse,
+          ),
+          ScriptedResponse(textChunks: const ['done']),
+        ]);
+
+        final stream = agentLoop(
+          [UserMessage.text('hi')],
+          const AgentContext(systemPrompt: '', messages: [], tools: []),
+          AgentLoopConfig(
+            model: _testModel,
+            convertToLlm: (messages) async => messages,
+            reasoning: 'high',
+          ),
+          null,
+          scripted.fn,
+        );
+        await stream.stream.drain<void>();
+        final result = await stream.result();
+
+        final assistants = result.whereType<AssistantMessage>().toList();
+        expect(assistants, hasLength(2));
+        expect(assistants.every((m) => m.thinkingLevel == 'high'), isTrue);
+
+        final missingResult = result.whereType<ToolResultMessage>().single;
+        expect(missingResult.isError, isTrue);
+        expect(missingResult.durationMs, isNull);
+      },
+    );
+
+    test(
+      'finishTurn continue/end, prepareRequest, and prepareNextTurn follow Pi 1.6 lifecycle',
+      () async {
+        final order = <String>[];
+        var turnNumber = 0;
+        final scripted = ScriptedStreamFn([
+          ScriptedResponse(textChunks: const ['first']),
+          ScriptedResponse(textChunks: const ['second']),
+          ScriptedResponse(textChunks: const ['never']),
+        ]);
+
+        final stream = agentLoop(
+          [UserMessage.text('start')],
+          const AgentContext(systemPrompt: '', messages: [], tools: []),
+          AgentLoopConfig(
+            model: _testModel,
+            convertToLlm: (messages) async => messages,
+            prepareRequest: (ctx, signal) async {
+              order.add('prepareRequest:${ctx.thinkingLevel}');
+              return null;
+            },
+            finishTurn: (ctx, signal) async {
+              turnNumber++;
+              order.add('finishTurn:$turnNumber');
+              if (turnNumber == 1) {
+                return const AgentTurnDecision.continueTurn();
+              }
+              return const AgentTurnDecision.end();
+            },
+            prepareNextTurn: (ctx) async {
+              order.add('prepareNextTurn');
+              return AgentLoopTurnUpdate(
+                messages: [UserMessage.text('injected-by-prepare')],
+                thinkingLevel: 'medium',
+              );
+            },
+          ),
+          null,
+          scripted.fn,
+        );
+        await for (final event in stream.stream) {
+          if (event is AgentEventTurnStart) order.add('turn_start');
+          if (event is AgentEventTurnEnd) order.add('turn_end');
+        }
+        final result = await stream.result();
+
+        expect(scripted.callCount, 2);
+        expect(order, [
+          'turn_start',
+          'prepareRequest:off',
+          'finishTurn:1',
+          'turn_end',
+          'prepareNextTurn',
+          'turn_start',
+          'prepareRequest:medium',
+          'finishTurn:2',
+          'turn_end',
+        ]);
+        expect(
+          result.whereType<UserMessage>().map((m) => m.text),
+          ['start', 'injected-by-prepare'],
+        );
+      },
+    );
+
+    test('Agent.peekQueuedMessages previews without draining queues', () {
+      final agent = Agent(
+        AgentOptions(
+          streamFn: ScriptedStreamFn([]).fn,
+          initialModel: _testModel,
+        ),
+      );
+      expect(agent.peekQueuedMessages(), isEmpty);
+
+      agent.followUp(UserMessage.text('follow'));
+      expect(
+        agent.peekQueuedMessages().whereType<UserMessage>().single.text,
+        'follow',
+      );
+      expect(agent.hasQueuedMessages(), isTrue);
+
+      agent.steer(UserMessage.text('steer'));
+      expect(
+        agent.peekQueuedMessages().whereType<UserMessage>().single.text,
+        'steer',
+      );
+      expect(agent.queuedMessageCount, 2);
+    });
   });
+}
+
+class _CallbackTool extends AgentTool {
+  _CallbackTool(String name, this._run)
+    : super(
+        name: name,
+        description: 'callback tool',
+        parameters: const {'type': 'object', 'properties': {}},
+        label: name,
+      );
+
+  final Future<AgentToolResult> Function(AbortSignal? signal) _run;
+
+  @override
+  Future<AgentToolResult> execute(
+    String toolCallId,
+    Map<String, dynamic> params, [
+    AbortSignal? signal,
+    AgentToolUpdateCallback? onUpdate,
+  ]) => _run(signal);
 }
 
 /// 等待外部 abort 的慢工具。

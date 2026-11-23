@@ -28,7 +28,8 @@ String? providerIconAsset({ProviderConfig? provider, ProviderPreset? preset}) {
     ProviderPreset.moonshot || ProviderPreset.moonshotCn => 'moonshot',
     ProviderPreset.qwenTokenPlan ||
     ProviderPreset.qwenTokenPlanCn ||
-    ProviderPreset.qwenTokenPlanIndividual => 'qwen-color',
+    ProviderPreset.qwenTokenPlanIndividual ||
+    ProviderPreset.qwenTokenPlanIndividualCn => 'qwen-color',
     ProviderPreset.lmStudioChat ||
     ProviderPreset.lmStudioResponses => 'lmstudio',
     ProviderPreset.ollama => 'ollama',
@@ -73,6 +74,8 @@ const _providerDomains = <String, String>{
   'siliconflow.com': 'siliconcloud-color',
   'dashscope.aliyuncs.com': 'alibabacloud-color',
   'dashscope-intl.aliyuncs.com': 'alibabacloud-color',
+  'qwencloudapi.com': 'qwen-color',
+  'qianwenaiapi.com': 'qwen-color',
   'volces.com': 'volcengine-color',
   'bigmodel.cn': 'zai',
   'z.ai': 'zai',

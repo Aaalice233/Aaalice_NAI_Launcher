@@ -109,13 +109,7 @@ void main() {
             protocol: ProviderProtocol.openaiChatCompletions,
             baseUrl: 'https://api.mistral.ai',
             model: 'magistral-medium-latest',
-            levels: const [
-              ThinkingLevel.off,
-              ThinkingLevel.minimal,
-              ThinkingLevel.low,
-              ThinkingLevel.medium,
-              ThinkingLevel.high,
-            ],
+            levels: const [ThinkingLevel.off, ThinkingLevel.high],
           ),
           (
             provider: 'groq',
@@ -212,6 +206,7 @@ void main() {
       (ProviderPreset.qwenTokenPlan, 'qwen3.8-max'),
       (ProviderPreset.qwenTokenPlanCn, 'qwen3.8-max'),
       (ProviderPreset.qwenTokenPlanIndividual, 'qwen3.8-max'),
+      (ProviderPreset.qwenTokenPlanIndividualCn, 'qwen3.8-max'),
     ];
 
     for (final entry in cases) {
@@ -229,6 +224,73 @@ void main() {
     }
   });
 
+  test('Pi 1.6 models use Gemini 4 thinkingLevel, GPT-6.2 Sol levels, and new Qwen hosts', () {
+    final gemini4Argon = AgentChatModelCapability.resolve(
+      ProviderPreset.gemini.createConfig(),
+      'gemini-4-argon',
+    );
+    expect(gemini4Argon.metadata.reasoningRule?.api, AgentReasoningApi.geminiLevel);
+    expect(gemini4Argon.metadata.selectableThinkingLevels, [
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+    ]);
+
+    final gemini4Hydrogen = AgentChatModelCapability.resolve(
+      ProviderPreset.gemini.createConfig(),
+      'gemini-4-hydrogen',
+    );
+    expect(
+      gemini4Hydrogen.metadata.reasoningRule?.api,
+      AgentReasoningApi.geminiLevel,
+    );
+    expect(gemini4Hydrogen.metadata.selectableThinkingLevels, [
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+      ThinkingLevel.xhigh,
+    ]);
+
+    final gpt62Sol = AgentChatModelCapability.resolve(
+      ProviderPreset.openaiResponses.createConfig(),
+      'gpt-6.2-sol',
+    );
+    expect(gpt62Sol.metadata.selectableThinkingLevels, [
+      ThinkingLevel.low,
+      ThinkingLevel.medium,
+      ThinkingLevel.high,
+      ThinkingLevel.xhigh,
+      ThinkingLevel.max,
+    ]);
+
+    for (final baseUrl in [
+      'https://token-plan.maas.qwencloudapi.com/compatible-mode/v1',
+      'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
+      'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
+      'https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+    ]) {
+      final capability = AgentChatModelCapability.resolve(
+        ProviderConfig(
+          id: 'custom-qwen',
+          name: 'Custom Qwen',
+          protocol: ProviderProtocol.openaiChatCompletions,
+          baseUrl: baseUrl,
+        ),
+        'qwen3.8-max',
+      );
+      expect(
+        capability.metadata.reasoningRule?.api,
+        AgentReasoningApi.qwen,
+        reason: baseUrl,
+      );
+      expect(capability.metadata.selectableThinkingLevels, [
+        ThinkingLevel.low,
+        ThinkingLevel.medium,
+        ThinkingLevel.xhigh,
+      ]);
+    }
+  });
+
   test('the deepseek-chat alias preserves reasoning when high is selected', () {
     final capability = AgentChatModelCapability.resolve(
       ProviderPreset.deepseek.createConfig(),
@@ -241,7 +303,7 @@ void main() {
     );
   });
 
-  test('maps DeepSeek effort and preserves Mistral level aliases', () {
+  test('maps DeepSeek effort and Mistral effort level mappings', () {
     final deepSeek = AgentChatModelCapability.resolve(
       const ProviderConfig(
         id: 'deepseek',
@@ -270,11 +332,22 @@ void main() {
     ]);
     expect(mistral.metadata.thinkingLevels, [
       ThinkingLevel.off,
-      ThinkingLevel.minimal,
-      ThinkingLevel.low,
-      ThinkingLevel.medium,
       ThinkingLevel.high,
     ]);
+    expect(
+      mistral.resolveReasoningRequest('high'),
+      isA<AgentReasoningRequest>()
+          .having((request) => request.api, 'api', AgentReasoningApi.mistralEffort)
+          .having((request) => request.effort, 'effort', 'high'),
+    );
+    expect(
+      mistral.resolveReasoningRequest('off'),
+      isA<AgentReasoningRequest>()
+          .having((request) => request.api, 'api', AgentReasoningApi.mistralEffort)
+          .having((request) => request.enabled, 'enabled', isFalse)
+          .having((request) => request.sendWhenDisabled, 'sendWhenDisabled', isTrue)
+          .having((request) => request.effort, 'effort', 'none'),
+    );
     expect(
       deepSeek.resolveReasoningRequest('high'),
       isA<AgentReasoningRequest>()

@@ -53,12 +53,13 @@ Future<AssistantMessage> completeSimpleWithRetries(
   RetryPolicy? retry,
   RetryCallbacks? callbacks,
 ]) {
-  // 摘要是独立请求：隔离路由并避免不可复用的缓存写入。
+  // 摘要是独立请求：有调用方提供的 sessionId 时沿用路由，否则分配新 ID。
   final requestOptions = SimpleStreamOptions(
     apiKey: options.apiKey,
     signal: options.signal,
-    sessionId: uuidv7(),
+    sessionId: options.sessionId ?? uuidv7(),
     reasoning: options.reasoning,
+    maxTokens: options.maxTokens,
     maxRetryDelayMs: options.maxRetryDelayMs,
   );
   return retryAssistantCall(
@@ -314,6 +315,26 @@ List<int> _findValidCutPoints(
   return cutPoints;
 }
 
+bool _isTurnStartEntry(SessionEntry entry) {
+  if (entry is CompactionEntry) {
+    return false;
+  }
+  if (entry is BranchSummaryEntry) {
+    return true;
+  }
+  if (entry is MessageEntry) {
+    const turnStartRoles = {
+      'user',
+      'bashExecution',
+      'custom',
+      'branchSummary',
+      'compactionSummary',
+    };
+    return turnStartRoles.contains(entry.message.role);
+  }
+  return false;
+}
+
 /// 找到包含某条目的 turn 的用户可见起始消息。
 int findTurnStartIndex(
   List<SessionEntry> entries,
@@ -321,15 +342,8 @@ int findTurnStartIndex(
   int startIndex,
 ) {
   for (var i = entryIndex; i >= startIndex; i--) {
-    final entry = entries[i];
-    if (entry is BranchSummaryEntry) {
+    if (_isTurnStartEntry(entries[i])) {
       return i;
-    }
-    if (entry is MessageEntry) {
-      final role = entry.message.role;
-      if (role == 'user' || role == 'bashExecution') {
-        return i;
-      }
     }
   }
   return -1;
@@ -373,39 +387,42 @@ CutPointResult findCutPoint(
   var cutIndex = cutPoints[0];
 
   for (var i = endIndex - 1; i >= startIndex; i--) {
-    final entry = entries[i];
-    if (entry is! MessageEntry) {
+    final message = _getMessageFromEntryForCompaction(entries[i]);
+    if (message == null) {
       continue;
     }
-    accumulatedTokens += estimateTokens(entry.message);
+    final messageTokens = estimateTokens(message);
+    if (messageTokens == 0) {
+      continue;
+    }
+    accumulatedTokens += messageTokens;
     if (accumulatedTokens >= keepRecentTokens) {
-      for (var c = 0; c < cutPoints.length; c++) {
-        if (cutPoints[c] >= i) {
-          cutIndex = cutPoints[c];
-          break;
-        }
-      }
+      // 优先选 >= i 的最近合法切点；若尾部工具结果本身就超出预算，保留其前的
+      // 助手工具调用而非退回到首条消息（对齐 Pi 1.6.0 8bdcd4498）。
+      cutIndex = cutPoints.firstWhere(
+        (candidate) => candidate >= i,
+        orElse: () => cutPoints.last,
+      );
       break;
     }
   }
   while (cutIndex > startIndex) {
     final prevEntry = entries[cutIndex - 1];
-    if (prevEntry is CompactionEntry || prevEntry is MessageEntry) {
+    if (prevEntry is CompactionEntry || _getMessageFromEntry(prevEntry) != null) {
       break;
     }
     cutIndex--;
   }
   final cutEntry = entries[cutIndex];
-  final isUserMessage =
-      cutEntry is MessageEntry && cutEntry.message.role == 'user';
-  final turnStartIndex = isUserMessage
+  final startsTurn = _isTurnStartEntry(cutEntry);
+  final turnStartIndex = startsTurn
       ? -1
       : findTurnStartIndex(entries, cutIndex, startIndex);
 
   return CutPointResult(
     firstKeptEntryIndex: cutIndex,
     turnStartIndex: turnStartIndex,
-    isSplitTurn: !isUserMessage && turnStartIndex != -1,
+    isSplitTurn: !startsTurn && turnStartIndex != -1,
   );
 }
 
@@ -476,6 +493,18 @@ const String _updateSummarizationPrompt =
     'Keep each section concise. Preserve exact file paths, function names, '
     'and error messages.';
 
+/// 摘要响应不可安全持久化时返回失败说明（error / length 截断，对齐 Pi 1.6.0）。
+String? getSummarizationFailure(AssistantMessage response, String label) {
+  if (response.stopReason == StopReason.error) {
+    return '$label failed: ${response.errorMessage ?? "Unknown error"}';
+  }
+  if (response.stopReason == StopReason.length) {
+    return '$label failed: generation hit the token cap and the summary is '
+        'incomplete';
+  }
+  return null;
+}
+
 /// 生成或更新 compaction 用会话摘要。
 Future<HarnessResult<String, CompactionError>> generateSummary(
   List<AgentMessage> currentMessages,
@@ -486,6 +515,7 @@ Future<HarnessResult<String, CompactionError>> generateSummary(
   String? customInstructions,
   String? previousSummary,
   String? thinkingLevel,
+  String? sessionId,
   RetryPolicy? retry,
   RetryCallbacks? callbacks,
 }) async {
@@ -498,6 +528,7 @@ Future<HarnessResult<String, CompactionError>> generateSummary(
     customInstructions: customInstructions,
     previousSummary: previousSummary,
     thinkingLevel: thinkingLevel,
+    sessionId: sessionId,
     retry: retry,
     callbacks: callbacks,
   );
@@ -509,6 +540,8 @@ Future<HarnessResult<String, CompactionError>> generateSummary(
 }
 
 /// 生成或更新会话摘要并返回其 provider 用量。
+///
+/// [reserveTokens] 仅保留给既有调用方；摘要直接使用模型自身输出上限（对齐 Pi 1.6.0 #9512）。
 Future<HarnessResult<({String text, Usage usage}), CompactionError>>
 generateSummaryWithUsage(
   List<AgentMessage> currentMessages,
@@ -519,12 +552,10 @@ generateSummaryWithUsage(
   String? customInstructions,
   String? previousSummary,
   String? thinkingLevel,
+  String? sessionId,
   RetryPolicy? retry,
   RetryCallbacks? callbacks,
 }) async {
-  final maxTokens = model.maxTokens > 0
-      ? (0.8 * reserveTokens).floor().clamp(0, model.maxTokens)
-      : (0.8 * reserveTokens).floor();
   var basePrompt = previousSummary != null
       ? _updateSummarizationPrompt
       : _summarizationPrompt;
@@ -556,11 +587,11 @@ generateSummaryWithUsage(
     ),
     SimpleStreamOptions(
       signal: signal,
+      sessionId: sessionId,
       reasoning:
           model.reasoning && thinkingLevel != null && thinkingLevel != 'off'
           ? thinkingLevel
           : null,
-      maxTokens: maxTokens,
     ),
     retry,
     callbacks,
@@ -573,11 +604,15 @@ generateSummaryWithUsage(
       ),
     );
   }
-  if (response.stopReason == StopReason.error) {
+  final failure = getSummarizationFailure(response, 'Summarization');
+  if (failure != null) {
+    return err(CompactionError(CompactionErrorCode.summarizationFailed, failure));
+  }
+  if (response.content.any((block) => block is ToolCallContent)) {
     return err(
       CompactionError(
         CompactionErrorCode.summarizationFailed,
-        'Summarization failed: ${response.errorMessage ?? "Unknown error"}',
+        'Summarization attempted to call a tool',
       ),
     );
   }
@@ -734,6 +769,9 @@ HarnessResult<CompactionPreparation?, CompactionError> prepareCompaction(
       }
     }
   }
+  if (messagesToSummarize.isEmpty && turnPrefixMessages.isEmpty) {
+    return ok(null);
+  }
   final retainedTail = <AgentMessage>[];
   for (var i = cutPoint.firstKeptEntryIndex; i < boundaryEnd; i++) {
     final msg = _getMessageFromEntryForCompaction(compactableEntries[i]);
@@ -774,16 +812,19 @@ HarnessResult<CompactionPreparation?, CompactionError> prepareCompaction(
 }
 
 const String _turnPrefixSummarizationPrompt =
-    'This is the PREFIX of a turn that was too large to keep. The SUFFIX '
-    '(recent work) is retained.\n\n'
-    'Summarize the prefix to provide context for the retained suffix:\n\n'
+    'The messages above are earlier context from an ongoing conversation. '
+    'Later messages are stored separately and do not need to be reconstructed.\n\n'
+    'Create a concise checkpoint of the user\'s request and the progress shown '
+    'above. This checkpoint will be placed before the later messages so the '
+    'conversation can continue with the necessary context.\n\n'
     '## Original Request\n'
-    '[What did the user ask for in this turn?]\n\n'
-    '## Early Progress\n'
-    '- [Key decisions and work done in the prefix]\n\n'
-    '## Context for Suffix\n'
-    '- [Information needed to understand the retained recent work]\n\n'
-    'Be concise. Focus on what\'s needed to understand the kept suffix.';
+    '[What did the user ask for?]\n\n'
+    '## Progress So Far\n'
+    '- [Key decisions and work completed in these messages]\n\n'
+    '## Context Needed to Continue\n'
+    '- [Information from these messages needed to understand the later work]\n\n'
+    'Only summarize information explicitly present above. Do not infer or '
+    'recreate later messages.';
 
 /// 从准备好的会话历史生成 compaction 摘要数据。
 Future<HarnessResult<CompactResult, CompactionError>> compact(
@@ -793,6 +834,7 @@ Future<HarnessResult<CompactResult, CompactionError>> compact(
   String? customInstructions,
   AbortSignal? signal,
   String? thinkingLevel,
+  String? sessionId,
   RetryPolicy? retry,
   RetryCallbacks? callbacks,
 }) async {
@@ -809,7 +851,7 @@ Future<HarnessResult<CompactResult, CompactionError>> compact(
   Usage summaryUsage;
 
   if (isSplitTurn && turnPrefixMessages.isNotEmpty) {
-    var historyText = 'No prior history.';
+    var historyText = previousSummary ?? 'No prior history.';
     Usage? historyUsage;
     if (messagesToSummarize.isNotEmpty) {
       final historyResult = await generateSummaryWithUsage(
@@ -821,6 +863,7 @@ Future<HarnessResult<CompactResult, CompactionError>> compact(
         customInstructions: customInstructions,
         previousSummary: previousSummary,
         thinkingLevel: thinkingLevel,
+        sessionId: sessionId,
         retry: retry,
         callbacks: callbacks,
       );
@@ -836,9 +879,10 @@ Future<HarnessResult<CompactResult, CompactionError>> compact(
       turnPrefixMessages,
       completeSimple,
       model,
-      settings.reserveTokens,
       signal: signal,
+      customInstructions: customInstructions,
       thinkingLevel: thinkingLevel,
+      sessionId: sessionId,
       retry: retry,
       callbacks: callbacks,
     );
@@ -863,6 +907,7 @@ Future<HarnessResult<CompactResult, CompactionError>> compact(
       customInstructions: customInstructions,
       previousSummary: previousSummary,
       thinkingLevel: thinkingLevel,
+      sessionId: sessionId,
       retry: retry,
       callbacks: callbacks,
     );
@@ -896,21 +941,22 @@ Future<HarnessResult<({String text, Usage usage}), CompactionError>>
 _generateTurnPrefixSummary(
   List<AgentMessage> messages,
   CompleteSimpleFn completeSimple,
-  Model model,
-  int reserveTokens, {
+  Model model, {
   AbortSignal? signal,
+  String? customInstructions,
   String? thinkingLevel,
+  String? sessionId,
   RetryPolicy? retry,
   RetryCallbacks? callbacks,
 }) async {
-  final maxTokens = model.maxTokens > 0
-      ? (0.5 * reserveTokens).floor().clamp(0, model.maxTokens)
-      : (0.5 * reserveTokens).floor();
   final llmMessages = harnessConvertToLlm(messages);
   final conversationText = serializeConversation(llmMessages);
-  final promptText =
-      '<conversation>\n$conversationText\n</conversation>\n\n'
-      '$_turnPrefixSummarizationPrompt';
+  var promptText =
+      '# Conversation\n$conversationText\n\n'
+      '# Instructions\n$_turnPrefixSummarizationPrompt';
+  if (customInstructions != null && customInstructions.isNotEmpty) {
+    promptText = '$promptText\n\nAdditional focus: $customInstructions';
+  }
   final summarizationMessages = <Message>[
     UserMessage(
       content: [UserTextContent(promptText)],
@@ -927,11 +973,11 @@ _generateTurnPrefixSummary(
     ),
     SimpleStreamOptions(
       signal: signal,
+      sessionId: sessionId,
       reasoning:
           model.reasoning && thinkingLevel != null && thinkingLevel != 'off'
           ? thinkingLevel
           : null,
-      maxTokens: maxTokens,
     ),
     retry,
     callbacks,
@@ -944,12 +990,15 @@ _generateTurnPrefixSummary(
       ),
     );
   }
-  if (response.stopReason == StopReason.error) {
+  final failure = getSummarizationFailure(response, 'Turn prefix summarization');
+  if (failure != null) {
+    return err(CompactionError(CompactionErrorCode.summarizationFailed, failure));
+  }
+  if (response.content.any((block) => block is ToolCallContent)) {
     return err(
       CompactionError(
         CompactionErrorCode.summarizationFailed,
-        'Turn prefix summarization failed: '
-        '${response.errorMessage ?? "Unknown error"}',
+        'Turn prefix summarization attempted to call a tool',
       ),
     );
   }

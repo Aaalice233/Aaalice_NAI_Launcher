@@ -143,7 +143,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
             if (finishReason is String) {
               sawFinishReason = true;
               stopReason = switch (finishReason) {
-                'MAX_TOKENS' => StopReason.length,
+                'MAX_TOKENS' || 'CONTINUATION' => StopReason.length,
                 'STOP' => StopReason.stop,
                 _ => StopReason.error,
               };
@@ -308,13 +308,13 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                   'thoughtSignature': block.signature,
               });
             case AssistantThinkingContent()
-                when block.thinking.isNotEmpty ||
-                    (sameProviderAndModel &&
+                when sameProviderAndModel &&
+                    (block.thinking.isNotEmpty ||
                         block.signature?.isNotEmpty == true):
               appendTurn('model', {
-                if (sameProviderAndModel) 'thought': true,
+                'thought': true,
                 'text': _sanitizeSurrogates(block.thinking),
-                if (sameProviderAndModel && block.signature?.isNotEmpty == true)
+                if (block.signature?.isNotEmpty == true)
                   'thoughtSignature': block.signature,
               });
             case ToolCallContent():
@@ -340,12 +340,16 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                 'inlineData': {'mimeType': image.source.mimeType, 'data': data},
               },
         ];
+        final hasText = message.text.trim().isNotEmpty;
+        final responseText = hasText
+            ? message.text
+            : (imageParts.isNotEmpty ? '(see attached image)' : '');
         appendTurn('user', {
           'functionResponse': {
             'name': message.toolName,
             'response': message.isError
-                ? {'error': _sanitizeSurrogates(message.text)}
-                : {'output': _sanitizeSurrogates(message.text)},
+                ? {'error': _sanitizeSurrogates(responseText)}
+                : {'output': _sanitizeSurrogates(responseText)},
             if (requiresToolCallId)
               'id': _normalizeToolCallId(message.toolCallId),
             if (supportsMultimodalFunctionResponse && imageParts.isNotEmpty)
@@ -386,7 +390,9 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                   'description': tool.description,
                   // Gemini 原生 API 支持完整 JSON Schema；使用旧 parameters
                   // 会把 enum 限定成字符串，导致整数枚举在请求校验阶段失败。
-                  'parametersJsonSchema': tool.parameters,
+                  // Gemini ignores `const` in `parametersJsonSchema` but honors
+                  // single-value `enum` (Pi google-shared.ts rewriteConstAsEnum).
+                  'parametersJsonSchema': _rewriteConstAsEnum(tool.parameters),
                 },
             ],
           },
@@ -502,6 +508,65 @@ int? _geminiMajorVersion(String modelId) {
 String _normalizeToolCallId(String id) => id
     .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_')
     .substring(0, id.length > 64 ? 64 : id.length);
+
+const _jsonSchemaNameMaps = <String>{
+  'properties',
+  'patternProperties',
+  r'$defs',
+  'definitions',
+  'dependentSchemas',
+  'dependencies',
+};
+
+const _jsonSchemaSubschemas = <String>{
+  'additionalProperties',
+  'unevaluatedProperties',
+  'propertyNames',
+  'items',
+  'prefixItems',
+  'additionalItems',
+  'unevaluatedItems',
+  'contains',
+  'allOf',
+  'anyOf',
+  'oneOf',
+  'not',
+  'if',
+  'then',
+  'else',
+  'contentSchema',
+};
+
+Object? _rewriteConstAsEnum(Object? schema, {bool isNameMap = false}) {
+  if (schema is List) {
+    return [for (final item in schema) _rewriteConstAsEnum(item)];
+  }
+  if (schema is! Map) {
+    return schema;
+  }
+  final result = <String, dynamic>{};
+  for (final entry in schema.entries) {
+    final key = entry.key.toString();
+    final value = entry.value;
+    if (isNameMap || _jsonSchemaSubschemas.contains(key)) {
+      result[key] = _rewriteConstAsEnum(value);
+    } else if (_jsonSchemaNameMaps.contains(key)) {
+      result[key] = _rewriteConstAsEnum(value, isNameMap: true);
+    } else {
+      result[key] = value;
+    }
+  }
+  if (!isNameMap &&
+      result.containsKey('const') &&
+      !result.containsKey('enum')) {
+    final value = result['const'];
+    if (value is String || value is num) {
+      result.remove('const');
+      result['enum'] = [value];
+    }
+  }
+  return result;
+}
 
 String _sanitizeSurrogates(String value) {
   final units = value.codeUnits;
