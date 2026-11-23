@@ -1126,6 +1126,201 @@ void main() {
     final calls = events.whereType<AgentWireToolCallDone>().toList();
     expect(calls.map((call) => call.id), ['call_A', 'call_B']);
   });
+
+  test(
+    'OpenAI chat emits thinking before text, parses cache usage, and handles reasoning_text',
+    () async {
+      final dio = Dio()
+        ..httpClientAdapter = _SseAdapter(
+          'data: {"choices":[{"delta":{"content":"answer","reasoning_text":"thought"}}]}\n\n'
+          'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":'
+          '{"prompt_tokens":100,"completion_tokens":20,"total_tokens":120,'
+          '"prompt_tokens_details":{"cached_tokens":40,"cache_write_tokens":10}}}\n\n'
+          'data: [DONE]\n\n',
+        );
+      addTearDown(dio.close);
+
+      final events = await const OpenAiChatCompletionsAdapter()
+          .completeAgent(
+            dio: dio,
+            request: _request(ProviderProtocol.openaiChatCompletions),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final thinkingIndex = events.indexWhere((e) => e is AgentWireThinkingDelta);
+      final textIndex = events.indexWhere((e) => e is AgentWireTextDelta);
+      expect(thinkingIndex, greaterThanOrEqualTo(0));
+      expect(textIndex, greaterThan(thinkingIndex));
+      expect((events[thinkingIndex] as AgentWireThinkingDelta).delta, 'thought');
+      expect((events[textIndex] as AgentWireTextDelta).delta, 'answer');
+
+      final usage = events.whereType<AgentWireFinish>().single.usage!;
+      expect(usage.input, 50);
+      expect(usage.cacheRead, 40);
+      expect(usage.cacheWrite, 10);
+      expect(usage.output, 20);
+      expect(usage.totalTokens, 120);
+    },
+  );
+
+  test(
+    'OpenAI chat drops cross-model thinking, uses max_tokens for Kimi Coding, and guards empty tool output',
+    () async {
+      final capture = _CaptureAdapter();
+      final dio = Dio()..httpClientAdapter = capture;
+      addTearDown(dio.close);
+
+      final kimi = ProviderPreset.kimiCoding.createConfig();
+      await const OpenAiChatCompletionsAdapter()
+          .completeAgent(
+            dio: dio,
+            request: AgentChatRequest(
+              sessionId: 'session',
+              provider: kimi,
+              model: 'kimi-for-coding',
+              systemPrompt: 'sys',
+              messages: [
+                UserMessage.text('go'),
+                AssistantMessage(
+                  provider: 'anthropic',
+                  model: 'claude-opus-5-5',
+                  content: const [
+                    AssistantThinkingContent('foreign thought'),
+                    ToolCallContent(id: 'c1', name: 'noop', arguments: {}),
+                  ],
+                  stopReason: StopReason.toolUse,
+                ),
+                ToolResultMessage(
+                  toolCallId: 'c1',
+                  toolName: 'noop',
+                  content: const [ToolResultTextContent('   ')],
+                ),
+              ],
+              tools: const [],
+              apiKey: 'k',
+              modelMaxOutputTokens: 4096,
+              reasoningRequest: const AgentReasoningRequest(
+                api: AgentReasoningApi.openAiCompletions,
+                enabled: true,
+                effort: 'high',
+                preserveReasoningContent: true,
+              ),
+            ),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      final payload = capture.options!.data as Map<String, dynamic>;
+      expect(payload['max_tokens'], 4096);
+      expect(payload, isNot(contains('max_completion_tokens')));
+      final messages = (payload['messages'] as List).cast<Map>();
+      final assistant = messages.firstWhere((m) => m['role'] == 'assistant');
+      expect(assistant['reasoning_content'], '');
+      final tool = messages.firstWhere((m) => m['role'] == 'tool');
+      expect(tool['content'], '(no tool output)');
+    },
+  );
+
+  test(
+    'Gemini rewrites const to enum, drops cross-model thinking, and maps CONTINUATION to length',
+    () async {
+      final sse = _SseAdapter(
+        'data: {"candidates":[{"content":{"parts":[{"text":"partial"}]},'
+        '"finishReason":"CONTINUATION"}]}\n\n',
+      );
+      final dio = Dio()..httpClientAdapter = sse;
+      addTearDown(dio.close);
+
+      final events = await const GeminiGenerateContentAdapter()
+          .completeAgent(
+            dio: dio,
+            request: AgentChatRequest(
+              sessionId: 'session',
+              provider: ProviderPreset.gemini.createConfig(),
+              model: 'gemini-4-argon',
+              systemPrompt: 'sys',
+              messages: [
+                UserMessage.text('go'),
+                AssistantMessage(
+                  provider: 'openai',
+                  model: 'gpt-6.2-sol',
+                  content: const [
+                    AssistantThinkingContent('foreign thought'),
+                    AssistantTextContent('visible'),
+                  ],
+                  stopReason: StopReason.stop,
+                ),
+              ],
+              tools: const [
+                Tool(
+                  name: 'tagged',
+                  description: 'uses const',
+                  parameters: {
+                    'type': 'object',
+                    'properties': {
+                      'kind': {'const': 'fixed'},
+                    },
+                  },
+                ),
+              ],
+              apiKey: 'k',
+            ),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(
+        events.whereType<AgentWireFinish>().single.stopReason,
+        StopReason.length,
+      );
+      final sent = sse.requestData as Map<String, dynamic>;
+      final contents = (sent['contents'] as List).cast<Map>();
+      final modelParts = (contents[1]['parts'] as List).cast<Map>();
+      expect(modelParts, [
+        {'text': 'visible'},
+      ]);
+      final decl = (((sent['tools'] as List).single as Map)['functionDeclarations']
+              as List)
+          .single as Map;
+      final kindSchema =
+          ((decl['parametersJsonSchema'] as Map)['properties'] as Map)['kind']
+              as Map;
+      expect(kindSchema, {'enum': ['fixed']});
+    },
+  );
+
+  test('OpenAI Responses sends session-id header and parses cached input tokens', () async {
+    final capture = _SseAdapter(
+      'event: response.completed\n'
+      'data: {"response":{"usage":{"input_tokens":100,"output_tokens":15,'
+      '"total_tokens":115,"input_tokens_details":{"cached_tokens":30}}}}\n\n',
+    );
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+
+    final events = await const OpenAiResponsesAdapter()
+        .completeAgent(
+          dio: dio,
+          request: AgentChatRequest(
+            sessionId: 'sess-123',
+            provider: ProviderPreset.openaiResponses.createConfig(),
+            model: 'gpt-6.2-sol',
+            systemPrompt: 'sys',
+            messages: [UserMessage.text('hi')],
+            tools: const [],
+            apiKey: 'sk-test',
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final usage = events.whereType<AgentWireFinish>().single.usage!;
+    expect(usage.input, 70);
+    expect(usage.cacheRead, 30);
+    expect(usage.output, 15);
+    expect(capture.requestHeaders?['session-id'], 'sess-123');
+  });
 }
 
 /// Builds an Anthropic tool_use stream, terminated by message_stop.
@@ -1184,6 +1379,7 @@ class _SseAdapter implements HttpClientAdapter {
 
   final String body;
   Object? requestData;
+  Map<String, dynamic>? requestHeaders;
 
   @override
   Future<ResponseBody> fetch(
@@ -1192,6 +1388,7 @@ class _SseAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requestData = options.data;
+    requestHeaders = Map<String, dynamic>.from(options.headers);
     return ResponseBody.fromString(
       body,
       200,

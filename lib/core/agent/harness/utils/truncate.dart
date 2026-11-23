@@ -270,10 +270,46 @@ String _truncateStringToBytesFromEnd(String str, int maxBytes) {
     return (text: line, wasTruncated: false);
   }
   return (
-    text: '${line.substring(0, maxChars)}... [truncated]',
+    text: '${sliceHead(line, maxChars)}... [truncated]',
     wasTruncated: true,
   );
 }
+
+/// 返回字符串前至多 [maxUnits] 个 UTF-16 码元，且不拆断代理对（对齐 Pi 1.6.0 #11757）。
+String sliceHead(String text, int maxUnits) {
+  if (maxUnits <= 0 || text.isEmpty) {
+    return '';
+  }
+  if (maxUnits >= text.length) {
+    return text;
+  }
+  final end = maxUnits;
+  if (_isHighSurrogate(text.codeUnitAt(end - 1)) &&
+      _isLowSurrogate(text.codeUnitAt(end))) {
+    return text.substring(0, end - 1);
+  }
+  return text.substring(0, end);
+}
+
+/// 返回字符串后至多 [maxUnits] 个 UTF-16 码元，且不拆断代理对（对齐 Pi 1.6.0 #11757）。
+String sliceTail(String text, int maxUnits) {
+  if (maxUnits <= 0 || text.isEmpty) {
+    return '';
+  }
+  if (maxUnits >= text.length) {
+    return text;
+  }
+  final start = text.length - maxUnits;
+  if (_isLowSurrogate(text.codeUnitAt(start)) &&
+      _isHighSurrogate(text.codeUnitAt(start - 1))) {
+    return text.substring(start + 1);
+  }
+  return text.substring(start);
+}
+
+bool _isHighSurrogate(int code) => code >= 0xd800 && code <= 0xdbff;
+
+bool _isLowSurrogate(int code) => code >= 0xdc00 && code <= 0xdfff;
 
 /// 供 shell 捕获层复用的 UTF-8 编码探针。
 Uint8List utf8EncodeBytes(String text) => Uint8List.fromList(utf8.encode(text));

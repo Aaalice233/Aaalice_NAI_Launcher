@@ -37,6 +37,7 @@ class BeforeToolCallResult {
 class AfterToolCallResult {
   const AfterToolCallResult({
     this.content,
+    this.structuredContent,
     this.details,
     this.isError,
     this.usage,
@@ -44,6 +45,7 @@ class AfterToolCallResult {
   });
 
   final List<ToolResultContent>? content;
+  final Map<String, dynamic>? structuredContent;
   final dynamic details;
   final bool? isError;
   final Usage? usage;
@@ -97,12 +99,53 @@ class ShouldStopAfterTurnContext {
 }
 
 typedef PrepareNextTurnContext = ShouldStopAfterTurnContext;
+typedef FinishTurnContext = ShouldStopAfterTurnContext;
+
+/// finishTurn 的决策：继续额外一轮纯上下文续跑，或立即结束本次运行。
+enum AgentTurnDecisionAction { continueTurn, end }
+
+class AgentTurnDecision {
+  const AgentTurnDecision.continueTurn()
+    : action = AgentTurnDecisionAction.continueTurn;
+
+  const AgentTurnDecision.end() : action = AgentTurnDecisionAction.end;
+
+  final AgentTurnDecisionAction action;
+}
+
+/// 每次发往模型请求前传给 prepareRequest 的快照。
+class PrepareRequestContext {
+  const PrepareRequestContext({
+    required this.context,
+    required this.model,
+    required this.thinkingLevel,
+  });
+
+  final AgentContext context;
+  final Model model;
+  final String thinkingLevel;
+}
+
+/// prepareRequest 返回的请求级状态更新。
+class AgentRequestUpdate {
+  const AgentRequestUpdate({this.context, this.model, this.thinkingLevel});
+
+  final AgentContext? context;
+  final Model? model;
+  final String? thinkingLevel;
+}
 
 /// turn 间替换的运行时状态。
 class AgentLoopTurnUpdate {
-  const AgentLoopTurnUpdate({this.context, this.model, this.thinkingLevel});
+  const AgentLoopTurnUpdate({
+    this.context,
+    this.messages,
+    this.model,
+    this.thinkingLevel,
+  });
 
   final AgentContext? context;
+  final List<AgentMessage>? messages;
   final Model? model;
   final String? thinkingLevel;
 }
@@ -122,6 +165,8 @@ class AgentLoopConfig extends SimpleStreamOptions {
     super.maxRetryDelayMs,
     this.transformContext,
     this.getApiKey,
+    this.finishTurn,
+    this.prepareRequest,
     this.shouldStopAfterTurn,
     this.prepareNextTurn,
     this.getSteeringMessages,
@@ -147,11 +192,25 @@ class AgentLoopConfig extends SimpleStreamOptions {
   /// 每次 LLM 调用前动态解析 API Key（短期 OAuth token 场景）。
   final Future<String?> Function(String provider)? getApiKey;
 
-  /// turn_end 之后决定是否优雅停止（true → agent_end 并退出）。
+  /// 在 turn_end 之前执行，可返回 continue/end 决策；error/aborted 也会触发。
+  final Future<AgentTurnDecision?> Function(
+    FinishTurnContext context,
+    AbortSignal? signal,
+  )?
+  finishTurn;
+
+  /// 每次发往模型的请求前（包含首轮）调用，可替换 context/model/thinkingLevel。
+  final Future<AgentRequestUpdate?> Function(
+    PrepareRequestContext context,
+    AbortSignal? signal,
+  )?
+  prepareRequest;
+
+  /// turn_end 之后决定是否优雅停止（兼容旧钩子，推荐改用 finishTurn）。
   final Future<bool> Function(ShouldStopAfterTurnContext context)?
   shouldStopAfterTurn;
 
-  /// turn_end 后、下一次请求前替换 context/model/thinking。
+  /// 下一轮 turn_start 前调用，可替换 context/model/thinking 并追加消息。
   final Future<AgentLoopTurnUpdate?> Function(PrepareNextTurnContext context)?
   prepareNextTurn;
 
@@ -188,6 +247,8 @@ class AgentLoopConfig extends SimpleStreamOptions {
       maxRetryDelayMs: maxRetryDelayMs,
       transformContext: transformContext,
       getApiKey: getApiKey,
+      finishTurn: finishTurn,
+      prepareRequest: prepareRequest,
       shouldStopAfterTurn: shouldStopAfterTurn,
       prepareNextTurn: prepareNextTurn,
       getSteeringMessages: getSteeringMessages,
@@ -198,7 +259,7 @@ class AgentLoopConfig extends SimpleStreamOptions {
     );
   }
 
-  /// prepareNextTurn 快照的合并。
+  /// prepareNextTurn / prepareRequest 快照的合并。
   AgentLoopConfig copyWithWithTurnUpdate({
     Model? model,
     String? reasoning,
@@ -214,6 +275,8 @@ class AgentLoopConfig extends SimpleStreamOptions {
       maxRetryDelayMs: maxRetryDelayMs,
       transformContext: transformContext,
       getApiKey: getApiKey,
+      finishTurn: finishTurn,
+      prepareRequest: prepareRequest,
       shouldStopAfterTurn: shouldStopAfterTurn,
       prepareNextTurn: prepareNextTurn,
       getSteeringMessages: getSteeringMessages,
@@ -270,6 +333,7 @@ class AgentToolResult {
   AgentToolResult({
     required this.content,
     required this.details,
+    this.structuredContent,
     this.isError = false,
     this.usage,
     this.addedToolNames,
@@ -277,6 +341,7 @@ class AgentToolResult {
   });
 
   List<ToolResultContent> content;
+  Map<String, dynamic>? structuredContent;
   dynamic details;
   bool isError;
   Usage? usage;
@@ -407,10 +472,12 @@ class AgentEventToolExecutionEnd extends AgentEvent {
     required this.toolName,
     required this.result,
     required this.isError,
+    this.durationMs,
   });
 
   final String toolCallId;
   final String toolName;
   final AgentToolResult result;
   final bool isError;
+  final int? durationMs;
 }

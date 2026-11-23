@@ -800,10 +800,23 @@ class AgentChatNotifier extends Notifier<AgentChatState> {
 
     final contextWindow = capability.metadata.contextWindow;
     if (contextWindow > 0) {
+      // Mirrors Pi 1.6.0 simple-options.ts clampMaxTokensToContext (#10497).
       const contextSafetyTokens = 4096;
-      final used = estimateContextTokens(messages).tokens;
-      final available = contextWindow - used - contextSafetyTokens;
-      final contextMax = available < 1 ? 1 : available;
+      const contextSafetyRatio = 0.15;
+      const minOutputWithRatioMargin = 32768;
+      final input = estimateContextTokens(messages).tokens;
+      final ratioMargin = (input * contextSafetyRatio).ceil();
+      final margin = ratioMargin > contextSafetyTokens
+          ? ratioMargin
+          : contextSafetyTokens;
+      var room = contextWindow - input - margin;
+      if (room < minOutputWithRatioMargin) {
+        final fixedRoom = contextWindow - input - contextSafetyTokens;
+        room = fixedRoom < minOutputWithRatioMargin
+            ? fixedRoom
+            : minOutputWithRatioMargin;
+      }
+      final contextMax = room < 1 ? 1 : room;
       if (result > contextMax) result = contextMax;
     }
     return result < 1 ? 1 : result;

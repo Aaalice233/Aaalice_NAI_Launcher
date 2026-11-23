@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../agent_types.dart';
 import '../llm_helpers.dart';
+import '../utils/truncate.dart';
 
 /// 会话分支或 compaction 范围触碰的文件路径。
 class FileOperations {
@@ -94,13 +95,10 @@ String serializeConversation(List<Message> messages) {
         parts.add('[User]: $content');
       }
     } else if (msg is AssistantMessage) {
-      final thinkingParts = <String>[];
       final toolCalls = <String>[];
 
       for (final block in msg.content) {
-        if (block is AssistantThinkingContent) {
-          thinkingParts.add(block.thinking);
-        } else if (block is ToolCallContent) {
+        if (block is ToolCallContent) {
           final argsStr = block.arguments.entries
               .map((e) => '${e.key}=${_safeJsonStringify(e.value)}')
               .join(', ');
@@ -108,9 +106,6 @@ String serializeConversation(List<Message> messages) {
         }
       }
 
-      if (thinkingParts.isNotEmpty) {
-        parts.add('[Assistant thinking]: ${thinkingParts.join('\n')}');
-      }
       if (msg.content.any((block) => block is AssistantTextContent)) {
         parts.add('[Assistant]: ${_assistantText(msg)}');
       }
@@ -139,6 +134,7 @@ String _truncate(String text, int maxChars) {
   if (text.length <= maxChars) {
     return text;
   }
-  final truncatedChars = text.length - maxChars;
-  return '${text.substring(0, maxChars)}\n\n[... $truncatedChars more characters truncated]';
+  final head = sliceHead(text, maxChars);
+  final truncatedChars = text.length - head.length;
+  return '$head\n\n[... $truncatedChars more characters truncated]';
 }

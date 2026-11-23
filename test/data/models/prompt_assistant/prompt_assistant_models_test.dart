@@ -11,12 +11,12 @@ void main() {
         ProviderPreset.openRouter: (
           'https://openrouter.ai/api/v1',
           ProviderProtocol.openaiChatCompletions,
-          'moonshotai/kimi-k2.6',
+          'moonshotai/kimi-k2.7-code',
         ),
         ProviderPreset.xai: (
           'https://api.x.ai/v1',
           ProviderProtocol.openaiResponses,
-          'grok-4.6',
+          'grok-4.7',
         ),
         ProviderPreset.mistral: (
           'https://api.mistral.ai',
@@ -36,43 +36,45 @@ void main() {
         ProviderPreset.minimax: (
           'https://api.minimax.io/anthropic',
           ProviderProtocol.anthropicMessages,
-          'MiniMax-M2.7',
+          'MiniMax-M3',
         ),
         ProviderPreset.minimaxCn: (
           'https://api.minimaxi.com/anthropic',
           ProviderProtocol.anthropicMessages,
-          'MiniMax-M2.7',
+          'MiniMax-M3',
         ),
         ProviderPreset.kimiCoding: (
-          'https://api.kimi.com/coding',
-          ProviderProtocol.anthropicMessages,
+          'https://api.kimi.com/coding/v1',
+          ProviderProtocol.openaiChatCompletions,
           'kimi-for-coding',
         ),
         ProviderPreset.moonshot: (
           'https://api.moonshot.ai/v1',
           ProviderProtocol.openaiChatCompletions,
-          'kimi-k2.6',
+          'kimi-k2.7-code',
         ),
         ProviderPreset.moonshotCn: (
           'https://api.moonshot.cn/v1',
           ProviderProtocol.openaiChatCompletions,
-          'kimi-k2.6',
+          'kimi-k2.7-code',
         ),
         ProviderPreset.qwenTokenPlan: (
-          'https://token-plan.ap-southeast-1.maas.aliyuncs.com/'
-              'compatible-mode/v1',
+          'https://token-plan.maas.qwencloudapi.com/compatible-mode/v1',
           ProviderProtocol.openaiChatCompletions,
-          'qwen3.7-max',
+          'qwen3.8-max',
         ),
         ProviderPreset.qwenTokenPlanCn: (
-          'https://token-plan.cn-beijing.maas.aliyuncs.com/'
-              'compatible-mode/v1',
+          'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
           ProviderProtocol.openaiChatCompletions,
-          'qwen3.7-max',
+          'qwen3.8-max',
         ),
         ProviderPreset.qwenTokenPlanIndividual: (
-          'https://token-plan.ap-southeast-1.maas.aliyuncs.com/'
-              'compatible-mode/v1',
+          'https://token-plan.maas.qwencloudapi.com/compatible-mode/v1',
+          ProviderProtocol.openaiChatCompletions,
+          'qwen3.8-max',
+        ),
+        ProviderPreset.qwenTokenPlanIndividualCn: (
+          'https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1',
           ProviderProtocol.openaiChatCompletions,
           'qwen3.8-max',
         ),
@@ -84,11 +86,9 @@ void main() {
         expect(entry.key.defaultModelNames, [entry.value.$3]);
       }
       expect(ProviderPreset.deepseek.defaultModelNames, ['deepseek-v4-pro']);
-      expect(ProviderPreset.openaiResponses.defaultModelNames, ['gpt-5.5']);
-      expect(ProviderPreset.anthropic.defaultModelNames, ['claude-opus-4-8']);
-      expect(ProviderPreset.gemini.defaultModelNames, [
-        'gemini-3.1-pro-preview',
-      ]);
+      expect(ProviderPreset.openaiResponses.defaultModelNames, ['gpt-6.2-sol']);
+      expect(ProviderPreset.anthropic.defaultModelNames, ['claude-opus-5-5']);
+      expect(ProviderPreset.gemini.defaultModelNames, ['gemini-4-argon']);
     },
   );
 

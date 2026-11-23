@@ -11,7 +11,8 @@ String? detectSupportedImageMimeType(Uint8List buffer) {
   if (_startsWith(buffer, _pngSignature)) {
     return _isPng(buffer) && !_isAnimatedPng(buffer) ? 'image/png' : null;
   }
-  if (_startsWithAscii(buffer, 0, 'GIF')) {
+  if (_startsWithAscii(buffer, 0, 'GIF87a') ||
+      _startsWithAscii(buffer, 0, 'GIF89a')) {
     return 'image/gif';
   }
   if (_startsWithAscii(buffer, 0, 'RIFF') && _startsWithAscii(buffer, 8, 'WEBP')) {

@@ -262,6 +262,7 @@ class AssistantMessage extends Message {
     this.usage,
     this.provider,
     this.model,
+    this.thinkingLevel,
     int? timestamp,
   }) : super(timestamp: timestamp ?? _nowMs());
 
@@ -281,6 +282,9 @@ class AssistantMessage extends Message {
 
   String? model;
 
+  /// 本轮请求所使用的思考档位（对齐 pi-agent-core 1.6.0）。
+  String? thinkingLevel;
+
   String get text =>
       content.whereType<AssistantTextContent>().map((c) => c.text).join();
 
@@ -294,6 +298,7 @@ class AssistantMessage extends Message {
     Usage? usage,
     String? provider,
     String? model,
+    String? thinkingLevel,
   }) {
     return AssistantMessage(
       content: content ?? this.content,
@@ -302,6 +307,7 @@ class AssistantMessage extends Message {
       usage: usage ?? this.usage,
       provider: provider ?? this.provider,
       model: model ?? this.model,
+      thinkingLevel: thinkingLevel ?? this.thinkingLevel,
       timestamp: timestamp,
     );
   }
@@ -333,6 +339,7 @@ class ToolResultMessage extends Message {
     this.usage,
     this.addedToolNames,
     this.isError = false,
+    this.durationMs,
     int? timestamp,
   }) : super(timestamp: timestamp ?? _nowMs());
 
@@ -346,6 +353,9 @@ class ToolResultMessage extends Message {
   Usage? usage;
   List<String>? addedToolNames;
   bool isError;
+
+  /// 工具 `execute()` 实际执行的单调耗时（毫秒）；未进入执行时为 null。
+  int? durationMs;
 
   String get text =>
       content.whereType<ToolResultTextContent>().map((c) => c.text).join();

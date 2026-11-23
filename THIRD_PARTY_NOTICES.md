@@ -185,14 +185,16 @@ THE SOFTWARE.
 
 ## pi Agent
 
-The Agent loop, state management, harness, compaction, and JSONL session code
-under `lib/core/agent/` contains a Dart adaptation of the `packages/agent`
-component from [pi](https://github.com/earendil-works/pi), formerly published
-as `badlogic/pi-mono`. Agent model reasoning metadata and provider request
-mapping under `lib/presentation/agent_chat/` and
-`lib/presentation/prompt_assistant/` are adapted from `@earendil-works/pi-ai`
-0.84.4. The core adaptation was reviewed against repository revision
-`8fa7eebd235355522c8104166b4f1f959b4e2f10`.
+The Agent loop, state management, harness, compaction, tools, and JSONL session
+code under `lib/core/agent/` contains a Dart adaptation of the `packages/agent`
+and `packages/coding-agent` components from
+[pi](https://github.com/earendil-works/pi), formerly published as
+`badlogic/pi-mono`. Agent model reasoning metadata and provider request mapping
+under `lib/presentation/agent_chat/` and `lib/presentation/prompt_assistant/`
+are adapted from `@earendil-works/pi-ai` 1.6.0. The adaptation was reviewed
+against `@earendil-works/pi-agent-core`, `@earendil-works/pi-coding-agent`, and
+`@earendil-works/pi-ai` 1.6.0 (repository revision
+`faac585884ae2c013a6b1400f3e9e77f10b34bac`).
 
 MIT License
 

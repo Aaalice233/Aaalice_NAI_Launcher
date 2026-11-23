@@ -199,32 +199,79 @@ Future<void> _runLoop(
 ) async {
   var currentContext = initialContext;
   var config = initialConfig;
-  var firstTurn = true;
+  ShouldStopAfterTurnContext? lastCompletedTurn;
+  var explicitContinuation = false;
   // 起始即检查 steering（用户可能在等待期间输入）
   var pendingMessages =
       await config.getSteeringMessages?.call() ?? <AgentMessage>[];
 
-  // 外层循环：agent 将停止时若有排队的 follow-up 消息则继续
+  // 外层循环：agent 将停止时若有排队的 follow-up 消息或显式续跑决策则继续
   while (true) {
     var hasMoreToolCalls = true;
 
     // 内层循环：处理工具调用与 steering 消息
     while (hasMoreToolCalls || pendingMessages.isNotEmpty) {
-      if (!firstTurn) {
+      var preparedMessages = const <AgentMessage>[];
+      if (lastCompletedTurn != null) {
+        final nextTurnSnapshot = await config.prepareNextTurn?.call(
+          lastCompletedTurn,
+        );
+        if (nextTurnSnapshot != null) {
+          currentContext = nextTurnSnapshot.context ?? currentContext;
+          preparedMessages = nextTurnSnapshot.messages ?? const [];
+          config = config.copyWithWithTurnUpdate(
+            model: nextTurnSnapshot.model ?? config.model,
+            reasoning: nextTurnSnapshot.thinkingLevel == null
+                ? config.reasoning
+                : nextTurnSnapshot.thinkingLevel == 'off'
+                ? null
+                : nextTurnSnapshot.thinkingLevel,
+            clearReasoning: nextTurnSnapshot.thinkingLevel == 'off',
+          );
+        }
+
+        // prepareNextTurn 可能耗时较长（如自动压缩）；补拉期间排队的 steering。
+        // 仅在前一次轮询未取到消息时再次轮询，避免 one-at-a-time 模式下单轮投递两条。
+        if (pendingMessages.isEmpty) {
+          pendingMessages =
+              await config.getSteeringMessages?.call() ?? <AgentMessage>[];
+        }
+
         await emit(const AgentEventTurnStart());
-      } else {
-        firstTurn = false;
       }
 
-      // 处理待注入消息（在下一次助手响应前插入）
-      if (pendingMessages.isNotEmpty) {
-        for (final message in pendingMessages) {
+      // 处理 prepareNextTurn 追加的消息与待注入队列消息（在下一次助手响应前插入）
+      final incomingMessages = [...preparedMessages, ...pendingMessages];
+      if (incomingMessages.isNotEmpty) {
+        for (final message in incomingMessages) {
           await emit(AgentEventMessageStart(message: message));
           await emit(AgentEventMessageEnd(message: message));
           currentContext.messages.add(message);
           newMessages.add(message);
         }
-        pendingMessages = [];
+      }
+      pendingMessages = [];
+
+      // 每次请求前允许调用方调整 context / model / thinkingLevel（对齐 Pi 1.6.0）
+      final requestUpdate = await config.prepareRequest?.call(
+        PrepareRequestContext(
+          context: currentContext,
+          model: config.model,
+          thinkingLevel: config.reasoning ?? 'off',
+        ),
+        signal,
+      );
+      if (requestUpdate != null) {
+        currentContext = requestUpdate.context ?? currentContext;
+        config = config.copyWithWithTurnUpdate(
+          model: requestUpdate.model ?? config.model,
+          reasoning: requestUpdate.thinkingLevel == null
+              ? config.reasoning
+              : requestUpdate.thinkingLevel == 'off'
+              ? null
+              : requestUpdate.thinkingLevel,
+          clearReasoning: requestUpdate.thinkingLevel == 'off',
+        );
       }
 
       // 流式获取助手响应
@@ -239,6 +286,13 @@ Future<void> _runLoop(
 
       if (message.stopReason == StopReason.error ||
           message.stopReason == StopReason.aborted) {
+        lastCompletedTurn = _PrepareNextTurnArgs(
+          message: message,
+          toolResults: const [],
+          context: currentContext,
+          newMessages: newMessages,
+        );
+        await config.finishTurn?.call(lastCompletedTurn, signal);
         await emit(AgentEventTurnEnd(message: message, toolResults: const []));
         await emit(AgentEventAgentEnd(messages: newMessages));
         return;
@@ -270,28 +324,19 @@ Future<void> _runLoop(
         }
       }
 
-      await emit(AgentEventTurnEnd(message: message, toolResults: toolResults));
-
-      final nextTurnContext = _PrepareNextTurnArgs(
+      lastCompletedTurn = _PrepareNextTurnArgs(
         message: message,
         toolResults: toolResults,
         context: currentContext,
         newMessages: newMessages,
       );
-      final nextTurnSnapshot = await config.prepareNextTurn?.call(
-        nextTurnContext,
-      );
-      if (nextTurnSnapshot != null) {
-        currentContext = nextTurnSnapshot.context ?? currentContext;
-        config = config.copyWithWithTurnUpdate(
-          model: nextTurnSnapshot.model ?? config.model,
-          reasoning: nextTurnSnapshot.thinkingLevel == null
-              ? config.reasoning
-              : nextTurnSnapshot.thinkingLevel == 'off'
-              ? null
-              : nextTurnSnapshot.thinkingLevel,
-          clearReasoning: nextTurnSnapshot.thinkingLevel == 'off',
-        );
+      final decision = await config.finishTurn?.call(lastCompletedTurn, signal);
+
+      await emit(AgentEventTurnEnd(message: message, toolResults: toolResults));
+
+      if (decision?.action == AgentTurnDecisionAction.end) {
+        await emit(AgentEventAgentEnd(messages: newMessages));
+        return;
       }
 
       final shouldStop = await config.shouldStopAfterTurn?.call(
@@ -307,8 +352,13 @@ Future<void> _runLoop(
         return;
       }
 
+      explicitContinuation =
+          decision?.action == AgentTurnDecisionAction.continueTurn;
       pendingMessages =
           await config.getSteeringMessages?.call() ?? <AgentMessage>[];
+      if (hasMoreToolCalls || pendingMessages.isNotEmpty) {
+        explicitContinuation = false;
+      }
     }
 
     // Agent 将在此停止。检查 follow-up 消息。
@@ -316,7 +366,14 @@ Future<void> _runLoop(
         await config.getFollowUpMessages?.call() ?? <AgentMessage>[];
     if (followUpMessages.isNotEmpty) {
       // 设为 pending 交由内层循环处理
+      explicitContinuation = false;
       pendingMessages = followUpMessages;
+      continue;
+    }
+
+    // 没有自然续跑来源时，执行一次 finishTurn 请求的纯上下文续跑。
+    if (explicitContinuation) {
+      explicitContinuation = false;
       continue;
     }
 
@@ -382,6 +439,13 @@ Future<AssistantMessage> _streamAssistantResponse(
     config.copyWith(apiKey: resolvedApiKey, signal: signal),
   );
 
+  // 无论由哪个 streamFn 应答，均在原消息实例上记录本轮请求的思考档位（保留对象标识）。
+  Future<AssistantMessage> resolveFinalMessage() async {
+    final finalMessage = await response.result();
+    finalMessage.thinkingLevel = config.reasoning ?? 'off';
+    return finalMessage;
+  }
+
   AssistantMessage? partialMessage;
   var addedPartial = false;
 
@@ -411,7 +475,7 @@ Future<AssistantMessage> _streamAssistantResponse(
         );
       }
     } else if (event is AmDone || event is AmError) {
-      final finalMessage = await response.result();
+      final finalMessage = await resolveFinalMessage();
       if (addedPartial) {
         context.messages[context.messages.length - 1] = finalMessage;
       } else {
@@ -425,7 +489,7 @@ Future<AssistantMessage> _streamAssistantResponse(
     }
   }
 
-  final finalMessage = await response.result();
+  final finalMessage = await resolveFinalMessage();
   if (addedPartial) {
     context.messages[context.messages.length - 1] = finalMessage;
   } else {
@@ -569,10 +633,6 @@ Future<_ExecutedToolCallBatch> _executeToolCallsSequential(
     await _emitToolResultMessage(toolResultMessage, emit);
     finalizedCalls.add(finalized);
     messages.add(toolResultMessage);
-
-    if (signal?.aborted == true) {
-      break;
-    }
   }
   return _ExecutedToolCallBatch(
     messages: messages,
@@ -614,15 +674,21 @@ Future<_ExecutedToolCallBatch> _executeToolCallsParallel(
       );
       await _emitToolExecutionEnd(finalized, emit);
       finalizedCalls.add(_ParallelEntry.immediate(finalized));
-      if (signal?.aborted == true) {
-        break;
-      }
       continue;
     }
 
     final prepared = preparation as _PreparedToolCall;
     finalizedCalls.add(
       _ParallelEntry.lazy(() async {
+        if (signal?.aborted == true) {
+          final finalized = _FinalizedToolCallOutcome(
+            toolCall: toolCall,
+            result: _createErrorToolResult('Operation aborted'),
+            isError: true,
+          );
+          await _emitToolExecutionEnd(finalized, emit);
+          return finalized;
+        }
         final executed = await _executePreparedToolCall(prepared, signal, emit);
         final finalized = await _finalizeExecutedToolCall(
           currentContext,
@@ -636,9 +702,6 @@ Future<_ExecutedToolCallBatch> _executeToolCallsParallel(
         return finalized;
       }),
     );
-    if (signal?.aborted == true) {
-      break;
-    }
   }
 
   final orderedFinalizedCalls = await Future.wait(
@@ -684,10 +747,15 @@ class _ImmediateToolCallOutcome extends _ToolCallPreparation {
 }
 
 class _ExecutedToolCallOutcome {
-  const _ExecutedToolCallOutcome({required this.result, required this.isError});
+  const _ExecutedToolCallOutcome({
+    required this.result,
+    required this.isError,
+    required this.durationMs,
+  });
 
   final AgentToolResult result;
   final bool isError;
+  final int durationMs;
 }
 
 class _FinalizedToolCallOutcome {
@@ -695,11 +763,13 @@ class _FinalizedToolCallOutcome {
     required this.toolCall,
     required this.result,
     required this.isError,
+    this.durationMs,
   });
 
   final ToolCallContent toolCall;
   final AgentToolResult result;
   final bool isError;
+  final int? durationMs;
 }
 
 sealed class _ParallelEntry {
@@ -744,6 +814,13 @@ Future<_ToolCallPreparation> _prepareToolCall(
   AgentLoopConfig config,
   AbortSignal? signal,
 ) async {
+  // 已中止时跳过准备和钩子；调用方仍会记录此错误结果，确保批内每个工具调用都有应答 (#9986)。
+  if (signal?.aborted == true) {
+    return _ImmediateToolCallOutcome(
+      result: _createErrorToolResult('Operation aborted'),
+      isError: true,
+    );
+  }
   final tool = currentContext.tools
       ?.where((t) => t.name == toolCall.name)
       .firstOrNull;
@@ -808,6 +885,7 @@ Future<_ExecutedToolCallOutcome> _executePreparedToolCall(
 ) async {
   final updateEvents = <Future<void>>[];
   var acceptingUpdates = true;
+  final stopwatch = Stopwatch()..start();
 
   try {
     final result = await prepared.tool.execute(
@@ -828,15 +906,22 @@ Future<_ExecutedToolCallOutcome> _executePreparedToolCall(
         }());
       },
     );
+    final durationMs = stopwatch.elapsedMilliseconds;
     acceptingUpdates = false;
     await Future.wait(updateEvents);
-    return _ExecutedToolCallOutcome(result: result, isError: result.isError);
+    return _ExecutedToolCallOutcome(
+      result: result,
+      isError: result.isError,
+      durationMs: durationMs,
+    );
   } catch (error) {
+    final durationMs = stopwatch.elapsedMilliseconds;
     acceptingUpdates = false;
     await Future.wait(updateEvents);
     return _ExecutedToolCallOutcome(
       result: _createErrorToolResult(error.toString()),
       isError: true,
+      durationMs: durationMs,
     );
   } finally {
     acceptingUpdates = false;
@@ -869,8 +954,12 @@ Future<_FinalizedToolCallOutcome> _finalizeExecutedToolCall(
       );
       if (afterResult != null) {
         isError = afterResult.isError ?? isError;
+        final structuredContent =
+            afterResult.structuredContent ??
+            (afterResult.content != null ? null : result.structuredContent);
         result = AgentToolResult(
           content: afterResult.content ?? result.content,
+          structuredContent: structuredContent,
           details: afterResult.details ?? result.details,
           isError: isError,
           usage: afterResult.usage ?? result.usage,
@@ -888,6 +977,7 @@ Future<_FinalizedToolCallOutcome> _finalizeExecutedToolCall(
     toolCall: prepared.toolCall,
     result: result,
     isError: isError,
+    durationMs: executed.durationMs,
   );
 }
 
@@ -909,6 +999,7 @@ Future<void> _emitToolExecutionEnd(
       toolName: finalized.toolCall.name,
       result: finalized.result,
       isError: finalized.isError,
+      durationMs: finalized.durationMs,
     ),
   );
 }
@@ -928,6 +1019,7 @@ ToolResultMessage _createToolResultMessage(
         ? finalized.result.addedToolNames
         : null,
     isError: finalized.isError,
+    durationMs: finalized.durationMs,
     timestamp: DateTime.now().millisecondsSinceEpoch,
   );
 }

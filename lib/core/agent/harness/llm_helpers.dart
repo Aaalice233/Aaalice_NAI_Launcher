@@ -195,6 +195,8 @@ final _nonRetryableProviderLimitErrorPattern = _providerErrorPattern(const [
   'billing',
   'subscription_sharing_usage_limit_exceeded',
   'subscription_sharing_workplace_individual_usage_limit_exceeded',
+  // 智谱 / Z.ai 套餐用量耗尽错误码 1308 (#11537)。
+  r'"code"\s*:\s*"?1308(?![0-9])',
 ]);
 
 final _retryableProviderErrorPattern = _providerErrorPattern(const [
@@ -221,6 +223,9 @@ final _retryableProviderErrorPattern = _providerErrorPattern(const [
   'connection.?error',
   'connection.?refused',
   'connection.?lost',
+  'connection.?closed',
+  'connection reset by peer',
+  r'(?<![a-z0-9_])(?:ECONNRESET|ECONNABORTED|ECONNREFUSED|ETIMEDOUT|EPIPE)(?![a-z0-9_])',
   'other side closed',
   'fetch failed',
   r'request to \S+ failed, reason:',
@@ -236,6 +241,8 @@ final _retryableProviderErrorPattern = _providerErrorPattern(const [
   'terminated',
   'websocket.?closed',
   'websocket.?error',
+  'websocket.?connection.?limit.?reached',
+  'cut short after the reply had begun',
   'ended without',
   'stream ended before message_stop',
   'stream ended before a terminal response event',

@@ -29,7 +29,10 @@ Map<String, dynamic> chatReasoningPayload(AgentReasoningRequest? reasoning) {
       if (enabled) 'prompt_mode': 'reasoning',
     },
     AgentReasoningApi.mistralEffort => {
-      if (enabled) 'reasoning_effort': reasoning.effort ?? 'high',
+      if (enabled)
+        'reasoning_effort': reasoning.effort ?? 'high'
+      else if (reasoning.sendWhenDisabled && reasoning.effort != null)
+        'reasoning_effort': reasoning.effort,
     },
     _ => const {},
   };

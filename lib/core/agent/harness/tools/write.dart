@@ -51,11 +51,7 @@ class WriteHarnessTool extends AgentHarnessTool {
         throw StateError('Operation aborted');
       }
       return AgentToolResult(
-        content: [
-          ToolResultTextContent(
-            'Successfully wrote ${content.length} bytes to $path',
-          ),
-        ],
+        content: [ToolResultTextContent('Successfully wrote to $path')],
         details: null,
       );
     });

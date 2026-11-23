@@ -84,6 +84,13 @@ void main() {
       'overloaded_error',
       '520 status code (no body)',
       '524 status code (no body)',
+      'Connection closed unexpectedly',
+      'read ECONNRESET',
+      'connect ETIMEDOUT 1.2.3.4:443',
+      'write EPIPE',
+      'connection reset by peer',
+      'websocket connection limit reached',
+      'The stream was cut short after the reply had begun.',
     ]) {
       test('retries transient failure: $errorMessage', () {
         expect(_retryable(errorMessage), isTrue);
@@ -96,6 +103,7 @@ void main() {
           'exceeded","message":"Usage limit reached."}',
       'OpenAI API error (429): {"code":"subscription_sharing_workplace_'
           'individual_usage_limit_exceeded","message":"Usage limit reached."}',
+      '429 {"error":{"code":"1308","message":"已达到使用上限"}}',
       '401 {"type":"error","error":{"type":"authentication_error","message":'
           '"invalid x-api-key"},"request_id":"req_011CU503xyz"}',
       '400 image exceeds 5 MB maximum: 5316784 bytes > 5242880 bytes',

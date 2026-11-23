@@ -35,16 +35,13 @@ void main() {
         ProviderPreset.mistral,
         'magistral-medium-latest',
         const OpenAiChatCompletionsAdapter(),
-        {'prompt_mode': 'reasoning'},
+        {'reasoning_effort': 'high'},
       ),
       (
         ProviderPreset.kimiCoding,
         'kimi-for-coding',
-        const AnthropicMessagesAdapter(),
-        {
-          'thinking': {'type': 'adaptive', 'display': 'summarized'},
-          'output_config': {'effort': 'high'},
-        },
+        const OpenAiChatCompletionsAdapter(),
+        {'reasoning_effort': 'high'},
       ),
       (
         ProviderPreset.xai,
@@ -105,11 +102,7 @@ void main() {
                 },
               ]);
             case ProviderPreset.kimiCoding:
-              expect((assistant?['content'] as List).first, {
-                'type': 'thinking',
-                'thinking': 'need lookup',
-                'signature': '',
-              });
+              expect(assistant?['reasoning_content'], 'need lookup');
             case ProviderPreset.xai:
               expect(payload['include'], ['reasoning.encrypted_content']);
             default:
@@ -505,6 +498,26 @@ void main() {
         'includeThoughts': true,
         'thinkingLevel': 'HIGH',
       });
+    });
+
+    test('Mistral effort sends reasoning_effort=none for explicit off', () async {
+      final provider = ProviderPreset.mistral.createConfig();
+      final capability = AgentChatModelCapability.resolve(
+        provider,
+        'magistral-medium-latest',
+      );
+      final payload = await _capture(
+        const OpenAiChatCompletionsAdapter(),
+        _request(
+          provider.protocol,
+          capability.resolveReasoningRequest('off')!,
+          provider: provider,
+          model: 'magistral-medium-latest',
+        ),
+      );
+
+      expect(payload['reasoning_effort'], 'none');
+      expect(payload.containsKey('prompt_mode'), isFalse);
     });
   });
 }

@@ -25,6 +25,7 @@ final _overflowPatterns = <RegExp>[
   _pattern('exceeds the available context size'),
   _pattern('greater than the context length'),
   _pattern('context window exceeds limit'),
+  _pattern('context window exceeded'),
   _pattern('exceeded model token limit'),
   _pattern(r'too large for model with \d+ maximum context length'),
   _pattern(
@@ -90,4 +91,13 @@ bool isContextOverflow(AssistantMessage message, [int? contextWindow]) {
     return true;
   }
   return false;
+}
+
+/// 截断停止（length）的助手消息输出未达期望上限时，可通过压缩/续跑恢复（对齐 Pi 1.6.0）。
+bool isRecoverableLength(AssistantMessage message, int desiredMaxOutput) {
+  if (message.stopReason != StopReason.length || desiredMaxOutput <= 0) {
+    return false;
+  }
+  final output = message.usage?.output ?? 0;
+  return output < desiredMaxOutput;
 }
