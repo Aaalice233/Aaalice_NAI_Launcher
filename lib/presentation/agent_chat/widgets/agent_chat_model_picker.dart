@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
 import '../../../core/extensions/list_sort_extensions.dart';
@@ -13,11 +14,13 @@ import '../../adaptive/adaptive_pinned_header_sliver.dart';
 import '../../adaptive/interaction_policy.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../prompt_assistant/models/assistant_model_capability.dart';
+import '../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../screens/settings/sections/model_services/provider_model_actions.dart';
 import '../../widgets/common/menu_action_label.dart';
 import '../../widgets/common/searchable_model_picker.dart';
 import '../../widgets/common/model_family_icon.dart';
 import '../../widgets/common/provider_icon.dart';
+import '../providers/agent_chat_notifier.dart';
 
 double _agentChatControlExtent(BuildContext context) => math.max(
   context.interactionPolicy.minimumControlExtent,
@@ -25,7 +28,7 @@ double _agentChatControlExtent(BuildContext context) => math.max(
 );
 
 /// 将模型与思考强度收进同一个分级入口，避免高频输入区被两个选择器占满。
-class AgentChatConfigurationControl extends StatelessWidget {
+class AgentChatConfigurationControl extends StatefulWidget {
   const AgentChatConfigurationControl({
     super.key,
     required this.config,
@@ -54,25 +57,42 @@ class AgentChatConfigurationControl extends StatelessWidget {
   final bool showModelName;
 
   @override
+  State<AgentChatConfigurationControl> createState() =>
+      _AgentChatConfigurationControlState();
+}
+
+class _AgentChatConfigurationControlState
+    extends State<AgentChatConfigurationControl> {
+  final _switchingModel = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    _switchingModel.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final options = _modelOptions(config);
-    final current = _currentModelOption(options, agentSettings);
+    final options = _modelOptions(widget.config);
+    final current = _currentModelOption(options, widget.agentSettings);
+    final reference = widget.agentSettings.settings.chat.modelReference;
     final modelName = _modelDisplayName(
       current: current,
-      reference: agentSettings.settings.chat.modelReference,
-      routeLabel: routeLabel,
+      reference: reference,
+      routeLabel: widget.routeLabel,
       emptyLabel: l10n.agentChat_noModel,
     );
     final thinkingName = thinkingLevelLabel(
       l10n,
-      thinkingLevel,
+      widget.thinkingLevel,
       current?.metadata,
     );
     final interactive =
-        enabled && (options.isNotEmpty || availableThinkingLevels.isNotEmpty);
-    final tooltip = routeError.isNotEmpty
-        ? routeError
+        widget.enabled &&
+        (options.isNotEmpty || widget.availableThinkingLevels.isNotEmpty);
+    final tooltip = widget.routeError.isNotEmpty
+        ? widget.routeError
         : '${l10n.agentChat_modelLabel}: $modelName · '
               '${l10n.agentChat_reasoningLevel}: $thinkingName';
     final theme = Theme.of(context);
@@ -90,28 +110,24 @@ class AgentChatConfigurationControl extends StatelessWidget {
           child: InkWell(
             key: const ValueKey('agent-chat-model-selector'),
             borderRadius: BorderRadius.circular(11),
-            onTap: interactive
-                ? () => _openConfigurationPicker(context, current)
-                : null,
+            onTap: interactive ? () => _openConfigurationPicker(context) : null,
             child: SizedBox(
               height: math.max(42, _agentChatControlExtent(context)),
               child: Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: showModelName ? 11 : 6,
+                  horizontal: widget.showModelName ? 11 : 6,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     ModelFamilyIcon(
-                      modelId:
-                          current?.model.name ??
-                          agentSettings.settings.chat.modelReference.model,
+                      modelId: current?.model.name ?? reference.model,
                       displayName: modelName,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
-                    if (showModelName) ...[
+                    if (widget.showModelName) ...[
                       Flexible(
                         child: Text(
                           modelName,
@@ -148,10 +164,9 @@ class AgentChatConfigurationControl extends StatelessWidget {
     );
   }
 
-  Future<void> _openConfigurationPicker(
-    BuildContext context,
-    _AgentChatModelOption? current,
-  ) async {
+  Future<void> _openConfigurationPicker(BuildContext context) async {
+    final restoreFocusNode = widget.restoreFocusNode;
+    final onThinkingSelected = widget.onThinkingSelected;
     final restoreFocus = restoreFocusNode?.hasFocus ?? false;
     restoreFocusNode?.unfocus();
     final selection =
@@ -163,17 +178,17 @@ class AgentChatConfigurationControl extends StatelessWidget {
           width: 440,
           maxCenteredHeight: 480,
           restoreFocus: false,
-          builder: (_, scrollController) => _AgentChatConfigurationPickerBody(
-            options: _modelOptions(config),
-            selectedModel: current,
-            thinkingLevel: thinkingLevel,
-            availableThinkingLevels: availableThinkingLevels,
-            scrollController: scrollController,
+          builder: (_, scrollController) => ValueListenableBuilder<bool>(
+            valueListenable: _switchingModel,
+            builder: (_, switchingModel, _) =>
+                _AgentChatConfigurationPickerBody(
+                  scrollController: scrollController,
+                  switchingModel: switchingModel,
+                  onModelSelected: _applyModel,
+                ),
           ),
         );
-    if (selection?.model case final model?) {
-      await onModelSelected(model.provider.id, model.model.name);
-    } else if (selection?.configure case final option? when context.mounted) {
+    if (selection?.configure case final option? when context.mounted) {
       await showEditModelForm(context, option.provider, option.model);
     } else if (selection != null && selection.configure == null) {
       await onThinkingSelected(selection.thinkingLevel);
@@ -184,56 +199,65 @@ class AgentChatConfigurationControl extends StatelessWidget {
       restoreFocusNode!.requestFocus();
     }
   }
+
+  Future<void> _applyModel(String providerId, String model) async {
+    _switchingModel.value = true;
+    try {
+      await widget.onModelSelected(providerId, model);
+    } finally {
+      if (mounted) _switchingModel.value = false;
+    }
+  }
 }
 
 class _AgentChatConfigurationSelection {
-  const _AgentChatConfigurationSelection.model(this.model)
-    : thinkingLevel = null,
-      configure = null;
-
   const _AgentChatConfigurationSelection.thinking(this.thinkingLevel)
-    : model = null,
-      configure = null;
+    : configure = null;
 
   const _AgentChatConfigurationSelection.configure(this.configure)
-    : thinkingLevel = null,
-      model = null;
+    : thinkingLevel = null;
 
   final _AgentChatModelOption? configure;
-  final _AgentChatModelOption? model;
   final ThinkingLevel? thinkingLevel;
 }
 
-class _AgentChatConfigurationPickerBody extends StatefulWidget {
+class _AgentChatConfigurationPickerBody extends ConsumerStatefulWidget {
   const _AgentChatConfigurationPickerBody({
-    required this.options,
-    required this.selectedModel,
-    required this.thinkingLevel,
-    required this.availableThinkingLevels,
     required this.scrollController,
+    required this.switchingModel,
+    required this.onModelSelected,
   });
 
-  final List<_AgentChatModelOption> options;
-  final _AgentChatModelOption? selectedModel;
-  final ThinkingLevel? thinkingLevel;
-  final List<ThinkingLevel?> availableThinkingLevels;
   final ScrollController scrollController;
+  final bool switchingModel;
+  final Future<void> Function(String providerId, String model) onModelSelected;
 
   @override
-  State<_AgentChatConfigurationPickerBody> createState() =>
+  ConsumerState<_AgentChatConfigurationPickerBody> createState() =>
       _AgentChatConfigurationPickerBodyState();
 }
 
 class _AgentChatConfigurationPickerBodyState
-    extends State<_AgentChatConfigurationPickerBody> {
+    extends ConsumerState<_AgentChatConfigurationPickerBody> {
   var _showModels = false;
+  var _applyingModel = false;
 
   @override
   Widget build(BuildContext context) {
+    final options = _modelOptions(ref.watch(promptAssistantConfigProvider));
+    final selectedModel = _currentModelOption(
+      options,
+      ref.watch(agentSettingsProvider),
+    );
     if (_showModels) {
-      return _modelPicker(context);
+      return _modelPicker(context, options, selectedModel);
     }
 
+    final (thinkingLevel, availableThinkingLevels) = ref.watch(
+      agentChatNotifierProvider.select(
+        (state) => (state.thinkingLevel, state.availableThinkingLevels),
+      ),
+    );
     final l10n = context.l10n;
     final theme = Theme.of(context);
     return CustomScrollView(
@@ -248,45 +272,57 @@ class _AgentChatConfigurationPickerBodyState
                 '${l10n.agentChat_modelLabel} · ${l10n.agentChat_reasoningLevel}',
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
-          sliver: SliverList.list(
-            children: [
-              _CurrentModelTile(
-                option: widget.selectedModel,
-                onTap: () => setState(() => _showModels = true),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 18, 12, 4),
-                child: Text(
-                  l10n.agentChat_reasoningLevel,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+        if (widget.switchingModel)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
+              child: Text(l10n.common_loading),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+            sliver: SliverList.list(
+              children: [
+                _CurrentModelTile(
+                  option: selectedModel,
+                  onTap: () => setState(() => _showModels = true),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 18, 12, 4),
+                  child: Text(
+                    l10n.agentChat_reasoningLevel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              if (widget.selectedModel case final option?
-                  when option.metadata.configurable)
-                ListTile(
-                  key: const ValueKey('agent-chat-configure-reasoning'),
-                  leading: const Icon(Icons.tune_rounded),
-                  title: Text(l10n.promptAssistant_configureReasoning),
-                  onTap: () => Navigator.pop(
-                    context,
-                    _AgentChatConfigurationSelection.configure(option),
+                if (selectedModel case final option?
+                    when option.metadata.configurable)
+                  ListTile(
+                    key: const ValueKey('agent-chat-configure-reasoning'),
+                    leading: const Icon(Icons.tune_rounded),
+                    title: Text(l10n.promptAssistant_configureReasoning),
+                    onTap: () => Navigator.pop(
+                      context,
+                      _AgentChatConfigurationSelection.configure(option),
+                    ),
                   ),
-                ),
-              for (final level in widget.availableThinkingLevels)
-                _thinkingOption(context, level),
-            ],
+                for (final level in availableThinkingLevels)
+                  _thinkingOption(context, level, thinkingLevel, selectedModel),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _modelPicker(BuildContext context) {
+  Widget _modelPicker(
+    BuildContext context,
+    List<_AgentChatModelOption> options,
+    _AgentChatModelOption? selectedModel,
+  ) {
     final l10n = context.l10n;
     return SearchableModelPickerBody<_AgentChatModelOption>(
       title: l10n.agentChat_modelPickerTitle,
@@ -294,45 +330,58 @@ class _AgentChatConfigurationPickerBodyState
       searchHint: l10n.agentChat_searchModelsHint,
       clearSearchTooltip: l10n.agentChat_clearModelSearch,
       emptyMessage: l10n.agentChat_noModelResults,
-      options: _pickerOptions(widget.options),
-      selectedId: widget.selectedModel?.pickerId,
+      options: _pickerOptions(options),
+      selectedId: selectedModel?.pickerId,
       scrollController: widget.scrollController,
       keyPrefix: 'agent-chat-model',
       headerKeyPrefix: 'agent-chat-model-picker',
       onBack: () => setState(() => _showModels = false),
-      onSelected: (option) => Navigator.pop(
-        context,
-        _AgentChatConfigurationSelection.model(option.value),
-      ),
+      onSelected: (option) async {
+        if (_applyingModel) return;
+        if (option.id != selectedModel?.pickerId) {
+          // 切换完成前留在列表：先回第一页会露出只有一行的等待态，面板缩成一条再展开。
+          _applyingModel = true;
+          try {
+            await widget.onModelSelected(
+              option.value.provider.id,
+              option.value.model.name,
+            );
+          } finally {
+            _applyingModel = false;
+          }
+          if (!mounted) return;
+        }
+        setState(() => _showModels = false);
+      },
     );
   }
 
-  Widget _thinkingOption(BuildContext context, ThinkingLevel? level) =>
-      ListTile(
-        key: ValueKey('agent-chat-thinking-option-${level?.name ?? 'default'}'),
-        minTileHeight: _agentChatControlExtent(context),
-        leading: SizedBox(
-          width: 20,
-          child: level == widget.thinkingLevel
-              ? Icon(
-                  Icons.check_rounded,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.primary,
-                )
-              : null,
-        ),
-        title: Text(
-          thinkingLevelLabel(
-            context.l10n,
-            level,
-            widget.selectedModel?.metadata,
-          ),
-        ),
-        onTap: () => Navigator.pop(
-          context,
-          _AgentChatConfigurationSelection.thinking(level),
-        ),
-      );
+  Widget _thinkingOption(
+    BuildContext context,
+    ThinkingLevel? level,
+    ThinkingLevel? thinkingLevel,
+    _AgentChatModelOption? selectedModel,
+  ) => ListTile(
+    key: ValueKey('agent-chat-thinking-option-${level?.name ?? 'default'}'),
+    minTileHeight: _agentChatControlExtent(context),
+    leading: SizedBox(
+      width: 20,
+      child: level == thinkingLevel
+          ? Icon(
+              Icons.check_rounded,
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
+            )
+          : null,
+    ),
+    title: Text(
+      thinkingLevelLabel(context.l10n, level, selectedModel?.metadata),
+    ),
+    onTap: () => Navigator.pop(
+      context,
+      _AgentChatConfigurationSelection.thinking(level),
+    ),
+  );
 }
 
 class _CurrentModelTile extends StatelessWidget {

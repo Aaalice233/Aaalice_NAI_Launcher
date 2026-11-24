@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,9 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
+import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_model_picker.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 
 void main() {
   for (final size in [
@@ -32,46 +36,12 @@ void main() {
         addTearDown(tester.view.reset);
         await tester.binding.setSurfaceSize(size);
         addTearDown(() => tester.binding.setSurfaceSize(null));
-        final selected = <ThinkingLevel?>[];
+        final fixture = await _pumpConfiguration(
+          tester,
+          textScaler: const TextScaler.linear(3),
+        );
         final selector = find.byKey(
           const ValueKey('agent-chat-model-selector'),
-        );
-        await tester.pumpWidget(
-          ProviderScope(
-            child: MaterialApp(
-              locale: const Locale('en'),
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: const TextScaler.linear(3)),
-                child: child!,
-              ),
-              home: Scaffold(
-                body: Center(
-                  child: AgentChatConfigurationControl(
-                    config: _config,
-                    agentSettings: _settings,
-                    routeLabel: 'First Cloud / aurora-chat-v2',
-                    routeError: '',
-                    thinkingLevel: null,
-                    availableThinkingLevels: const [
-                      null,
-                      ThinkingLevel.low,
-                      ThinkingLevel.medium,
-                      ThinkingLevel.high,
-                    ],
-                    enabled: true,
-                    onModelSelected: (_, _) async {},
-                    onThinkingSelected: (level) async {
-                      selected.add(level);
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
         );
         Future<void> openPicker() async {
           await tester.tap(selector);
@@ -108,7 +78,7 @@ void main() {
         );
         await tester.tap(defaultOption);
         await tester.pumpAndSettle();
-        expect(selected, [null]);
+        expect(fixture.calls, [null]);
         await openPicker();
         final configure = find.byKey(
           const ValueKey('agent-chat-configure-reasoning'),
@@ -126,13 +96,46 @@ void main() {
         Navigator.of(tester.element(format)).pop();
         await tester.pumpAndSettle();
         await openPicker();
+        final route = ModalRoute.of(tester.element(menu))!;
+        final modelRow = _chatKey('model-submenu');
+        await reveal(modelRow, menu);
+        await tester.tap(modelRow);
+        await tester.pumpAndSettle();
+        await tester.enterText(_chatKey('model-search'), 'nebula');
+        await tester.pumpAndSettle();
+        await reveal(_nebulaOption, _chatKey('model-results'));
+        await tester.tap(_nebulaOption);
+        await tester.pumpAndSettle();
+
+        expect(fixture.calls, [null, _nebulaSelection]);
+        expect(menu, findsOneWidget);
+        expect(ModalRoute.of(tester.element(menu)), same(route));
+        expect(_chatKey('model-search'), findsNothing);
+        await reveal(modelRow, menu);
+        expect(
+          find.descendant(of: modelRow, matching: find.text('Nebula Reasoner')),
+          findsOneWidget,
+        );
+        expect(_chatKey('thinking-option-low'), findsNothing);
+        expect(_chatKey('thinking-option-medium'), findsNothing);
+        final off = _chatKey('thinking-option-off');
+        await reveal(off, menu);
+        expect(
+          find.descendant(of: off, matching: find.byIcon(Icons.check_rounded)),
+          findsOneWidget,
+        );
         final high = find.byKey(
           const ValueKey('agent-chat-thinking-option-high'),
         );
         await reveal(high, menu);
+        expect(
+          find.descendant(of: high, matching: find.byIcon(Icons.check_rounded)),
+          findsNothing,
+        );
         await tester.tap(high);
         await tester.pumpAndSettle();
-        expect(selected, [null, ThinkingLevel.high]);
+        expect(fixture.calls, [null, _nebulaSelection, ThinkingLevel.high]);
+        expect(menu, findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
@@ -165,33 +168,16 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1180, 720));
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
-      MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 420,
-              child: AgentChatConfigurationControl(
-                config: _config,
-                agentSettings: _settings,
-                routeLabel: 'First Cloud / aurora-chat-v2',
-                routeError: '',
-                thinkingLevel: ThinkingLevel.low,
-                availableThinkingLevels: const [
-                  ThinkingLevel.low,
-                  ThinkingLevel.medium,
-                  ThinkingLevel.high,
-                ],
-                enabled: true,
-                onModelSelected: (_, _) async {},
-                onThinkingSelected: (_) async {},
-              ),
-            ),
-          ),
-        ),
+    await _pumpConfiguration(
+      tester,
+      controlWidth: 420,
+      chat: const AgentChatState(
+        thinkingLevel: ThinkingLevel.low,
+        availableThinkingLevels: [
+          ThinkingLevel.low,
+          ThinkingLevel.medium,
+          ThinkingLevel.high,
+        ],
       ),
     );
 
@@ -213,6 +199,200 @@ void main() {
       tester.getRect(surface).bottom - tester.getRect(lastOption).bottom,
       lessThanOrEqualTo(20),
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a pending model switch blocks old levels and repeated taps', (
+    tester,
+  ) async {
+    final fixture = await _openConfigurationModels(tester);
+    final release = Completer<void>();
+    fixture.finishSwitch = release.future;
+    await tester.tap(_nebulaOption);
+    await tester.tap(_nebulaOption);
+    await tester.tap(_chatKey('model-picker-back'));
+    await tester.pump();
+
+    expect(fixture.calls, [_nebulaSelection]);
+    expect(
+      find.descendant(
+        of: _chatKey('model-selector'),
+        matching: find.text('Nebula Reasoner'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      fixture.container.read(agentChatNotifierProvider).availableThinkingLevels,
+      contains(ThinkingLevel.low),
+    );
+    expect(_chatKey('thinking-option-low'), findsNothing);
+    expect(_chatKey('thinking-option-high'), findsNothing);
+    expect(_chatKey('model-picker-close').hitTestable(), findsOneWidget);
+    release.complete();
+    await tester.pumpAndSettle();
+
+    for (final level in [null, ...ThinkingLevel.values]) {
+      final tile = _chatKey('thinking-option-${level?.name ?? 'default'}');
+      expect(
+        tile,
+        _nebulaChat.availableThinkingLevels.contains(level)
+            ? findsOneWidget
+            : findsNothing,
+      );
+    }
+    final off = _chatKey('thinking-option-off');
+    expect(
+      find.descendant(of: off, matching: find.byIcon(Icons.check_rounded)),
+      findsOneWidget,
+    );
+    await tester.tap(_chatKey('thinking-option-high'));
+    await tester.pumpAndSettle();
+    expect(fixture.calls, [_nebulaSelection, ThinkingLevel.high]);
+    expect(_chatKey('configuration-options'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('selecting the current model returns without applying it again', (
+    tester,
+  ) async {
+    final fixture = await _openConfigurationModels(tester);
+    await tester.tap(_chatKey('model-option-first-cloud-aurora-chat-v2'));
+    await tester.pumpAndSettle();
+
+    expect(_chatKey('model-search'), findsNothing);
+    expect(
+      find.descendant(
+        of: _chatKey('model-submenu'),
+        matching: find.text('Aurora Chat'),
+      ),
+      findsOneWidget,
+    );
+    expect(_chatKey('thinking-option-low'), findsOneWidget);
+    expect(fixture.calls, isEmpty);
+  });
+
+  for (final dismissal in ['close button', 'system back', 'barrier']) {
+    testWidgets(
+      'dismissal by $dismissal keeps the model without changing effort',
+      (tester) async {
+        final fixture = await _openConfigurationModels(tester);
+        await tester.tap(_nebulaOption);
+        await tester.pumpAndSettle();
+        expect(_chatKey('model-submenu'), findsOneWidget);
+
+        switch (dismissal) {
+          case 'close button':
+            await tester.tap(_chatKey('model-picker-close'));
+          case 'system back':
+            await tester.binding.handlePopRoute();
+          case 'barrier':
+            await tester.tapAt(const Offset(4, 4));
+        }
+        await tester.pumpAndSettle();
+        expect(_chatKey('configuration-options'), findsNothing);
+        expect(
+          find.descendant(
+            of: _chatKey('model-selector'),
+            matching: find.text('Nebula Reasoner'),
+          ),
+          findsOneWidget,
+        );
+        expect(fixture.calls, [_nebulaSelection]);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('the model list stays until the switch finishes', (tester) async {
+    final fixture = await _openConfigurationModels(tester);
+    final release = Completer<void>();
+    fixture.finishSwitch = release.future;
+    final panelHeight = tester.getSize(_chatKey('model-results')).height;
+    await tester.tap(_nebulaOption);
+    await tester.pump();
+
+    expect(fixture.calls, [_nebulaSelection]);
+    expect(_chatKey('model-search'), findsOneWidget);
+    expect(_chatKey('configuration-options'), findsNothing);
+    expect(tester.getSize(_chatKey('model-results')).height, panelHeight);
+    release.complete();
+    await tester.pumpAndSettle();
+
+    expect(_chatKey('model-search'), findsNothing);
+    expect(_chatKey('thinking-option-off'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('closing during a model switch lets the switch finish', (
+    tester,
+  ) async {
+    final fixture = await _openConfigurationModels(tester);
+    final release = Completer<void>();
+    fixture.finishSwitch = release.future;
+    await tester.tap(_nebulaOption);
+    await tester.pump();
+    await tester.tap(_chatKey('model-picker-close'));
+    await tester.pumpAndSettle();
+    expect(_chatKey('configuration-options'), findsNothing);
+    await tester.tap(_chatKey('model-selector'));
+    await tester.pumpAndSettle();
+    expect(_chatKey('configuration-options'), findsOneWidget);
+    expect(_chatKey('thinking-option-low'), findsNothing);
+    expect(_chatKey('thinking-option-high'), findsNothing);
+    release.complete();
+    await tester.pumpAndSettle();
+
+    expect(_chatKey('thinking-option-off'), findsOneWidget);
+    expect(_chatKey('thinking-option-low'), findsNothing);
+    expect(
+      fixture.container.read(agentChatNotifierProvider).thinkingLevel,
+      ThinkingLevel.off,
+    );
+    expect(fixture.calls, [_nebulaSelection]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the input can unmount while its model switch finishes', (
+    tester,
+  ) async {
+    final fixture = await _openConfigurationModels(tester);
+    final release = Completer<void>();
+    fixture.finishSwitch = release.future;
+    await tester.tap(_nebulaOption);
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    release.complete();
+    await tester.pump();
+
+    expect(
+      fixture.container.read(agentChatNotifierProvider).thinkingLevel,
+      ThinkingLevel.off,
+    );
+    expect(fixture.calls, [_nebulaSelection]);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('configure reasoning follows the selected model', (tester) async {
+    final fixture = await _openConfigurationModels(tester);
+    await tester.tap(_chatKey('model-option-first-cloud-gpt-4o'));
+    await tester.pumpAndSettle();
+    expect(_chatKey('configure-reasoning'), findsNothing);
+
+    await tester.tap(_chatKey('model-submenu'));
+    await tester.pumpAndSettle();
+    await tester.tap(_nebulaOption);
+    await tester.pumpAndSettle();
+    await tester.tap(_chatKey('configure-reasoning'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('model-reasoning-format-nebula-reasoner-2026')),
+      findsOneWidget,
+    );
+    final modelId = tester.widget<TextField>(
+      find.byKey(const ValueKey('model-services-model-id')),
+    );
+    expect(modelId.controller!.text, 'nebula-reasoner-2026');
+    expect(fixture.calls, [('first-cloud', 'gpt-4o'), _nebulaSelection]);
     expect(tester.takeException(), isNull);
   });
 
@@ -603,6 +783,140 @@ void main() {
       );
     }
   });
+}
+
+Finder _chatKey(String suffix) => find.byKey(ValueKey('agent-chat-$suffix'));
+Finder get _nebulaOption =>
+    _chatKey('model-option-second-cloud-nebula-reasoner-2026');
+
+const _nebulaSelection = ('second-cloud', 'nebula-reasoner-2026');
+const _auroraChat = AgentChatState(
+  availableThinkingLevels: [
+    null,
+    ThinkingLevel.low,
+    ThinkingLevel.medium,
+    ThinkingLevel.high,
+  ],
+);
+const _nebulaChat = AgentChatState(
+  thinkingLevel: ThinkingLevel.off,
+  availableThinkingLevels: [null, ThinkingLevel.off, ThinkingLevel.high],
+);
+
+class _ConfigurationFixture {
+  _ConfigurationFixture(this.chat);
+
+  AgentChatState chat;
+  var settings = _settings;
+  final calls = <Object?>[];
+  Future<void> finishSwitch = Future<void>.value();
+  late final container = ProviderContainer(
+    overrides: [
+      agentChatNotifierProvider.overrideWithBuild((_, _) => chat),
+      agentSettingsProvider.overrideWithBuild((_, _) => settings),
+      promptAssistantConfigProvider.overrideWithBuild(
+        (_, _) => _config.copyWith(
+          models: [
+            ..._config.models,
+            const ModelConfig(
+              providerId: 'first-cloud',
+              name: 'gpt-4o',
+              displayName: 'GPT-4o',
+              forTask: AssistantTaskType.chat,
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Future<void> selectModel(String providerId, String model) async {
+    calls.add((providerId, model));
+    settings = settings.copyWith(
+      settings: settings.settings.copyWith(
+        chat: settings.settings.chat.copyWith(
+          modelReference: AgentModelReference(
+            providerId: providerId,
+            model: model,
+          ),
+        ),
+      ),
+    );
+    container.invalidate(agentSettingsProvider);
+    await finishSwitch;
+    chat = const {
+      'aurora-chat-v2': _auroraChat,
+      'nebula-reasoner-2026': _nebulaChat,
+      'gpt-4o': AgentChatState(),
+    }[model]!;
+    container.invalidate(agentChatNotifierProvider);
+  }
+}
+
+Future<_ConfigurationFixture> _pumpConfiguration(
+  WidgetTester tester, {
+  AgentChatState chat = _auroraChat,
+  TextScaler textScaler = TextScaler.noScaling,
+  double? controlWidth,
+}) async {
+  final fixture = _ConfigurationFixture(chat);
+  addTearDown(fixture.container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: fixture.container,
+      child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: controlWidth,
+              child: Consumer(
+                builder: (_, ref, _) {
+                  final state = ref.watch(agentChatNotifierProvider);
+                  return AgentChatConfigurationControl(
+                    config: ref.watch(promptAssistantConfigProvider),
+                    agentSettings: ref.watch(agentSettingsProvider),
+                    routeLabel: 'First Cloud / aurora-chat-v2',
+                    routeError: '',
+                    thinkingLevel: state.thinkingLevel,
+                    availableThinkingLevels: state.availableThinkingLevels,
+                    enabled: true,
+                    onModelSelected: fixture.selectModel,
+                    onThinkingSelected: (level) async =>
+                        fixture.calls.add(level),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  return fixture;
+}
+
+Future<_ConfigurationFixture> _openConfigurationModels(
+  WidgetTester tester,
+) async {
+  const size = Size(1180, 800);
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
+  addTearDown(tester.view.reset);
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  final fixture = await _pumpConfiguration(tester);
+  await tester.tap(_chatKey('model-selector'));
+  await tester.pumpAndSettle();
+  await tester.tap(_chatKey('model-submenu'));
+  await tester.pumpAndSettle();
+  return fixture;
 }
 
 Future<void> _pumpControls(

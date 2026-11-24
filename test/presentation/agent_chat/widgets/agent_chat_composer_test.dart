@@ -4,6 +4,7 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/agent/context_usage.dart';
@@ -12,13 +13,14 @@ import 'package:nai_launcher/core/agent/resources/agent_chat_resource_reference.
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_shared_widgets.dart';
 import 'package:nai_launcher/data/models/agent/agent_settings.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
-import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_state.dart';
+import 'package:nai_launcher/presentation/agent_chat/providers/agent_chat_notifier.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_composer.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_controller.dart';
 import 'package:nai_launcher/presentation/agent_chat/widgets/agent_chat_panel_view_data.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/web_access_provider.dart';
 import 'package:nai_launcher/presentation/themes/core/layered_surface_style.dart';
 import 'package:nai_launcher/presentation/themes/modules/color/palettes/grunge_palette.dart';
@@ -550,6 +552,31 @@ void main() {
       find.byKey(const ValueKey('agent-chat-model-search')),
       findsOneWidget,
     );
+    await tester.tap(
+      find.byKey(const ValueKey('agent-chat-model-option-deepseek-$modelName')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('agent-chat-model-submenu')),
+      findsOneWidget,
+    );
+    final close = find.byKey(const ValueKey('agent-chat-model-picker-close'));
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+
+    final inputFocus = tester.widget<TextField>(_input).focusNode!;
+    inputFocus.requestFocus();
+    await tester.pump();
+    expect(inputFocus.hasFocus, isTrue);
+    final selectorNode = tester.semantics.find(selector);
+    tester.semantics.tap(
+      find.semantics.byPredicate((node) => node.id == selectorNode.id),
+    );
+    await tester.pumpAndSettle();
+    expect(inputFocus.hasFocus, isFalse);
+    await tester.tap(close);
+    await tester.pumpAndSettle();
+    expect(inputFocus.hasFocus, isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -1367,43 +1394,55 @@ Future<void> _pumpComposer(
   await tester.binding.setSurfaceSize(Size(width, height));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
-    MaterialApp(
-      theme: theme,
-      locale: const Locale('en'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: MediaQuery(
-        data: MediaQueryData(
-          size: Size(width, height),
-          textScaler: textScaler,
-          viewInsets: viewInsets,
+    ProviderScope(
+      overrides: [
+        promptAssistantConfigProvider.overrideWithBuild(
+          (_, _) => config ?? PromptAssistantConfigState.defaults(),
         ),
-        child: Scaffold(
-          resizeToAvoidBottomInset: true,
-          body: Align(
-            alignment: Alignment.bottomCenter,
-            child: InteractionPolicyScope(
-              initialPolicy: InteractionPolicy(
-                modality: mobile
-                    ? InteractionModality.touch
-                    : InteractionModality.pointer,
-                touchAvailable: mobile,
-                precisePointerAvailable: !mobile,
-              ),
-              child: _ComposerHarness(
-                state: state,
-                width: width,
-                height: height - viewInsets.bottom,
-                controller: controller,
-                onSend: onSend,
-                onStop: onStop,
-                onAttachCurrentCanvas: onAttachCurrentCanvas,
-                onMoreAction: onMoreAction,
-                onPasteClipboardImage: onPasteClipboardImage,
-                onAttachImageFiles: onAttachImageFiles,
-                currentCanvasReference: currentCanvasReference,
-                config: config,
-                agentSettings: agentSettings,
+        agentSettingsProvider.overrideWithBuild(
+          (_, _) =>
+              agentSettings ?? const AgentSettingsState(initialized: true),
+        ),
+        agentChatNotifierProvider.overrideWithBuild((_, _) => state),
+      ],
+      child: MaterialApp(
+        theme: theme,
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: Size(width, height),
+            textScaler: textScaler,
+            viewInsets: viewInsets,
+          ),
+          child: Scaffold(
+            resizeToAvoidBottomInset: true,
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: InteractionPolicyScope(
+                initialPolicy: InteractionPolicy(
+                  modality: mobile
+                      ? InteractionModality.touch
+                      : InteractionModality.pointer,
+                  touchAvailable: mobile,
+                  precisePointerAvailable: !mobile,
+                ),
+                child: _ComposerHarness(
+                  state: state,
+                  width: width,
+                  height: height - viewInsets.bottom,
+                  controller: controller,
+                  onSend: onSend,
+                  onStop: onStop,
+                  onAttachCurrentCanvas: onAttachCurrentCanvas,
+                  onMoreAction: onMoreAction,
+                  onPasteClipboardImage: onPasteClipboardImage,
+                  onAttachImageFiles: onAttachImageFiles,
+                  currentCanvasReference: currentCanvasReference,
+                  config: config,
+                  agentSettings: agentSettings,
+                ),
               ),
             ),
           ),
@@ -1511,22 +1550,23 @@ class _ComposerHarnessState extends State<_ComposerHarness> {
       addPendingResource: (_) async {},
       removePendingResource: (_) async {},
     );
+    final viewData = AgentChatPanelViewData(
+      state: widget.state,
+      config: widget.config ?? PromptAssistantConfigState.defaults(),
+      agentSettings:
+          widget.agentSettings ?? const AgentSettingsState(initialized: true),
+      webAccess: const WebAccessConfigState(initialized: true),
+      fullScreen: true,
+      compactHeight: widget.height < 520,
+      width: widget.width,
+      height: widget.height,
+      onClose: null,
+      onOpenSettings: null,
+      headerWrapper: null,
+      currentCanvasReference: widget.currentCanvasReference,
+    );
     return AgentChatComposer(
-      viewData: AgentChatPanelViewData(
-        state: widget.state,
-        config: widget.config ?? PromptAssistantConfigState.defaults(),
-        agentSettings:
-            widget.agentSettings ?? const AgentSettingsState(initialized: true),
-        webAccess: const WebAccessConfigState(initialized: true),
-        fullScreen: true,
-        compactHeight: widget.height < 520,
-        width: widget.width,
-        height: widget.height,
-        onClose: null,
-        onOpenSettings: null,
-        headerWrapper: null,
-        currentCanvasReference: widget.currentCanvasReference,
-      ),
+      viewData: viewData,
       commands: commands,
       controller: controller,
     );
