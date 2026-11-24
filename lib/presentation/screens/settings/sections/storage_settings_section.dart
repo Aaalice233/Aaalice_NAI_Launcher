@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/platform/directory_picker.dart';
 import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/app_logger.dart';
 import '../../../../core/utils/hive_storage_helper.dart';
@@ -37,7 +38,7 @@ class _StorageSettingsSectionState
     extends ConsumerState<StorageSettingsSection> {
   Future<void> _selectSaveDirectory(BuildContext context) async {
     try {
-      final result = await FilePicker.platform.getDirectoryPath(
+      final result = await pickDirectoryPath(
         dialogTitle: context.l10n.settings_selectFolder,
       );
 
@@ -64,7 +65,7 @@ class _StorageSettingsSectionState
     }
 
     try {
-      final result = await FilePicker.platform.getDirectoryPath(
+      final result = await pickDirectoryPath(
         dialogTitle: context.l10n.settings_selectLocalOnnxTaggerFolder,
       );
       if (result == null || !mounted) return;
@@ -423,7 +424,7 @@ class _VibeLibraryPathTileState extends State<VibeLibraryPathTile> {
 
   Future<void> _selectVibeLibraryDirectory(BuildContext context) async {
     try {
-      final result = await FilePicker.platform.getDirectoryPath(
+      final result = await pickDirectoryPath(
         dialogTitle: context.l10n.settings_selectVibeLibraryFolder,
       );
 
@@ -540,7 +541,7 @@ class _HiveStoragePathTileState extends State<HiveStoragePathTile> {
 
   Future<void> _selectHiveStorageDirectory(BuildContext context) async {
     try {
-      final result = await FilePicker.platform.getDirectoryPath(
+      final result = await pickDirectoryPath(
         dialogTitle: context.l10n.settings_selectHiveFolder,
       );
 
