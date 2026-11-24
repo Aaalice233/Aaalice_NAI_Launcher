@@ -107,7 +107,7 @@ CompletionQuery _query(String token) => CompletionQuery(
   locale: 'zh-CN',
 );
 
-class _FakeDictionary extends ZhDictionaryService {
+class _FakeDictionary extends Fake implements ZhDictionaryService {
   _FakeDictionary(this.values);
 
   final Map<String, String> values;
@@ -130,7 +130,7 @@ class _FakeDictionary extends ZhDictionaryService {
       const {};
 }
 
-class _ThrowingDictionary extends ZhDictionaryService {
+class _ThrowingDictionary extends Fake implements ZhDictionaryService {
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) =>
       Future.error(StateError('damaged ffdkj database'));

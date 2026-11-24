@@ -15,6 +15,7 @@ import 'package:nai_launcher/core/autocomplete/autocomplete_settings.dart';
 import 'package:nai_launcher/core/autocomplete/completion_models.dart';
 import 'package:nai_launcher/core/autocomplete/danbooru_completion_source.dart';
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
+import 'package:nai_launcher/core/database/datasources/translation_data_source.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
@@ -890,7 +891,9 @@ void main() {
             _FixedAutocompleteSettingsNotifier.new,
           ),
           zhDictionaryServiceProvider.overrideWith(
-            () => ZhDictionaryNotifier(ZhDictionaryService()),
+            () => ZhDictionaryNotifier(
+              ZhDictionaryService(translations: TranslationDataSource()),
+            ),
           ),
           autocompleteServicesProvider.overrideWithValue(
             AutocompleteServices(

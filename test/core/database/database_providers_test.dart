@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/autocomplete/fast_tag_service_provider.dart';
 import 'package:nai_launcher/core/database/asset_database_manager.dart';
 import 'package:nai_launcher/core/database/database_manager.dart';
 import 'package:nai_launcher/core/database/database_providers.dart';
@@ -112,6 +113,47 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect((await cooccurrence.checkHealth()).status, HealthStatus.degraded);
+    },
+  );
+
+  test(
+    'settings can remove the dictionary already read by the translation service',
+    () async {
+      final directory = await Directory(
+        p.join(appSupportDir.path, 'autocomplete', 'ffdkj'),
+      ).create(recursive: true);
+      final target = File(p.join(directory.path, 'tag.sqlite'));
+      final db = await databaseFactoryFfi.openDatabase(target.path);
+      try {
+        await db.execute(
+          'CREATE TABLE tags(name TEXT PRIMARY KEY, category INTEGER, cn_name TEXT, post_count INTEGER)',
+        );
+        await db.execute('''
+        WITH RECURSIVE numbers(n) AS (
+          VALUES(1) UNION ALL SELECT n + 1 FROM numbers WHERE n < 1000
+        )
+        INSERT INTO tags SELECT 'tag_' || n, 0, '标签' || n, n FROM numbers
+      ''');
+      } finally {
+        await db.close();
+      }
+      await File(p.join(directory.path, 'metadata.json')).writeAsString(
+        jsonEncode({'lastCheckedAt': DateTime.now().toUtc().toIso8601String()}),
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await container.read(databaseManagerProvider.future);
+      final translations = await container.read(
+        translationServiceProvider.future,
+      );
+      expect(await translations.translate('tag_1'), '标签1');
+
+      final dictionary = container.read(zhDictionaryServiceProvider);
+      await dictionary.initialize();
+      await dictionary.remove();
+
+      expect(await target.exists(), isFalse);
+      expect(await translations.translate('tag_1'), isNull);
     },
   );
 

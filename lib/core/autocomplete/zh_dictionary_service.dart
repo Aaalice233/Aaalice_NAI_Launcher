@@ -5,9 +5,10 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:synchronized/synchronized.dart';
 
+import '../database/datasources/translation_data_source.dart';
 import '../utils/app_logger.dart';
 import 'completion_models.dart';
 import 'traditional_chinese_converter.dart';
@@ -22,7 +23,7 @@ class ZhDictionaryService extends ChangeNotifier
   ZhDictionaryService({
     Dio? dio,
     TraditionalChineseConverter? traditionalChineseConverter,
-    Future<Directory> Function()? applicationSupportDirectory,
+    required TranslationDataSource translations,
     ZhDictionarySource? pinnedSource,
   }) : _dio =
            dio ??
@@ -36,26 +37,30 @@ class ZhDictionaryService extends ChangeNotifier
        _pinnedSource = pinnedSource ?? ffdkjPinnedSource,
        _traditionalChineseConverter =
            traditionalChineseConverter ?? TraditionalChineseConverter(),
-       _applicationSupportDirectory =
-           applicationSupportDirectory ?? getApplicationSupportDirectory;
+       _translations = translations;
 
   final Dio _dio;
   final ZhDictionarySource _pinnedSource;
   final TraditionalChineseConverter _traditionalChineseConverter;
-  final Future<Directory> Function() _applicationSupportDirectory;
-  Database? _database;
+  final TranslationDataSource _translations;
+  final _fileOperations = Lock();
   CancelToken? _cancelToken;
-  String? _databasePath;
+  late File _target;
   String? _metadataPath;
   ZhDictionaryState _state = const ZhDictionaryState();
+  int _installRevision = 0;
   ZhDictionarySource? _pendingUpdateSource;
   Future<void>? _initialization;
+  Future<void>? _installation;
 
   static final RegExp _lowercaseLetters = RegExp(r'^[a-z]+$');
 
   ZhDictionaryDownloader get _downloader => ZhDictionaryDownloader(dio: _dio);
 
   ZhDictionaryState get state => _state;
+
+  /// Changes on every committed replacement, including a same-version repair.
+  int get installRevision => _installRevision;
 
   // A resolved path does not mean the installed database has been validated.
   // Startup lookups and editor hints must wait for the same installed state.
@@ -66,22 +71,22 @@ class ZhDictionaryService extends ChangeNotifier
       });
 
   Future<void> _initialize() async {
-    final appDir = await _applicationSupportDirectory();
-    final directory = Directory(p.join(appDir.path, 'autocomplete', 'ffdkj'));
+    _target = await _translations.databaseFile;
+    final directory = _target.parent;
     await directory.create(recursive: true);
-    _databasePath = p.join(directory.path, 'tag.sqlite');
     _metadataPath = p.join(directory.path, 'metadata.json');
     await _loadInstalledState();
   }
 
   Future<void> _loadInstalledState() async {
-    final file = File(_databasePath!);
+    final file = _target;
     if (!await file.exists()) {
       _setState(const ZhDictionaryState());
       return;
     }
     try {
-      final count = await _validate(file.path);
+      final count = await _translations.read<int?>(null, _validateContents);
+      if (count == null) throw StateError('Cannot read installed ffdkj tags');
       final metadata = await _readMetadata();
       _setState(
         ZhDictionaryState(
@@ -101,6 +106,10 @@ class ZhDictionaryService extends ChangeNotifier
 
   Future<bool> checkForUpdate({bool force = false}) async {
     await initialize();
+    return _fileOperations.synchronized(() => _checkForUpdate(force));
+  }
+
+  Future<bool> _checkForUpdate(bool force) async {
     if (!_state.isInstalled) return false;
     if (!force &&
         _state.lastCheckedAt != null &&
@@ -136,15 +145,21 @@ class ZhDictionaryService extends ChangeNotifier
 
   Future<void> installOrUpdate() async {
     await initialize();
-    if (_state.isBusy) return;
+    await (_installation ??= _fileOperations
+        .synchronized(_install)
+        .whenComplete(() {
+          _installation = null;
+        }));
+  }
+
+  Future<void> _install() async {
     _cancelToken = CancelToken();
     _setState(_state.copyWith(isBusy: true, progress: 0, clearError: true));
-    final target = File(_databasePath!);
-    final temp = File('${target.path}.downloading');
-    final backup = File('${target.path}.backup');
+    final temp = _target.download;
     try {
       final remote = await _sourceForInstall();
       await temp.deleteIfExists();
+      await temp.deleteSidecars();
       await _downloader.download(
         remote,
         temp.path,
@@ -179,28 +194,8 @@ class ZhDictionaryService extends ChangeNotifier
       }
       final count = await _validateDownloadedDatabase(temp.path);
 
-      await _database?.close();
-      _database = null;
-      await backup.deleteIfExists();
-      if (await target.exists()) await target.rename(backup.path);
-      try {
-        await temp.rename(target.path);
-        await _writeMetadata({
-          'blobSha': remote.blobSha,
-          'commitSha': remote.commitSha,
-          if (remote.sha256 != null) 'sha256': remote.sha256,
-          'etag': remote.etag,
-          'size': remote.size,
-          'installedAt': DateTime.now().toUtc().toIso8601String(),
-          'lastCheckedAt': DateTime.now().toUtc().toIso8601String(),
-          'source': remote.downloadUri.toString(),
-        });
-        await backup.deleteIfExists();
-      } catch (_) {
-        await target.deleteIfExists();
-        if (await backup.exists()) await backup.rename(target.path);
-        rethrow;
-      }
+      await _translations.withDatabaseClosed(() => _replace(temp, remote));
+      _installRevision++;
       _setState(
         ZhDictionaryState(
           isInstalled: true,
@@ -222,8 +217,56 @@ class ZhDictionaryService extends ChangeNotifier
       rethrow;
     } finally {
       await temp.deleteIfExists();
+      await temp.deleteSidecars();
       _cancelToken = null;
       if (_state.isBusy) _setState(_state.copyWith(isBusy: false));
+    }
+  }
+
+  Future<void> _replace(File temp, ZhDictionarySource remote) async {
+    final backups = <File, File>{};
+    var installed = false;
+    try {
+      for (final file in [_target, ..._target.sidecars]) {
+        if (await file.exists()) {
+          backups[file] = await file.rename(file.backup.path);
+        }
+      }
+      await temp.rename(_target.path);
+      installed = true;
+      // The staging path is free again. Publish metadata atomically there, too.
+      await _writeMetadata({
+        'blobSha': remote.blobSha,
+        'commitSha': remote.commitSha,
+        if (remote.sha256 != null) 'sha256': remote.sha256,
+        'etag': remote.etag,
+        'size': remote.size,
+        'installedAt': DateTime.now().toUtc().toIso8601String(),
+        'lastCheckedAt': DateTime.now().toUtc().toIso8601String(),
+        'source': remote.downloadUri.toString(),
+      }, staging: temp);
+    } on FileSystemException {
+      if (installed) await _target.delete();
+      for (final entry in backups.entries) {
+        await entry.value.rename(entry.key.path);
+      }
+      rethrow;
+    }
+    try {
+      await _deleteBackups();
+    } on FileSystemException catch (error) {
+      // The replacement is committed. The next install or removal retries cleanup.
+      AppLogger.w(
+        'Could not delete an old ffdkj backup: '
+            'osError=${error.osError?.errorCode}',
+        'ZhDictionary',
+      );
+    }
+  }
+
+  Future<void> _deleteBackups() async {
+    for (final file in [_target, ..._target.sidecars]) {
+      await file.backup.deleteIfExists();
     }
   }
 
@@ -239,11 +282,18 @@ class ZhDictionaryService extends ChangeNotifier
 
   Future<void> remove() async {
     await initialize();
-    await _database?.close();
-    _database = null;
-    await File(_databasePath!).deleteIfExists();
-    await File(_metadataPath!).deleteIfExists();
-    _setState(const ZhDictionaryState());
+    await _fileOperations.synchronized(
+      () => _translations.withDatabaseClosed(() async {
+        await _target.deleteIfExists();
+        await _target.deleteSidecars();
+        await File(_metadataPath!).deleteIfExists();
+        await _target.download.deleteIfExists();
+        await _target.download.deleteSidecars();
+        await _deleteBackups();
+        _pendingUpdateSource = null;
+        _setState(const ZhDictionaryState());
+      }),
+    );
   }
 
   @override
@@ -254,24 +304,9 @@ class ZhDictionaryService extends ChangeNotifier
     if (!locale.toLowerCase().startsWith('zh') || canonicalTags.isEmpty) {
       return const {};
     }
-    if (!await _openIfInstalled()) return const {};
-    final result = <String, String>{};
-    for (var offset = 0; offset < canonicalTags.length; offset += 400) {
-      final chunk = canonicalTags
-          .skip(offset)
-          .take(400)
-          .map(_normalize)
-          .toList();
-      final placeholders = List.filled(chunk.length, '?').join(',');
-      final rows = await _database!.rawQuery(
-        'SELECT name, cn_name FROM tags WHERE name IN ($placeholders) AND cn_name IS NOT NULL AND TRIM(cn_name) <> \'\'',
-        chunk,
-      );
-      for (final row in rows) {
-        result[row['name'] as String] = (row['cn_name'] as String).trim();
-      }
-    }
-    return result;
+    await initialize();
+    if (!_state.isInstalled) return const {};
+    return _translations.queryBatch(canonicalTags);
   }
 
   /// Resolves a narrowly scoped missing-character fallback for plain words.
@@ -283,7 +318,17 @@ class ZhDictionaryService extends ChangeNotifier
   /// `fewer` -> `fever`. A match is accepted only when exactly one dictionary
   /// tag with the same first character can restore one omitted character.
   Future<Map<String, String>> resolveFuzzy(List<String> canonicalTags) async {
-    if (canonicalTags.isEmpty || !await _openIfInstalled()) return const {};
+    if (canonicalTags.isEmpty) return const {};
+    return _readIfInstalled(
+      const {},
+      (database) => _resolveFuzzy(database, canonicalTags),
+    );
+  }
+
+  Future<Map<String, String>> _resolveFuzzy(
+    Database database,
+    List<String> canonicalTags,
+  ) async {
     final result = <String, String>{};
     for (final source in canonicalTags) {
       final tag = _normalize(source);
@@ -296,7 +341,7 @@ class ZhDictionaryService extends ChangeNotifier
       final prefixUpperBound =
           '${prefix[0]}'
           '${String.fromCharCode(prefix.codeUnitAt(1) + 1)}';
-      final rows = await _database!.rawQuery(
+      final rows = await database.rawQuery(
         '''
         SELECT name, cn_name FROM tags
         WHERE name >= ? AND name < ?
@@ -321,7 +366,13 @@ class ZhDictionaryService extends ChangeNotifier
   @override
   Future<List<CompletionCandidate>> search(CompletionQuery query) async {
     if (!query.isChinese || query.token.trim().isEmpty) return const [];
-    if (!await _openIfInstalled()) return const [];
+    return _readIfInstalled(const [], (database) => _search(database, query));
+  }
+
+  Future<List<CompletionCandidate>> _search(
+    Database database,
+    CompletionQuery query,
+  ) async {
     final token = await _traditionalChineseConverter.toSimplified(
       query.token.trim(),
     );
@@ -333,7 +384,7 @@ class ZhDictionaryService extends ChangeNotifier
     final categoryClause = query.categoryFilter == null
         ? ''
         : 'AND category = ?';
-    final rows = await _database!.rawQuery(
+    final rows = await database.rawQuery(
       '''
       SELECT name, category, cn_name, post_count,
         CASE
@@ -383,14 +434,13 @@ class ZhDictionaryService extends ChangeNotifier
         .toList(growable: false);
   }
 
-  Future<bool> _openIfInstalled() async {
+  Future<T> _readIfInstalled<T>(
+    T unavailable,
+    Future<T> Function(Database) query,
+  ) async {
     await initialize();
-    if (!_state.isInstalled) return false;
-    _database ??= await databaseFactoryFfi.openDatabase(
-      _databasePath!,
-      options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
-    );
-    return true;
+    if (!_state.isInstalled) return unavailable;
+    return _translations.read(unavailable, query);
   }
 
   @visibleForTesting
@@ -409,22 +459,24 @@ class ZhDictionaryService extends ChangeNotifier
       options: OpenDatabaseOptions(readOnly: true, singleInstance: false),
     );
     try {
-      final columns = await db.rawQuery('PRAGMA table_info(tags)');
-      final names = columns.map((row) => row['name'] as String).toSet();
-      if (!names.containsAll({'name', 'category', 'cn_name', 'post_count'})) {
-        throw StateError('ffdkj tags schema is not supported: $names');
+      if (!await TranslationDataSource.supportsSchema(db)) {
+        throw StateError('ffdkj tags schema is not supported');
       }
-      final countRows = await db.rawQuery('SELECT COUNT(*) AS count FROM tags');
-      final count = (countRows.first['count'] as num).toInt();
-      if (count < 1000) throw StateError('ffdkj dictionary has too few rows');
-      final check = await db.rawQuery('PRAGMA quick_check');
-      if (check.first.values.first != 'ok') {
-        throw StateError('ffdkj quick_check failed');
-      }
-      return count;
+      return await _validateContents(db);
     } finally {
       await db.close();
     }
+  }
+
+  static Future<int> _validateContents(Database db) async {
+    final countRows = await db.rawQuery('SELECT COUNT(*) AS count FROM tags');
+    final count = (countRows.first['count'] as num).toInt();
+    if (count < 1000) throw StateError('ffdkj dictionary has too few rows');
+    final check = await db.rawQuery('PRAGMA quick_check');
+    if (check.first.values.first != 'ok') {
+      throw StateError('ffdkj quick_check failed');
+    }
+    return count;
   }
 
   Future<int> _validateDownloadedDatabase(String path) async {
@@ -449,10 +501,17 @@ class ZhDictionaryService extends ChangeNotifier
     }
   }
 
-  Future<void> _writeMetadata(Map<String, dynamic> data) async {
-    await File(
-      _metadataPath!,
-    ).writeAsString(jsonEncode(data), encoding: utf8, flush: true);
+  Future<void> _writeMetadata(
+    Map<String, dynamic> data, {
+    File? staging,
+  }) async {
+    final target = File(_metadataPath!);
+    await (staging ?? target).writeAsString(
+      jsonEncode(data),
+      encoding: utf8,
+      flush: true,
+    );
+    if (staging != null) await staging.rename(target.path);
   }
 
   void _setState(ZhDictionaryState value) {
@@ -550,6 +609,19 @@ class _DigestCaptureSink implements Sink<Digest> {
 }
 
 extension on File {
+  File get backup => File('$path.backup');
+  File get download => File('$path.downloading');
+
+  Iterable<File> get sidecars => [
+    for (final suffix in ['-wal', '-shm', '-journal']) File('$path$suffix'),
+  ];
+
+  Future<void> deleteSidecars() async {
+    for (final file in sidecars) {
+      await file.deleteIfExists();
+    }
+  }
+
   Future<void> deleteIfExists() async {
     if (await exists()) await delete();
   }

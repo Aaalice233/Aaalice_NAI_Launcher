@@ -3,6 +3,7 @@ import 'package:video_player_media_kit/video_player_media_kit.dart';
 
 import '../../core/constants/storage_keys.dart';
 import '../../core/database/database_providers.dart';
+import '../../core/database/services/service_providers.dart';
 import '../../core/services/avatar_image_cache.dart';
 import '../../core/network/startup_proxy_resolver.dart';
 import '../../core/network/system_proxy_http_overrides.dart';
@@ -130,8 +131,9 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
         await manager.initialized;
 
         try {
-          final stats = await manager.getCoreAssetStatistics();
-          final translationCount = stats['translations'] ?? 0;
+          final translationCount = await ref
+              .read(translationDataSourceProvider)
+              .getCount();
           AppLogger.i(
             '核心数据库状态: translations=$translationCount；'
                 '可选共现数据包将在进入主页后初始化',

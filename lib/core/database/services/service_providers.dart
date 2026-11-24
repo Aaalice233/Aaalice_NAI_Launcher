@@ -1,8 +1,10 @@
+import 'dart:async';
+
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../autocomplete/cooccurrence_data_pack_provider.dart';
+import '../../services/desktop_app_shutdown_service.dart';
 import '../../utils/app_logger.dart';
-import '../database_providers.dart';
 import '../datasources/cooccurrence_data_source.dart';
 import '../datasources/danbooru_tag_data_source.dart';
 import '../datasources/translation_data_source.dart';
@@ -30,10 +32,16 @@ Future<DanbooruTagDataSource> danbooruTagDataSource(Ref ref) async {
 
 /// Translation DataSource Provider
 @Riverpod(keepAlive: true)
-Future<TranslationDataSource> translationDataSource(Ref ref) async {
-  // 等待数据库管理器就绪
-  final manager = await ref.watch(databaseManagerProvider.future);
-  return manager.translationDataSource;
+TranslationDataSource translationDataSource(Ref ref) {
+  final source = TranslationDataSource();
+  final unregister = DesktopAppShutdownService.addCleanupHandler(
+    source.dispose,
+  );
+  ref.onDispose(() {
+    unregister();
+    unawaited(source.dispose());
+  });
+  return source;
 }
 
 /// Cooccurrence DataSource Provider
@@ -50,7 +58,7 @@ Future<CooccurrenceDataSource> cooccurrenceDataSource(Ref ref) async {
 /// 翻译服务 Provider
 @Riverpod(keepAlive: true)
 Future<TranslationService> translationService(Ref ref) async {
-  final dataSource = await ref.watch(translationDataSourceProvider.future);
+  final dataSource = ref.watch(translationDataSourceProvider);
   return TranslationService(dataSource);
 }
 
@@ -65,8 +73,6 @@ Future<CooccurrenceService> cooccurrenceService(Ref ref) async {
 @Riverpod(keepAlive: true)
 Future<CompletionService> completionService(Ref ref) async {
   final tagDataSource = await ref.watch(danbooruTagDataSourceProvider.future);
-  final translationDataSource = await ref.watch(
-    translationDataSourceProvider.future,
-  );
+  final translationDataSource = ref.watch(translationDataSourceProvider);
   return CompletionService(tagDataSource, translationDataSource);
 }

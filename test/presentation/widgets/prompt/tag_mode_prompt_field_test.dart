@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/autocomplete/autocomplete_providers.dart';
 import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
+import 'package:nai_launcher/core/database/datasources/translation_data_source.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
@@ -1264,6 +1265,8 @@ void main() {
 }
 
 class _Dictionary extends ZhDictionaryService {
+  _Dictionary() : super(translations: TranslationDataSource());
+
   @override
   ZhDictionaryState get state => const ZhDictionaryState(isInstalled: true);
   @override
@@ -1271,6 +1274,8 @@ class _Dictionary extends ZhDictionaryService {
 }
 
 class _MissingDictionary extends ZhDictionaryService {
+  _MissingDictionary() : super(translations: TranslationDataSource());
+
   int initializations = 0;
   @override
   ZhDictionaryState get state => const ZhDictionaryState(isInstalled: false);
