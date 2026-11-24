@@ -13,6 +13,11 @@ class MemoryLocalStorage extends LocalStorageService {
   }
 
   @override
+  Future<void> setSettings(Map<String, Object?> updates) async {
+    values.addAll(updates);
+  }
+
+  @override
   Future<void> deleteSetting(String key) async {
     values.remove(key);
   }

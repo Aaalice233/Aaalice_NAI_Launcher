@@ -3,6 +3,7 @@ import 'dart:math';
 import '../../../core/cache/online_gallery_detail_coordinator.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../models/online_gallery/gallery_item.dart';
+import 'gallery_prompt_tags.dart';
 import 'online_gallery_query.dart';
 
 class OnlineGalleryBlacklistFilterService {
@@ -29,7 +30,8 @@ class OnlineGalleryBlacklistFilterService {
       if (!item.tagsComplete) {
         incomplete.add(item);
       } else {
-        allowed[item.stableKey] = !item.tags.any(
+        final tags = item.tags.followedBy(item.positiveCharacterTags);
+        allowed[item.stableKey] = !tags.any(
           (tag) => normalizedBlacklist.contains(_query.normalizePolicyTag(tag)),
         );
       }
@@ -67,6 +69,10 @@ class OnlineGalleryBlacklistFilterService {
         final policyTags = <String>{
           ...detail.item.tags,
           ...detail.rawTags,
+          ...positiveGalleryCharacterTags(
+            detail.media,
+            workPrompts: detail.characterPrompts,
+          ),
           for (final prompt in <String?>[
             detail.prompt,
             ...detail.media.map((media) => media.prompt),
