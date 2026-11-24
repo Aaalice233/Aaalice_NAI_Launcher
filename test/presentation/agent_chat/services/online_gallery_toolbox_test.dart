@@ -3,14 +3,22 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/agent/agent_types.dart';
+import 'package:nai_launcher/core/constants/storage_keys.dart';
+import 'package:nai_launcher/core/mcp/mcp_tool_adapter.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../helpers/ai_tag_character_gallery.dart';
+import '../../../helpers/memory_local_storage.dart';
 
 final _refProvider = Provider<Ref>((ref) => ref);
 
@@ -19,6 +27,8 @@ void main() {
   late List<AgentTool> tools;
 
   setUp(() {
+    FlutterSecureStorage.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({});
     container = ProviderContainer();
     tools = OnlineGalleryToolbox(container.read(_refProvider)).tools();
   });
@@ -26,6 +36,369 @@ void main() {
   tearDown(() => container.dispose());
 
   AgentTool tool(String name) => tools.singleWhere((tool) => tool.name == name);
+
+  test('unlisted AI TAG details include each image’s metadata', () async {
+    const params = {'source': 'ai_tag', 'work_id': '42'};
+    const parameters = {
+      'seed': 123,
+      'sampler': 'euler',
+      'steps': 28,
+      'scale': 6.0,
+      'model': 'test',
+      'software': 'NovelAI',
+      'source_model': 'test source',
+      'aiTagImageType': 'NovelAI',
+      'aiTagModel': 'test model',
+      'aiTagModelHash': '1234abcd',
+      'aiTagVae': 'test vae',
+      'aiTagSampler': 'euler',
+    };
+    var calls = 0;
+    final adapter = _DetailAdapter(GallerySourceId.aiTag, (item, _) async {
+      calls++;
+      expect(item.id, 42);
+      expect(item.sourceWorkId, '42');
+      return GalleryDetail(
+        item: item,
+        media: const [
+          GalleryMedia(
+            id: '42_p0',
+            metadata: {...parameters, 'source_data': 'source text'},
+            metadataFormat: 'NovelAI',
+            rawMetadata: 'original',
+            promptMetadata: NaiImageMetadata(
+              characterInfos: [
+                CharacterPromptInfo(
+                  prompt: 'green eyes',
+                  centerX: 0.2,
+                  centerY: 0.7,
+                ),
+              ],
+              characterPrompts: ['unused', 'silver ribbon'],
+              characterNegativePrompts: ['glasses', 'lowres', 'negative only'],
+            ),
+          ),
+          GalleryMedia(id: '42_p1', metadataError: 'unknown format'),
+        ],
+      );
+    });
+    final harness = _createHarness({GallerySourceId.aiTag: adapter});
+    addTearDown(harness.container.dispose);
+    harness.container
+        .read(onlineGalleryNotifierProvider.notifier)
+        .setBackgroundNetworkPaused(true);
+
+    final result = await harness.detail.execute('detail', params);
+    expect(result.isError, isFalse);
+    expect(result.details['character_prompts'], isEmpty);
+    final images = result.details['media'] as List;
+    expect(images[0]['metadata'], parameters);
+    expect(images[0]['metadata_format'], 'NovelAI');
+    expect(images[0], isNot(contains('metadata_error')));
+    expect(images[0]['character_prompts'], [
+      {
+        'label': '',
+        'prompt': 'green eyes',
+        'negative_prompt': 'glasses',
+        'position_x': 0.2,
+        'position_y': 0.7,
+      },
+      {'label': '', 'prompt': 'silver ribbon', 'negative_prompt': 'lowres'},
+      {'label': '', 'prompt': '', 'negative_prompt': 'negative only'},
+    ]);
+    expect(images[1]['metadata_error'], 'unknown format');
+    expect(images[1]['metadata'], isEmpty);
+    expect(images[1], isNot(contains('metadata_format')));
+    expect(images[1]['character_prompts'], isEmpty);
+    for (final image in images) {
+      expect(image, isNot(contains('raw_metadata')));
+      expect(image, isNot(contains('raw_metadata_truncated')));
+    }
+    final repeat = await harness.detail.execute('cached', params);
+    expect(repeat.details, result.details);
+    expect(calls, 1);
+    final state = harness.container.read(onlineGalleryNotifierProvider);
+    expect(state.posts, isEmpty);
+    final toggle = OnlineGalleryToolbox(harness.container.read(_refProvider))
+        .tools()
+        .singleWhere((tool) => tool.name == 'toggle_online_gallery_favorite');
+    final favorite = await toggle.execute('favorite', params);
+    expect(favorite.details['code'], 'not_loaded');
+  });
+
+  test('AI TAG exposes original metadata only in the opt-in raw field', () async {
+    const source = GallerySourceId.aiTag;
+    const params = {'source': 'ai_tag', 'work_id': '11'};
+    final harness = _createHarness({source: aiTagCharacterGallery()});
+    addTearDown(harness.container.dispose);
+
+    final compact = await harness.detail.execute('compact', params);
+    final expanded = await harness.detail.execute('raw', {
+      ...params,
+      'include_raw_metadata': true,
+    });
+    final original = harness.container
+        .read(onlineGalleryNotifierProvider.notifier)
+        .peekDetail(const GalleryItem(id: 11, sourceId: source))!;
+    expect(original.media, hasLength(2));
+    final compactJson = jsonEncode(compact.details);
+    final expandedJson = jsonEncode(expanded.details);
+
+    for (final (index, image) in original.media.indexed) {
+      final full = image.metadata['aiTag'] as Map;
+      final raw = image.rawMetadata!;
+      final pretty = full['prettyJson'] as String;
+      expect(full['rawJson'], raw);
+      expect(pretty, isNot(raw));
+      expect(full['prompt'], 'sunset');
+      expect(full['negativePrompt'], 'blue cape, main negative');
+      final expected = Map.of(full)
+        ..remove('rawJson')
+        ..remove('prettyJson')
+        ..remove('prompt')
+        ..remove('negativePrompt');
+      final media = compact.details['media'][index] as Map;
+      expect(media['metadata'], {...image.metadata, 'aiTag': expected});
+      expect(media['metadata']['aiTag']['seed'], 123);
+      expect(media['prompt'], full['prompt']);
+      expect(media['negative_prompt'], full['negativePrompt']);
+      expect(media, isNot(contains('raw_metadata')));
+      expect(compactJson, isNot(contains(jsonEncode(raw))));
+      expect(compactJson, isNot(contains(jsonEncode(pretty))));
+      expect(expanded.details['media'][index], {
+        ...media,
+        'raw_metadata': raw,
+        'raw_metadata_truncated': false,
+      });
+      expect(expandedJson.split(jsonEncode(raw)), hasLength(2));
+      expect(expandedJson, isNot(contains(jsonEncode(pretty))));
+    }
+  });
+
+  test('raw metadata is opt-in and capped per image at 8000 runes', () async {
+    final boundary = '${'x' * 7999}😀';
+    const workId = 'book/entry%2F1';
+    const source = GallerySourceId.quickTagCloud;
+    final adapter = _DetailAdapter(source, (item, _) async {
+      expect(item.sourceWorkId, workId);
+      return GalleryDetail(
+        item: item,
+        characterPrompts: const [GalleryCharacterPrompt(label: 'A', prompt: 'solo')],
+        media: [
+          GalleryMedia(
+            id: 'a',
+            rawMetadata: '$boundary尾',
+            metadata: {'path': 'a.webp', 'rawTag': '$boundary尾'},
+          ),
+          GalleryMedia(
+            id: 'b',
+            rawMetadata: boundary,
+            metadata: {'hasOriginal': true, 'rawTags': boundary},
+          ),
+          const GalleryMedia(id: 'c', rawMetadata: 'short'),
+          const GalleryMedia(id: 'd'),
+        ],
+      );
+    });
+    final harness = _createHarness({source: adapter});
+    addTearDown(harness.container.dispose);
+    const params = {'source': 'quick_tag_cloud', 'work_id': workId};
+    final descriptor = jsonDecode(jsonEncode(
+      McpToolAdapter.toMcpTool(harness.detail),
+    )) as Map;
+    final schema = descriptor['inputSchema'] as Map;
+    expect(schema['properties']['include_raw_metadata']['type'], 'boolean');
+    expect(schema['required'], isNot(contains('include_raw_metadata')));
+    expect(descriptor['annotations']['readOnlyHint'], isTrue);
+    final result = await harness.detail.execute('raw', {
+      ...params,
+      'include_raw_metadata': true,
+    });
+    expect(result.details['character_prompts'], [
+      {'label': 'A', 'prompt': 'solo', 'negative_prompt': ''},
+    ]);
+    final media = (result.details['media'] as List).cast<Map>();
+    expect(media.map((image) => image['metadata']), everyElement(isEmpty));
+    expect(McpToolAdapter.toCallToolResult(result).structuredContent, result.details);
+    expect(
+      media.map((image) => image['raw_metadata']),
+      [boundary, boundary, 'short', null],
+    );
+    expect(
+      media.map((image) => image['raw_metadata_truncated']),
+      [true, false, false, false],
+    );
+    final compact = await harness.detail.execute('compact', {
+      ...params,
+      'include_raw_metadata': false,
+    });
+    for (final image in compact.details['media'] as List) {
+      expect(image['metadata'], isEmpty);
+      expect(image, isNot(contains('raw_metadata')));
+      expect(image, isNot(contains('raw_metadata_truncated')));
+    }
+  });
+
+  test('a detail aborted before network access skips lookup and load', () async {
+    final controller = AbortController();
+    final booru = _ScriptedGalleryAdapter(
+      GallerySourceId.danbooru,
+      (request, _) => _page(request, [_item(GallerySourceId.danbooru, 9, [])]),
+    );
+    var detailCalls = 0;
+    final scoped = ProviderContainer(
+      overrides: [
+        localStorageServiceProvider.overrideWith((_) {
+          // Cancel during gallery initialization, after the tool dispatcher checks.
+          controller.abort('before lookup');
+          return MemoryLocalStorage();
+        }),
+        onlineGallerySourceAdaptersProvider.overrideWithValue({
+          GallerySourceId.danbooru: booru,
+          GallerySourceId.aiTag: _DetailAdapter(
+            GallerySourceId.aiTag,
+            (item, _) async {
+              detailCalls++;
+              return GalleryDetail(item: item, media: [item.cover]);
+            },
+          ),
+        }),
+      ],
+    );
+    addTearDown(scoped.dispose);
+    final detail = OnlineGalleryToolbox(scoped.read(_refProvider))
+        .tools()
+        .singleWhere((tool) => tool.name == 'get_online_gallery_detail');
+
+    for (final source in ['danbooru', 'ai_tag']) {
+      await expectLater(
+        () => detail.execute(
+          'cancelled',
+          {'source': source, 'work_id': '9'},
+          controller.signal,
+        ),
+        throwsStateError,
+      );
+      expect(controller.signal.aborted, isTrue);
+    }
+    expect(booru.requests, isEmpty);
+    expect(detailCalls, 0);
+  });
+
+  for (final source in [
+    GallerySourceId.danbooru,
+    GallerySourceId.safebooru,
+    GallerySourceId.gelbooru,
+  ]) {
+    test('${source.key} direct lookup finds the work by id', () async {
+      final adapter = _ScriptedGalleryAdapter(
+        source,
+        (request, _) => _page(request, [_item(source, 42, ['found_tag'])]),
+      );
+      final harness = _createHarness({source: adapter}, blacklist: ['found_tag']);
+      addTearDown(harness.container.dispose);
+      final found = await harness.detail.execute('detail', {
+        'source': source.key,
+        'work_id': '42',
+      });
+      expect(found.details['item']['tags'], ['found_tag']);
+      expect(adapter.requests.single.query, 'id:42');
+      expect(adapter.requests.single.pageSize, 1);
+      expect(adapter.requests.single.blacklistTags, isEmpty);
+      final missing = await harness.detail.execute('missing', {
+        'source': source.key,
+        'work_id': '43',
+      });
+      expect(missing.isError, isTrue);
+      expect(missing.details['code'], 'not_found');
+    });
+  }
+
+  test('missing AI TAG and booru works yield not_found', () async {
+    const source = GallerySourceId.aiTag;
+    final harness = _createHarness({
+      source: _DetailAdapter(source, (_, _) async {
+        throw const GallerySourceException(GallerySourceErrorCode.detailNotFound);
+      }),
+    });
+    addTearDown(harness.container.dispose);
+    for (final sourceKey in ['ai_tag', 'danbooru']) {
+      final result = await harness.detail.execute('missing', {
+        'source': sourceKey,
+        'work_id': '404',
+      });
+      expect(result.isError, isTrue);
+      expect(result.details['code'], 'not_found');
+    }
+    final unknown = await harness.detail.execute('bad-source', {
+      'source': 'bogus',
+      'work_id': '1',
+    });
+    expect(unknown.details['code'], 'unknown_source');
+  });
+
+  test('direct detail propagates other source failures', () async {
+    const source = GallerySourceId.aiTag;
+    const error = GallerySourceException(GallerySourceErrorCode.malformedResponse);
+    final harness = _createHarness({
+      source: _DetailAdapter(source, (_, _) async => throw error),
+    });
+    addTearDown(harness.container.dispose);
+    await expectLater(
+      harness.detail.execute('invalid', {'source': source.key, 'work_id': '7'}),
+      throwsA(same(error)),
+    );
+  });
+
+  for (final source in [
+    GallerySourceId.danbooru,
+    GallerySourceId.safebooru,
+    GallerySourceId.aiTag,
+  ]) {
+    test('abort cancels the active ${source.key} request', () async {
+      final started = Completer<CancelToken>();
+      Future<DioException> waitForAbort(CancelToken token) {
+        started.complete(token);
+        return token.whenCancel;
+      }
+      final item = _item(source, 9, ['late']);
+      final harness = _createHarness({
+        source: source == GallerySourceId.aiTag
+            ? _DetailAdapter(source, (_, token) async {
+                throw await waitForAbort(token!);
+              })
+            : _ScriptedGalleryAdapter(source, (request, token) async {
+                await waitForAbort(token!);
+                if (source == GallerySourceId.safebooru) {
+                  throw const GallerySourceException(
+                    GallerySourceErrorCode.detailNotFound,
+                  );
+                }
+                return _page(request, [item]);
+              }),
+      });
+      addTearDown(harness.container.dispose);
+      final controller = AbortController();
+      final pending = harness.detail.execute(
+        'cancel-detail',
+        {'source': source.key, 'work_id': '9'},
+        controller.signal,
+      );
+      await Future.any([started.future, pending]);
+      expect(started.isCompleted, isTrue);
+      final failed = expectLater(
+        pending,
+        throwsA(source == GallerySourceId.aiTag ? anything : isA<StateError>()),
+      );
+      controller.abort('stop');
+      expect((await started.future).isCancelled, isTrue);
+      await failed;
+      final notifier = harness.container.read(
+        onlineGalleryNotifierProvider.notifier,
+      );
+      expect(notifier.peekDetail(item), isNull);
+    });
+  }
 
   test('browse contract defines bounded tags and danbooru default', () {
     final browse = tool('browse_online_gallery');
@@ -94,7 +467,7 @@ void main() {
     final adapter = _ToolGalleryAdapter();
     final toolContainer = ProviderContainer(
       overrides: [
-        localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+        localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
         onlineGalleryTagMetadataLoaderProvider.overrideWithValue(
           (_) async => const {},
         ),
@@ -208,14 +581,12 @@ void main() {
   });
 
   test('resolved covers keep their media id in browse results', () async {
-    final harness = _createHarness({
-      GallerySourceId.gelbooru: _ScriptedGalleryAdapter(
-        GallerySourceId.gelbooru,
-        (request, _) async => _page(request, [
-          _item(GallerySourceId.gelbooru, 404, const ['ibuki']),
-        ]),
-      ),
-    });
+    const source = GallerySourceId.gelbooru;
+    final adapter = _ScriptedGalleryAdapter(
+      source,
+      (request, _) async => _page(request, [_item(source, 404, ['ibuki'])]),
+    );
+    final harness = _createHarness({source: adapter});
     addTearDown(harness.container.dispose);
 
     final result = await harness.browse.execute('resolved-cover', {
@@ -227,6 +598,12 @@ void main() {
     final item = (result.details['items'] as List).single as Map;
     expect(item['media_id'], '404');
     expect((item['resource_ref'] as Map)['mediaId'], '404');
+    final detail = await harness.detail.execute('visible', {
+      'source': source.key,
+      'work_id': item['work_id'],
+    });
+    expect(detail.details['item']['media_id'], '404');
+    expect(adapter.requests.map((request) => request.query), ['ibuki']);
   });
 
   test('omitted source uses danbooru adapter', () async {
@@ -386,12 +763,16 @@ void main() {
   );
 }
 
-({ProviderContainer container, AgentTool browse}) _createHarness(
-  Map<GallerySourceId, GallerySourceAdapter> overrides,
-) {
+({ProviderContainer container, AgentTool browse, AgentTool detail}) _createHarness(
+  Map<GallerySourceId, GallerySourceAdapter> overrides, {
+  List<String> blacklist = const [],
+}) {
   final container = ProviderContainer(
     overrides: [
-      localStorageServiceProvider.overrideWithValue(_MemoryStorage()),
+      localStorageServiceProvider.overrideWithValue(
+        MemoryLocalStorage()
+          ..values[StorageKeys.onlineGalleryBlacklistTags] = blacklist,
+      ),
       onlineGalleryTagMetadataLoaderProvider.overrideWithValue(
         (_) async => const {},
       ),
@@ -401,10 +782,12 @@ void main() {
       }),
     ],
   );
-  final browse = OnlineGalleryToolbox(
-    container.read(_refProvider),
-  ).tools().singleWhere((tool) => tool.name == 'browse_online_gallery');
-  return (container: container, browse: browse);
+  final tools = OnlineGalleryToolbox(container.read(_refProvider)).tools();
+  return (
+    container: container,
+    browse: tools.singleWhere((tool) => tool.name == 'browse_online_gallery'),
+    detail: tools.singleWhere((tool) => tool.name == 'get_online_gallery_detail'),
+  );
 }
 
 GalleryPage _page(GallerySearchRequest request, List<GalleryItem> items) =>
@@ -459,24 +842,6 @@ GalleryItem _textOnlyQuickTagCloudItem(int id) => GalleryItem(
   tagsComplete: true,
   cover: GalleryMedia.noImage,
 );
-
-class _MemoryStorage extends LocalStorageService {
-  final Map<String, Object?> _values = {};
-
-  @override
-  T? getSetting<T>(String key, {T? defaultValue}) =>
-      (_values[key] ?? defaultValue) as T?;
-
-  @override
-  Future<void> setSetting<T>(String key, T value) async {
-    _values[key] = value;
-  }
-
-  @override
-  Future<void> deleteSetting(String key) async {
-    _values.remove(key);
-  }
-}
 
 class _ToolGalleryAdapter extends GallerySourceAdapter {
   final List<String> queries = [];
@@ -539,6 +904,16 @@ class _ScriptedGalleryAdapter extends GallerySourceAdapter {
     requests.add(request);
     return handler(request, cancelToken);
   }
+}
+
+class _DetailAdapter extends _EmptyGalleryAdapter {
+  _DetailAdapter(super.sourceId, this.load);
+
+  final Future<GalleryDetail> Function(GalleryItem, CancelToken?) load;
+
+  @override
+  Future<GalleryDetail> detail(GalleryItem item, {CancelToken? cancelToken}) =>
+      load(item, cancelToken);
 }
 
 class _CancellableGalleryAdapter extends GallerySourceAdapter {

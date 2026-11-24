@@ -182,6 +182,8 @@ MCP 协议端点为 `http://127.0.0.1:<port>/mcp`，默认端口 `20624`（`McpS
 
 外部工具面复用聊天端同一份工具实现与权限目录，只换上不依赖聊天会话的替身依赖，注册顺序稳定，因此同一权限模式下 `tools/list` 逐次一致。
 
+`get_online_gallery_detail` 接受 `source` 和 `work_id`，可直接读取指定作品，找不到时返回 `not_found`。每张图的 `metadata` 只包含已解析的生成参数，未提供生成参数时为空对象。正负提示词分别在 `media[].prompt` 和 `media[].negative_prompt`，角色提示词与可用坐标在 `media[].character_prompts`。需要原始元数据文本时传 `include_raw_metadata: true`，每张图的 `raw_metadata` 最多返回 8000 个 Unicode 码点，`raw_metadata_truncated` 标明是否截断。
+
 排除 8 个只对聊天有意义或外部客户端自带的工具：
 
 | 工具 | 排除原因 |
