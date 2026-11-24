@@ -9,8 +9,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../helpers/log_capture.dart';
 
-// 撞上一次跨消息写锁就要卡满连接池配置的 busy_timeout 5 秒
-const _stallBudget = Duration(seconds: 2);
+// 撞上别的连接持有的写锁立刻报 SQLITE_BUSY，不等满连接池配置的 5 秒
+Future<void> _failFastOnWriteLock(Database db) =>
+    db.execute('PRAGMA busy_timeout = 0');
 
 void main() {
   late Directory tempDir;
@@ -99,9 +100,8 @@ void main() {
       expect(await rowCount(other), 0);
       expect(logs.where((line) => line.contains('Rollback')), isEmpty);
 
-      final stopwatch = Stopwatch()..start();
+      await _failFastOnWriteLock(other);
       await other.insert('probe', {'value': 2});
-      expect(stopwatch.elapsed, lessThan(_stallBudget));
 
       await writer.applyAtomically(
         (batch) => batch.insert('probe', {'value': 3}),
@@ -110,7 +110,7 @@ void main() {
     });
 
     test('BEGIN 本身拿不到写锁时原样抛出，回滚无事务可回不记日志', () async {
-      await writer.execute('PRAGMA busy_timeout = 0');
+      await _failFastOnWriteLock(writer);
       await other.execute('BEGIN IMMEDIATE');
       try {
         final logs = await captureLogs(
@@ -137,7 +137,7 @@ void main() {
 
     test('readOnly 只取读快照，另一连接持有写锁时照样读', () async {
       await other.insert('probe', {'value': 7});
-      await writer.execute('PRAGMA busy_timeout = 0');
+      await _failFastOnWriteLock(writer);
       await other.execute('BEGIN IMMEDIATE');
       try {
         final results = await writer.applyAtomically(
@@ -154,7 +154,8 @@ void main() {
     });
 
     test('一条连接的批量写入不让另一条连接的单条写入忙等', () async {
-      final stopwatch = Stopwatch()..start();
+      await _failFastOnWriteLock(writer);
+      await _failFastOnWriteLock(other);
       await Future.wait([
         () async {
           for (var round = 0; round < 5; round++) {
@@ -171,9 +172,7 @@ void main() {
           }
         }(),
       ]);
-      stopwatch.stop();
 
-      expect(stopwatch.elapsed, lessThan(_stallBudget));
       expect(await rowCount(other), 5 * 50 + 30);
     });
   });
