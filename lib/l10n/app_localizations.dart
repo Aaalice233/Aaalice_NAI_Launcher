@@ -21202,6 +21202,18 @@ abstract class AppLocalizations {
   /// **'Save to Vibe Library'**
   String get detail_saveToVibeLibrary;
 
+  /// No description provided for @detail_collapseThumbnails.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse thumbnails'**
+  String get detail_collapseThumbnails;
+
+  /// No description provided for @detail_expandThumbnails.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand thumbnails'**
+  String get detail_expandThumbnails;
+
   /// No description provided for @pagination_firstPage.
   ///
   /// In en, this message translates to:

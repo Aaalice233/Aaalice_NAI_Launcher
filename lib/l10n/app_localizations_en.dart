@@ -12184,6 +12184,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get detail_saveToVibeLibrary => 'Save to Vibe Library';
 
   @override
+  String get detail_collapseThumbnails => 'Collapse thumbnails';
+
+  @override
+  String get detail_expandThumbnails => 'Expand thumbnails';
+
+  @override
   String get pagination_firstPage => 'First page';
 
   @override

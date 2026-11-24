@@ -5903,6 +5903,8 @@
   "detail_copyCharacterPrompt": "キャラクタープロンプトをコピー",
   "detail_copyAllVibeData": "すべての Vibe データをコピーします",
   "detail_saveToVibeLibrary": "バイブライブラリに保存",
+  "detail_collapseThumbnails": "サムネイルを折りたたむ",
+  "detail_expandThumbnails": "サムネイルを展開",
   "pagination_firstPage": "最初のページ",
   "pagination_previousPage": "前のページ",
   "pagination_nextPage": "次のページ",

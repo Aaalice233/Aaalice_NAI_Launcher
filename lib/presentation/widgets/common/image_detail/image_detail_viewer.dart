@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -221,6 +222,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   late int _currentIndex;
   // 始终显示控制栏（不自动收起）
   final bool _showControls = true;
+  bool _thumbnailsCollapsed = false;
   final _focusNode = FocusNode();
   final Map<String, TransformationController> _transformationControllers = {};
   bool _isClosing = false;
@@ -270,13 +272,14 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
   void _scrollToThumbnail(int index, {bool animate = true}) {
     if (!_thumbnailController.hasClients) return;
 
-    const thumbnailWidth = 80.0;
-    const thumbnailMargin = 8.0;
-    const totalWidth = thumbnailWidth + thumbnailMargin;
+    const listHorizontalPadding = 16.0;
+    const itemExtent = 80.0;
+    const selectedWidth = 80.0;
 
     final viewportWidth = _thumbnailController.position.viewportDimension;
-    final targetOffset =
-        (index * totalWidth) - (viewportWidth / 2) + (totalWidth / 2);
+    final itemCenter =
+        listHorizontalPadding + (index * itemExtent) + (selectedWidth / 2);
+    final targetOffset = itemCenter - (viewportWidth / 2);
     final maxOffset = _thumbnailController.position.maxScrollExtent;
 
     final offset = targetOffset.clamp(0.0, maxOffset);
@@ -478,6 +481,10 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     }
   }
 
+  void _toggleThumbnailsCollapsed() {
+    setState(() => _thumbnailsCollapsed = !_thumbnailsCollapsed);
+  }
+
   /// 复制 Prompt
   Future<void> _copyPrompt() async {
     final metadata = _currentImage.metadata;
@@ -650,6 +657,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 if (!showSideMetadata || !widget.showMetadataPanel) {
                   return _buildMainContent(
                     showMetadataAction: widget.showMetadataPanel,
+                    availableHeight: constraints.maxHeight,
                   );
                 }
 
@@ -664,7 +672,10 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
                 return Row(
                   children: [
                     Expanded(
-                      child: _buildMainContent(showMetadataAction: false),
+                      child: _buildMainContent(
+                        showMetadataAction: false,
+                        availableHeight: constraints.maxHeight,
+                      ),
                     ),
                     ResizeHandle(
                       key: const ValueKey(
@@ -695,9 +706,21 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
     return AbsorbPointer(absorbing: _deleting, child: viewer);
   }
 
-  Widget _buildMainContent({required bool showMetadataAction}) {
+  Widget _buildMainContent({
+    required bool showMetadataAction,
+    required double availableHeight,
+  }) {
     final showThumbnails = widget.showThumbnails && _images.length > 1;
     final current = _currentImage;
+    const navButtonExtent = 56.0;
+    final navClearance =
+        DetailThumbnailBarOverlay.expandedControlTopExtent(context) + 8.0;
+    final navBottomInset = showThumbnails
+        ? math.min(
+            math.max(0.0, 2 * navClearance + navButtonExtent - availableHeight),
+            math.max(0.0, availableHeight - navButtonExtent),
+          )
+        : 0.0;
 
     return Stack(
       children: [
@@ -781,25 +804,13 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
           ),
         ),
 
-        // 底部缩略图栏
-        if (showThumbnails)
-          AnimatedPositioned(
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 200),
-            bottom: _showControls ? 0 : -100,
-            left: 0,
-            right: 0,
-            child: _buildBottomBar(),
-          ),
-
         // 左右导航按钮
         if (_showControls && _images.length > 1) ...[
           if (_currentIndex > 0)
             Positioned(
               left: 16,
               top: 0,
-              bottom: 0,
+              bottom: navBottomInset,
               child: Center(
                 child: _NavigationButton(
                   icon: Icons.chevron_left,
@@ -811,7 +822,7 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
             Positioned(
               right: 16,
               top: 0,
-              bottom: 0,
+              bottom: navBottomInset,
               child: Center(
                 child: _NavigationButton(
                   icon: Icons.chevron_right,
@@ -820,27 +831,25 @@ class _ImageDetailViewerState extends ConsumerState<ImageDetailViewer> {
               ),
             ),
         ],
-      ],
-    );
-  }
 
-  Widget _buildBottomBar() {
-    return Container(
-      height: 100,
-      alignment: Alignment.bottomCenter,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.bottomCenter,
-          end: Alignment.topCenter,
-          colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
-        ),
-      ),
-      child: DetailThumbnailBar(
-        images: _images,
-        currentIndex: _currentIndex,
-        scrollController: _thumbnailController,
-        onTap: _jumpToPage,
-      ),
+        // 底部缩略图栏（支持收起避免遮挡图片，位于导航按钮之上避免短横屏命中区被遮挡）
+        if (showThumbnails)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: DetailThumbnailBarOverlay(
+              images: _images,
+              currentIndex: _currentIndex,
+              scrollController: _thumbnailController,
+              collapsed: _thumbnailsCollapsed,
+              onTap: _jumpToPage,
+              onToggleCollapsed: _toggleThumbnailsCollapsed,
+              onExpanded: () =>
+                  _scrollToThumbnail(_currentIndex, animate: false),
+            ),
+          ),
+      ],
     );
   }
 
