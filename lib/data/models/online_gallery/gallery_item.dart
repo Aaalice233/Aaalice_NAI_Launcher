@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../gallery/nai_image_metadata.dart';
+import 'ai_tag_generation_info.dart';
 import 'artist_chain.dart';
 import 'gallery_media_capability.dart';
 import 'gallery_source.dart';
@@ -54,6 +55,11 @@ class GalleryMedia {
   final String? metadataError;
   final NaiImageMetadata? promptMetadata;
   final Map<String, dynamic> metadata;
+
+  Map<String, dynamic> generationParametersFor(GallerySourceId source) =>
+      source == GallerySourceId.aiTag
+          ? AiTagGenerationInfo.mediaGenerationParameters(metadata)
+          : const {};
 
   List<GalleryCharacterPrompt> get characterPrompts {
     final data = promptMetadata;

@@ -84,7 +84,7 @@ class AiTagGenerationInfo {
       (prompt != null && prompt!.trim().isNotEmpty) ||
       (negativePrompt != null && negativePrompt!.trim().isNotEmpty);
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> get _generationParameters => {
     if (software != null) 'software': software,
     if (model != null) 'model': model,
     if (modelHash != null) 'modelHash': modelHash,
@@ -106,11 +106,30 @@ class AiTagGenerationInfo {
     'loras': loras,
     'loraStrengths': loraStrengths,
     'extra': extra,
+  };
+
+  Map<String, dynamic> toJson() => {
+    ..._generationParameters,
     if (prompt != null) 'prompt': prompt,
     if (negativePrompt != null) 'negativePrompt': negativePrompt,
     'prettyJson': prettyJson,
     'rawJson': rawJson,
   };
+
+  static Map<String, dynamic> mediaGenerationParameters(
+    Map<String, dynamic> metadata,
+  ) => {
+    for (final entry in metadata.entries)
+      if (_flatMediaParameters.contains(entry.key)) entry.key: entry.value,
+    if (tryFromMediaMetadata(metadata) case final info?)
+      _mediaKey: info._generationParameters,
+  };
+
+  static const _flatMediaParameters = {
+    'seed', 'sampler', 'steps', 'scale', 'model', 'software', 'source_model',
+    'aiTagImageType', 'aiTagModel', 'aiTagModelHash', 'aiTagVae', 'aiTagSampler',
+  };
+  static const _mediaKey = 'aiTag';
 
   factory AiTagGenerationInfo.fromJson(Map<String, dynamic> json) {
     return AiTagGenerationInfo(
@@ -154,7 +173,7 @@ class AiTagGenerationInfo {
   static AiTagGenerationInfo? tryFromMediaMetadata(
     Map<String, dynamic> metadata,
   ) {
-    final raw = metadata['aiTag'];
+    final raw = metadata[_mediaKey];
     if (raw is Map) {
       try {
         return AiTagGenerationInfo.fromJson(Map<String, dynamic>.from(raw));
