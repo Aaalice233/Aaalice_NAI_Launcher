@@ -296,7 +296,7 @@ User instructions.
     late Directory tempDir;
     late _MemoryLocalStorage storage;
     late ProviderContainer container;
-    late NotifierProvider<AgentChatNotifier, AgentChatState> provider;
+    final provider = agentChatNotifierProvider;
     late JsonlSessionRepo sessionRepo;
     late List<AgentChatRequest> requests;
     late AgentWireCompletion wireCompletion;
@@ -323,18 +323,18 @@ User instructions.
           AgentWireFinish(stopReason: StopReason.stop),
         ]);
       };
-      provider = NotifierProvider<AgentChatNotifier, AgentChatState>(() {
-        return AgentChatNotifier(
-          supportDir: tempDir,
-          workspaceDir: tempDir,
-          presetSkills: const [_testSkill, _mixedCaseSkill],
-          sessionRepo: sessionRepo,
-          completeRequest: (request) => wireCompletion(request),
-          retryPolicy: _fastRetry,
-        );
-      });
       container = ProviderContainer(
         overrides: [
+          provider.overrideWith(
+            () => AgentChatNotifier(
+              supportDir: tempDir,
+              workspaceDir: tempDir,
+              presetSkills: const [_testSkill, _mixedCaseSkill],
+              sessionRepo: sessionRepo,
+              completeRequest: (request) => wireCompletion(request),
+              retryPolicy: _fastRetry,
+            ),
+          ),
           androidForegroundTaskServiceProvider.overrideWithValue(
             AndroidForegroundTaskService(
               supported: true,
@@ -826,6 +826,10 @@ User instructions.
           late Future<void> dispatch;
           await tester.pumpWidget(
             MaterialApp(
+              builder: (_, child) => UncontrolledProviderScope(
+                container: container,
+                child: child!,
+              ),
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
               home: Scaffold(
