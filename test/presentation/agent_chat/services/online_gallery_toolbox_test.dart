@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/agent/agent_types.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/mcp/mcp_tool_adapter.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/datasources/remote/danbooru_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
@@ -761,7 +762,170 @@ void main() {
       expect(adapter.requests, hasLength(2));
     },
   );
+
+  group('omitted filters use defaults instead of the visible gallery', () {
+    late _ScriptedGalleryAdapter danbooru;
+    late _ScriptedGalleryAdapter aiTag;
+    late ProviderContainer gallery;
+    late AgentTool browse;
+    late OnlineGalleryNotifier notifier;
+
+    setUp(() {
+      danbooru = _emptyScriptedAdapter(GallerySourceId.danbooru);
+      aiTag = _emptyScriptedAdapter(GallerySourceId.aiTag);
+      final harness = _createHarness({
+        GallerySourceId.danbooru: danbooru,
+        GallerySourceId.aiTag: aiTag,
+      });
+      gallery = harness.container;
+      browse = harness.browse;
+      notifier = gallery.read(onlineGalleryNotifierProvider.notifier);
+    });
+
+    tearDown(() => gallery.dispose());
+
+    test('search prompt', () async {
+      await notifier.setSource(GallerySourceId.aiTag);
+      await notifier.searchWithPrompt('', prompt: '2girls');
+      expect(aiTag.requests.last.prompt, '2girls');
+
+      final result = await browse.execute('stale-prompt', {
+        'source': 'ai_tag',
+        'mode': 'search',
+        'query': 'insect',
+      });
+
+      expect(result.isError, isFalse);
+      expect(aiTag.requests.last.query, 'insect');
+      expect(aiTag.requests.last.prompt, isEmpty);
+    });
+
+    test('AI TAG time range', () async {
+      await notifier.setSource(GallerySourceId.aiTag);
+      await notifier.setAiTagTimeRange('week');
+      expect(aiTag.requests.last.timeRange, 'week');
+
+      final result = await browse.execute('stale-time-range', {
+        'source': 'ai_tag',
+        'mode': 'search',
+        'query': 'insect',
+      });
+
+      expect(result.isError, isFalse);
+      expect(aiTag.requests.last.timeRange, 'all');
+    });
+
+    test('date range on an unchanged source', () async {
+      await notifier.setDateRange(DateTime(2026, 1, 1), DateTime(2026, 2, 1));
+      expect(danbooru.requests.last.dateStart, DateTime(2026, 1, 1));
+
+      final result = await browse.execute('stale-date-range', {
+        'source': 'danbooru',
+        'mode': 'search',
+        'query': 'ibuki',
+      });
+
+      expect(result.isError, isFalse);
+      expect(danbooru.requests.last.dateStart, isNull);
+      expect(danbooru.requests.last.dateEnd, isNull);
+    });
+
+    test('artist hunt', () async {
+      await notifier.setSource(GallerySourceId.aiTag);
+      await notifier.setArtistHuntEnabled(true);
+      expect(aiTag.requests.last.prompt, 'artist:');
+
+      final result = await browse.execute('stale-artist-hunt', {
+        'source': 'ai_tag',
+        'mode': 'search',
+        'query': 'insect',
+      });
+
+      expect(result.isError, isFalse);
+      expect(aiTag.requests.last.prompt, isEmpty);
+      expect(
+        gallery.read(onlineGalleryNotifierProvider).artistHuntEnabled,
+        isFalse,
+      );
+    });
+
+    test('ranking scale', () async {
+      await notifier.setPopularScale(PopularScale.month);
+
+      final result = await browse.execute('stale-ranking-scale', {
+        'source': 'danbooru',
+        'mode': 'ranking',
+      });
+
+      expect(result.isError, isFalse);
+      expect(danbooru.rankingRequests.single.kind, GalleryRankingKind.day);
+    });
+
+    test('ranking date', () async {
+      await notifier.setPopularDate(DateTime(2026, 1, 1));
+
+      final result = await browse.execute('stale-ranking-date', {
+        'source': 'danbooru',
+        'mode': 'ranking',
+      });
+
+      expect(result.isError, isFalse);
+      expect(danbooru.rankingRequests.single.date, isNull);
+    });
+
+    test('AI TAG ranking period', () async {
+      await notifier.setAiTagPopularPeriod('2026-10');
+
+      final result = await browse.execute('stale-ranking-period', {
+        'source': 'ai_tag',
+        'mode': 'ranking',
+      });
+
+      expect(result.isError, isFalse);
+      expect(aiTag.rankingRequests.single.period, 'current');
+    });
+
+    test('explicit search filters still reach the adapter', () async {
+      final result = await browse.execute('explicit-search', {
+        'source': 'ai_tag',
+        'mode': 'search',
+        'query': 'insect',
+        'prompt': '2girls',
+        'ai_tag_time_range': 'week',
+      });
+
+      expect(result.isError, isFalse);
+      expect(aiTag.requests.single.prompt, '2girls');
+      expect(aiTag.requests.single.timeRange, 'week');
+    });
+
+    test('explicit ranking filters still reach the adapter', () async {
+      final scaled = await browse.execute('explicit-ranking-scale', {
+        'source': 'danbooru',
+        'mode': 'ranking',
+        'ranking_scale': 'week',
+        'ranking_date': '2026-01-01',
+      });
+      final period = await browse.execute('explicit-ranking-period', {
+        'source': 'ai_tag',
+        'mode': 'ranking',
+        'ai_tag_period': '2026-10',
+      });
+
+      expect(scaled.isError, isFalse);
+      expect(period.isError, isFalse);
+      expect(danbooru.rankingRequests.single.kind, GalleryRankingKind.week);
+      expect(danbooru.rankingRequests.single.date, DateTime(2026, 1, 1));
+      expect(aiTag.rankingRequests.single.period, '2026-10');
+    });
+  });
 }
+
+_ScriptedGalleryAdapter _emptyScriptedAdapter(GallerySourceId source) =>
+    _ScriptedGalleryAdapter(
+      source,
+      (request, _) async => _page(request, const []),
+    );
 
 ({ProviderContainer container, AgentTool browse, AgentTool detail}) _createHarness(
   Map<GallerySourceId, GallerySourceAdapter> overrides, {
@@ -895,6 +1059,7 @@ class _ScriptedGalleryAdapter extends GallerySourceAdapter {
   )
   handler;
   final List<GallerySearchRequest> requests = [];
+  final List<GalleryRankingRequest> rankingRequests = [];
 
   @override
   Future<GalleryPage> search(
@@ -903,6 +1068,21 @@ class _ScriptedGalleryAdapter extends GallerySourceAdapter {
   }) async {
     requests.add(request);
     return handler(request, cancelToken);
+  }
+
+  @override
+  Future<GalleryPage> ranking(
+    GalleryRankingRequest request, {
+    CancelToken? cancelToken,
+  }) async {
+    rankingRequests.add(request);
+    return GalleryPage(
+      items: const [],
+      cursor: request.cursor,
+      nextCursor: null,
+      hasMore: false,
+      rawItemCount: 0,
+    );
   }
 }
 

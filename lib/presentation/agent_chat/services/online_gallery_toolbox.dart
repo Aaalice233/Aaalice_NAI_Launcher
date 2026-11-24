@@ -48,6 +48,7 @@ class OnlineGalleryToolbox {
     description:
         'Browse an online gallery and return structured stable resource_ref objects only; this tool never displays images. '
         'When source is omitted, the request uses danbooru; an explicit valid source is always respected. '
+        'Every call is defined by its own parameters: omitted filters use their defaults and never inherit what the visible gallery had before. '
         'A query may contain at most 6 ordinary tags globally. Sources can enforce lower server limits, so the client pushes down a supported seed and applies remaining tags as residual local filters. '
         'When random=true, limit=N means randomly sample exactly N items from the matching feed (when available); never fetch a larger page and choose items yourself. '
         'To show returned media, pass 1-12 resource_ref objects to display_images. '
@@ -70,7 +71,11 @@ class OnlineGalleryToolbox {
           'description':
               'Space/comma-separated query with at most 6 ordinary tags; metatags do not count toward this global cap.',
         },
-        'prompt': {'type': 'string', 'maxLength': 4000},
+        'prompt': {
+          'type': 'string',
+          'maxLength': 4000,
+          'description': 'Prompt filter; no prompt filter when omitted.',
+        },
         'ratings': {
           'type': 'array',
           'items': {
@@ -88,10 +93,23 @@ class OnlineGalleryToolbox {
         'ranking_scale': {
           'type': 'string',
           'enum': PopularScale.values.map((value) => value.name).toList(),
+          'description':
+              'Defaults to ${_browseDefaults.popularScale.name} when omitted.',
         },
-        'ranking_date': {'type': 'string'},
-        'ai_tag_time_range': {'type': 'string'},
-        'ai_tag_period': {'type': 'string'},
+        'ranking_date': {
+          'type': 'string',
+          'description': 'Defaults to the latest ranking when omitted.',
+        },
+        'ai_tag_time_range': {
+          'type': 'string',
+          'description':
+              'Defaults to ${_browseDefaults.aiTagTimeRange} when omitted.',
+        },
+        'ai_tag_period': {
+          'type': 'string',
+          'description':
+              'Defaults to ${_browseDefaults.aiTagPopularPeriod} when omitted.',
+        },
         'load_more': {'type': 'boolean'},
         'limit': {
           'type': 'integer',
@@ -356,48 +374,44 @@ class OnlineGalleryToolbox {
   ) async {
     final ratings = toolboxStrings(params['ratings']);
     final random = params['random'] as bool? ?? false;
+    final query = params['query'] as String? ?? '';
+    final prompt = params['prompt'] as String? ?? '';
     await notifier.runWithDeferredLoading(() async {
       // A prior random session belongs to its original query and source. Leave
       // it before configuring a new request so enabling random resamples.
       await notifier.setRandomEnabled(false);
       await notifier.setRatings(ratings.toSet());
       await notifier.setFuzzySearchEnabled(params['fuzzy'] as bool? ?? false);
+      await notifier.setArtistHuntEnabled(_browseDefaults.artistHuntEnabled);
       if (mode == 'ranking') {
         await notifier.setPopularSource(source);
         await notifier.switchToPopular();
-        final scaleName = params['ranking_scale'] as String?;
-        if (scaleName != null) {
-          await notifier.setPopularScale(
-            PopularScale.values.firstWhere((value) => value.name == scaleName),
-          );
-        }
-        final date = params['ranking_date'] as String?;
-        if (date != null) await notifier.setPopularDate(DateTime.parse(date));
-        if (params['ai_tag_period'] case final String period) {
-          await notifier.setAiTagPopularPeriod(period);
-        }
-        await notifier.searchPopular(
-          query: params['query'] as String? ?? '',
-          prompt: params['prompt'] as String? ?? '',
+        await notifier.setPopularScale(switch (params['ranking_scale']) {
+          final String name => PopularScale.values.byName(name),
+          _ => _browseDefaults.popularScale,
+        });
+        await notifier.setPopularDate(switch (params['ranking_date']) {
+          final String date => DateTime.parse(date),
+          _ => _browseDefaults.popularDate,
+        });
+        await notifier.setAiTagPopularPeriod(
+          params['ai_tag_period'] as String? ??
+              _browseDefaults.aiTagPopularPeriod,
         );
+        await notifier.searchPopular(query: query, prompt: prompt);
       } else if (mode == 'favorites') {
         await notifier.setFavoritesSource(source);
         await notifier.switchToFavorites();
-        await notifier.searchFavorites(params['query'] as String? ?? '');
+        await notifier.searchFavorites(query);
       } else {
         await notifier.setSource(source);
         await notifier.switchToSearch();
-        if (params['ai_tag_time_range'] case final String range) {
-          await notifier.setAiTagTimeRange(range);
-        }
-        if ((params['prompt'] as String? ?? '').isNotEmpty) {
-          await notifier.searchWithPrompt(
-            params['query'] as String? ?? '',
-            prompt: params['prompt'] as String,
-          );
-        } else {
-          await notifier.search(params['query'] as String? ?? '');
-        }
+        await notifier.clearDateRange();
+        await notifier.setAiTagTimeRange(
+          params['ai_tag_time_range'] as String? ??
+              _browseDefaults.aiTagTimeRange,
+        );
+        await notifier.searchWithPrompt(query, prompt: prompt);
       }
       if (random) await notifier.setRandomEnabled(true);
     });
@@ -415,6 +429,8 @@ class OnlineGalleryToolbox {
     return visibleOnlineGalleryItem(_ref, identity);
   }
 }
+
+const _browseDefaults = OnlineGalleryState();
 
 GallerySourceId? _browseSource(dynamic value) =>
     value == null ? GallerySourceId.danbooru : _source(value);
