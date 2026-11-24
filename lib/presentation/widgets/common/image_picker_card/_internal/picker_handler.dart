@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 
+import '../../../../../core/platform/directory_picker.dart';
 import '../../../../../core/platform/image_file_picker.dart';
 import '../image_picker_result.dart';
 
@@ -121,9 +122,7 @@ class PickerHandler {
     void Function(String)? onError,
   }) async {
     try {
-      final path = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: dialogTitle,
-      );
+      final path = await pickDirectoryPath(dialogTitle: dialogTitle);
       return path;
     } catch (e) {
       onError?.call(l10n.imagePicker_directorySelectionFailed(e.toString()));

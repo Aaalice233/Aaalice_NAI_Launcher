@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../platform/directory_picker.dart';
 import '../platform/platform_capabilities.dart';
 import '../utils/file_name_sanitizer.dart';
 
@@ -124,7 +125,7 @@ class FileExportService {
     if (_isAndroid) {
       return _channel.invokeMethod<String>('pickExportDirectory');
     }
-    return FilePicker.platform.getDirectoryPath(dialogTitle: dialogTitle);
+    return pickDirectoryPath(dialogTitle: dialogTitle);
   }
 
   static Future<String> writeBytesToDirectory({

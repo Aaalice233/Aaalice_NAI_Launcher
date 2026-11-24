@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/services/file_export_service.dart';
 import 'package:path/path.dart' as p;
@@ -257,6 +258,37 @@ void main() {
     expect(await legacyFile.exists(), isFalse);
     expect(await exportDirectory.exists(), isTrue);
   });
+
+  test('pickExportDirectory forwards title and lockParentWindow', () async {
+    final picker = _RecordingDirectoryPicker(directoryPath: exportDirectory.path);
+    useFakeFilePicker(picker);
+
+    final selected = await FileExportService.pickExportDirectory(
+      dialogTitle: 'Export',
+    );
+
+    expect(selected, exportDirectory.path);
+    expect(picker.calls, [
+      (dialogTitle: 'Export', lockParentWindow: true),
+    ]);
+  });
+}
+
+class _RecordingDirectoryPicker extends FilePicker {
+  _RecordingDirectoryPicker({this.directoryPath});
+
+  final String? directoryPath;
+  final List<({String? dialogTitle, bool lockParentWindow})> calls = [];
+
+  @override
+  Future<String?> getDirectoryPath({
+    String? dialogTitle,
+    bool lockParentWindow = false,
+    String? initialDirectory,
+  }) async {
+    calls.add((dialogTitle: dialogTitle, lockParentWindow: lockParentWindow));
+    return directoryPath;
+  }
 }
 
 class _TestPathProviderPlatform extends PathProviderPlatform {

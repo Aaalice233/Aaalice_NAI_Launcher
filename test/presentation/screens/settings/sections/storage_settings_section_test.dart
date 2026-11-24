@@ -593,6 +593,100 @@ void main() {
       expect(sectionRect.width, primaryRect.width);
     }
   });
+
+  group('目录选择入口', () {
+    testWidgets('点击图片保存位置通过共享目录选择器保存路径并更新显示', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final pickedSavePath = '${tempDir.path}${Platform.pathSeparator}custom_images';
+      final filePicker = _RecordingFilePicker(directory: pickedSavePath);
+      useFakeFilePicker(filePicker);
+
+      await tester.pumpWidget(_buildSubject(storage));
+      await tester.pump();
+
+      await tester.tap(find.text('图片保存位置'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(filePicker.directoryCalls, [
+        (dialogTitle: '选择保存文件夹', lockParentWindow: true),
+      ]);
+      expect(storage.values[StorageKeys.imageSavePath], pickedSavePath);
+      expect(find.text(pickedSavePath), findsOneWidget);
+      expect(find.text('保存路径已更新'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 5));
+    });
+
+    testWidgets('图片保存位置未完成前连续点击只触发一次选择，完成后可再次点击', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final pickedSavePath = '${tempDir.path}${Platform.pathSeparator}custom_images_once';
+      final completers = <Completer<String?>>[];
+      final filePicker = _RecordingFilePicker(
+        onGetDirectoryPath: () {
+          final completer = Completer<String?>();
+          completers.add(completer);
+          return completer.future;
+        },
+      );
+      useFakeFilePicker(filePicker);
+
+      await tester.pumpWidget(_buildSubject(storage));
+      await tester.pump();
+
+      try {
+        await tester.tap(find.text('图片保存位置'));
+        await tester.pump();
+        await tester.tap(find.text('图片保存位置'));
+        await tester.pump();
+
+        expect(filePicker.directoryCalls, hasLength(1));
+
+        completers.first.complete(pickedSavePath);
+        await tester.pump();
+        await tester.pump();
+        expect(storage.values[StorageKeys.imageSavePath], pickedSavePath);
+        await tester.pump(const Duration(seconds: 5));
+
+        await tester.tap(find.text('图片保存位置'));
+        await tester.pump();
+        expect(filePicker.directoryCalls, hasLength(2));
+      } finally {
+        for (final completer in completers) {
+          if (!completer.isCompleted) {
+            completer.complete(null);
+          }
+        }
+        await tester.pump();
+      }
+    });
+
+    testWidgets('其余存储目录设置项同样传递 lockParentWindow: true', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1000, 2400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final filePicker = _RecordingFilePicker();
+      useFakeFilePicker(filePicker);
+
+      await tester.pumpWidget(_buildSubject(storage));
+      await tester.pump();
+
+      await tester.tap(find.text('本地 ONNX tagger 模型'));
+      await tester.pump();
+      await tester.tap(find.text('Vibe库路径'));
+      await tester.pump();
+      await tester.tap(find.text('数据存储路径'));
+      await tester.pump();
+
+      expect(filePicker.directoryCalls, [
+        (dialogTitle: '选择 ONNX tagger 模型文件夹', lockParentWindow: true),
+        (dialogTitle: '选择Vibe库文件夹', lockParentWindow: true),
+        (dialogTitle: '选择数据存储文件夹', lockParentWindow: true),
+      ]);
+    });
+  });
 }
 
 Widget _buildSubject(
@@ -759,13 +853,16 @@ class _PendingOnnxModelService extends LocalOnnxModelService {
 }
 
 class _RecordingFilePicker extends FilePicker {
-  _RecordingFilePicker({this.result, this.directory});
+  _RecordingFilePicker({this.result, this.directory, this.onGetDirectoryPath});
 
   final FilePickerResult? result;
   final String? directory;
+  final Future<String?> Function()? onGetDirectoryPath;
   FileType? type;
   List<String>? allowedExtensions;
   bool? allowMultiple;
+  final List<({String? dialogTitle, bool lockParentWindow})> directoryCalls =
+      [];
 
   @override
   Future<FilePickerResult?> pickFiles({
@@ -793,7 +890,16 @@ class _RecordingFilePicker extends FilePicker {
     String? dialogTitle,
     bool lockParentWindow = false,
     String? initialDirectory,
-  }) async => directory;
+  }) async {
+    directoryCalls.add((
+      dialogTitle: dialogTitle,
+      lockParentWindow: lockParentWindow,
+    ));
+    if (onGetDirectoryPath != null) {
+      return onGetDirectoryPath!();
+    }
+    return directory;
+  }
 }
 
 class _CountingOnnxModelService extends LocalOnnxModelService {
