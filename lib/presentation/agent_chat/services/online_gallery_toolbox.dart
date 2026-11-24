@@ -497,7 +497,6 @@ Map<String, dynamic> _capabilitiesJson(GallerySourceId source) {
     'label': source.label,
     'search': value.supportsSearch,
     'fuzzy': value.supportsFuzzySearch,
-    'date_range': value.supportsDateRange,
     'ratings': value.supportsRatings,
     'prompt_query': value.supportsPromptQuery,
     'ranking': value.rankingKinds.map((kind) => kind.name).toList(),

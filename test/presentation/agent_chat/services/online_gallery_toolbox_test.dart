@@ -455,6 +455,23 @@ void main() {
     expect(tagSearch['residual_filtering'], contains('client'));
   });
 
+  test(
+    'source list declares no date range the browse tool cannot set',
+    () async {
+      final result = await tool(
+        'list_online_gallery_sources',
+      ).execute('list', {});
+      final browseParameters =
+          tool('browse_online_gallery').parameters['properties'] as Map;
+
+      expect(browseParameters.keys, isNot(contains('date_start')));
+      expect(browseParameters.keys, isNot(contains('date_end')));
+      for (final source in (result.details['sources'] as List).cast<Map>()) {
+        expect(source.containsKey('date_range'), isFalse);
+      }
+    },
+  );
+
   test('display_images remains the only explicit display contract', () {
     expect(
       tools.map((tool) => tool.name),
