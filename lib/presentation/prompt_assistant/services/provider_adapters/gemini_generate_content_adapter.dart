@@ -232,7 +232,6 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
                   }
                   if (functionCall is Map<String, dynamic>) {
                     hasToolCalls = true;
-                    stopReason = StopReason.toolUse;
                     final args = functionCall['args'];
                     pending.add(
                       AgentWireToolCallDone(
@@ -306,15 +305,17 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
   }
 
   Map<String, dynamic> _buildAgentPayload(AgentChatRequest request) {
-    // Gemini 要求 user/model 交替；相邻同角色合并为一个 turn。
     final turns = <Map<String, dynamic>>[];
     final requiresToolCallId = _requiresToolCallId(request.model);
     final supportsMultimodalFunctionResponse =
         _supportsMultimodalFunctionResponse(request.model);
+    // Gemini 要求 user/model 交替，相邻同角色合并为一个 turn；旧模型的读图图片独占一个 turn。
+    String? mergeableRole;
     void appendTurn(String role, Map<String, dynamic> part) {
-      if (turns.isNotEmpty && turns.last['role'] == role) {
+      if (role == mergeableRole) {
         (turns.last['parts'] as List<Map<String, dynamic>>).add(part);
       } else {
+        mergeableRole = role;
         turns.add({
           'role': role,
           'parts': [part],
@@ -398,10 +399,14 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
           },
         });
         if (!supportsMultimodalFunctionResponse && imageParts.isNotEmpty) {
-          appendTurn('user', {'text': 'Tool result image:'});
-          for (final imagePart in imageParts) {
-            appendTurn('user', imagePart);
-          }
+          turns.add({
+            'role': 'user',
+            'parts': [
+              {'text': 'Tool result image:'},
+              ...imageParts,
+            ],
+          });
+          mergeableRole = null;
         }
       }
     }

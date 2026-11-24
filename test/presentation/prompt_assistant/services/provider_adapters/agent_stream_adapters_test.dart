@@ -621,6 +621,111 @@ void main() {
     });
   });
 
+  test('Gemini 2.5 sends tool images in a separate user turn', () async {
+    final capture = _CaptureAdapter();
+    final dio = Dio()..httpClientAdapter = capture;
+    addTearDown(dio.close);
+    const names = ['read', 'preview', 'size'];
+    const image = ToolResultImageContent(
+      ImageContent(
+        source: ImageSource.base64(mimeType: 'image/png', base64Data: 'AA=='),
+      ),
+    );
+
+    await const GeminiGenerateContentAdapter()
+        .completeAgent(
+          dio: dio,
+          request: AgentChatRequest(
+            sessionId: 'session',
+            provider: ProviderPreset.gemini.createConfig(),
+            model: 'gemini-2.5-flash',
+            systemPrompt: '',
+            messages: [
+              UserMessage.text('inspect the image'),
+              AssistantMessage(
+                content: [
+                  for (final name in names)
+                    ToolCallContent(id: name, name: name, arguments: const {}),
+                ],
+                stopReason: StopReason.toolUse,
+              ),
+              for (final name in names)
+                ToolResultMessage(
+                  toolCallId: name,
+                  toolName: name,
+                  content: name == 'preview'
+                      ? const [image]
+                      : [ToolResultTextContent(name)],
+                ),
+            ],
+            tools: const [],
+            apiKey: null,
+          ),
+          cancelToken: CancelToken(),
+        )
+        .toList();
+
+    final contents = (capture.options!.data as Map)['contents'] as List;
+    Map<String, dynamic> response(String name, String output) => {
+      'functionResponse': {
+        'name': name,
+        'response': {'output': output},
+      },
+    };
+    expect(contents.skip(2).toList(), [
+      {
+        'role': 'user',
+        'parts': [
+          response('read', 'read'),
+          response('preview', '(see attached image)'),
+        ],
+      },
+      {
+        'role': 'user',
+        'parts': [
+          {'text': 'Tool result image:'},
+          {
+            'inlineData': {'mimeType': 'image/png', 'data': 'AA=='},
+          },
+        ],
+      },
+      {
+        'role': 'user',
+        'parts': [response('size', 'size')],
+      },
+    ]);
+  });
+
+  test('Gemini preserves truncation when the final frame calls a tool', () async {
+    for (final (reason, expected) in [
+      ('MAX_TOKENS', StopReason.length),
+      ('CONTINUATION', StopReason.length),
+      ('STOP', StopReason.toolUse),
+    ]) {
+      final dio = Dio()
+        ..httpClientAdapter = _SseAdapter(
+          'data: {"candidates":[{"content":{"parts":['
+          '{"functionCall":{"name":"read","args":{}}}'
+          ']},"finishReason":"$reason"}]}\n\n',
+        );
+      addTearDown(dio.close);
+      final events = await const GeminiGenerateContentAdapter()
+          .completeAgent(
+            dio: dio,
+            request: _request(ProviderProtocol.geminiGenerateContent),
+            cancelToken: CancelToken(),
+          )
+          .toList();
+
+      expect(events.whereType<AgentWireToolCallDone>().single.name, 'read');
+      expect(
+        events.whereType<AgentWireFinish>().single.stopReason,
+        expected,
+        reason: reason,
+      );
+    }
+  });
+
   test('Gemini function call finishes the turn with toolUse', () async {
     final dio = Dio()
       ..httpClientAdapter = _SseAdapter(
