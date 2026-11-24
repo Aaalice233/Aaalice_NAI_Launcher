@@ -11,6 +11,7 @@ import '../../core/utils/prompt_tag_utils.dart';
 import '../models/online_gallery/gallery_item.dart';
 import '../models/online_gallery/gallery_source.dart';
 import '../models/online_gallery/online_gallery_favorite_record.dart';
+import '../services/online_gallery/gallery_prompt_tags.dart';
 import '../services/online_gallery/online_gallery_query.dart';
 import '../services/online_gallery/quick_tag_cloud_access.dart';
 import '../services/online_gallery/quick_tag_cloud_media_resolver.dart';
@@ -478,6 +479,10 @@ Set<String> _recordTags(OnlineGalleryFavoriteRecord record) {
     ...item.artistTags,
     ...item.metaTags,
     ...record.detail.rawTags,
+    ...positiveGalleryCharacterTags(
+      record.detail.media,
+      workPrompts: record.detail.characterPrompts,
+    ),
   };
   return values.map(_normalizeTag).where((value) => value.isNotEmpty).toSet();
 }

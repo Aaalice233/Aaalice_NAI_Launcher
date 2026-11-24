@@ -9,7 +9,29 @@ import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_sour
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 
+import '../../../../helpers/ai_tag_character_gallery.dart';
+
 void main() {
+  test('detail indexes positive character tags from every image', () async {
+    final detail = await aiTagCharacterGallery().detail(
+      const GalleryItem(id: 11, sourceId: GallerySourceId.aiTag),
+    );
+
+    expect(detail.item.tags, ['anchor', 'sunset']);
+    expect(
+      detail.item.searchTerms,
+      containsAll([
+        'round glasses',
+        'brass badge',
+        'green eyes',
+        'silver ribbon',
+        'blue cape',
+      ]),
+    );
+    expect(detail.item.searchTerms, isNot(contains('main negative')));
+    expect(detail.item.searchTerms, isNot(contains('character negative')));
+  });
+
   group('AiTagGallerySourceAdapter empty list 404', () {
     test('search treats a 404 with empty items as an empty page', () async {
       final http = _FakeHttpAdapter((request) {
