@@ -929,6 +929,13 @@ void main() {
       expect(result.isError, isFalse);
       expect(quickTagCloudQueries.last.codexId, 'other');
       expect(quickTagCloudQueries.last.categoryPath, ['clothing', 'kimono']);
+      expect(result.details['quick_tag_cloud'], {
+        'codex': 'other',
+        'category_path': ['clothing', 'kimono'],
+        'update_filter': '',
+        'scope': 'catalog',
+        'media_filter': 'all',
+      });
     });
 
     test('explicit search filters still reach the adapter', () async {
@@ -960,6 +967,7 @@ void main() {
 
       expect(scaled.isError, isFalse);
       expect(period.isError, isFalse);
+      expect(scaled.details['mode'], 'ranking');
       expect(danbooru.rankingRequests.single.kind, GalleryRankingKind.week);
       expect(danbooru.rankingRequests.single.date, DateTime(2026, 1, 1));
       expect(aiTag.rankingRequests.single.period, '2026-10');

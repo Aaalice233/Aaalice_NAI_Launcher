@@ -13,6 +13,7 @@ import '../../providers/online_gallery_provider.dart';
 import 'defined_agent_tool.dart';
 import 'online_gallery_item_lookup.dart';
 import 'online_gallery_resource_identity.dart';
+import 'online_gallery_view_json.dart';
 import 'toolbox_json.dart';
 
 /// Source-capability-aware tools for browsing and resolving online gallery works.
@@ -50,7 +51,7 @@ class OnlineGalleryToolbox {
         'Browse an online gallery and return structured stable resource_ref objects only; this tool never displays images. '
         'When source is omitted, the request uses danbooru; an explicit valid source is always respected. '
         'Every call is defined by its own parameters: omitted filters use their defaults and never inherit what the visible gallery had before. '
-        'quick_tag_cloud is the exception: it browses the codex, category and filters currently selected in the gallery. '
+        'quick_tag_cloud is the exception: it browses the codex, category and filters currently selected in the gallery and returns them as quick_tag_cloud. '
         'A query may contain at most 6 ordinary tags globally. Sources can enforce lower server limits, so the client pushes down a supported seed and applies remaining tags as residual local filters. '
         'When random=true, limit=N means randomly sample exactly N items from the matching feed (when available); never fetch a larger page and choose items yourself. '
         'To show returned media, pass 1-12 resource_ref objects to display_images. '
@@ -228,7 +229,9 @@ class OnlineGalleryToolbox {
         return agentToolJsonResult({
           'ok': true,
           'source': source.key,
-          'mode': state.viewMode.name,
+          'mode': feed.name,
+          if (source == GallerySourceId.quickTagCloud)
+            'quick_tag_cloud': quickTagCloudFiltersJson(state),
           'random': params['random'] == true,
           'requested_limit': limit,
           'page': state.page,
