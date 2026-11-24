@@ -7735,6 +7735,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modelServices_apiKeyCleared => 'API key removed';
 
   @override
+  String get modelServices_vertexCredential => 'Credential';
+
+  @override
+  String get modelServices_vertexCredentialHint =>
+      'Service account JSON, gcloud ADC JSON or API key';
+
+  @override
+  String modelServices_vertexCredentialInvalid(Object error) {
+    return 'Invalid credential: $error';
+  }
+
+  @override
+  String get modelServices_vertexImportCredential => 'Import from file';
+
+  @override
+  String get modelServices_vertexCredentialImported => 'Credential imported';
+
+  @override
+  String get modelServices_vertexCredentialReadFailed =>
+      'Couldn\'t read the selected file';
+
+  @override
+  String get modelServices_vertexCredentialCleared => 'Credential removed';
+
+  @override
+  String get modelServices_vertexProjectId => 'Project ID';
+
+  @override
+  String get modelServices_vertexProjectIdHint =>
+      'Leave empty to use the project in the credential';
+
+  @override
+  String get modelServices_vertexLocation => 'Location';
+
+  @override
+  String get modelServices_vertexLocationHint => 'global, us-central1, etc.';
+
+  @override
+  String get modelServices_vertexLocationInvalid =>
+      'Use lowercase letters, digits and hyphens only';
+
+  @override
+  String get modelServices_vertexBaseUrlHint =>
+      'Leave empty to choose by location';
+
+  @override
   String get modelServices_baseUrl => 'API address';
 
   @override

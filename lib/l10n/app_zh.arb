@@ -3547,6 +3547,24 @@
   "modelServices_hideApiKey": "隐藏密钥",
   "modelServices_clearApiKey": "清除已保存的密钥",
   "modelServices_apiKeyCleared": "API 密钥已清除",
+  "modelServices_vertexCredential": "凭据",
+  "modelServices_vertexCredentialHint": "服务账号 JSON、gcloud ADC JSON 或 API 密钥",
+  "modelServices_vertexCredentialInvalid": "凭据无效：{error}",
+  "@modelServices_vertexCredentialInvalid": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_vertexImportCredential": "从文件导入",
+  "modelServices_vertexCredentialImported": "凭据已导入",
+  "modelServices_vertexCredentialReadFailed": "无法读取所选文件",
+  "modelServices_vertexCredentialCleared": "凭据已清除",
+  "modelServices_vertexProjectId": "项目 ID",
+  "modelServices_vertexProjectIdHint": "留空则使用凭据中的项目",
+  "modelServices_vertexLocation": "区域",
+  "modelServices_vertexLocationHint": "global、us-central1 等",
+  "modelServices_vertexLocationInvalid": "区域只能包含小写字母、数字和连字符",
+  "modelServices_vertexBaseUrlHint": "留空则按区域自动选择",
   "modelServices_baseUrl": "API 地址",
   "modelServices_checkConnection": "检查连接",
   "modelServices_connectionOk": "连接正常，接口列出了 {count} 个模型",

@@ -3493,6 +3493,24 @@
   "modelServices_hideApiKey": "キーを隠す",
   "modelServices_clearApiKey": "保存済みのキーを削除",
   "modelServices_apiKeyCleared": "API キーを削除しました",
+  "modelServices_vertexCredential": "認証情報",
+  "modelServices_vertexCredentialHint": "サービスアカウント JSON、gcloud ADC JSON または API キー",
+  "modelServices_vertexCredentialInvalid": "認証情報が無効です：{error}",
+  "@modelServices_vertexCredentialInvalid": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_vertexImportCredential": "ファイルから読み込む",
+  "modelServices_vertexCredentialImported": "認証情報を読み込みました",
+  "modelServices_vertexCredentialReadFailed": "選択したファイルを読み込めませんでした",
+  "modelServices_vertexCredentialCleared": "認証情報を削除しました",
+  "modelServices_vertexProjectId": "プロジェクト ID",
+  "modelServices_vertexProjectIdHint": "空欄の場合は認証情報のプロジェクトを使用",
+  "modelServices_vertexLocation": "リージョン",
+  "modelServices_vertexLocationHint": "global、us-central1 など",
+  "modelServices_vertexLocationInvalid": "英小文字・数字・ハイフンのみ使用できます",
+  "modelServices_vertexBaseUrlHint": "空欄の場合はリージョンから自動選択",
   "modelServices_baseUrl": "API アドレス",
   "modelServices_checkConnection": "接続を確認",
   "modelServices_connectionOk": "接続できました。{count} 個のモデルが一覧にあります。",

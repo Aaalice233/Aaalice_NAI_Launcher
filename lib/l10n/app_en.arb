@@ -3541,6 +3541,24 @@
   "modelServices_hideApiKey": "Hide key",
   "modelServices_clearApiKey": "Remove saved key",
   "modelServices_apiKeyCleared": "API key removed",
+  "modelServices_vertexCredential": "Credential",
+  "modelServices_vertexCredentialHint": "Service account JSON, gcloud ADC JSON or API key",
+  "modelServices_vertexCredentialInvalid": "Invalid credential: {error}",
+  "@modelServices_vertexCredentialInvalid": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "modelServices_vertexImportCredential": "Import from file",
+  "modelServices_vertexCredentialImported": "Credential imported",
+  "modelServices_vertexCredentialReadFailed": "Couldn't read the selected file",
+  "modelServices_vertexCredentialCleared": "Credential removed",
+  "modelServices_vertexProjectId": "Project ID",
+  "modelServices_vertexProjectIdHint": "Leave empty to use the project in the credential",
+  "modelServices_vertexLocation": "Location",
+  "modelServices_vertexLocationHint": "global, us-central1, etc.",
+  "modelServices_vertexLocationInvalid": "Use lowercase letters, digits and hyphens only",
+  "modelServices_vertexBaseUrlHint": "Leave empty to choose by location",
   "modelServices_baseUrl": "API address",
   "modelServices_checkConnection": "Check connection",
   "modelServices_connectionOk": "Connected. The provider lists {count} models.",

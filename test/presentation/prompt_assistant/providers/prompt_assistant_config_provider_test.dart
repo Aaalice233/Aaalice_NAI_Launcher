@@ -8,7 +8,11 @@ import 'package:nai_launcher/data/models/prompt_assistant/assistant_execution_se
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/vertex_target.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
+import 'package:nai_launcher/presentation/prompt_assistant/services/provider_adapters/vertex/vertex_credential.dart';
+
+import '../services/provider_adapters/vertex/vertex_test_support.dart';
 
 class _MockLocalStorageService extends Mock implements LocalStorageService {}
 
@@ -466,6 +470,89 @@ void main() {
       expect(read().providers.any((p) => p.id == 'relay'), isFalse);
       expect(secure.keys.containsKey('relay'), isFalse);
       expect(read().providerHasApiKey.containsKey('relay'), isFalse);
+    });
+  });
+
+  group('Vertex credential', () {
+    ProviderConfig vertex() =>
+        read().providers.singleWhere((provider) => provider.id == 'vertex');
+
+    setUp(() async {
+      await notifier.upsertProvider(
+        ProviderPreset.googleVertex.createConfig(id: 'vertex'),
+      );
+    });
+
+    test('service account fills an empty project ID', () async {
+      await notifier.setVertexCredential('vertex', serviceAccountJson());
+
+      expect(secure.keys['vertex'], serviceAccountJson().trim());
+      expect(read().providerHasApiKey['vertex'], isTrue);
+      expect(vertex().vertexTarget.projectId, 'sa-project');
+    });
+
+    test('credential replacement updates only the inferred project', () async {
+      await notifier.setVertexCredential('vertex', serviceAccountJson());
+      await notifier.setVertexCredential('vertex', authorizedUserJson());
+      expect(vertex().vertexTarget.projectId, 'quota-project');
+
+      await notifier.setVertexCredential('vertex', 'AQ.express-key');
+      expect(vertex().vertexTarget.projectId, isEmpty);
+      await notifier.setVertexCredential('vertex', serviceAccountJson());
+      expect(vertex().vertexTarget.projectId, 'sa-project');
+
+      await notifier.setVertexTarget(
+        'vertex',
+        const VertexTarget(projectId: 'chosen'),
+      );
+      await notifier.setVertexCredential('vertex', authorizedUserJson());
+      expect(vertex().vertexTarget.projectId, 'chosen');
+      expect(secure.keys['vertex'], authorizedUserJson());
+    });
+
+    test('an explicit project ID is never overwritten', () async {
+      await notifier.setVertexTarget(
+        'vertex',
+        const VertexTarget(projectId: 'chosen', location: 'us-east5'),
+      );
+      await notifier.setVertexCredential('vertex', serviceAccountJson());
+
+      expect(
+        vertex().vertexTarget,
+        const VertexTarget(projectId: 'chosen', location: 'us-east5'),
+      );
+    });
+
+    test('invalid credentials are rejected before storage', () async {
+      await expectLater(
+        notifier.setVertexCredential(
+          'vertex',
+          serviceAccountJson(privateKey: 'broken'),
+        ),
+        throwsA(isA<VertexCredentialFormatException>()),
+      );
+      expect(secure.keys.containsKey('vertex'), isFalse);
+      expect(vertex().vertexTarget.projectId, isEmpty);
+    });
+
+    test('API keys are stored without touching the project', () async {
+      await notifier.setVertexCredential('vertex', 'AQ.express-key');
+
+      expect(secure.keys['vertex'], 'AQ.express-key');
+      expect(vertex().vertexTarget.projectId, isEmpty);
+    });
+
+    test('target edits trim input and survive a reload', () async {
+      await notifier.setVertexTarget(
+        'vertex',
+        const VertexTarget(projectId: '  p-1 ', location: ' europe-west4 '),
+      );
+      final decoded = PromptAssistantConfigState.decode(read().encode());
+
+      expect(
+        decoded.providers.singleWhere((p) => p.id == 'vertex').vertex,
+        const VertexTarget(projectId: 'p-1', location: 'europe-west4'),
+      );
     });
   });
 }

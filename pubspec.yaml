@@ -50,6 +50,8 @@ dependencies:
   cryptography: ^2.7.0
   args: ^2.7.0
   crypto: ^3.0.3
+  # Vertex AI 服务账号 JWT 的 RS256 签名
+  pointycastle: ^4.0.0
   dart_mcp: ^0.5.2
   # MCP 服务器用内存通道把 HTTP 传输接到 dart_mcp 协议层
   stream_channel: ^2.1.4

@@ -50,11 +50,17 @@ Future<String?> showProviderEditor(
     baseUrl: result.baseUrl,
     allowImageInput: result.allowImageInput,
     concurrency: result.concurrency,
+    vertex: result.vertex,
   );
 
+  if (current.isVertex != next.isVertex) {
+    await notifier.setProviderApiKey(id, '');
+  }
   await notifier.upsertProvider(next);
   if (result.apiKey.trim().isNotEmpty) {
-    await notifier.setProviderApiKey(id, result.apiKey);
+    await (next.isVertex
+        ? notifier.setVertexCredential(id, result.apiKey)
+        : notifier.setProviderApiKey(id, result.apiKey));
   }
   if (provider == null) {
     await notifier.addProviderModels(

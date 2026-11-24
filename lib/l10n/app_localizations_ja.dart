@@ -7543,6 +7543,48 @@ class AppLocalizationsJa extends AppLocalizations {
   String get modelServices_apiKeyCleared => 'API キーを削除しました';
 
   @override
+  String get modelServices_vertexCredential => '認証情報';
+
+  @override
+  String get modelServices_vertexCredentialHint =>
+      'サービスアカウント JSON、gcloud ADC JSON または API キー';
+
+  @override
+  String modelServices_vertexCredentialInvalid(Object error) {
+    return '認証情報が無効です：$error';
+  }
+
+  @override
+  String get modelServices_vertexImportCredential => 'ファイルから読み込む';
+
+  @override
+  String get modelServices_vertexCredentialImported => '認証情報を読み込みました';
+
+  @override
+  String get modelServices_vertexCredentialReadFailed => '選択したファイルを読み込めませんでした';
+
+  @override
+  String get modelServices_vertexCredentialCleared => '認証情報を削除しました';
+
+  @override
+  String get modelServices_vertexProjectId => 'プロジェクト ID';
+
+  @override
+  String get modelServices_vertexProjectIdHint => '空欄の場合は認証情報のプロジェクトを使用';
+
+  @override
+  String get modelServices_vertexLocation => 'リージョン';
+
+  @override
+  String get modelServices_vertexLocationHint => 'global、us-central1 など';
+
+  @override
+  String get modelServices_vertexLocationInvalid => '英小文字・数字・ハイフンのみ使用できます';
+
+  @override
+  String get modelServices_vertexBaseUrlHint => '空欄の場合はリージョンから自動選択';
+
+  @override
   String get modelServices_baseUrl => 'API アドレス';
 
   @override

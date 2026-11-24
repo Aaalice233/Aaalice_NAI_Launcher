@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'assistant_execution_settings.dart';
+import 'vertex_target.dart';
 
 enum AssistantTaskType {
   llm,
@@ -125,6 +126,7 @@ enum ProviderPreset {
   openaiCompatibleResponses,
   anthropic,
   gemini,
+  googleVertex,
   deepseek,
   openRouter,
   xai,
@@ -161,6 +163,8 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'Anthropic';
       case ProviderPreset.gemini:
         return 'Gemini';
+      case ProviderPreset.googleVertex:
+        return 'Google Vertex AI';
       case ProviderPreset.deepseek:
         return 'DeepSeek';
       case ProviderPreset.openRouter:
@@ -216,6 +220,8 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'anthropic';
       case ProviderPreset.gemini:
         return 'gemini';
+      case ProviderPreset.googleVertex:
+        return 'google-vertex';
       case ProviderPreset.deepseek:
         return 'deepseek';
       case ProviderPreset.openRouter:
@@ -271,6 +277,8 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'Anthropic';
       case ProviderPreset.gemini:
         return 'Gemini';
+      case ProviderPreset.googleVertex:
+        return 'Google Vertex AI';
       case ProviderPreset.deepseek:
         return 'DeepSeek';
       case ProviderPreset.openRouter:
@@ -324,6 +332,9 @@ extension ProviderPresetDefaults on ProviderPreset {
         return 'https://api.anthropic.com';
       case ProviderPreset.gemini:
         return 'https://generativelanguage.googleapis.com';
+      // 留空按区域与凭据的 universe_domain 推出主机。
+      case ProviderPreset.googleVertex:
+        return '';
       case ProviderPreset.deepseek:
         return 'https://api.deepseek.com';
       case ProviderPreset.openRouter:
@@ -391,6 +402,7 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.minimaxCn:
         return ProviderProtocol.anthropicMessages;
       case ProviderPreset.gemini:
+      case ProviderPreset.googleVertex:
         return ProviderProtocol.geminiGenerateContent;
       case ProviderPreset.ollama:
         return ProviderProtocol.ollamaChatCompletions;
@@ -406,6 +418,7 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.anthropic:
         return const ['claude-opus-5-5'];
       case ProviderPreset.gemini:
+      case ProviderPreset.googleVertex:
         return const ['gemini-4-argon'];
       case ProviderPreset.deepseek:
         return const ['deepseek-v4-pro'];
@@ -456,6 +469,7 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiCompatibleResponses:
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
+      case ProviderPreset.googleVertex:
       case ProviderPreset.deepseek:
       case ProviderPreset.openRouter:
       case ProviderPreset.xai:
@@ -483,6 +497,7 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiCompatibleResponses:
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
+      case ProviderPreset.googleVertex:
       case ProviderPreset.openRouter:
       case ProviderPreset.xai:
       case ProviderPreset.kimiCoding:
@@ -520,6 +535,7 @@ extension ProviderPresetDefaults on ProviderPreset {
       baseUrl: defaultBaseUrl,
       allowImageInput: defaultAllowImageInput,
       enabled: true,
+      vertex: this == ProviderPreset.googleVertex ? const VertexTarget() : null,
     );
   }
 
@@ -535,6 +551,7 @@ extension ProviderPresetDefaults on ProviderPreset {
       case ProviderPreset.openaiCompatibleResponses:
       case ProviderPreset.anthropic:
       case ProviderPreset.gemini:
+      case ProviderPreset.googleVertex:
       case ProviderPreset.deepseek:
       case ProviderPreset.openRouter:
       case ProviderPreset.xai:
@@ -572,6 +589,9 @@ class ProviderConfig {
   final bool enabled;
   final bool allowImageInput;
 
+  /// 仅 [ProviderPreset.googleVertex] 使用。
+  final VertexTarget? vertex;
+
   const ProviderConfig({
     this.modelReasoningFormats = const {},
     this.modelReasoningFormatIds = const {},
@@ -584,7 +604,12 @@ class ProviderConfig {
     required this.baseUrl,
     this.enabled = true,
     this.allowImageInput = false,
+    this.vertex,
   });
+
+  bool get isVertex => preset == ProviderPreset.googleVertex;
+
+  VertexTarget get vertexTarget => vertex ?? const VertexTarget();
 
   ProviderConfig copyWith({
     Map<String, ModelReasoningFormat>? modelReasoningFormats,
@@ -599,6 +624,7 @@ class ProviderConfig {
     String? baseUrl,
     bool? enabled,
     bool? allowImageInput,
+    VertexTarget? vertex,
   }) {
     return ProviderConfig(
       modelReasoningFormats:
@@ -614,6 +640,7 @@ class ProviderConfig {
       baseUrl: baseUrl ?? this.baseUrl,
       enabled: enabled ?? this.enabled,
       allowImageInput: allowImageInput ?? this.allowImageInput,
+      vertex: vertex ?? this.vertex,
     );
   }
 
@@ -627,6 +654,7 @@ class ProviderConfig {
     'enabled': enabled,
     'allowImageInput': allowImageInput,
     'concurrency': concurrency.toJson(),
+    if (vertex case final vertex?) 'vertex': vertex.toJson(),
     if (modelReasoningFormats.isNotEmpty)
       'modelReasoningFormats': modelReasoningFormats.map(
         (id, format) => MapEntry(id, format.name),
@@ -654,6 +682,7 @@ class ProviderConfig {
           if (byName[entry.value] case final format?) entry.key: format,
     };
     final ids = json['modelReasoningFormatIds'];
+    final rawVertex = json['vertex'];
     return ProviderConfig(
       modelReasoningFormats: formats,
       modelReasoningFormatIds: {
@@ -674,6 +703,11 @@ class ProviderConfig {
       allowImageInput:
           json['allowImageInput'] as bool? ??
           (preset?.defaultAllowImageInput ?? protocol.supportsImagePayload),
+      vertex: rawVertex is Map<String, dynamic>
+          ? VertexTarget.fromJson(rawVertex)
+          : preset == ProviderPreset.googleVertex
+          ? const VertexTarget()
+          : null,
     );
   }
 

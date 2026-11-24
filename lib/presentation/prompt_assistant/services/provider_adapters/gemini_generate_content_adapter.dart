@@ -6,38 +6,56 @@ import '../../../../core/agent/agent_types.dart';
 import '../../models/agent_protocol.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'agent_wire_helpers.dart';
+import 'gemini_transport.dart';
 import 'prompt_assistant_adapter.dart';
 import 'reasoning_payload.dart';
 import 'reasoning_rejection.dart';
 
 class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
-  const GeminiGenerateContentAdapter();
+  const GeminiGenerateContentAdapter({
+    this.transport = const GoogleAiStudioTransport(),
+  });
+
+  final GeminiTransport transport;
 
   @override
   Future<List<String>> fetchModels({
     required Dio dio,
     required ProviderConfig provider,
     required String? apiKey,
-  }) async {
-    final response = await dio.get<dynamic>(
-      _resolveModelsEndpoint(provider),
-      options: Options(
-        headers: _headers(apiKey),
-        sendTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(seconds: 30),
-      ),
-    );
-    return extractModelNames(response.data);
-  }
+  }) => _guardUnauthorized(
+    apiKey,
+    () => transport.fetchModels(
+      dio: dio,
+      provider: provider,
+      credential: apiKey,
+    ),
+  );
 
   @override
   Future<String> complete({
     required Dio dio,
     required PromptAssistantRequest request,
     required CancelToken cancelToken,
+  }) => _guardUnauthorized(
+    request.apiKey,
+    () => _complete(dio: dio, request: request, cancelToken: cancelToken),
+  );
+
+  Future<String> _complete({
+    required Dio dio,
+    required PromptAssistantRequest request,
+    required CancelToken cancelToken,
   }) async {
+    final target = await transport.resolve(
+      dio: dio,
+      provider: request.provider,
+      credential: request.apiKey,
+      model: request.model,
+      method: GeminiMethod.generateContent,
+    );
     final response = await dio.post<dynamic>(
-      _resolveGenerateEndpoint(request.provider, request.model),
+      target.endpoint,
       data: {
         if (request.systemPrompt.isNotEmpty)
           'systemInstruction': {
@@ -60,7 +78,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         },
       },
       options: Options(
-        headers: _headers(request.apiKey),
+        headers: target.headers,
         sendTimeout: const Duration(seconds: 30),
         receiveTimeout: request.responseTimeout,
       ),
@@ -69,15 +87,30 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     return _extractResponseContent(checkedProviderResponse(response));
   }
 
+  Future<T> _guardUnauthorized<T>(
+    String? credential,
+    Future<T> Function() request,
+  ) async {
+    try {
+      return await request();
+    } on DioException catch (error) {
+      _forgetSessionOnUnauthorized(error, credential);
+      rethrow;
+    }
+  }
+
+  void _forgetSessionOnUnauthorized(Object error, String? credential) {
+    if (error is DioException && error.response?.statusCode == 401) {
+      transport.onUnauthorized(credential);
+    }
+  }
+
   @override
   Stream<AgentWireEvent> completeAgent({
     required Dio dio,
     required AgentChatRequest request,
     required CancelToken cancelToken,
   }) async* {
-    final endpoint =
-        '${_resolveStreamGenerateEndpoint(request.provider, request.model)}'
-        '?alt=sse';
     final pending = <AgentWireEvent>[];
     final payload = _buildAgentPayload(request);
 
@@ -223,11 +256,18 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     );
 
     try {
+      final target = await transport.resolve(
+        dio: dio,
+        provider: request.provider,
+        credential: request.apiKey,
+        model: request.model,
+        method: GeminiMethod.streamGenerateContent,
+      );
       final stream = agentStreamPost(
         dio,
-        endpoint: endpoint,
+        endpoint: '${target.endpoint}?alt=sse',
         payload: payload,
-        headers: _headers(request.apiKey),
+        headers: target.headers,
         cancelToken: cancelToken,
         // Duration.zero overrides Dio's BaseOptions deadline instead of
         // inheriting it. Reasoning models can take minutes before first bytes.
@@ -246,6 +286,7 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
         pending.clear();
       }
     } on Object catch (error) {
+      _forgetSessionOnUnauthorized(error, request.apiKey);
       if (pending.isNotEmpty) {
         yield* Stream.fromIterable(List.of(pending));
       }
@@ -400,14 +441,6 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
     };
   }
 
-  Map<String, dynamic> _headers(String? apiKey) {
-    return {
-      'Content-Type': 'application/json',
-      if (apiKey != null && apiKey.trim().isNotEmpty)
-        'x-goog-api-key': apiKey.trim(),
-    };
-  }
-
   List<Map<String, dynamic>> _parts(List<PromptAssistantContentPart> parts) {
     return [
       for (final part in parts)
@@ -421,34 +454,6 @@ class GeminiGenerateContentAdapter extends PromptAssistantProviderAdapter {
             },
           },
     ];
-  }
-
-  String _resolveGenerateEndpoint(ProviderConfig provider, String model) {
-    final base = _resolveGeminiRoot(provider);
-    final normalizedModel = model.startsWith('models/')
-        ? model
-        : 'models/$model';
-    return '$base/$normalizedModel:generateContent';
-  }
-
-  String _resolveStreamGenerateEndpoint(ProviderConfig provider, String model) {
-    final base = _resolveGeminiRoot(provider);
-    final normalizedModel = model.startsWith('models/')
-        ? model
-        : 'models/$model';
-    return '$base/$normalizedModel:streamGenerateContent';
-  }
-
-  String _resolveModelsEndpoint(ProviderConfig provider) {
-    return '${_resolveGeminiRoot(provider)}/models';
-  }
-
-  String _resolveGeminiRoot(ProviderConfig provider) {
-    final base = normalizedBaseUrl(provider.baseUrl);
-    if (base.endsWith('/v1beta') || base.endsWith('/v1')) {
-      return base;
-    }
-    return '$base/v1beta';
   }
 
   String _extractResponseContent(dynamic raw) {
