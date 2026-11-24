@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../data/models/character/character_prompt.dart';
+import '../comfyui_import_wrapper.dart';
 import '../unified/unified_prompt_config.dart';
 import '../unified/unified_prompt_input.dart';
 import 'prompt_editor_toolbar.dart';
@@ -84,8 +84,7 @@ class PromptEditorWithToolbar extends ConsumerStatefulWidget {
   /// ComfyUI 多角色导入回调
   ///
   /// 当用户确认导入 ComfyUI 格式的多角色提示词时触发。
-  final void Function(String globalPrompt, List<CharacterPrompt> characters)?
-  onComfyuiImport;
+  final ComfyuiImportCallback? onComfyuiImport;
 
   const PromptEditorWithToolbar({
     super.key,

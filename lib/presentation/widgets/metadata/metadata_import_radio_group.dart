@@ -7,12 +7,16 @@ class MetadataImportRadioGroup<T extends Object> extends StatelessWidget {
     required this.value,
     required this.choices,
     required this.onChanged,
+    this.contentPadding,
   });
 
   final String label;
   final T value;
   final Map<T, String> choices;
   final ValueChanged<T>? onChanged;
+
+  /// 选项行的内边距；为空时沿用 [RadioListTile] 默认值。
+  final EdgeInsetsGeometry? contentPadding;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -27,6 +31,7 @@ class MetadataImportRadioGroup<T extends Object> extends StatelessWidget {
             for (final choice in choices.entries)
               RadioListTile<T>(
                 dense: true,
+                contentPadding: contentPadding,
                 enabled: onChanged != null,
                 value: choice.key,
                 title: Text(choice.value),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/comfyui_prompt_parser/pipe_parser.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/models/character/character_prompt.dart';
+import '../../../../data/models/metadata/metadata_import_options.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_quick_settings.dart';
 import '../../../providers/character_prompt_provider.dart';
@@ -190,7 +191,14 @@ class PromptInputCoordinator {
   void importComfyuiPrompt(
     String globalPrompt,
     List<CharacterPrompt> characters,
+    CharacterImportMode mode,
   ) {
+    // 只在确认导入时记住方式；取消不改上次的选择。
+    _ref.read(pasteCharacterImportModeSettingsProvider.notifier).set(mode);
+    if (mode == CharacterImportMode.append) {
+      _appendImportedCharacters(globalPrompt, characters);
+      return;
+    }
     final notifier = _ref.read(characterPromptNotifierProvider.notifier);
     notifier.clearAll();
     notifier.replaceAll(characters);
@@ -201,6 +209,37 @@ class PromptInputCoordinator {
         context,
         context.l10n.prompt_importedCharacters(characters.length),
       );
+    }
+  }
+
+  /// 保留现有角色，把粘贴解析出的角色接在末尾；超出模型上限的部分跳过并提示。
+  void _appendImportedCharacters(
+    String globalPrompt,
+    List<CharacterPrompt> characters,
+  ) {
+    final notifier = _ref.read(characterPromptNotifierProvider.notifier);
+    // 解析器固定从 Character 1 起编号，接在已有角色后面要顺延，避免重名。
+    final offset = _ref.read(characterPromptNotifierProvider).characters.length;
+    final added = notifier.appendCharacters([
+      for (final (index, character) in characters.indexed)
+        character.copyWith(name: 'Character ${offset + index + 1}'),
+    ]);
+    updatePrompt(globalPrompt);
+    if (!_mounted()) return;
+
+    final context = _context();
+    final skipped = characters.length - added;
+    if (skipped > 0) {
+      AppToast.warning(
+        context,
+        context.l10n.metadataImport_characterAppendResult(
+          added,
+          skipped,
+          notifier.characterLimit,
+        ),
+      );
+    } else {
+      AppToast.success(context, context.l10n.prompt_importedCharacters(added));
     }
   }
 

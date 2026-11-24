@@ -557,6 +557,19 @@ class LocalStorageService {
     await setSetting(StorageKeys.detectMultiCharacterOnPaste, value);
   }
 
+  /// 获取粘贴多角色提示词时上次确认的角色导入方式名称；从未确认过返回 null。
+  ///
+  /// 仅保存在本机，不参与云同步。
+  String? getPasteCharacterImportMode() {
+    final value = getSetting<Object?>(StorageKeys.pasteCharacterImportMode);
+    return value is String ? value : null;
+  }
+
+  /// 保存粘贴多角色提示词时确认的角色导入方式名称
+  Future<void> setPasteCharacterImportMode(String value) async {
+    await setSetting(StorageKeys.pasteCharacterImportMode, value);
+  }
+
   // ==================== Prompt Regex Replace ====================
 
   /// 获取正则替换规则（每项为一条规则的 JSON 字符串）

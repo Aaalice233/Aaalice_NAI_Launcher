@@ -42,6 +42,9 @@ class PromptInputEditor extends ConsumerWidget {
     final detectMultiCharacterOnPaste = ref.watch(
       detectMultiCharacterOnPasteSettingsProvider,
     );
+    final pasteCharacterImportMode = ref.watch(
+      pasteCharacterImportModeSettingsProvider,
+    );
     final separateNumericWeightClosing = ref.watch(
       separateNumericWeightClosingSettingsProvider,
     );
@@ -102,6 +105,7 @@ class PromptInputEditor extends ConsumerWidget {
               separateNumericWeightClosing: separateNumericWeightClosing,
               replaceUnderscores: replaceUnderscores,
               enableComfyuiImport: !negative && detectMultiCharacterOnPaste,
+              comfyuiCharacterImportMode: pasteCharacterImportMode,
               enableTagMode: true,
               autocompleteConfig: AutocompleteConfig(
                 showTranslation: true,

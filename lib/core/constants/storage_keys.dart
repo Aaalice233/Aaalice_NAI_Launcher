@@ -193,6 +193,9 @@ class StorageKeys {
   static const String resolveAliasOnCopy = 'resolve_alias_on_copy';
   static const String detectMultiCharacterOnPaste =
       'detect_multi_character_on_paste';
+  // Last confirmed character import mode of the paste dialog stays on this
+  // device, like the metadata import selection.
+  static const String pasteCharacterImportMode = 'paste_character_import_mode';
   static const String enablePromptWeightScroll = 'enable_prompt_weight_scroll';
   static const String promptRegexRules = 'prompt_regex_rules'; // 规则JSON字符串列表
 
