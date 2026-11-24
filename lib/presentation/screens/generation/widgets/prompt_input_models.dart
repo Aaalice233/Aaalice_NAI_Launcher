@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../../data/models/character/character_prompt.dart';
+import '../../../widgets/prompt/comfyui_import_wrapper.dart';
 
 @immutable
 class PromptInputViewData {
@@ -16,9 +16,6 @@ class PromptInputViewData {
   final bool showMaximizeButton;
   final bool numericEmphasisEnabled;
 }
-
-typedef PromptImportCallback =
-    void Function(String globalPrompt, List<CharacterPrompt> characters);
 
 @immutable
 class PromptInputCommands {
@@ -38,7 +35,7 @@ class PromptInputCommands {
   final ValueChanged<bool> setNegativeMode;
   final ValueChanged<String> updatePrompt;
   final ValueChanged<String> updateNegativePrompt;
-  final PromptImportCallback importComfyuiPrompt;
+  final ComfyuiImportCallback importComfyuiPrompt;
   final VoidCallback clearPrompt;
   final VoidCallback clearNegativePrompt;
   final Future<void> Function() generateRandomPrompt;

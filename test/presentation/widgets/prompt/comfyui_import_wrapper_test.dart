@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/character/character_prompt.dart';
+import 'package:nai_launcher/data/models/metadata/metadata_import_options.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/comfyui_import_dialog.dart';
 import 'package:nai_launcher/presentation/widgets/prompt/comfyui_import_wrapper.dart';
@@ -20,7 +21,7 @@ void main() {
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
-            onImport: (base, characters) {
+            onImport: (base, characters, _) {
               importedBase = base;
               importedCharacters = characters;
             },
@@ -61,7 +62,7 @@ void main() {
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
-            onImport: (base, characters) {
+            onImport: (base, characters, _) {
               importedBase = base;
               importedCharacters = characters;
             },
@@ -105,7 +106,7 @@ void main() {
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
-            onImport: (base, characters) {
+            onImport: (base, characters, _) {
               importedBase = base;
               importedCharacters = characters;
             },
@@ -198,7 +199,7 @@ void main() {
           home: Scaffold(
             body: ComfyuiImportWrapper(
               controller: controller,
-              onImport: (base, characters) {
+              onImport: (base, characters, _) {
                 importedBase = base;
                 importedCharacters = characters;
               },
@@ -243,7 +244,7 @@ void main() {
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
-            onImport: (_, _) => importCount++,
+            onImport: (_, _, _) => importCount++,
             child: TextField(controller: controller),
           ),
         ),
@@ -272,7 +273,7 @@ void main() {
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
-            onImport: (_, _) {},
+            onImport: (_, _, _) {},
             child: TextField(controller: controller),
           ),
         ),
@@ -308,7 +309,7 @@ void main() {
             builder: (context, value, child) => ComfyuiImportWrapper(
               controller: controller,
               enabled: value,
-              onImport: (_, _) {},
+              onImport: (_, _, _) {},
               child: child!,
             ),
             child: TextField(controller: controller),
@@ -346,7 +347,7 @@ void main() {
         home: Scaffold(
           body: ComfyuiImportWrapper(
             controller: controller,
-            onImport: (_, _) => importCount++,
+            onImport: (_, _, _) => importCount++,
             child: TextField(controller: controller),
           ),
         ),
@@ -359,5 +360,124 @@ void main() {
     await tester.pump();
 
     expect(importCount, 0);
+  });
+  group('character import mode', () {
+    Future<(TextEditingController, List<CharacterImportMode>)> pumpWrapper(
+      WidgetTester tester, {
+      Size size = const Size(800, 600),
+      double textScale = 1,
+      CharacterImportMode initialMode = CharacterImportMode.replace,
+    }) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = size;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      final modes = <CharacterImportMode>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: ComfyuiImportWrapper(
+              controller: controller,
+              initialCharacterImportMode: initialMode,
+              onImport: (_, _, mode) => modes.add(mode),
+              child: TextField(controller: controller),
+            ),
+          ),
+        ),
+      );
+      controller.text = 'scene | first character | second character';
+      await tester.pumpAndSettle();
+      return (controller, modes);
+    }
+
+    AppLocalizations l10nOf(WidgetTester tester) =>
+        AppLocalizations.of(tester.element(find.byType(ComfyuiImportDialog)))!;
+
+    testWidgets('defaults to replacing existing characters', (tester) async {
+      final (controller, modes) = await pumpWrapper(tester);
+      final l10n = l10nOf(tester);
+
+      expect(find.text(l10n.metadataImport_characterMode), findsOneWidget);
+      expect(find.text(l10n.metadataImport_characterReplace), findsOneWidget);
+      expect(find.text(l10n.metadataImport_characterAppend), findsOneWidget);
+
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(modes, [CharacterImportMode.replace]);
+      expect(controller.text, 'scene');
+    });
+
+    testWidgets('reports append when the user picks it', (tester) async {
+      final (controller, modes) = await pumpWrapper(tester);
+      final l10n = l10nOf(tester);
+
+      await tester.tap(find.text(l10n.metadataImport_characterAppend));
+      await tester.pump();
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(modes, [CharacterImportMode.append]);
+      expect(controller.text, 'scene');
+    });
+
+    testWidgets('opens with the remembered mode preselected', (tester) async {
+      final (_, modes) = await pumpWrapper(
+        tester,
+        initialMode: CharacterImportMode.append,
+      );
+
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(modes, [CharacterImportMode.append]);
+    });
+
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      for (final textScale in [1.0, 3.0]) {
+        testWidgets(
+          'keeps both modes reachable at $width wide, text scale $textScale',
+          (tester) async {
+            final (_, modes) = await pumpWrapper(
+              tester,
+              size: Size(width, 640),
+              textScale: textScale,
+            );
+            final l10n = l10nOf(tester);
+            final append = find.text(l10n.metadataImport_characterAppend);
+
+            // 列表惰性构建，大字号下选项在首屏之外，先滚到它再操作。
+            await tester.scrollUntilVisible(
+              append,
+              80,
+              scrollable: find
+                  .descendant(
+                    of: find.byType(ComfyuiImportDialog),
+                    matching: find.byType(Scrollable),
+                  )
+                  .first,
+            );
+            await tester.pump();
+            await tester.tap(append);
+            await tester.pump();
+            await tester.tap(find.byType(FilledButton));
+            await tester.pumpAndSettle();
+
+            expect(modes, [CharacterImportMode.append]);
+            expect(tester.takeException(), isNull);
+          },
+        );
+      }
+    }
   });
 }

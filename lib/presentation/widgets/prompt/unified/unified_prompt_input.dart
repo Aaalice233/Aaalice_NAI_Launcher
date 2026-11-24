@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nai_launcher/core/utils/localization_extension.dart';
 
-import '../../../../data/models/character/character_prompt.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../prompt_assistant/providers/prompt_assistant_history_provider.dart';
 import '../../../providers/generation/generation_settings_notifiers.dart';
 import '../../../providers/prompt_editor_preferences_provider.dart';
 import '../../common/app_toast.dart';
+import '../comfyui_import_wrapper.dart';
 import '../nai_syntax_controller.dart';
 import 'prompt_search_session.dart';
 import 'prompt_search_toolbar.dart';
@@ -90,10 +90,7 @@ class UnifiedPromptInput extends ConsumerStatefulWidget {
   /// ComfyUI 多角色导入回调
   ///
   /// 当用户确认导入 ComfyUI 格式的多角色提示词时触发。
-  /// [globalPrompt] 全局提示词，用于替换主输入框内容
-  /// [characters] 角色列表，用于替换角色配置
-  final void Function(String globalPrompt, List<CharacterPrompt> characters)?
-  onComfyuiImport;
+  final ComfyuiImportCallback? onComfyuiImport;
 
   const UnifiedPromptInput({
     super.key,

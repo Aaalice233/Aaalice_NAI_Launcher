@@ -3,7 +3,20 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/comfyui_prompt_parser.dart';
 import '../../../core/utils/nai_multi_character_prompt_codec.dart';
 import '../../../data/models/character/character_prompt.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
 import 'comfyui_import_dialog.dart';
+
+/// 用户确认导入多角色提示词后的回调。
+///
+/// [globalPrompt] 全局提示词，用于替换主输入框内容；
+/// [characters] 解析出的角色列表；
+/// [mode] 覆盖现有角色，还是保留现有角色并增添到末尾。
+typedef ComfyuiImportCallback =
+    void Function(
+      String globalPrompt,
+      List<CharacterPrompt> characters,
+      CharacterImportMode mode,
+    );
 
 /// ComfyUI 导入包装器
 ///
@@ -18,18 +31,18 @@ class ComfyuiImportWrapper extends StatefulWidget {
   /// 是否启用检测
   final bool enabled;
 
+  /// 确认框打开时预选的角色导入方式
+  final CharacterImportMode initialCharacterImportMode;
+
   /// 导入成功回调
-  ///
-  /// [globalPrompt] 全局提示词，用于替换主输入框内容
-  /// [characters] 角色列表，用于替换角色配置
-  final void Function(String globalPrompt, List<CharacterPrompt> characters)?
-  onImport;
+  final ComfyuiImportCallback? onImport;
 
   const ComfyuiImportWrapper({
     super.key,
     required this.child,
     required this.controller,
     this.enabled = true,
+    this.initialCharacterImportMode = CharacterImportMode.replace,
     this.onImport,
   });
 
@@ -151,6 +164,7 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
       final result = await ComfyuiImportDialog.show(
         context: context,
         parseResult: parseResult,
+        initialCharacterImportMode: widget.initialCharacterImportMode,
       );
 
       if (result != null && mounted) {
@@ -167,7 +181,11 @@ class _ComfyuiImportWrapperState extends State<ComfyuiImportWrapper> {
         }
 
         // 触发回调
-        widget.onImport?.call(result.parseResult.globalPrompt, characters);
+        widget.onImport?.call(
+          result.parseResult.globalPrompt,
+          characters,
+          result.characterImportMode,
+        );
 
         // 更新输入框内容为全局提示词
         widget.controller.text = result.parseResult.globalPrompt;

@@ -6,6 +6,8 @@ import '../../../core/utils/comfyui_prompt_parser.dart';
 import '../../../core/utils/comfyui_prompt_parser/models/comfyui_parse_result.dart';
 import '../../../core/utils/comfyui_prompt_parser/position_converter.dart';
 import '../../../data/models/character/character_prompt.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
+import '../metadata/metadata_import_radio_group.dart';
 
 /// ComfyUI 导入结果
 class ComfyuiImportResult {
@@ -15,9 +17,13 @@ class ComfyuiImportResult {
   /// 解析结果
   final ComfyuiParseResult parseResult;
 
+  /// 覆盖现有角色，还是保留现有角色并增添到末尾
+  final CharacterImportMode characterImportMode;
+
   const ComfyuiImportResult({
     required this.usePosition,
     required this.parseResult,
+    this.characterImportMode = CharacterImportMode.replace,
   });
 }
 
@@ -29,10 +35,14 @@ class ComfyuiImportDialog extends StatefulWidget {
   final ComfyuiParseResult parseResult;
   final ScrollController? scrollController;
 
+  /// 打开时预选的角色导入方式
+  final CharacterImportMode initialCharacterImportMode;
+
   const ComfyuiImportDialog({
     super.key,
     required this.parseResult,
     this.scrollController,
+    this.initialCharacterImportMode = CharacterImportMode.replace,
   });
 
   /// 显示导入弹窗
@@ -41,6 +51,8 @@ class ComfyuiImportDialog extends StatefulWidget {
   static Future<ComfyuiImportResult?> show({
     required BuildContext context,
     required ComfyuiParseResult parseResult,
+    CharacterImportMode initialCharacterImportMode =
+        CharacterImportMode.replace,
   }) {
     final title = parseResult.syntaxType == ComfyuiSyntaxType.pipe
         ? context.l10n.prompt_characterPrompts
@@ -59,6 +71,7 @@ class ComfyuiImportDialog extends StatefulWidget {
       builder: (context, scrollController) => ComfyuiImportDialog(
         parseResult: parseResult,
         scrollController: scrollController,
+        initialCharacterImportMode: initialCharacterImportMode,
       ),
     );
   }
@@ -69,6 +82,8 @@ class ComfyuiImportDialog extends StatefulWidget {
 
 class _ComfyuiImportDialogState extends State<ComfyuiImportDialog> {
   bool _usePosition = true;
+  late CharacterImportMode _characterImportMode =
+      widget.initialCharacterImportMode;
 
   @override
   void initState() {
@@ -123,6 +138,23 @@ class _ComfyuiImportDialogState extends State<ComfyuiImportDialog> {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
+                const SizedBox(height: 4),
+                // 导入方式放在角色卡片之前：角色再多也不会被挤出首屏。
+                // 选项与文案和图片元数据导入共用同一组。
+                MetadataImportRadioGroup<CharacterImportMode>(
+                  label: l10n.metadataImport_characterMode,
+                  value: _characterImportMode,
+                  choices: {
+                    CharacterImportMode.replace:
+                        l10n.metadataImport_characterReplace,
+                    CharacterImportMode.append:
+                        l10n.metadataImport_characterAppend,
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (mode) {
+                    setState(() => _characterImportMode = mode);
+                  },
+                ),
                 const SizedBox(height: 8),
                 for (var index = 0; index < characters.length; index++)
                   _CharacterCard(
@@ -174,6 +206,7 @@ class _ComfyuiImportDialogState extends State<ComfyuiImportDialog> {
                             ComfyuiImportResult(
                               usePosition: _usePosition,
                               parseResult: widget.parseResult,
+                              characterImportMode: _characterImportMode,
                             ),
                           );
                         },

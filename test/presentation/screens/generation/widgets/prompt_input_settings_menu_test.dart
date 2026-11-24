@@ -70,7 +70,7 @@ final _noopCommands = PromptInputCommands(
   setNegativeMode: (_) {},
   updatePrompt: (_) {},
   updateNegativePrompt: (_) {},
-  importComfyuiPrompt: (_, _) {},
+  importComfyuiPrompt: (_, _, _) {},
   clearPrompt: () {},
   clearNegativePrompt: () {},
   generateRandomPrompt: () async {},

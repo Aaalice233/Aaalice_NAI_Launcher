@@ -5,6 +5,7 @@ import '../../../core/autocomplete/autocomplete_settings.dart'
     as completion_settings;
 import '../../../core/storage/local_storage_service.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../data/models/metadata/metadata_import_options.dart';
 
 part 'generation_settings_notifiers.g.dart';
 
@@ -124,6 +125,28 @@ class DetectMultiCharacterOnPasteSettings
   void set(bool value) {
     state = value;
     _storage.setDetectMultiCharacterOnPaste(value);
+  }
+}
+
+/// 粘贴多角色提示词时上次确认的角色导入方式，仅保存在本机。
+///
+/// 与图片元数据导入框各记各的：那边的「全选」会把方式重置为覆盖，
+/// 不应连带改掉这里的记忆。
+@Riverpod(keepAlive: true)
+class PasteCharacterImportModeSettings
+    extends _$PasteCharacterImportModeSettings {
+  LocalStorageService get _storage => ref.read(localStorageServiceProvider);
+
+  @override
+  CharacterImportMode build() =>
+      CharacterImportMode.values.asNameMap()[_storage
+          .getPasteCharacterImportMode()] ??
+      CharacterImportMode.replace;
+
+  void set(CharacterImportMode value) {
+    if (state == value) return;
+    state = value;
+    _storage.setPasteCharacterImportMode(value.name);
   }
 }
 

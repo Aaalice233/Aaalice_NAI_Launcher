@@ -429,6 +429,84 @@ abstract class _$DetectMultiCharacterOnPasteSettings extends $Notifier<bool> {
   }
 }
 
+/// 粘贴多角色提示词时上次确认的角色导入方式，仅保存在本机。
+///
+/// 与图片元数据导入框各记各的：那边的「全选」会把方式重置为覆盖，
+/// 不应连带改掉这里的记忆。
+
+@ProviderFor(PasteCharacterImportModeSettings)
+final pasteCharacterImportModeSettingsProvider =
+    PasteCharacterImportModeSettingsProvider._();
+
+/// 粘贴多角色提示词时上次确认的角色导入方式，仅保存在本机。
+///
+/// 与图片元数据导入框各记各的：那边的「全选」会把方式重置为覆盖，
+/// 不应连带改掉这里的记忆。
+final class PasteCharacterImportModeSettingsProvider
+    extends
+        $NotifierProvider<
+          PasteCharacterImportModeSettings,
+          CharacterImportMode
+        > {
+  /// 粘贴多角色提示词时上次确认的角色导入方式，仅保存在本机。
+  ///
+  /// 与图片元数据导入框各记各的：那边的「全选」会把方式重置为覆盖，
+  /// 不应连带改掉这里的记忆。
+  PasteCharacterImportModeSettingsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'pasteCharacterImportModeSettingsProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$pasteCharacterImportModeSettingsHash();
+
+  @$internal
+  @override
+  PasteCharacterImportModeSettings create() =>
+      PasteCharacterImportModeSettings();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CharacterImportMode value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CharacterImportMode>(value),
+    );
+  }
+}
+
+String _$pasteCharacterImportModeSettingsHash() =>
+    r'6695f35476522ebbaaf49630cb791290e222d454';
+
+/// 粘贴多角色提示词时上次确认的角色导入方式，仅保存在本机。
+///
+/// 与图片元数据导入框各记各的：那边的「全选」会把方式重置为覆盖，
+/// 不应连带改掉这里的记忆。
+
+abstract class _$PasteCharacterImportModeSettings
+    extends $Notifier<CharacterImportMode> {
+  CharacterImportMode build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<CharacterImportMode, CharacterImportMode>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<CharacterImportMode, CharacterImportMode>,
+              CharacterImportMode,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// 滚轮调整提示词权重设置 Notifier
 
 @ProviderFor(PromptWeightScrollSettings)

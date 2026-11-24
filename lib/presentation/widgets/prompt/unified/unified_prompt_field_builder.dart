@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nai_launcher/presentation/widgets/common/themed_input.dart';
 
-import '../../../../data/models/character/character_prompt.dart';
 import '../../../../presentation/utils/text_selection_utils.dart';
 import '../../../adaptive/interaction_policy.dart';
 import '../../../prompt_assistant/widgets/prompt_assistant_overlay.dart';
@@ -182,8 +181,7 @@ Widget buildUnifiedPromptEditorContainer({
   required Object? assistantTapRegionGroupId,
   required TextEditingController effectiveController,
   required VoidCallback? onOpenAssistantSettings,
-  required void Function(String globalPrompt, List<CharacterPrompt> characters)?
-  onComfyuiImport,
+  required ComfyuiImportCallback? onComfyuiImport,
   required bool searchVisible,
   required Widget Function() buildSearchToolbar,
 }) {
@@ -194,6 +192,7 @@ Widget buildUnifiedPromptEditorContainer({
     result = ComfyuiImportWrapper(
       controller: effectiveController,
       enabled: config.enableComfyuiImport && !config.readOnly,
+      initialCharacterImportMode: config.comfyuiCharacterImportMode,
       onImport: onComfyuiImport,
       child: result,
     );

@@ -42,7 +42,7 @@ void main() {
                   ),
                   maxLines: null,
                   expands: true,
-                  onComfyuiImport: (_, _) {},
+                  onComfyuiImport: (_, _, _) {},
                 ),
               ),
             ),
