@@ -12,6 +12,7 @@ import '../../router/app_router_config.dart';
 import '../../router/app_routes.dart';
 import '../../router/shell_panels_overlay.dart';
 import 'defined_agent_tool.dart';
+import 'online_gallery_view_json.dart';
 import 'toolbox_json.dart';
 
 typedef AgentDraftSnapshotLoader =
@@ -30,7 +31,8 @@ class ApplicationContextToolbox {
     name: 'get_application_context',
     label: 'Get Application Context',
     description:
-        'Read the current destination, gallery filters, selected generated image, local drafts, and queue state.',
+        'Read the current destination, gallery filters, selected generated image, local drafts, and queue state. '
+        'online_gallery is keyed like browse_online_gallery parameters; date_start, date_end, artist_hunt and quick_tag_cloud are filters only the gallery page can set.',
     parameters: toolboxObject(),
     executeFn: (_, __) async {
       final uri = _ref
@@ -65,20 +67,9 @@ class ApplicationContextToolbox {
           },
         },
         'online_gallery': {
-          'source': online.activeSourceId.key,
-          'mode': online.viewMode.name,
-          'query': online.viewMode == GalleryViewMode.favorites
-              ? online.favoriteSearchQuery
-              : online.viewMode == GalleryViewMode.popular
-              ? online.popularQuery
-              : online.searchQuery,
-          'prompt_query': online.viewMode == GalleryViewMode.popular
-              ? online.popularPromptQuery
-              : online.promptQuery,
-          'ratings': online.selectedRatings.toList()..sort(),
-          'fuzzy': online.fuzzySearchEnabled,
-          'random': online.randomEnabled,
+          ...onlineGalleryViewJson(online),
           'visible_count': online.posts.length,
+          'total': online.currentCache.total,
           'page': online.page,
           'has_more': online.hasMore,
         },

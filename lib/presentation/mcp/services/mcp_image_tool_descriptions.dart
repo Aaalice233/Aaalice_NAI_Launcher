@@ -17,7 +17,9 @@ const mcpImageToolDescriptions = <String, String>{
   'get_application_context':
       'Read navigation, galleries, queue and compact draft summaries. Not a '
       'generation prerequisite. Use get_generation_settings or get_prompt_state '
-      'only when those values are needed. include_draft_details returns full drafts.',
+      'only when those values are needed. include_draft_details returns full drafts. '
+      'online_gallery is keyed like browse_online_gallery parameters; date_start, '
+      'date_end, artist_hunt and quick_tag_cloud are filters only the gallery page can set.',
   'prepare_generation':
       'Pass the whole request here: prompt, negative_prompt, width/height, '
       'count, seed, characters and references are one-shot arguments that '
