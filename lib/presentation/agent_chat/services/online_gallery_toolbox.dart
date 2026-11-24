@@ -8,6 +8,7 @@ import '../../../data/datasources/remote/danbooru_api_service.dart';
 import '../../../data/datasources/remote/online_gallery/gallery_source_adapter.dart';
 import '../../../data/models/online_gallery/gallery_item.dart';
 import '../../../data/models/online_gallery/gallery_source.dart';
+import '../../providers/online_gallery_command_service.dart';
 import '../../providers/online_gallery_provider.dart';
 import 'defined_agent_tool.dart';
 import 'online_gallery_item_lookup.dart';
@@ -49,6 +50,7 @@ class OnlineGalleryToolbox {
         'Browse an online gallery and return structured stable resource_ref objects only; this tool never displays images. '
         'When source is omitted, the request uses danbooru; an explicit valid source is always respected. '
         'Every call is defined by its own parameters: omitted filters use their defaults and never inherit what the visible gallery had before. '
+        'quick_tag_cloud is the exception: it browses the codex, category and filters currently selected in the gallery. '
         'A query may contain at most 6 ordinary tags globally. Sources can enforce lower server limits, so the client pushes down a supported seed and applies remaining tags as residual local filters. '
         'When random=true, limit=N means randomly sample exactly N items from the matching feed (when available); never fetch a larger page and choose items yourself. '
         'To show returned media, pass 1-12 resource_ref objects to display_images. '
@@ -110,7 +112,11 @@ class OnlineGalleryToolbox {
           'description':
               'Defaults to ${_browseDefaults.aiTagPopularPeriod} when omitted.',
         },
-        'load_more': {'type': 'boolean'},
+        'load_more': {
+          'type': 'boolean',
+          'description':
+              'Loads the next page of the browse made with the same parameters; repeat them unchanged. Fails with pagination_scope_changed once the gallery shows anything else.',
+        },
         'limit': {
           'type': 'integer',
           'minimum': 1,
@@ -161,6 +167,7 @@ class OnlineGalleryToolbox {
       );
     }
 
+    final scope = _BrowseScope(source, feed, params);
     final notifier = _ref.read(onlineGalleryNotifierProvider.notifier);
     void abortGallery(String? reason) => notifier.cancelActiveRequests(
       reason: reason ?? 'Agent gallery tool cancelled',
@@ -173,16 +180,15 @@ class OnlineGalleryToolbox {
       return await notifier.runWithExplicitNetworkAccess(() async {
         final limit = (params['limit'] as int? ?? 30).clamp(1, 100);
         if (params['load_more'] == true) {
-          final state = _ref.read(onlineGalleryNotifierProvider);
-          if (state.activeSourceId != source || state.viewMode.name != mode) {
+          if (!scope.describes(_ref.read(onlineGalleryNotifierProvider))) {
             return agentToolError(
               'pagination_scope_changed',
-              'The active source or mode changed; start a new browse request.',
+              'The gallery no longer shows the browse these parameters describe; repeat the request without load_more.',
             );
           }
           await notifier.loadMore();
         } else {
-          await _configureBrowse(notifier, source, mode, params, signal);
+          await _configureBrowse(notifier, scope, signal);
         }
         throwIfAborted(signal);
         var state = _ref.read(onlineGalleryNotifierProvider);
@@ -367,53 +373,39 @@ class OnlineGalleryToolbox {
 
   Future<void> _configureBrowse(
     OnlineGalleryNotifier notifier,
-    GallerySourceId source,
-    String mode,
-    Map<String, dynamic> params,
+    _BrowseScope scope,
     AbortSignal? signal,
   ) async {
-    final ratings = toolboxStrings(params['ratings']);
-    final random = params['random'] as bool? ?? false;
-    final query = params['query'] as String? ?? '';
-    final prompt = params['prompt'] as String? ?? '';
     await notifier.runWithDeferredLoading(() async {
       // A prior random session belongs to its original query and source. Leave
       // it before configuring a new request so enabling random resamples.
       await notifier.setRandomEnabled(false);
-      await notifier.setRatings(ratings.toSet());
-      await notifier.setFuzzySearchEnabled(params['fuzzy'] as bool? ?? false);
+      await notifier.setRatings(scope.ratings);
+      await notifier.setFuzzySearchEnabled(scope.fuzzy);
       await notifier.setArtistHuntEnabled(_browseDefaults.artistHuntEnabled);
-      if (mode == 'ranking') {
-        await notifier.setPopularSource(source);
-        await notifier.switchToPopular();
-        await notifier.setPopularScale(switch (params['ranking_scale']) {
-          final String name => PopularScale.values.byName(name),
-          _ => _browseDefaults.popularScale,
-        });
-        await notifier.setPopularDate(switch (params['ranking_date']) {
-          final String date => DateTime.parse(date),
-          _ => _browseDefaults.popularDate,
-        });
-        await notifier.setAiTagPopularPeriod(
-          params['ai_tag_period'] as String? ??
-              _browseDefaults.aiTagPopularPeriod,
-        );
-        await notifier.searchPopular(query: query, prompt: prompt);
-      } else if (mode == 'favorites') {
-        await notifier.setFavoritesSource(source);
-        await notifier.switchToFavorites();
-        await notifier.searchFavorites(query);
-      } else {
-        await notifier.setSource(source);
-        await notifier.switchToSearch();
-        await notifier.clearDateRange();
-        await notifier.setAiTagTimeRange(
-          params['ai_tag_time_range'] as String? ??
-              _browseDefaults.aiTagTimeRange,
-        );
-        await notifier.searchWithPrompt(query, prompt: prompt);
+      switch (scope.feed) {
+        case GalleryFeedKind.ranking:
+          await notifier.setPopularSource(scope.source);
+          await notifier.switchToPopular();
+          await notifier.setPopularScale(scope.rankingScale);
+          await notifier.setPopularDate(scope.rankingDate);
+          await notifier.setAiTagPopularPeriod(scope.aiTagPeriod);
+          await notifier.searchPopular(
+            query: scope.query,
+            prompt: scope.prompt,
+          );
+        case GalleryFeedKind.favorites:
+          await notifier.setFavoritesSource(scope.source);
+          await notifier.switchToFavorites();
+          await notifier.searchFavorites(scope.query);
+        case GalleryFeedKind.search:
+          await notifier.setSource(scope.source);
+          await notifier.switchToSearch();
+          await notifier.clearDateRange();
+          await notifier.setAiTagTimeRange(scope.aiTagTimeRange);
+          await notifier.searchWithPrompt(scope.query, prompt: scope.prompt);
       }
-      if (random) await notifier.setRandomEnabled(true);
+      if (scope.random) await notifier.setRandomEnabled(true);
     });
     throwIfAborted(signal);
     await notifier.loadPosts(refresh: true);
@@ -431,6 +423,66 @@ class OnlineGalleryToolbox {
 }
 
 const _browseDefaults = OnlineGalleryState();
+
+class _BrowseScope {
+  _BrowseScope(this.source, this.feed, Map<String, dynamic> params)
+    : query = (params['query'] as String? ?? '').trim(),
+      prompt = (params['prompt'] as String? ?? '').trim(),
+      ratings = OnlineGalleryCommandService.normalizeRatings(
+        toolboxStrings(params['ratings']).toSet(),
+      ),
+      fuzzy = params['fuzzy'] as bool? ?? _browseDefaults.fuzzySearchEnabled,
+      random = params['random'] as bool? ?? _browseDefaults.randomEnabled,
+      rankingScale = switch (params['ranking_scale']) {
+        final String name => PopularScale.values.byName(name),
+        _ => _browseDefaults.popularScale,
+      },
+      rankingDate = switch (params['ranking_date']) {
+        final String date => DateTime.parse(date),
+        _ => _browseDefaults.popularDate,
+      },
+      aiTagPeriod =
+          params['ai_tag_period'] as String? ??
+          _browseDefaults.aiTagPopularPeriod,
+      aiTagTimeRange =
+          params['ai_tag_time_range'] as String? ??
+          _browseDefaults.aiTagTimeRange;
+
+  final GallerySourceId source;
+  final GalleryFeedKind feed;
+  final String query;
+  final String prompt;
+  final Set<String> ratings;
+  final bool fuzzy;
+  final bool random;
+  final PopularScale rankingScale;
+  final DateTime? rankingDate;
+  final String aiTagPeriod;
+  final String aiTagTimeRange;
+
+  bool describes(OnlineGalleryState state) =>
+      state.activeSourceId == source &&
+      state.activeFeedKind == feed &&
+      state.randomEnabled == random &&
+      state.fuzzySearchEnabled == fuzzy &&
+      state.artistHuntEnabled == _browseDefaults.artistHuntEnabled &&
+      OnlineGalleryCommandService.setEquals(state.selectedRatings, ratings) &&
+      switch (feed) {
+        GalleryFeedKind.search =>
+          state.searchQuery == query &&
+              state.promptQuery == prompt &&
+              state.aiTagTimeRange == aiTagTimeRange &&
+              state.dateRangeStart == _browseDefaults.dateRangeStart &&
+              state.dateRangeEnd == _browseDefaults.dateRangeEnd,
+        GalleryFeedKind.ranking =>
+          state.popularQuery == query &&
+              state.popularPromptQuery == prompt &&
+              state.popularScale == rankingScale &&
+              state.popularDate == rankingDate &&
+              state.aiTagPopularPeriod == aiTagPeriod,
+        GalleryFeedKind.favorites => state.favoriteSearchQuery == query,
+      };
+}
 
 GallerySourceId? _browseSource(dynamic value) =>
     value == null ? GallerySourceId.danbooru : _source(value);

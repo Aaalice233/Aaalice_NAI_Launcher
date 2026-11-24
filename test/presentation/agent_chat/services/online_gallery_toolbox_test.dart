@@ -11,11 +11,13 @@ import 'package:nai_launcher/core/mcp/mcp_tool_adapter.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/danbooru_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/online_gallery/gallery_source_adapter.dart';
+import 'package:nai_launcher/data/datasources/remote/online_gallery/quick_tag_cloud_gallery_query.dart';
 import 'package:nai_launcher/data/models/gallery/nai_image_metadata.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_item.dart';
 import 'package:nai_launcher/data/models/online_gallery/gallery_source.dart';
 import 'package:nai_launcher/presentation/agent_chat/services/online_gallery_toolbox.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_provider.dart';
+import 'package:nai_launcher/presentation/providers/quick_tag_cloud_gallery_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../helpers/ai_tag_character_gallery.dart';
@@ -766,6 +768,7 @@ void main() {
   group('omitted filters use defaults instead of the visible gallery', () {
     late _ScriptedGalleryAdapter danbooru;
     late _ScriptedGalleryAdapter aiTag;
+    late List<QuickTagCloudGalleryQuery> quickTagCloudQueries;
     late ProviderContainer gallery;
     late AgentTool browse;
     late OnlineGalleryNotifier notifier;
@@ -773,9 +776,17 @@ void main() {
     setUp(() {
       danbooru = _emptyScriptedAdapter(GallerySourceId.danbooru);
       aiTag = _emptyScriptedAdapter(GallerySourceId.aiTag);
+      quickTagCloudQueries = [];
       final harness = _createHarness({
         GallerySourceId.danbooru: danbooru,
         GallerySourceId.aiTag: aiTag,
+        GallerySourceId.quickTagCloud: _ScriptedGalleryAdapter(
+          GallerySourceId.quickTagCloud,
+          (request, _) async {
+            quickTagCloudQueries.add(gallery.read(quickTagCloudFilterProvider));
+            return _page(request, const []);
+          },
+        ),
       });
       gallery = harness.container;
       browse = harness.browse;
@@ -885,6 +896,24 @@ void main() {
       expect(aiTag.rankingRequests.single.period, 'current');
     });
 
+    test('QuickTagCloud keeps the filters selected in the gallery', () async {
+      final filters = gallery.read(quickTagCloudFilterProvider.notifier);
+      await filters.initializeContentAccess();
+      filters
+        ..selectCodex('other')
+        ..selectCategory(const ['clothing', 'kimono']);
+
+      final result = await browse.execute('selected-codex-filters', {
+        'source': 'quick_tag_cloud',
+        'mode': 'search',
+        'query': 'concept',
+      });
+
+      expect(result.isError, isFalse);
+      expect(quickTagCloudQueries.last.codexId, 'other');
+      expect(quickTagCloudQueries.last.categoryPath, ['clothing', 'kimono']);
+    });
+
     test('explicit search filters still reach the adapter', () async {
       final result = await browse.execute('explicit-search', {
         'source': 'ai_tag',
@@ -917,6 +946,124 @@ void main() {
       expect(danbooru.rankingRequests.single.kind, GalleryRankingKind.week);
       expect(danbooru.rankingRequests.single.date, DateTime(2026, 1, 1));
       expect(aiTag.rankingRequests.single.period, '2026-10');
+    });
+  });
+
+  group('load_more continues only the browse its parameters describe', () {
+    const request = {'source': 'ai_tag', 'mode': 'search', 'query': 'ibuki'};
+    late _ScriptedGalleryAdapter aiTag;
+    late ProviderContainer gallery;
+    late AgentTool browse;
+    late OnlineGalleryNotifier notifier;
+
+    setUp(() {
+      aiTag = _ScriptedGalleryAdapter(GallerySourceId.aiTag, (request, _) {
+        final page = int.parse(request.cursor);
+        final hasMore = page < 3;
+        return GalleryPage(
+          items: [
+            _item(GallerySourceId.aiTag, page, const ['ibuki']),
+          ],
+          cursor: request.cursor,
+          nextCursor: hasMore ? '${page + 1}' : null,
+          hasMore: hasMore,
+          total: 3,
+          rawItemCount: 1,
+        );
+      });
+      final harness = _createHarness({
+        GallerySourceId.aiTag: aiTag,
+        GallerySourceId.danbooru: _emptyScriptedAdapter(
+          GallerySourceId.danbooru,
+        ),
+      });
+      gallery = harness.container;
+      browse = harness.browse;
+      notifier = gallery.read(onlineGalleryNotifierProvider.notifier);
+    });
+
+    tearDown(() => gallery.dispose());
+
+    Future<void> expectScopeChanged(Map<String, dynamic> params) async {
+      final requestsBefore = aiTag.requests.length;
+
+      final result = await browse.execute('load-more', {
+        ...params,
+        'load_more': true,
+      });
+
+      expect(result.isError, isTrue);
+      expect(result.details, containsPair('code', 'pagination_scope_changed'));
+      expect(aiTag.requests, hasLength(requestsBefore));
+    }
+
+    test('repeating every filter unchanged loads the next page', () async {
+      const filtered = {
+        ...request,
+        'prompt': '2girls',
+        'ratings': ['g', 's'],
+        'ai_tag_time_range': 'week',
+      };
+      final first = await browse.execute('first', filtered);
+      final requestsBefore = aiTag.requests.length;
+
+      final second = await browse.execute('load-more', {
+        ...filtered,
+        'load_more': true,
+      });
+
+      expect(first.isError, isFalse);
+      expect(second.isError, isFalse);
+      expect(aiTag.requests.length, greaterThan(requestsBefore));
+      expect(aiTag.requests.last.prompt, '2girls');
+      expect(aiTag.requests.last.timeRange, 'week');
+    });
+
+    final galleryChanges =
+        <String, Future<void> Function(OnlineGalleryNotifier notifier)>{
+          'search query': (notifier) => notifier.search('other'),
+          'prompt': (notifier) =>
+              notifier.searchWithPrompt('ibuki', prompt: '2girls'),
+          'ratings': (notifier) => notifier.setRatings({'g'}),
+          'fuzzy search': (notifier) => notifier.setFuzzySearchEnabled(true),
+          'date range': (notifier) =>
+              notifier.setDateRange(DateTime(2026, 1, 1), null),
+          'AI TAG time range': (notifier) => notifier.setAiTagTimeRange('week'),
+          'artist hunt': (notifier) => notifier.setArtistHuntEnabled(true),
+          'source': (notifier) => notifier.setSource(GallerySourceId.danbooru),
+        };
+    for (final MapEntry(key: name, value: change) in galleryChanges.entries) {
+      test('rejects after the gallery changed its $name', () async {
+        await browse.execute('first', request);
+        await change(notifier);
+
+        await expectScopeChanged(request);
+      });
+    }
+
+    test('rejects parameters that leave out the browsed query', () async {
+      await browse.execute('first', request);
+
+      await expectScopeChanged({'source': 'ai_tag', 'mode': 'search'});
+    });
+
+    test('rejects a random continuation of a plain browse', () async {
+      await browse.execute('first', request);
+
+      await expectScopeChanged({...request, 'random': true});
+    });
+
+    test('ranking continues', () async {
+      const ranking = {'source': 'danbooru', 'mode': 'ranking'};
+      final first = await browse.execute('first', ranking);
+
+      final second = await browse.execute('load-more', {
+        ...ranking,
+        'load_more': true,
+      });
+
+      expect(first.isError, isFalse);
+      expect(second.isError, isFalse);
     });
   });
 }
