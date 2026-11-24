@@ -148,9 +148,7 @@ void main() {
         tagCatalogRepositoryProvider.overrideWithValue(
           TagCatalogRepository(database: emptyCatalog),
         ),
-        translationDataSourceProvider.overrideWith(
-          (ref) => Future.error(dbError),
-        ),
+        translationDataSourceProvider.overrideWith((ref) => throw dbError),
         smartTagRecommendationServiceProvider.overrideWith(
           (ref) => Future.error(dbError),
         ),

@@ -267,7 +267,7 @@ class TagToolbox {
   /// 中文（或英文）→ danbooru 标签，依赖可选下载的 ffdkj 中文字典。
   Future<_TagQueryOutcome> _translate(String query, int limit) async {
     try {
-      final dataSource = await _ref.read(translationDataSourceProvider.future);
+      final dataSource = _ref.read(translationDataSourceProvider);
       final matches = await dataSource.search(query, limit: limit);
       if (matches.isEmpty) {
         return _TagQueryOutcome(

@@ -11,6 +11,7 @@ import 'package:nai_launcher/core/autocomplete/traditional_chinese_converter.dar
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_download.dart';
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_models.dart';
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
+import 'package:nai_launcher/core/database/datasources/translation_data_source.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqlite3/sqlite3.dart' as native;
@@ -18,12 +19,17 @@ import 'package:sqlite3/sqlite3.dart' as native;
 void main() {
   late Directory temp;
   late ZhDictionaryService service;
+  late TranslationDataSource reader;
 
   setUp(() async {
     sqfliteFfiInit();
-    temp = await Directory.systemTemp.createTemp('zh_dictionary_test_');
-    service = ZhDictionaryService(
+    final scratch = await Directory('tool/.tmp').create(recursive: true);
+    temp = await scratch.absolute.createTemp('zh_dictionary_test_');
+    reader = TranslationDataSource(
       applicationSupportDirectory: () async => temp,
+    );
+    service = ZhDictionaryService(
+      translations: reader,
       traditionalChineseConverter: TraditionalChineseConverter(
         loadString: (_) =>
             File('assets/data/opencc/TSCharacters.txt').readAsString(),
@@ -32,6 +38,7 @@ void main() {
   });
 
   tearDown(() async {
+    await reader.dispose();
     await service.remove();
     service.dispose();
     if (await temp.exists()) await temp.delete(recursive: true);
@@ -52,12 +59,13 @@ void main() {
       final supportDirectory = Completer<Directory>();
       var directoryRequests = 0;
       service.dispose();
-      service = ZhDictionaryService(
+      reader = TranslationDataSource(
         applicationSupportDirectory: () {
           directoryRequests++;
           return supportDirectory.future;
         },
       );
+      service = ZhDictionaryService(translations: reader);
       final startup = service.initialize();
       final editorHint = service.initialize();
       supportDirectory.complete(temp);
@@ -78,7 +86,7 @@ void main() {
   test('initialization failures remain visible and can be retried', () async {
     var attempts = 0;
     service.dispose();
-    service = ZhDictionaryService(
+    reader = TranslationDataSource(
       applicationSupportDirectory: () {
         if (++attempts == 1) {
           throw const FileSystemException('support directory unavailable');
@@ -86,6 +94,7 @@ void main() {
         return Future.value(temp);
       },
     );
+    service = ZhDictionaryService(translations: reader);
     await expectLater(
       service.initialize(),
       throwsA(isA<FileSystemException>()),
@@ -373,7 +382,7 @@ void main() {
       service = ZhDictionaryService(
         dio: dio,
         pinnedSource: source,
-        applicationSupportDirectory: () async => temp,
+        translations: reader,
       );
 
       await service.installOrUpdate();
@@ -417,7 +426,7 @@ void main() {
       service = ZhDictionaryService(
         dio: dio,
         pinnedSource: source,
-        applicationSupportDirectory: () async => temp,
+        translations: reader,
       );
 
       await expectLater(
@@ -446,6 +455,285 @@ void main() {
       );
     },
   );
+
+  group('installed dictionary file operations', () {
+    late File target;
+    late File metadata;
+    late List<int> oldBytes;
+    late ZhDictionarySource update;
+    late _RoutingAdapter adapter;
+    late Dio dio;
+
+    setUp(() async {
+      target = await reader.databaseFile;
+      await target.parent.create(recursive: true);
+      oldBytes = await _createDictionary(
+        target.path,
+        rows: 1000,
+        extraRows: {'key': '旧译'},
+      ).readAsBytes();
+      metadata = File(p.join(target.parent.path, 'metadata.json'));
+      await metadata.writeAsString(
+        jsonEncode({'blobSha': _gitBlobSha(oldBytes)}),
+      );
+      final bytes = await _createDictionary(
+        p.join(temp.path, 'upstream.sqlite'),
+        rows: 1000,
+        extraRows: {'key': '新译'},
+      ).readAsBytes();
+      update = _testSource(bytes);
+      adapter = _RoutingAdapter((request) {
+        if (request.uri == update.downloadUri) {
+          return ResponseBody.fromBytes(bytes, 200);
+        }
+        final Object body;
+        if (request.uri.path.endsWith('/commits')) {
+          body = [
+            {'sha': update.commitSha},
+          ];
+        } else {
+          expect(request.uri.path, endsWith('/contents/tag.sqlite'));
+          body = {
+            'path': 'tag.sqlite',
+            'sha': update.blobSha,
+            'size': update.size,
+          };
+        }
+        return ResponseBody.fromString(
+          jsonEncode(body),
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      });
+      dio = Dio()..httpClientAdapter = adapter;
+      service.dispose();
+      service = ZhDictionaryService(
+        translations: reader,
+        dio: dio,
+        pinnedSource: update,
+      );
+    });
+
+    test(
+      'updates with an open reader and refreshes the same cached tag',
+      () async {
+        expect(await reader.query('key'), '旧译');
+        expect(await reader.query('key'), '旧译');
+        expect(reader.getCacheStatistics()['hitCount'], 1);
+        expect(await service.checkForUpdate(force: true), isTrue);
+
+        await service.installOrUpdate();
+
+        expect(service.state.version, update.blobSha);
+        expect(await reader.queryBatch(['key']), {'key': '新译'});
+        expect(await reader.query('key'), '新译');
+      },
+    );
+
+    test(
+      'repairs the same version and removes only dictionary sidecars',
+      () async {
+        await metadata.writeAsString(jsonEncode({'blobSha': update.blobSha}));
+        await service.initialize();
+        expect(await reader.query('key'), '旧译');
+        final priorRevision = service.installRevision;
+        final sidecars = await _writeSidecars(target);
+        final unrelated = await File(
+          '${target.path}.notes',
+        ).writeAsString('keep');
+
+        await service.installOrUpdate();
+
+        expect(adapter.requests.single.uri, update.downloadUri);
+        expect(service.installRevision, priorRevision + 1);
+        expect(await reader.query('key'), '新译');
+        for (final file in sidecars) {
+          expect(await file.exists(), isFalse, reason: p.basename(file.path));
+        }
+        expect(await unrelated.readAsString(), 'keep');
+        expect(await target.parent.list().length, 3);
+      },
+    );
+
+    test(
+      'removes the open database, its cached result and staging files',
+      () async {
+        await service.initialize();
+        expect(await reader.query('key'), '旧译');
+        await File('${target.path}.downloading').writeAsString('partial');
+        await _writeSidecars(target);
+        final unrelated = await File(
+          '${target.path}.notes',
+        ).writeAsString('keep');
+
+        await service.remove();
+
+        expect(service.state.isInstalled, isFalse);
+        expect(await reader.query('key'), isNull);
+        expect(await target.parent.list().map((entry) => entry.path).toList(), [
+          unrelated.path,
+        ]);
+      },
+    );
+
+    test(
+      'restores the original database and sidecars if writing metadata fails',
+      () async {
+        final wal = File('${target.path}-wal');
+        final shm = File('${target.path}-shm');
+        final files = <File, List<int>>{};
+        final writer = native.sqlite3.open(target.path);
+        try {
+          writer.execute('PRAGMA journal_mode=WAL');
+          writer.execute(
+            "UPDATE tags SET cn_name = '旧库日志中的译文' WHERE name = 'key'",
+          );
+          for (final file in [target, wal, shm]) {
+            files[file] = await file.readAsBytes();
+          }
+        } finally {
+          writer.dispose();
+        }
+        // Restore the snapshot taken before the last writer checkpointed its WAL.
+        for (final entry in files.entries) {
+          await entry.key.writeAsBytes(entry.value);
+        }
+        await service.initialize();
+        expect(await reader.query('key'), '旧库日志中的译文');
+        await metadata.delete();
+        await Directory(metadata.path).create();
+
+        await expectLater(
+          service.installOrUpdate(),
+          throwsA(isA<FileSystemException>()),
+        );
+
+        expect(service.state.isInstalled, isTrue);
+        expect(service.state.version, _gitBlobSha(oldBytes));
+        expect(await target.readAsBytes(), files[target]);
+        expect(await wal.readAsBytes(), files[wal]);
+        expect(reader.getCacheStatistics()['size'], 0);
+        expect(await reader.query('key'), '旧库日志中的译文');
+        expect(await service.resolve(['tag_999'], locale: 'zh-CN'), {
+          'tag_999': '标签999',
+        });
+      },
+    );
+
+    test(
+      'removal waits for an active download while the old dictionary stays readable',
+      () async {
+        final downloading = Completer<void>();
+        final resume = Completer<void>();
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (request, handler) async {
+              if (request.uri == update.downloadUri) {
+                downloading.complete();
+                await resume.future;
+              }
+              handler.next(request);
+            },
+          ),
+        );
+        final install = service.installOrUpdate();
+        await downloading.future;
+        final sameInstall = service.installOrUpdate();
+        final removal = service.remove();
+        try {
+          expect(await reader.query('key'), '旧译');
+        } finally {
+          resume.complete();
+          await Future.wait([install, sameInstall, removal]);
+        }
+        expect(
+          adapter.requests.where((r) => r.uri == update.downloadUri),
+          hasLength(1),
+        );
+        expect(await reader.query('key'), isNull);
+        expect(await target.parent.list().isEmpty, isTrue);
+      },
+    );
+
+    test(
+      'removal retries cleanup of a locked backup after a committed update',
+      () async {
+        final backup = File('${target.path}.backup');
+        final outer = Zone.current;
+        await IOOverrides.runZoned(
+          service.installOrUpdate,
+          createFile: (path) => path == backup.path
+              ? _LockedBackup(backup)
+              : outer.run(() => File(path)),
+        );
+        expect(service.state.version, update.blobSha);
+        expect(await reader.query('key'), '新译');
+        expect(await backup.exists(), isTrue);
+        await service.remove();
+        expect(await backup.exists(), isFalse);
+      },
+    );
+
+    test(
+      'an in-flight update check cannot recreate removed metadata',
+      () async {
+        final checking = Completer<void>();
+        final resume = Completer<void>();
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (request, handler) async {
+              if (request.uri.path.endsWith('/commits')) {
+                checking.complete();
+                await resume.future;
+              }
+              handler.next(request);
+            },
+          ),
+        );
+        final check = service.checkForUpdate(force: true);
+        await checking.future;
+        final removal = service.remove();
+        try {
+          expect(await reader.query('key'), '旧译');
+        } finally {
+          resume.complete();
+          await check;
+          await removal;
+        }
+        expect(service.state.isInstalled, isFalse);
+        expect(await target.parent.list().isEmpty, isTrue);
+      },
+    );
+  });
+}
+
+class _LockedBackup extends Fake implements File {
+  _LockedBackup(this.file);
+  final File file;
+
+  @override
+  String get path => file.path;
+
+  @override
+  Future<bool> exists() => file.exists();
+
+  @override
+  Future<File> delete({bool recursive = false}) async {
+    throw FileSystemException('Backup is in use', path);
+  }
+}
+
+Future<List<File>> _writeSidecars(File target) async {
+  final files = [
+    for (final base in [target.path, '${target.path}.downloading'])
+      for (final suffix in ['-wal', '-shm', '-journal']) File('$base$suffix'),
+  ];
+  for (final file in files) {
+    await file.writeAsString('sidecar');
+  }
+  return files;
 }
 
 ZhDictionarySource _testSource(List<int> bytes) {

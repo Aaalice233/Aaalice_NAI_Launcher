@@ -3,8 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/autocomplete/fast_tag_service_provider.dart';
 import 'package:nai_launcher/core/autocomplete/tag_translation_lookup.dart';
 import 'package:nai_launcher/core/autocomplete/zh_dictionary_service.dart';
+import 'package:nai_launcher/core/database/datasources/translation_data_source.dart';
 
 class _Dictionary extends ZhDictionaryService {
+  _Dictionary() : super(translations: TranslationDataSource());
+
   ZhDictionaryState current = const ZhDictionaryState(
     isInstalled: true,
     version: 'v1',
@@ -12,6 +15,8 @@ class _Dictionary extends ZhDictionaryService {
   );
   @override
   ZhDictionaryState get state => current;
+  @override
+  int installRevision = 0;
   void publish(ZhDictionaryState next) {
     current = next;
     notifyListeners();
@@ -45,10 +50,14 @@ void main() {
       );
       final updated = container.read(tagTranslationLookupProvider);
       expect(updated, isNot(same(initial)));
+      dictionary.installRevision++;
+      dictionary.publish(dictionary.state);
+      final repaired = container.read(tagTranslationLookupProvider);
+      expect(repaired, isNot(same(updated)));
       dictionary.publish(const ZhDictionaryState());
       expect(
         container.read(tagTranslationLookupProvider),
-        isNot(same(updated)),
+        isNot(same(repaired)),
       );
     },
   );

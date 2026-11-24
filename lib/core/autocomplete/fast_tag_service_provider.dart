@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/services/service_providers.dart';
 import 'fast_tag_service.dart';
 import 'tag_catalog_repository.dart';
 import 'zh_dictionary_service.dart';
@@ -24,7 +25,11 @@ class ZhDictionaryNotifier extends Notifier<ZhDictionaryService> {
 
   @override
   ZhDictionaryService build() {
-    final service = _injectedService ?? ZhDictionaryService();
+    final service =
+        _injectedService ??
+        ZhDictionaryService(
+          translations: ref.watch(translationDataSourceProvider),
+        );
     void listener() {
       if (ref.mounted) {
         ref.notifyListeners();
@@ -59,6 +64,7 @@ final fastTagServiceProvider = Provider<FastTagService>((ref) {
             service.state.isInstalled,
             service.state.version,
             service.state.tagCount,
+            service.installRevision,
           ),
         ),
       )
