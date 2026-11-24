@@ -8,7 +8,10 @@ import '../../../core/storage/local_storage_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
 import '../../../data/models/prompt_assistant/assistant_execution_settings.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import '../../../data/models/prompt_assistant/vertex_target.dart';
 import '../models/assistant_model_capability.dart';
+import '../services/provider_adapters/vertex/vertex_credential.dart';
+import '../services/provider_adapters/vertex/vertex_credential_check.dart';
 
 final promptAssistantConfigProvider =
     NotifierProvider<PromptAssistantConfigNotifier, PromptAssistantConfigState>(
@@ -87,6 +90,44 @@ class PromptAssistantConfigNotifier
     final next = Map<String, bool>.from(state.providerHasApiKey)
       ..[providerId] = trimmed.isNotEmpty;
     state = state.copyWith(providerHasApiKey: next);
+  }
+
+  /// 先校验再写入；格式无效抛 [VertexCredentialFormatException]，不会写入安全存储。
+  /// 项目 ID 为空或仍是旧凭据带来的值时改填新凭据的项目，手填的其他值保留。
+  Future<void> setVertexCredential(String providerId, String raw) async {
+    final credential = checkVertexCredential(raw);
+    final previousRaw = await getProviderApiKey(providerId);
+    await setProviderApiKey(providerId, raw);
+    if (!ref.mounted) return;
+    final provider = state.providers
+        .where((item) => item.id == providerId)
+        .firstOrNull;
+    if (provider == null) return;
+    final target = provider.vertexTarget;
+    final project = target.projectId.trim();
+    if (project.isNotEmpty &&
+        (previousRaw == null ||
+            VertexCredential.parse(previousRaw).projectId != project)) {
+      return;
+    }
+    await setVertexTarget(
+      providerId,
+      target.copyWith(projectId: credential.projectId ?? ''),
+    );
+  }
+
+  Future<void> setVertexTarget(String providerId, VertexTarget target) async {
+    if (!ref.mounted) return;
+    final provider = state.providers
+        .where((item) => item.id == providerId)
+        .firstOrNull;
+    if (provider == null) return;
+    final next = VertexTarget(
+      projectId: target.projectId.trim(),
+      location: target.location.trim(),
+    );
+    if (provider.vertexTarget == next) return;
+    await upsertProvider(provider.copyWith(vertex: next));
   }
 
   Future<void> setResponseTimeoutSeconds(int seconds) async {

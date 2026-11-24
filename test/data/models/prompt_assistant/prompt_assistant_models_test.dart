@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/vertex_target.dart';
 
 void main() {
   test(
@@ -182,6 +183,66 @@ void main() {
         AgentPermissionMode.fromName('future-mode'),
         AgentPermissionMode.askBeforeSensitiveActions,
       );
+    });
+  });
+
+  group('Google Vertex AI', () {
+    test('preset uses Gemini wire protocol and location-derived host', () {
+      final config = ProviderPreset.googleVertex.createConfig();
+      expect(config.id, 'google-vertex');
+      expect(config.protocol, ProviderProtocol.geminiGenerateContent);
+      expect(config.baseUrl, isEmpty);
+      expect(config.isVertex, isTrue);
+      expect(config.vertex, const VertexTarget());
+      expect(config.vertexTarget.effectiveLocation, 'global');
+      expect(ProviderPreset.googleVertex.requiresApiKey, isTrue);
+      expect(ProviderPreset.googleVertex.defaultAllowImageInput, isTrue);
+    });
+
+    test('vertex target round-trips through JSON', () {
+      final config = ProviderPreset.googleVertex.createConfig().copyWith(
+        vertex: const VertexTarget(
+          projectId: 'my-project',
+          location: 'us-central1',
+        ),
+      );
+      final decoded = ProviderConfig.fromJson(
+        jsonDecode(jsonEncode(config.toJson())) as Map<String, dynamic>,
+      );
+      expect(decoded.preset, ProviderPreset.googleVertex);
+      expect(
+        decoded.vertex,
+        const VertexTarget(projectId: 'my-project', location: 'us-central1'),
+      );
+    });
+
+    test('other providers do not persist a vertex key', () {
+      final json = ProviderPreset.gemini.createConfig().toJson();
+      expect(json.containsKey('vertex'), isFalse);
+      expect(ProviderConfig.fromJson(json).vertex, isNull);
+    });
+
+    test('vertex preset without stored target decodes defaults', () {
+      final json = ProviderPreset.googleVertex.createConfig().toJson()
+        ..remove('vertex');
+      expect(ProviderConfig.fromJson(json).vertex, const VertexTarget());
+    });
+
+    test('unknown preset from a newer client degrades without crashing', () {
+      final json = ProviderPreset.googleVertex.createConfig().toJson()
+        ..['preset'] = 'futureCloud';
+      final decoded = ProviderConfig.fromJson(json);
+      expect(decoded.isVertex, isFalse);
+      expect(decoded.protocol, ProviderProtocol.geminiGenerateContent);
+    });
+
+    test('location validation only accepts region identifiers', () {
+      for (final valid in ['global', 'us-central1', 'europe-west4']) {
+        expect(VertexTarget.isValidLocation(valid), isTrue, reason: valid);
+      }
+      for (final invalid in ['', 'US', 'a.b', 'evil.com/x', '1abc']) {
+        expect(VertexTarget.isValidLocation(invalid), isFalse, reason: invalid);
+      }
     });
   });
 }

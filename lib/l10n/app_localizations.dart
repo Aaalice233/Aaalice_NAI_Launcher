@@ -13627,6 +13627,84 @@ abstract class AppLocalizations {
   /// **'API key removed'**
   String get modelServices_apiKeyCleared;
 
+  /// No description provided for @modelServices_vertexCredential.
+  ///
+  /// In en, this message translates to:
+  /// **'Credential'**
+  String get modelServices_vertexCredential;
+
+  /// No description provided for @modelServices_vertexCredentialHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Service account JSON, gcloud ADC JSON or API key'**
+  String get modelServices_vertexCredentialHint;
+
+  /// No description provided for @modelServices_vertexCredentialInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid credential: {error}'**
+  String modelServices_vertexCredentialInvalid(Object error);
+
+  /// No description provided for @modelServices_vertexImportCredential.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from file'**
+  String get modelServices_vertexImportCredential;
+
+  /// No description provided for @modelServices_vertexCredentialImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Credential imported'**
+  String get modelServices_vertexCredentialImported;
+
+  /// No description provided for @modelServices_vertexCredentialReadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the selected file'**
+  String get modelServices_vertexCredentialReadFailed;
+
+  /// No description provided for @modelServices_vertexCredentialCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Credential removed'**
+  String get modelServices_vertexCredentialCleared;
+
+  /// No description provided for @modelServices_vertexProjectId.
+  ///
+  /// In en, this message translates to:
+  /// **'Project ID'**
+  String get modelServices_vertexProjectId;
+
+  /// No description provided for @modelServices_vertexProjectIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to use the project in the credential'**
+  String get modelServices_vertexProjectIdHint;
+
+  /// No description provided for @modelServices_vertexLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Location'**
+  String get modelServices_vertexLocation;
+
+  /// No description provided for @modelServices_vertexLocationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'global, us-central1, etc.'**
+  String get modelServices_vertexLocationHint;
+
+  /// No description provided for @modelServices_vertexLocationInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use lowercase letters, digits and hyphens only'**
+  String get modelServices_vertexLocationInvalid;
+
+  /// No description provided for @modelServices_vertexBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty to choose by location'**
+  String get modelServices_vertexBaseUrlHint;
+
   /// No description provided for @modelServices_baseUrl.
   ///
   /// In en, this message translates to:

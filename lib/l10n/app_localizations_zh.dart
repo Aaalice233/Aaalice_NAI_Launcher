@@ -7412,6 +7412,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get modelServices_apiKeyCleared => 'API 密钥已清除';
 
   @override
+  String get modelServices_vertexCredential => '凭据';
+
+  @override
+  String get modelServices_vertexCredentialHint =>
+      '服务账号 JSON、gcloud ADC JSON 或 API 密钥';
+
+  @override
+  String modelServices_vertexCredentialInvalid(Object error) {
+    return '凭据无效：$error';
+  }
+
+  @override
+  String get modelServices_vertexImportCredential => '从文件导入';
+
+  @override
+  String get modelServices_vertexCredentialImported => '凭据已导入';
+
+  @override
+  String get modelServices_vertexCredentialReadFailed => '无法读取所选文件';
+
+  @override
+  String get modelServices_vertexCredentialCleared => '凭据已清除';
+
+  @override
+  String get modelServices_vertexProjectId => '项目 ID';
+
+  @override
+  String get modelServices_vertexProjectIdHint => '留空则使用凭据中的项目';
+
+  @override
+  String get modelServices_vertexLocation => '区域';
+
+  @override
+  String get modelServices_vertexLocationHint => 'global、us-central1 等';
+
+  @override
+  String get modelServices_vertexLocationInvalid => '区域只能包含小写字母、数字和连字符';
+
+  @override
+  String get modelServices_vertexBaseUrlHint => '留空则按区域自动选择';
+
+  @override
   String get modelServices_baseUrl => 'API 地址';
 
   @override
@@ -23196,6 +23238,48 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get modelServices_apiKeyCleared => 'API 金鑰已清除';
+
+  @override
+  String get modelServices_vertexCredential => '憑據';
+
+  @override
+  String get modelServices_vertexCredentialHint =>
+      '服務帳戶 JSON、gcloud ADC JSON 或 API 金鑰';
+
+  @override
+  String modelServices_vertexCredentialInvalid(Object error) {
+    return '憑據無效：$error';
+  }
+
+  @override
+  String get modelServices_vertexImportCredential => '從檔案匯入';
+
+  @override
+  String get modelServices_vertexCredentialImported => '憑據已匯入';
+
+  @override
+  String get modelServices_vertexCredentialReadFailed => '無法讀取所選檔案';
+
+  @override
+  String get modelServices_vertexCredentialCleared => '憑據已清除';
+
+  @override
+  String get modelServices_vertexProjectId => '專案 ID';
+
+  @override
+  String get modelServices_vertexProjectIdHint => '留空則使用憑據中的專案';
+
+  @override
+  String get modelServices_vertexLocation => '區域';
+
+  @override
+  String get modelServices_vertexLocationHint => 'global、us-central1 等';
+
+  @override
+  String get modelServices_vertexLocationInvalid => '區域只能包含小寫字母、數字和連字號';
+
+  @override
+  String get modelServices_vertexBaseUrlHint => '留空則依區域自動選擇';
 
   @override
   String get modelServices_baseUrl => 'API 位址';

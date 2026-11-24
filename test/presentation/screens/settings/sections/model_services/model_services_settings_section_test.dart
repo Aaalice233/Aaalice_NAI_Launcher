@@ -9,6 +9,7 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/core/storage/secure_storage_service.dart';
 import 'package:nai_launcher/data/models/prompt_assistant/prompt_assistant_models.dart';
+import 'package:nai_launcher/data/models/prompt_assistant/vertex_target.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/agent_settings/providers/agent_settings_provider.dart';
 import 'package:nai_launcher/presentation/prompt_assistant/providers/prompt_assistant_config_provider.dart';
@@ -17,6 +18,7 @@ import 'package:nai_launcher/presentation/screens/settings/sections/model_servic
 import 'package:nai_launcher/presentation/screens/settings/widgets/prompt_assistant_settings_forms.dart';
 
 import '../../../../../helpers/memory_local_storage.dart';
+import '../../../../prompt_assistant/services/provider_adapters/vertex/vertex_test_support.dart';
 
 class _MemorySecureStorage extends SecureStorageService {
   final keys = <String, String>{};
@@ -578,4 +580,154 @@ void main() {
       },
     );
   }
+
+  group('Vertex 连接', () {
+    PromptAssistantConfigState vertexSeed() =>
+        PromptAssistantConfigState.defaults().copyWith(
+          providers: [ProviderPreset.googleVertex.createConfig(id: 'vertex')],
+          models: [_model('vertex', 'gemini-3.1-pro-preview')],
+        );
+
+    Future<void> submit(WidgetTester tester, String key, String text) async {
+      await tester.ensureVisible(_key(key));
+      await tester.pumpAndSettle();
+      await tester.enterText(_key(key), text);
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+    }
+
+    String fieldText(WidgetTester tester, String key) =>
+        tester.widget<TextField>(_key(key)).controller!.text;
+
+    Future<void> choosePreset(WidgetTester tester, ProviderPreset preset) async {
+      await _tapVisible(tester, find.byType(DropdownButton<ProviderPreset>));
+      await _tapVisible(tester, find.text(preset.label).last);
+    }
+
+    testWidgets('新建服务商时只在跨越 Vertex 预设时清空凭据草稿', (tester) async {
+      await _pump(tester);
+      await _tapVisible(tester, _key('model-services-add-provider'));
+      const key = 'provider-form-api-key';
+      await tester.enterText(_key(key), 'sk-draft');
+      await choosePreset(tester, ProviderPreset.gemini);
+      expect(fieldText(tester, key), 'sk-draft');
+      await choosePreset(tester, ProviderPreset.googleVertex);
+      expect(fieldText(tester, key), isEmpty);
+      await tester.enterText(_key(key), authorizedUserJson());
+      await choosePreset(tester, ProviderPreset.gemini);
+      expect(fieldText(tester, key), isEmpty);
+    });
+
+    testWidgets('编辑服务商跨越 Vertex 预设时清除已存凭据和页内草稿', (tester) async {
+      final harness = await _pump(tester, config: vertexSeed());
+      const key = 'model-services-api-key';
+      Future<void> editPreset(ProviderPreset preset) async {
+        await _tapVisible(tester, _key('model-services-provider-menu'));
+        await _tapVisible(tester, find.text('编辑服务商'));
+        await choosePreset(tester, preset);
+        await _tapVisible(tester, find.text('保存'));
+      }
+
+      await submit(tester, key, authorizedUserJson());
+      await submit(tester, key, '{unfinished');
+      expect(fieldText(tester, key), '{unfinished');
+      await editPreset(ProviderPreset.gemini);
+      expect(harness.secure.keys.containsKey('vertex'), isFalse);
+      expect(harness.config(tester).providerHasApiKey['vertex'], isFalse);
+      expect(fieldText(tester, key), isEmpty);
+
+      await submit(tester, key, 'sk-gemini');
+      await editPreset(ProviderPreset.openaiChat);
+      expect(harness.secure.keys['vertex'], 'sk-gemini');
+      await editPreset(ProviderPreset.googleVertex);
+      expect(harness.secure.keys.containsKey('vertex'), isFalse);
+      expect(harness.config(tester).providerHasApiKey['vertex'], isFalse);
+    });
+
+    testWidgets('凭据先校验再保存，导入服务账号后补上项目 ID', (tester) async {
+      final harness = await _pump(tester, config: vertexSeed());
+
+      expect(find.text('凭据'), findsOneWidget);
+      expect(_key('model-services-vertex-project'), findsOneWidget);
+      expect(_key('model-services-vertex-location'), findsOneWidget);
+      expect(_key('model-services-vertex-import-credential'), findsOneWidget);
+
+      await submit(tester, 'model-services-api-key', '{"type":"oops"}');
+      expect(find.textContaining('凭据无效'), findsOneWidget);
+      expect(fieldText(tester, 'model-services-api-key'), '{"type":"oops"}');
+      expect(harness.secure.keys.containsKey('vertex'), isFalse);
+
+      await submit(tester, 'model-services-api-key', '');
+      expect(find.textContaining('凭据无效'), findsNothing);
+
+      await submit(tester, 'model-services-api-key', '{"type":"oops"}');
+      expect(find.textContaining('凭据无效'), findsOneWidget);
+      await submit(tester, 'model-services-api-key', serviceAccountJson());
+      expect(find.textContaining('凭据无效'), findsNothing);
+      expect(harness.secure.keys['vertex'], serviceAccountJson());
+      expect(fieldText(tester, 'model-services-api-key'), isEmpty);
+      expect(fieldText(tester, 'model-services-vertex-project'), 'sa-project');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('非法区域保留输入并提示，合法区域写入配置', (tester) async {
+      final harness = await _pump(tester, config: vertexSeed());
+      VertexTarget target() => harness
+          .config(tester)
+          .providers
+          .singleWhere((provider) => provider.id == 'vertex')
+          .vertexTarget;
+
+      await submit(tester, 'model-services-vertex-location', 'Bad.Region');
+      expect(find.text('区域只能包含小写字母、数字和连字符'), findsOneWidget);
+      expect(target().location, 'global');
+
+      await submit(tester, 'model-services-vertex-location', 'us-central1');
+      await submit(tester, 'model-services-vertex-project', 'my-project');
+      expect(find.text('区域只能包含小写字母、数字和连字符'), findsNothing);
+      expect(
+        target(),
+        const VertexTarget(projectId: 'my-project', location: 'us-central1'),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    for (final (width, textScale) in [
+      (320.0, 3.0),
+      (600.0, 1.0),
+      (1600.0, 3.0),
+    ]) {
+      testWidgets(
+        '${width.toInt()} 宽 ${textScale.toInt()}x 文本下 Vertex 字段完整可达',
+        (tester) async {
+          await _pump(
+            tester,
+            size: Size(width, 900),
+            textScale: textScale,
+            config: vertexSeed(),
+          );
+          if (find.byType(ProviderDetailPage).evaluate().isEmpty &&
+              _key('model-services-detail-vertex').evaluate().isEmpty) {
+            await tester.tap(_key('model-services-provider-vertex'));
+            await tester.pumpAndSettle();
+          }
+
+          expect(tester.takeException(), isNull);
+          for (final key in [
+            'model-services-api-key',
+            'model-services-vertex-project',
+            'model-services-vertex-location',
+            'model-services-base-url',
+            'model-services-vertex-import-credential',
+            'model-services-check-connection',
+          ]) {
+            await tester.ensureVisible(_key(key));
+            await tester.pumpAndSettle();
+            expect(_key(key).hitTestable(), findsOneWidget, reason: key);
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  });
 }

@@ -8,11 +8,8 @@ import '../../../core/utils/log_url_redaction.dart';
 import '../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import 'assistant_cancellation.dart';
 import 'assistant_request_scheduler.dart';
-import 'provider_adapters/anthropic_messages_adapter.dart';
-import 'provider_adapters/gemini_generate_content_adapter.dart';
-import 'provider_adapters/openai_chat_completions_adapter.dart';
-import 'provider_adapters/openai_responses_adapter.dart';
 import 'provider_adapters/prompt_assistant_adapter.dart';
+import 'provider_adapters/provider_adapter_registry.dart';
 import 'provider_adapters/reasoning_rejection.dart';
 
 class PromptAssistantApiClient {
@@ -55,7 +52,7 @@ class PromptAssistantApiClient {
     required String? apiKey,
   }) {
     final defaults = provider.preset?.defaultModelNames ?? const [];
-    return _adapterFor(provider)
+    return providerAdapterFor(provider)
         .fetchModels(dio: _dio, provider: provider, apiKey: apiKey)
         .then((models) => models.isEmpty ? defaults : models);
   }
@@ -90,7 +87,7 @@ class PromptAssistantApiClient {
       final content = await scheduler.run(
         provider: uploadRequest.provider,
         cancelToken: cancelToken,
-        request: () => _adapterFor(
+        request: () => providerAdapterFor(
           uploadRequest.provider,
         ).complete(dio: _dio, request: uploadRequest, cancelToken: cancelToken),
       );
@@ -129,21 +126,6 @@ class PromptAssistantApiClient {
           identical(_cancelTokens[request.sessionId], tokens)) {
         _cancelTokens.remove(request.sessionId);
       }
-    }
-  }
-
-  PromptAssistantProviderAdapter _adapterFor(ProviderConfig provider) {
-    switch (provider.protocol) {
-      case ProviderProtocol.openaiChatCompletions:
-        return const OpenAiChatCompletionsAdapter();
-      case ProviderProtocol.openaiResponses:
-        return const OpenAiResponsesAdapter();
-      case ProviderProtocol.anthropicMessages:
-        return const AnthropicMessagesAdapter();
-      case ProviderProtocol.geminiGenerateContent:
-        return const GeminiGenerateContentAdapter();
-      case ProviderProtocol.ollamaChatCompletions:
-        return const OpenAiChatCompletionsAdapter(ollamaTagsFallback: true);
     }
   }
 

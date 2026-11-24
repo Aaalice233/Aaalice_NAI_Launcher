@@ -540,7 +540,9 @@ class AssistantModelCatalog {
         return 'openai';
       case ProviderPreset.anthropic:
         return 'anthropic';
+      // Vertex 与 AI Studio 的 Gemini 模型共用同一份推理目录。
       case ProviderPreset.gemini:
+      case ProviderPreset.googleVertex:
         return 'google';
       case ProviderPreset.deepseek:
         return 'deepseek';

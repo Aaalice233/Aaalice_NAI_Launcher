@@ -7,6 +7,9 @@ import '../../../../core/utils/localization_extension.dart';
 import '../../../adaptive/adaptive_form_footer.dart';
 import '../../../adaptive/content_sized_adaptive_form.dart';
 import '../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
+import '../../../../data/models/prompt_assistant/vertex_target.dart';
+import '../../../prompt_assistant/services/provider_adapters/vertex/vertex_credential.dart';
+import '../../../prompt_assistant/services/provider_adapters/vertex/vertex_credential_check.dart';
 import '../../../widgets/common/themed_confirm_dialog.dart';
 import '../../../widgets/common/provider_icon.dart';
 import 'assistant_task_labels.dart';
@@ -19,6 +22,7 @@ class PromptAssistantProviderFormResult {
     required this.preset,
     required this.allowImageInput,
     required this.concurrency,
+    this.vertex,
   });
 
   final String name;
@@ -27,6 +31,9 @@ class PromptAssistantProviderFormResult {
   final ProviderPreset preset;
   final bool allowImageInput;
   final AssistantConcurrencySettings concurrency;
+
+  /// 仅新建 Vertex 服务商时由表单给出；已有服务商在连接卡片内编辑。
+  final VertexTarget? vertex;
 }
 
 class PromptAssistantProviderForm extends StatefulWidget {
@@ -49,11 +56,21 @@ class _PromptAssistantProviderFormState
   late final TextEditingController _nameController;
   late final TextEditingController _baseController;
   final TextEditingController _keyController = TextEditingController();
+  final TextEditingController _vertexProjectController =
+      TextEditingController();
+  final TextEditingController _vertexLocationController = TextEditingController(
+    text: VertexTarget.defaultLocation,
+  );
   late ProviderPreset _preset;
   late bool _allowImageInput;
   late AssistantConcurrencyMode _concurrencyMode;
   late final TextEditingController _concurrencyController;
   bool _invalidConcurrency = false;
+  String? _credentialError;
+  bool _invalidVertexLocation = false;
+
+  bool get _editsVertexConnection =>
+      widget.provider == null && _preset == ProviderPreset.googleVertex;
 
   @override
   void initState() {
@@ -88,6 +105,8 @@ class _PromptAssistantProviderFormState
     _nameController.dispose();
     _baseController.dispose();
     _keyController.dispose();
+    _vertexProjectController.dispose();
+    _vertexLocationController.dispose();
     super.dispose();
   }
 
@@ -95,8 +114,14 @@ class _PromptAssistantProviderFormState
     final previousPreset = _preset;
     final currentName = _nameController.text.trim();
     final currentBaseUrl = _baseController.text.trim();
+    if ((previousPreset == ProviderPreset.googleVertex) !=
+        (value == ProviderPreset.googleVertex)) {
+      _keyController.clear();
+    }
     _preset = value;
     _allowImageInput = value.defaultAllowImageInput;
+    _credentialError = null;
+    _invalidVertexLocation = false;
     if (widget.provider == null) {
       _nameController.text = value.defaultName;
       _baseController.text = value.defaultBaseUrl;
@@ -118,6 +143,8 @@ class _PromptAssistantProviderFormState
       setState(() => _invalidConcurrency = true);
       return;
     }
+    final vertex = _editsVertexConnection ? _validatedVertexTarget() : null;
+    if (_editsVertexConnection && vertex == null) return;
     Navigator.pop(
       context,
       PromptAssistantProviderFormResult(
@@ -130,7 +157,33 @@ class _PromptAssistantProviderFormState
           mode: _concurrencyMode,
           maxConcurrentRequests: count != null && count > 0 ? count : 5,
         ),
+        vertex: vertex,
       ),
+    );
+  }
+
+  /// 凭据可留空稍后再填；填了就必须能解析。
+  VertexTarget? _validatedVertexTarget() {
+    final key = _keyController.text.trim();
+    String? credentialError;
+    if (key.isNotEmpty) {
+      try {
+        checkVertexCredential(key);
+      } on VertexCredentialFormatException catch (e) {
+        credentialError = e.message;
+      }
+    }
+    final location = _vertexLocationController.text.trim();
+    final invalidLocation =
+        location.isNotEmpty && !VertexTarget.isValidLocation(location);
+    setState(() {
+      _credentialError = credentialError;
+      _invalidVertexLocation = invalidLocation;
+    });
+    if (credentialError != null || invalidLocation) return null;
+    return VertexTarget(
+      projectId: _vertexProjectController.text.trim(),
+      location: location,
     );
   }
 
@@ -173,7 +226,42 @@ class _PromptAssistantProviderFormState
           TextField(
             controller: _baseController,
             keyboardType: TextInputType.url,
-            decoration: const InputDecoration(labelText: 'Base URL'),
+            decoration: InputDecoration(
+              labelText: 'Base URL',
+              hintText: _editsVertexConnection
+                  ? context.l10n.modelServices_vertexBaseUrlHint
+                  : null,
+              floatingLabelBehavior: _editsVertexConnection
+                  ? FloatingLabelBehavior.always
+                  : null,
+            ),
+          ),
+        ],
+        if (_editsVertexConnection) ...[
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('provider-form-vertex-project'),
+            controller: _vertexProjectController,
+            autocorrect: false,
+            decoration: InputDecoration(
+              labelText: context.l10n.modelServices_vertexProjectId,
+              hintText: context.l10n.modelServices_vertexProjectIdHint,
+              floatingLabelBehavior: FloatingLabelBehavior.always,
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const ValueKey('provider-form-vertex-location'),
+            controller: _vertexLocationController,
+            autocorrect: false,
+            decoration: InputDecoration(
+              labelText: context.l10n.modelServices_vertexLocation,
+              hintText: context.l10n.modelServices_vertexLocationHint,
+              errorText: _invalidVertexLocation
+                  ? context.l10n.modelServices_vertexLocationInvalid
+                  : null,
+              errorMaxLines: 3,
+            ),
           ),
         ],
         const SizedBox(height: 8),
@@ -237,9 +325,22 @@ class _PromptAssistantProviderFormState
         if (widget.provider == null) ...[
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('provider-form-api-key'),
             controller: _keyController,
             decoration: InputDecoration(
-              labelText: context.l10n.promptAssistant_apiKeyLeaveEmpty,
+              labelText: _editsVertexConnection
+                  ? context.l10n.modelServices_vertexCredential
+                  : context.l10n.promptAssistant_apiKeyLeaveEmpty,
+              helperText: _editsVertexConnection
+                  ? context.l10n.modelServices_vertexCredentialHint
+                  : null,
+              helperMaxLines: 2,
+              errorText: switch (_credentialError) {
+                final error? =>
+                  context.l10n.modelServices_vertexCredentialInvalid(error),
+                null => null,
+              },
+              errorMaxLines: 3,
             ),
             obscureText: true,
           ),

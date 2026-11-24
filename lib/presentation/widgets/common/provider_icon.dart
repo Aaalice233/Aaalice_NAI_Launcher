@@ -17,6 +17,7 @@ String? providerIconAsset({ProviderConfig? provider, ProviderPreset? preset}) {
     ProviderPreset.openaiChat || ProviderPreset.openaiResponses => 'openai',
     ProviderPreset.anthropic => 'anthropic',
     ProviderPreset.gemini => 'gemini-color',
+    ProviderPreset.googleVertex => 'vertexai-color',
     ProviderPreset.deepseek => 'deepseek-color',
     ProviderPreset.openRouter => 'openrouter-color',
     ProviderPreset.xai => 'xai',

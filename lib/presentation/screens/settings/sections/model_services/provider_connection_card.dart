@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,8 +8,11 @@ import '../../../../../core/utils/localization_extension.dart';
 import '../../../../../data/models/prompt_assistant/prompt_assistant_models.dart';
 import '../../../../prompt_assistant/providers/prompt_assistant_config_provider.dart';
 import '../../../../prompt_assistant/providers/provider_remote_models_provider.dart';
+import '../../../../prompt_assistant/services/provider_adapters/vertex/vertex_credential.dart';
+import '../../../../prompt_assistant/services/provider_adapters/vertex/vertex_credential_check.dart';
 import '../../../../widgets/common/themed_confirm_dialog.dart';
 import '../../widgets/settings_card.dart';
+import 'vertex_target_fields.dart';
 
 /// 地址与密钥在失焦、回车、切换服务商或离开页面时提交；密钥只写入安全存储，不回显。
 class ProviderConnectionCard extends ConsumerStatefulWidget {
@@ -30,8 +36,12 @@ class _ProviderConnectionCardState
   late final ProviderRemoteModelsNotifier _remote;
   late String _providerId;
   late String _committedUrl;
+  late bool _isVertex;
   var _obscureKey = true;
   var _checking = false;
+
+  /// Vertex 凭据校验失败的原因；输入保留在框内供修改。
+  String? _keyError;
 
   @override
   void initState() {
@@ -53,7 +63,14 @@ class _ProviderConnectionCardState
     if (oldWidget.provider.id != widget.provider.id) {
       _commit(deferred: true);
       _bind(widget.provider);
-    } else if (widget.provider.baseUrl != _committedUrl &&
+      return;
+    }
+    if (widget.provider.isVertex != _isVertex) {
+      _isVertex = widget.provider.isVertex;
+      _keyController.clear();
+      _keyError = null;
+    }
+    if (widget.provider.baseUrl != _committedUrl &&
         !_urlFocus.hasFocus) {
       _committedUrl = widget.provider.baseUrl;
       _urlController.text = _committedUrl;
@@ -74,23 +91,39 @@ class _ProviderConnectionCardState
     _providerId = provider.id;
     _committedUrl = provider.baseUrl;
     _urlController.text = provider.baseUrl;
+    _isVertex = provider.isVertex;
     _keyController.clear();
+    _keyError = null;
     _obscureKey = true;
   }
 
   /// 同步取出待提交的值；生命周期回调里改 provider 会触发 Riverpod 断言，那里推迟到本帧之后再写。
   Future<void> _commit({bool deferred = false}) {
     final providerId = _providerId;
-    final key = _keyController.text.trim();
+    final isVertex = _isVertex;
+    final rawKey = _keyController.text.trim();
+    if (rawKey.isEmpty && _keyError != null && !deferred && mounted) {
+      setState(() => _keyError = null);
+    }
+    final key =
+        rawKey.isNotEmpty &&
+            isVertex &&
+            !_acceptVertexCredential(rawKey, report: !deferred)
+        ? ''
+        : rawKey;
     final url = _urlController.text.trim();
     final urlChanged = url != _committedUrl;
     if (key.isEmpty && !urlChanged) return Future.value();
-    _keyController.clear();
+    if (key.isNotEmpty) _keyController.clear();
     _committedUrl = url;
     final config = _config;
     final remote = _remote;
     Future<void> write() async {
-      if (key.isNotEmpty) await config.setProviderApiKey(providerId, key);
+      if (key.isNotEmpty) {
+        await (isVertex
+            ? config.setVertexCredential(providerId, key)
+            : config.setProviderApiKey(providerId, key));
+      }
       if (urlChanged) await config.setProviderBaseUrl(providerId, url);
       remote.forget(providerId);
     }
@@ -98,19 +131,72 @@ class _ProviderConnectionCardState
     return deferred ? Future.microtask(write) : write();
   }
 
+  bool _acceptVertexCredential(String raw, {required bool report}) {
+    String? error;
+    try {
+      checkVertexCredential(raw);
+    } on VertexCredentialFormatException catch (e) {
+      error = e.message;
+    }
+    if (report && mounted && error != _keyError) {
+      setState(() => _keyError = error);
+    }
+    return error == null;
+  }
+
+  Future<void> _importVertexCredential() async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final providerId = _providerId;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['json'],
+      withData: true,
+    );
+    if (picked == null || !mounted || providerId != _providerId) return;
+    final bytes = picked.files.single.bytes;
+    final String raw;
+    try {
+      if (bytes == null) throw const FormatException();
+      raw = utf8.decode(bytes);
+    } on FormatException {
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.modelServices_vertexCredentialReadFailed)),
+      );
+      return;
+    }
+    if (!_acceptVertexCredential(raw, report: true)) return;
+    _keyController.clear();
+    await _config.setVertexCredential(providerId, raw);
+    _remote.forget(providerId);
+    messenger?.showSnackBar(
+      SnackBar(content: Text(l10n.modelServices_vertexCredentialImported)),
+    );
+  }
+
   Future<void> _clearKey() async {
     final l10n = context.l10n;
     final messenger = ScaffoldMessenger.maybeOf(context);
+    final isVertex = _isVertex;
     final confirmed = await ThemedConfirmDialog.showDelete(
       context: context,
-      itemName: l10n.modelServices_apiKey,
+      itemName: isVertex
+          ? l10n.modelServices_vertexCredential
+          : l10n.modelServices_apiKey,
     );
     if (!confirmed) return;
     _keyController.clear();
+    if (mounted) setState(() => _keyError = null);
     await _config.setProviderApiKey(_providerId, '');
     _remote.forget(_providerId);
     messenger?.showSnackBar(
-      SnackBar(content: Text(l10n.modelServices_apiKeyCleared)),
+      SnackBar(
+        content: Text(
+          isVertex
+              ? l10n.modelServices_vertexCredentialCleared
+              : l10n.modelServices_apiKeyCleared,
+        ),
+      ),
     );
   }
 
@@ -121,6 +207,7 @@ class _ProviderConnectionCardState
     setState(() => _checking = true);
     try {
       await _commit();
+      if (_keyError != null) return;
       final models = await _remote.fetch(providerId);
       messenger?.showSnackBar(
         SnackBar(content: Text(l10n.modelServices_connectionOk(models.length))),
@@ -163,15 +250,30 @@ class _ProviderConnectionCardState
               enableSuggestions: false,
               onSubmitted: (_) => _commit(),
               decoration: InputDecoration(
-                labelText: l10n.modelServices_apiKey,
+                labelText: _isVertex
+                    ? l10n.modelServices_vertexCredential
+                    : l10n.modelServices_apiKey,
                 hintText: hasKey
                     ? l10n.modelServices_apiKeySavedHint
                     : keyOptional
                     ? l10n.modelServices_apiKeyOptional
+                    : _isVertex
+                    ? l10n.modelServices_vertexCredentialHint
                     : null,
-                floatingLabelBehavior: hasKey || keyOptional
+                floatingLabelBehavior: hasKey || keyOptional || _isVertex
                     ? FloatingLabelBehavior.always
                     : null,
+                helperText: _isVertex && hasKey
+                    ? l10n.modelServices_vertexCredentialHint
+                    : null,
+                helperMaxLines: 2,
+                errorText: switch (_keyError) {
+                  final error? => l10n.modelServices_vertexCredentialInvalid(
+                    error,
+                  ),
+                  null => null,
+                },
+                errorMaxLines: 3,
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -198,6 +300,10 @@ class _ProviderConnectionCardState
                 ),
               ),
             ),
+            if (_isVertex) ...[
+              const SizedBox(height: 12),
+              VertexTargetFields(provider: provider),
+            ],
             const SizedBox(height: 12),
             TextField(
               key: const ValueKey('model-services-base-url'),
@@ -208,7 +314,12 @@ class _ProviderConnectionCardState
               onSubmitted: (_) => _commit(),
               decoration: InputDecoration(
                 labelText: l10n.modelServices_baseUrl,
-                hintText: l10n.promptAssistant_baseUrlHint,
+                hintText: _isVertex
+                    ? l10n.modelServices_vertexBaseUrlHint
+                    : l10n.promptAssistant_baseUrlHint,
+                floatingLabelBehavior: _isVertex
+                    ? FloatingLabelBehavior.always
+                    : null,
               ),
             ),
             const SizedBox(height: 12),
@@ -229,16 +340,31 @@ class _ProviderConnectionCardState
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                TextButton.icon(
-                  key: const ValueKey('model-services-check-connection'),
-                  onPressed: _checking ? null : _checkConnection,
-                  icon: _checking
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.network_check_rounded),
-                  label: Text(l10n.modelServices_checkConnection),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [
+                    if (_isVertex)
+                      TextButton.icon(
+                        key: const ValueKey(
+                          'model-services-vertex-import-credential',
+                        ),
+                        onPressed: _importVertexCredential,
+                        icon: const Icon(Icons.file_open_outlined),
+                        label: Text(l10n.modelServices_vertexImportCredential),
+                      ),
+                    TextButton.icon(
+                      key: const ValueKey('model-services-check-connection'),
+                      onPressed: _checking ? null : _checkConnection,
+                      icon: _checking
+                          ? const SizedBox.square(
+                              dimension: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.network_check_rounded),
+                      label: Text(l10n.modelServices_checkConnection),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -114,7 +114,7 @@ NAI Launcher 面向經常使用 NovelAI 的圖像創作者。生成、改圖、P
 - 支援逐題回答的結構化提問：每題三個可行方向、一個「推薦」標記和一個自訂入口，最後統一檢查並提交。預設兩分鐘未提交會自動採用全部推薦選項；提問時顯示 Toast、入口問號和 Android 系統通知。
 - Windows 與 macOS 可在「設定 → 整合 → MCP」開啟本機 MCP 服務，讓 Claude Code、Codex CLI、Cursor、Cherry Studio、Pi、Claude Desktop 等外部智慧代理透過同一套工具操作 Launcher；服務預設關閉，授權確認與 Anlas 消耗確認仍在 Launcher 內完成。詳見 [MCP 服務說明](docs/mcp_server.md)。
 - MCP 生成與取圖預設回傳原解析度圖片；用戶端可能在摺疊的工具詳情中顯示。正文顯示支援供 Cherry Studio 等同機用戶端使用的短期本機 HTTP 圖片位址，以及供 Codex 使用的可選顯示快取，無需另存圖庫副本。HTTP 位址最長有效 1 小時，服務關閉或快取淘汰後失效。開啟保護模式及「複製/拖拽時移除全部後設資料」後，MCP 圖片、HTTP 顯示、顯示快取、另存匯出與剪貼簿輸出同樣清除後設資料與 NAI 隱寫水印，且不回傳原圖路徑；本機原圖不受影響。淨化另存使用 PNG，仍保留目標路徑權限與禁止覆寫檢查。
-- 支援 OpenAI 相容介面、Google Gemini 原生介面、第三方 Gemini 相容中轉與 OpenRouter；每個服務商可從介面清單挑選模型或手動新增模型 ID，並依模型能力啟用思考等級和工具呼叫。
+- 支援 OpenAI 相容介面、Google Gemini 原生介面、Google Vertex AI（服務帳戶 JSON、gcloud ADC 憑據或 API Key）、第三方 Gemini 相容中轉與 OpenRouter；每個服務商可從介面清單挑選模型或手動新增模型 ID，並依模型能力啟用思考等級和工具呼叫。
 - 模型服務、API Key、可用地區和費用由你選擇的供應商負責；網路搜尋等額外工具預設關閉。
 
 ### 📋 佇列、歷史與統計
@@ -212,7 +212,7 @@ NAI Launcher 不會在專案自有伺服器上託管你的帳號或作品。只�
 | AI 翻譯或智慧代理 | 你設定的模型服務；對話、附加圖片和完成任務所需的工具結果可能產生服務費用。 |
 | 同步與備份 | 你選擇的 Google Drive、OneDrive、GitHub 或 WebDAV；只上傳明確勾選的內容。 |
 
-- NovelAI Token、OAuth access/refresh token、WebDAV 密碼和 GitHub Token 使用裝置安全儲存，不會寫入備份。
+- NovelAI Token、OAuth access/refresh token、WebDAV 密碼、GitHub Token 以及模型服務的 API Key 與 Vertex AI 憑據使用裝置安全儲存，不會寫入備份。
 - 本機 Prompt、圖庫索引、標籤、資源庫和代理工作階段預設儲存在本機。
 - 雲端備份以明文儲存所選資料；本機圖庫的圖像本體不上傳，相簿、分類、成員引用和固定詞使用記錄可作為輕量資料同步。
 - 線上圖庫可能包含第三方內容；分級篩選不能取代使用者判斷。
