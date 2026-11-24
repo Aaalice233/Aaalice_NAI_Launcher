@@ -5661,6 +5661,8 @@
   "detail_copyCharacterPrompt": "复制角色提示词",
   "detail_copyAllVibeData": "复制全部 Vibe 数据",
   "detail_saveToVibeLibrary": "保存到 Vibe 库",
+  "detail_collapseThumbnails": "收起缩略图",
+  "detail_expandThumbnails": "展开缩略图",
 
   "pagination_firstPage": "首页",
   "pagination_previousPage": "上一页",

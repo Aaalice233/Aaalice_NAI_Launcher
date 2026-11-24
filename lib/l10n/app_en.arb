@@ -5889,6 +5889,8 @@
   "detail_copyCharacterPrompt": "Copy Character Prompt",
   "detail_copyAllVibeData": "Copy all Vibe data",
   "detail_saveToVibeLibrary": "Save to Vibe Library",
+  "detail_collapseThumbnails": "Collapse thumbnails",
+  "detail_expandThumbnails": "Expand thumbnails",
 
   "pagination_firstPage": "First page",
   "pagination_previousPage": "Previous page",

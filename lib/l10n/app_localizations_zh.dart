@@ -11681,6 +11681,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get detail_saveToVibeLibrary => '保存到 Vibe 库';
 
   @override
+  String get detail_collapseThumbnails => '收起缩略图';
+
+  @override
+  String get detail_expandThumbnails => '展开缩略图';
+
+  @override
   String get pagination_firstPage => '首页';
 
   @override
@@ -27507,6 +27513,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get detail_saveToVibeLibrary => '儲存到 Vibe 庫';
+
+  @override
+  String get detail_collapseThumbnails => '收起縮圖';
+
+  @override
+  String get detail_expandThumbnails => '展開縮圖';
 
   @override
   String get pagination_firstPage => '首頁';

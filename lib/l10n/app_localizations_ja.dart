@@ -11884,6 +11884,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get detail_saveToVibeLibrary => 'バイブライブラリに保存';
 
   @override
+  String get detail_collapseThumbnails => 'サムネイルを折りたたむ';
+
+  @override
+  String get detail_expandThumbnails => 'サムネイルを展開';
+
+  @override
   String get pagination_firstPage => '最初のページ';
 
   @override

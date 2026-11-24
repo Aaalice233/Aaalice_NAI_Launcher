@@ -5702,6 +5702,8 @@
   "detail_copyCharacterPrompt": "複製角色提示詞",
   "detail_copyAllVibeData": "複製全部 Vibe 資料",
   "detail_saveToVibeLibrary": "儲存到 Vibe 庫",
+  "detail_collapseThumbnails": "收起縮圖",
+  "detail_expandThumbnails": "展開縮圖",
   "pagination_firstPage": "首頁",
   "pagination_previousPage": "上一頁",
   "pagination_nextPage": "下一頁",
