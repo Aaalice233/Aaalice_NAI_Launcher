@@ -59,7 +59,7 @@ void main() {
 
   for (final (scenario, nextWidth, keyboardInset) in [
     ('收起全屏回到竖屏摘要', null, null),
-    ('跨过全屏的宽度断点', 680.0, null),
+    ('全屏从手机宽度扩到折叠屏宽度', 680.0, null),
     ('软键盘跨过全屏的高度断点', null, 580.0),
   ]) {
     testWidgets('$scenario时主提示词翻译继续并写回', (tester) async {
@@ -124,7 +124,8 @@ void main() {
       } else if (nextWidth != null) {
         await tester.binding.setSurfaceSize(Size(nextWidth, 820));
         await tester.pump();
-        expect(workbench, findsNothing);
+        expect(workbench, findsOneWidget);
+        expect(tester.getSize(workbench).width, greaterThanOrEqualTo(600));
       } else {
         maximized.value = false;
         await tester.pump();

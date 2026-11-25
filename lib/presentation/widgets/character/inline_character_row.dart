@@ -37,7 +37,7 @@ class _InlineCharacterHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
-    final controlExtent = context.interactionPolicy.minimumControlExtent;
+    final interactionPolicy = context.interactionPolicy;
     final modeOrTitle = count == 0
         ? Row(
             mainAxisSize: MainAxisSize.min,
@@ -87,16 +87,24 @@ class _InlineCharacterHeader extends ConsumerWidget {
           ),
         if (count > 0) ...[
           SizedBox(width: compact ? 4 : 8),
-          TextButton.icon(
-            key: const ValueKey('character-manager-clear-all'),
-            onPressed: () => confirmClearAllCharacters(context, ref),
-            icon: const Icon(Icons.delete_sweep_outlined, size: 18),
-            label: Text(l10n.characterEditor_clearAll),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
-              minimumSize: Size(0, controlExtent),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              visualDensity: VisualDensity.compact,
+          Flexible(
+            child: TextButton.icon(
+              key: const ValueKey('character-manager-clear-all'),
+              onPressed: () => confirmClearAllCharacters(context, ref),
+              icon: const Icon(Icons.delete_sweep_outlined, size: 18),
+              label: Text(
+                l10n.characterEditor_clearAll,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+                minimumSize: Size(0, interactionPolicy.minimumControlExtent),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                visualDensity: interactionPolicy.touchAvailable
+                    ? VisualDensity.comfortable
+                    : VisualDensity.compact,
+              ),
             ),
           ),
         ],
@@ -669,11 +677,15 @@ class _AddCharacterChip extends ConsumerWidget {
             ),
             if (showLabel) ...[
               const SizedBox(width: 8),
-              Text(
-                l10n.character_addCharacter,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  l10n.character_addCharacter,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

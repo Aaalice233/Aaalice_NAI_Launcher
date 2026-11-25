@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +17,7 @@ import '../../../widgets/prompt/regex_rules_dialog.dart';
 import '../../../widgets/prompt/toolbar/toolbar.dart';
 import '../../../widgets/prompt/uc_preset_selector.dart';
 import 'prompt_input_controller.dart';
+import 'prompt_input_editor.dart';
 import 'prompt_input_models.dart';
 import '../../../widgets/prompt/prompt_footer_style.dart';
 import 'prompt_type_switch.dart';
@@ -479,12 +482,12 @@ class _MobileFullscreenToolbar extends StatelessWidget {
           expand: true,
           compact: true,
         );
-        Widget buildWorkbench() => Column(
+        Widget buildWorkbench(Widget editorArea) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             typeSwitch,
             const SizedBox(height: 8),
-            Expanded(child: editor),
+            editorArea,
             footer,
             const SizedBox(height: 8),
             SizedBox(
@@ -572,11 +575,19 @@ class _MobileFullscreenToolbar extends StatelessWidget {
           ],
         );
 
-        if (constraints.maxHeight >= 240) return buildWorkbench();
-        final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final scrollableHeight = 140 * textScale.clamp(1, 3).toDouble();
+        if (constraints.maxHeight >= 240) {
+          return buildWorkbench(Expanded(child: editor));
+        }
         return SingleChildScrollView(
-          child: SizedBox(height: scrollableHeight, child: buildWorkbench()),
+          child: buildWorkbench(
+            SizedBox(
+              height: math.max(
+                constraints.maxHeight,
+                PromptInputEditor.minimumHeight(context),
+              ),
+              child: editor,
+            ),
+          ),
         );
       },
     );
