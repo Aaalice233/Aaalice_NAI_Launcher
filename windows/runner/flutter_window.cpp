@@ -11,6 +11,8 @@
 #include <flutter_windows.h>
 #include "flutter/generated_plugin_registrant.h"
 
+#include "directory_picker.h"
+
 // Global set to store font names
 static std::set<std::wstring> g_font_names;
 
@@ -72,6 +74,27 @@ std::optional<std::vector<std::string>> GetSystemFonts(
 
 constexpr const wchar_t kWakeUpMessageName[] =
     L"NAI_Launcher_WakeUp_Message";
+constexpr UINT kPickDirectoryMessage = WM_APP + 0x31B;
+
+std::wstring ReadDialogTitleArgument(
+    const flutter::EncodableValue* arguments) {
+  if (arguments == nullptr) {
+    return std::wstring();
+  }
+  const auto* values = std::get_if<flutter::EncodableMap>(arguments);
+  if (values == nullptr) {
+    return std::wstring();
+  }
+  const auto iterator = values->find(flutter::EncodableValue("dialogTitle"));
+  if (iterator == values->end()) {
+    return std::wstring();
+  }
+  const auto* title = std::get_if<std::string>(&iterator->second);
+  if (title == nullptr || title->empty()) {
+    return std::wstring();
+  }
+  return Utf16FromUtf8(*title);
+}
 
 static UINT GetWakeUpMessage() {
   static const UINT message = RegisterWindowMessage(kWakeUpMessageName);
@@ -365,17 +388,96 @@ bool FlutterWindow::OnCreate() {
         result->NotImplemented();
       });
 
+  directory_picker_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(),
+          "com.nailauncher/directory_picker",
+          &flutter::StandardMethodCodec::GetInstance());
+  directory_picker_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() != "pickDirectory") {
+          result->NotImplemented();
+          return;
+        }
+
+        HWND window = GetHandle();
+        if (window == nullptr) {
+          result->Error("window_unavailable", "The main window is unavailable.");
+          return;
+        }
+
+        if (pending_directory_pick_.has_value() || directory_pick_in_progress_) {
+          result->Success(flutter::EncodableValue());
+          return;
+        }
+
+        pending_directory_pick_ = PendingDirectoryPick{
+            ReadDialogTitleArgument(call.arguments()),
+            std::move(result),
+        };
+        if (!PostMessage(window, kPickDirectoryMessage, 0, 0)) {
+          auto failed = std::move(pending_directory_pick_);
+          pending_directory_pick_.reset();
+          if (failed.has_value() && failed->result != nullptr) {
+            failed->result->Error(
+                "directory_picker_post_failed",
+                "Unable to schedule the Windows directory picker.");
+          }
+        }
+      });
+
   // Auto-show would race the atomic bounds/maximize restore.
   return true;
 }
 
 void FlutterWindow::OnDestroy() {
+  if (pending_directory_pick_.has_value()) {
+    auto pending = std::move(pending_directory_pick_);
+    pending_directory_pick_.reset();
+    if (pending->result != nullptr) {
+      pending->result->Success(flutter::EncodableValue());
+    }
+  }
+  if (active_directory_pick_result_ != nullptr) {
+    auto active = std::move(active_directory_pick_result_);
+    active->Success(flutter::EncodableValue());
+  }
+  directory_picker_channel_.reset();
   window_state_channel_.reset();
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
 
   Win32Window::OnDestroy();
+}
+
+void FlutterWindow::HandlePendingDirectoryPick(HWND hwnd) {
+  if (!pending_directory_pick_.has_value() || directory_pick_in_progress_) {
+    return;
+  }
+
+  std::wstring dialog_title = std::move(pending_directory_pick_->dialog_title);
+  active_directory_pick_result_ = std::move(pending_directory_pick_->result);
+  pending_directory_pick_.reset();
+  directory_pick_in_progress_ = true;
+
+  const auto outcome = PickDirectoryOnWindowThread(hwnd, dialog_title);
+
+  directory_pick_in_progress_ = false;
+  auto result = std::move(active_directory_pick_result_);
+  if (result == nullptr) {
+    return;
+  }
+
+  if (outcome.succeeded) {
+    result->Success(flutter::EncodableValue(outcome.path));
+  } else if (outcome.cancelled) {
+    result->Success(flutter::EncodableValue());
+  } else {
+    result->Error(outcome.error_code, outcome.error_message);
+  }
 }
 
 void FlutterWindow::NotifyWindowBoundsChanged() {
@@ -388,6 +490,11 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (message == kPickDirectoryMessage) {
+    HandlePendingDirectoryPick(hwnd);
+    return 0;
+  }
+
   if (message == WM_ENTERSIZEMOVE) {
     in_window_move_size_ = true;
   } else if (message == WM_EXITSIZEMOVE) {

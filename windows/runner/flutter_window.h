@@ -7,6 +7,8 @@
 #include <flutter/method_channel.h>
 
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "win32_window.h"
 
@@ -25,6 +27,12 @@ class FlutterWindow : public Win32Window {
                          LPARAM const lparam) noexcept override;
 
  private:
+  struct PendingDirectoryPick {
+    std::wstring dialog_title;
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result;
+  };
+
+  void HandlePendingDirectoryPick(HWND hwnd);
   void NotifyWindowBoundsChanged();
 
   // The project to run.
@@ -34,6 +42,12 @@ class FlutterWindow : public Win32Window {
   std::unique_ptr<flutter::FlutterViewController> flutter_controller_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
       window_state_channel_;
+  std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>>
+      directory_picker_channel_;
+  std::optional<PendingDirectoryPick> pending_directory_pick_;
+  std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+      active_directory_pick_result_;
+  bool directory_pick_in_progress_ = false;
   bool in_window_move_size_ = false;
 };
 
