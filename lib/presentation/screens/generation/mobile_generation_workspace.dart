@@ -145,13 +145,11 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                               ),
                             ),
                           ),
-                          const Expanded(child: ImagePreviewWidget()),
-                          if (data.batchStatus.isGenerating)
-                            const MobileGenerationProgressBar(),
-                          RasterCacheBoundary(
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                              child: MobileCollapsedPromptLauncher(
+                          Expanded(
+                            child: _VerticalGenerationPreview(
+                              viewportSize: constraints.biggest,
+                              showProgress: data.batchStatus.isGenerating,
+                              launcher: MobileCollapsedPromptLauncher(
                                 key: _collapsedPromptLauncherKey,
                                 prompt: data.promptSummary,
                                 characterCount: data.enabledCharacterCount,
@@ -169,6 +167,55 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                 ),
         ),
       ),
+    );
+  }
+}
+
+class _VerticalGenerationPreview extends StatelessWidget {
+  const _VerticalGenerationPreview({
+    required this.viewportSize,
+    required this.showProgress,
+    required this.launcher,
+  });
+
+  final Size viewportSize;
+  final bool showProgress;
+  final Widget launcher;
+
+  @override
+  Widget build(BuildContext context) {
+    final minimumHeight = ImagePreviewWidget.minimumHeightFor(
+      context,
+      viewportSize.width,
+    );
+    return CustomScrollView(
+      // 从底部起排让概览先可见，剩余空间按概览和进度条的实际高度分给预览。
+      reverse: true,
+      primary: false,
+      slivers: [
+        SliverToBoxAdapter(
+          child: RasterCacheBoundary(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                12,
+                8,
+                12,
+                viewportSize.height < minimumHeight ? 0 : 12,
+              ),
+              child: launcher,
+            ),
+          ),
+        ),
+        if (showProgress)
+          const SliverToBoxAdapter(child: MobileGenerationProgressBar()),
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: SizedBox(
+            height: minimumHeight,
+            child: const ImagePreviewWidget(),
+          ),
+        ),
+      ],
     );
   }
 }

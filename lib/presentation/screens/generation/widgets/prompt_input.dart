@@ -444,12 +444,6 @@ class _CompactPromptInput extends StatelessWidget {
                   key: const ValueKey('generation_prompt_compact_actions'),
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (viewData.showMaximizeButton)
-                      IconButton(
-                        icon: const Icon(Icons.fullscreen),
-                        tooltip: context.l10n.tooltip_fullscreenEdit,
-                        onPressed: commands.toggleMaximize,
-                      ),
                     if ((negative
                             ? controller.negativeController
                             : controller.promptController)
@@ -464,6 +458,17 @@ class _CompactPromptInput extends StatelessWidget {
                       ),
                   ],
                 ),
+                trailing: viewData.showMaximizeButton
+                    ? IconButton(
+                        constraints: const BoxConstraints.tightFor(
+                          width: kMinInteractiveDimension,
+                          height: kMinInteractiveDimension,
+                        ),
+                        icon: const Icon(Icons.fullscreen),
+                        tooltip: context.l10n.tooltip_fullscreenEdit,
+                        onPressed: commands.toggleMaximize,
+                      )
+                    : null,
               ),
             ],
           ),

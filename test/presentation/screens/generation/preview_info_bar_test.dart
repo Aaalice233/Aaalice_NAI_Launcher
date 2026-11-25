@@ -323,6 +323,46 @@ void main() {
     expect(find.text('4201934405').hitTestable(), findsOneWidget);
   });
 
+  testWidgets('整个预览窄到只能容纳一个触控入口时仍能操作透明背景', (tester) async {
+    const seed = 4201934405;
+    final container = await _pumpBar(
+      tester,
+      _image(seed: seed),
+      width: 80,
+      textScale: 3,
+      defaultModel: 'nai-diffusion-5-curated',
+      interactionPolicy: InteractionPolicy.touchFirst,
+    );
+    expect(tester.takeException(), isNull);
+    final bar = find.byType(PreviewInfoBar);
+    expect(tester.getSize(bar).width, 80);
+    expect(
+      find.byType(TransparencyBackgroundIcon).hitTestable(),
+      findsOneWidget,
+    );
+    final toggle = find.byKey(
+      const ValueKey('generation_preview_transparent_background_toggle'),
+    );
+    await tester.ensureVisible(toggle);
+    final visibleToggle = tester.getRect(toggle).intersect(tester.getRect(bar));
+    expect(visibleToggle.width, greaterThanOrEqualTo(44));
+    await tester.tapAt(visibleToggle.center);
+    await tester.pumpAndSettle();
+    expect(
+      container.read(generationParamsNotifierProvider).transparentBackground,
+      isTrue,
+    );
+    await tester.ensureVisible(find.text('$seed'));
+    final visibleSeed = tester
+        .getRect(find.text('$seed'))
+        .intersect(tester.getRect(bar));
+    expect(visibleSeed.width, greaterThan(0));
+    await tester.tapAt(visibleSeed.center);
+    await tester.pump();
+    expect(container.read(generationParamsNotifierProvider).seed, seed);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('不支持透明背景的模型不显示主预览开关', (tester) async {
     await _pumpBar(
       tester,

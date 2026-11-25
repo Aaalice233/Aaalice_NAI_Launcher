@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:nai_launcher/presentation/widgets/common/horizontal_action_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,12 +22,14 @@ import 'generation_toggle_button.dart';
 /// 透明背景开关固定在最右侧，避免用户必须进入提示词编辑页。
 class PreviewInfoBar extends ConsumerWidget {
   final GeneratedImage image;
+  final double? cardWidth;
   final bool comparisonEnabled;
   final ValueChanged<bool>? onComparisonChanged;
 
   const PreviewInfoBar({
     super.key,
     required this.image,
+    this.cardWidth,
     this.comparisonEnabled = false,
     this.onComparisonChanged,
   });
@@ -57,98 +61,136 @@ class PreviewInfoBar extends ConsumerWidget {
         ),
       ),
     );
-    final showTransparentBackground =
+    final toggle =
         context.interactionPolicy.touchAvailable &&
-        transparentBackground.supported;
+            transparentBackground.supported
+        ? Semantics(
+            button: true,
+            toggled: transparentBackground.enabled,
+            label: context.l10n.generation_transparentBackground,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: barHeight),
+              child: GenerationToggleButton(
+                key: const ValueKey(
+                  'generation_preview_transparent_background_toggle',
+                ),
+                label: context.l10n.generation_transparentBackground,
+                isEnabled: transparentBackground.enabled,
+                onChanged: (value) => ref
+                    .read(generationParamsNotifierProvider.notifier)
+                    .updateTransparentBackground(value),
+              ),
+            ),
+          )
+        : null;
 
     return SizedBox(
       height: heightFor(context),
       child: LayoutBuilder(
-        builder: (context, constraints) {
-          final resolutionMinWidth = showTransparentBackground
-              ? _transparentToggleResolutionMinWidth
-              : onComparisonChanged == null
-              ? _resolutionMinWidth
-              : _comparisonResolutionMinWidth;
-          final showResolution =
-              !constraints.maxWidth.isFinite ||
-              constraints.maxWidth >= resolutionMinWidth;
-
-          final compactInfo = !showResolution && onComparisonChanged == null;
-          final info = compactInfo
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const _TransparencyBackgroundButton(),
-                    if (seed != null && seed >= 0)
-                      Flexible(child: _SeedPill(seed: seed, compact: true)),
-                  ],
-                )
-              : HorizontalActionStrip(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (showResolution) ...[
-                        _InfoPill(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('${image.width}'),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 6),
-                                child: Icon(Icons.close_rounded, size: 11),
-                              ),
-                              Text('${image.height}'),
-                            ],
-                          ),
-                        ),
-                        const _PillDivider(),
-                      ],
-                      const _TransparencyBackgroundButton(),
-                      if (onComparisonChanged != null) ...[
-                        const _PillDivider(),
-                        _ComparisonToggle(
-                          enabled: comparisonEnabled,
-                          onChanged: onComparisonChanged!,
-                        ),
-                      ],
-                      if (seed != null && seed >= 0) ...[
-                        const SizedBox(width: 6),
-                        _SeedPill(seed: seed),
-                      ],
-                    ],
-                  ),
-                );
-          if (!showTransparentBackground) return info;
-
-          return Row(
-            children: [
-              Expanded(child: info),
-              const SizedBox(width: 6),
-              Semantics(
-                button: true,
-                toggled: transparentBackground.enabled,
-                label: context.l10n.generation_transparentBackground,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: barHeight),
-                  child: GenerationToggleButton(
-                    key: const ValueKey(
-                      'generation_preview_transparent_background_toggle',
-                    ),
-                    label: context.l10n.generation_transparentBackground,
-                    isEnabled: transparentBackground.enabled,
-                    onChanged: (value) => ref
-                        .read(generationParamsNotifierProvider.notifier)
-                        .updateTransparentBackground(value),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+        builder: (context, constraints) =>
+            _layoutControls(constraints.maxWidth, seed, toggle),
       ),
     );
   }
+
+  Widget _layoutControls(double availableWidth, int? seed, Widget? toggle) {
+    final preferredWidth = cardWidth ?? availableWidth;
+    final resolutionMinWidth = toggle != null
+        ? _transparentToggleResolutionMinWidth
+        : onComparisonChanged == null
+        ? _resolutionMinWidth
+        : _comparisonResolutionMinWidth;
+    final showResolution = preferredWidth >= resolutionMinWidth;
+
+    final compactInfo = !showResolution && onComparisonChanged == null;
+    final info = _infoControls(
+      showResolution: showResolution,
+      compact: compactInfo,
+      seed: seed,
+    );
+    const gap = 6.0;
+    final minimumInfoWidth = compactInfo && seed != null && seed >= 0
+        ? 2 * barHeight
+        : barHeight;
+    if (availableWidth <
+        minimumInfoWidth + (toggle == null ? 0 : gap + barHeight)) {
+      return HorizontalActionStrip(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            info,
+            if (toggle != null) ...[const SizedBox(width: gap), toggle],
+          ],
+        ),
+      );
+    }
+    final controls = compactInfo ? info : HorizontalActionStrip(child: info);
+    if (toggle == null) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: math.max(preferredWidth, minimumInfoWidth),
+        ),
+        child: controls,
+      );
+    }
+    return ConstrainedBox(
+      constraints: BoxConstraints(minWidth: preferredWidth),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(child: controls),
+          Padding(
+            padding: const EdgeInsets.only(left: gap),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: availableWidth - minimumInfoWidth - gap,
+              ),
+              child: toggle,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoControls({
+    required bool showResolution,
+    required bool compact,
+    required int? seed,
+  }) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (showResolution) ...[
+        _InfoPill(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('${image.width}'),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.close_rounded, size: 11),
+              ),
+              Text('${image.height}'),
+            ],
+          ),
+        ),
+        const _PillDivider(),
+      ],
+      const _TransparencyBackgroundButton(),
+      if (onComparisonChanged case final onChanged?) ...[
+        const _PillDivider(),
+        _ComparisonToggle(enabled: comparisonEnabled, onChanged: onChanged),
+      ],
+      if (seed != null && seed >= 0)
+        if (compact)
+          Flexible(child: _SeedPill(seed: seed, compact: true))
+        else ...[
+          const SizedBox(width: 6),
+          _SeedPill(seed: seed),
+        ],
+    ],
+  );
 }
 
 /// 只读信息胶囊

@@ -19,6 +19,8 @@ import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_controller.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_view_data.dart';
 import 'package:nai_launcher/presentation/screens/generation/mobile_generation_workspace.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/image_preview.dart';
+import 'package:nai_launcher/presentation/screens/generation/widgets/preview_info_bar.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/prompt_input_controller.dart';
 
@@ -26,6 +28,71 @@ import '../../../helpers/controlled_prompt_assistant_service.dart';
 import '../../../helpers/memory_local_storage.dart';
 
 void main() {
+  for (final scale in [1.0, 3.0]) {
+    testWidgets('竖排在 ${scale}x 按实际概览和进度高度决定何时滚动', (tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final prompt = PromptInputController(
+        prompt: 'landscape',
+        negativePrompt: '',
+      );
+      final maximized = ValueNotifier(false);
+      addTearDown(prompt.dispose);
+      addTearDown(maximized.dispose);
+      final preview = find.byType(ImagePreviewWidget, skipOffstage: false);
+      final launcher = find.byType(MobileCollapsedPromptLauncher);
+      final progress = find.byType(
+        MobileGenerationProgressBar,
+        skipOffstage: false,
+      );
+      for (final generating in [false, true]) {
+        await tester.binding.setSurfaceSize(const Size(360, 160));
+        await tester.pumpWidget(
+          _workspace(
+            prompt: prompt,
+            maximized: maximized,
+            generating: generating,
+          ),
+        );
+        await tester.pump();
+        final minimum = tester.getSize(preview).height;
+        expect(
+          minimum,
+          greaterThanOrEqualTo(
+            96 + 24 + PreviewInfoBar.heightFor(tester.element(preview)),
+          ),
+        );
+        final footerHeight =
+            tester.getSize(launcher).height +
+            20 +
+            (generating ? tester.getSize(progress).height : 0);
+        for (final spare in [4.0, -4.0]) {
+          final height = minimum + footerHeight + spare;
+          await tester.binding.setSurfaceSize(Size(360, height));
+          await tester.pump();
+          expect(
+            tester.getSize(preview).height,
+            closeTo(minimum + (spare > 0 ? spare : 0), 0.01),
+          );
+          expect(tester.getBottomLeft(launcher).dy, closeTo(height - 12, 0.01));
+          if (generating) {
+            expect(
+              tester.getTopLeft(progress).dy,
+              closeTo(tester.getBottomLeft(preview).dy, 0.01),
+            );
+            expect(
+              tester.getBottomLeft(progress).dy,
+              closeTo(tester.getTopLeft(launcher).dy - 8, 0.01),
+            );
+          }
+          expect(tester.takeException(), isNull);
+        }
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   testWidgets('竖屏隐藏的提示词输入框静音，横屏显示后恢复且保留编辑器状态', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 820));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -223,6 +290,7 @@ Widget _workspace({
   required PromptInputController prompt,
   required ValueNotifier<bool> maximized,
   PromptAssistantService? service,
+  bool generating = false,
 }) {
   final controller = _WorkspaceController();
   final promptKey = GlobalKey();
@@ -254,7 +322,7 @@ Widget _workspace({
             controller: controller,
             data: MobileGenerationViewData(
               batchStatus: (
-                isGenerating: false,
+                isGenerating: generating,
                 isPreparing: false,
                 currentImage: 0,
                 totalImages: 0,
@@ -270,7 +338,7 @@ Widget _workspace({
               showRandomTools: false,
               isUpscaleMode: false,
               randomModeEnabled: false,
-              promptSummary: '',
+              promptSummary: prompt.promptController.text,
               enabledCharacterCount: 0,
               qualityEnabled: false,
               negativePresetLabel: null,
