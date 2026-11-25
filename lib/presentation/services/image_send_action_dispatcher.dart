@@ -48,6 +48,8 @@ class ImageSendActionDispatcher {
       switch (action) {
         case LocalImageContextAction.addToAgent:
         case LocalImageContextAction.moveToCategory:
+        case LocalImageContextAction.addToAlbum:
+        case LocalImageContextAction.removeFromAlbum:
           return;
         case LocalImageContextAction.sendToTextToImage:
         case LocalImageContextAction.importMetadata:

@@ -345,6 +345,9 @@ class _LocalGalleryShell extends ConsumerWidget {
         onSent: onSent,
       ),
       onContextMenu: actions.showImageContextMenu,
+      inAlbum: ref.watch(
+        galleryAlbumNotifierProvider.select((s) => s.isInRegularAlbum),
+      ),
     );
   }
 }

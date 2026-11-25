@@ -12117,6 +12117,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get detail_imageLoadFailed => 'Failed to load image';
 
   @override
+  String get detail_lockZoom => 'Lock zoom';
+
+  @override
+  String get detail_unlockZoom => 'Unlock zoom';
+
+  @override
   String get detail_noImage => 'No image';
 
   @override

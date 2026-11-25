@@ -34,6 +34,11 @@ class DetailTopBar extends StatelessWidget {
   final VoidCallback? onMosaic;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
+  final VoidCallback? onAddToAlbum;
+
+  /// 缩放是否已锁定；为 null 的回调表示不提供锁定缩放
+  final bool zoomLocked;
+  final VoidCallback? onToggleZoomLock;
 
   const DetailTopBar({
     super.key,
@@ -53,6 +58,9 @@ class DetailTopBar extends StatelessWidget {
     this.onMosaic,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.onAddToAlbum,
+    this.zoomLocked = false,
+    this.onToggleZoomLock,
   });
 
   @override
@@ -131,6 +139,9 @@ class DetailTopBar extends StatelessWidget {
                 onMosaic: onMosaic,
                 onSendToImg2Img: onSendToImg2Img,
                 onSendToReversePrompt: onSendToReversePrompt,
+                onAddToAlbum: onAddToAlbum,
+                zoomLocked: zoomLocked,
+                onToggleZoomLock: onToggleZoomLock,
               ),
             ),
           ],
@@ -151,6 +162,8 @@ enum _DetailOverflowAction {
   copy,
   watermark,
   mosaic,
+  addToAlbum,
+  toggleZoomLock,
 }
 
 class _DetailTopBarActions extends ConsumerWidget {
@@ -169,6 +182,9 @@ class _DetailTopBarActions extends ConsumerWidget {
     this.onMosaic,
     this.onSendToImg2Img,
     this.onSendToReversePrompt,
+    this.onAddToAlbum,
+    this.zoomLocked = false,
+    this.onToggleZoomLock,
   });
 
   final ImageDetailData currentImage;
@@ -185,6 +201,9 @@ class _DetailTopBarActions extends ConsumerWidget {
   final VoidCallback? onMosaic;
   final VoidCallback? onSendToImg2Img;
   final VoidCallback? onSendToReversePrompt;
+  final VoidCallback? onAddToAlbum;
+  final bool zoomLocked;
+  final VoidCallback? onToggleZoomLock;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -310,6 +329,24 @@ class _DetailTopBarActions extends ConsumerWidget {
               title: Text(l10n.shortcut_action_copy_image),
             ),
           ),
+        if (onToggleZoomLock != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.toggleZoomLock,
+            child: ListTile(
+              leading: Icon(zoomLocked ? Icons.lock : Icons.lock_open),
+              title: Text(
+                zoomLocked ? l10n.detail_unlockZoom : l10n.detail_lockZoom,
+              ),
+            ),
+          ),
+        if (onAddToAlbum != null)
+          PopupMenuItem(
+            value: _DetailOverflowAction.addToAlbum,
+            child: ListTile(
+              leading: const Icon(Icons.photo_album_outlined),
+              title: Text(l10n.localGallery_addToAlbum),
+            ),
+          ),
         if (watermarkEnabled && onWatermark != null)
           PopupMenuItem(
             value: _DetailOverflowAction.watermark,
@@ -400,6 +437,12 @@ class _DetailTopBarActions extends ConsumerWidget {
                   case _DetailOverflowAction.mosaic:
                     onMosaic?.call();
                     break;
+                  case _DetailOverflowAction.addToAlbum:
+                    onAddToAlbum?.call();
+                    break;
+                  case _DetailOverflowAction.toggleZoomLock:
+                    onToggleZoomLock?.call();
+                    break;
                 }
               },
             ),
@@ -410,6 +453,17 @@ class _DetailTopBarActions extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (onToggleZoomLock != null)
+          IconButton(
+            icon: Icon(
+              zoomLocked ? Icons.lock : Icons.lock_open,
+              color: zoomLocked
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.white,
+            ),
+            onPressed: onToggleZoomLock,
+            tooltip: zoomLocked ? l10n.detail_unlockZoom : l10n.detail_lockZoom,
+          ),
         if (currentImage.showSaveButton && onSave != null)
           IconButton(
             icon: const Icon(Icons.save_alt, color: Colors.white),
@@ -466,6 +520,12 @@ class _DetailTopBarActions extends ConsumerWidget {
             icon: const Icon(Icons.copy, color: Colors.white),
             onPressed: onCopyImage,
             tooltip: l10n.shortcut_action_copy_image,
+          ),
+        if (onAddToAlbum != null)
+          IconButton(
+            icon: const Icon(Icons.photo_album_outlined, color: Colors.white),
+            onPressed: onAddToAlbum,
+            tooltip: l10n.localGallery_addToAlbum,
           ),
         if (favorite != null) favorite,
         if (onDelete != null)

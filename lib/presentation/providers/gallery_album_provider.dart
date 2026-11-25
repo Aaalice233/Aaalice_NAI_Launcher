@@ -26,6 +26,10 @@ class GalleryAlbumState {
 
   final String? error;
 
+  /// 当前是否在某个普通相簿里（不含「全部」和收藏相簿）
+  bool get isInRegularAlbum =>
+      selectedAlbumId != null && selectedAlbumId != 'favorites';
+
   const GalleryAlbumState({
     this.albums = const [],
     this.selectedAlbumId,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -566,6 +567,68 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         },
         onSaveAs: (detail) =>
             GenerationSaveService.saveImageAsFromDetail(context, ref, detail),
+        contextMenuActions: (_, detail) {
+          final matches = sequence.where((i) => i.id == detail.identifier);
+          if (matches.isEmpty) return const [];
+          final image = matches.first;
+          final l10n = context.l10n;
+          ImageCardAction action(
+            ImageCardActionId id,
+            IconData icon,
+            String label,
+            VoidCallback run,
+          ) => ImageCardAction(id: id, icon: icon, label: label, invoke: run);
+          return [
+            if (image.canUseAsGenerationInput) ...[
+              action(
+                ImageCardActionId.reversePrompt,
+                Icons.manage_search_rounded,
+                l10n.drop_reversePrompt,
+                () => unawaited(
+                  sendHistoryImageToReversePrompt(context, ref, image),
+                ),
+              ),
+              action(
+                ImageCardActionId.imageToImage,
+                Icons.image_outlined,
+                l10n.drop_img2img,
+                () => sendHistoryImageToImageToImage(context, ref, image),
+              ),
+              action(
+                ImageCardActionId.vibeTransfer,
+                Icons.palette_outlined,
+                l10n.drop_vibeTransfer,
+                () => unawaited(
+                  sendHistoryImageToVibeTransfer(context, ref, image),
+                ),
+              ),
+              action(
+                ImageCardActionId.preciseReference,
+                Icons.center_focus_strong,
+                l10n.drop_characterReference,
+                () => unawaited(
+                  sendHistoryImageToPreciseReference(context, ref, image),
+                ),
+              ),
+              action(
+                ImageCardActionId.saveToPreciseRefLibrary,
+                Icons.bookmark_add_outlined,
+                l10n.drop_saveToPreciseRefLibrary,
+                () => unawaited(
+                  saveBytesToPreciseRefLibrary(ref, context, image.bytes),
+                ),
+              ),
+            ],
+            if (image.canSave &&
+                PlatformCapabilities.current.supportsOpenFolder)
+              action(
+                ImageCardActionId.openFolder,
+                Icons.folder_open,
+                l10n.shortcut_action_open_folder,
+                () => unawaited(_openImageInExplorer(context, image)),
+              ),
+          ];
+        },
       ),
     );
   }

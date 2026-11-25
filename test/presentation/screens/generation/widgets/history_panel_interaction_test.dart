@@ -20,6 +20,7 @@ import 'package:nai_launcher/presentation/providers/history_click_behavior_provi
 import 'package:nai_launcher/presentation/providers/image_generation_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
 import 'package:nai_launcher/presentation/screens/generation/widgets/history_panel.dart';
+import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_image_page.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/components/detail_top_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_card_hover_motion.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
@@ -221,6 +222,37 @@ void main() {
     await tester.pump();
 
     _expectLinkedViewer(tester, initialIndex: 1);
+  });
+
+  testWidgets('历史详情里在图片上点右键，弹出反推、图生图等菜单', (tester) async {
+    final container = _createContainer([
+      _image('first'),
+      _image('second'),
+    ], behavior: HistoryClickBehavior.selectPreview);
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(_historyApp(container));
+    await _pumpRoute(tester);
+    final second = find.byKey(const ValueKey('second'));
+    await tester.ensureVisible(second);
+    await _openContextMenu(tester, second);
+    await tester.tap(find.text('查看详情'));
+    await _pumpRoute(tester);
+    await tester.pump();
+    expect(find.byType(ImageDetailViewer), findsOneWidget);
+
+    // 图片解码完成后加载遮罩才会撤掉，遮罩在时点不到图片
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await _openContextMenu(tester, find.byType(DetailImagePage));
+
+    expect(find.text('反推'), findsOneWidget);
+    expect(find.text('图生图'), findsOneWidget);
+    expect(find.text('风格迁移'), findsOneWidget);
   });
 
   testWidgets('linked Ctrl rapid clicks toggle bulk selection on every click', (
