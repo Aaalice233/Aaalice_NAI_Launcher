@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
-import '../../core/enums/precise_ref_type.dart';
+import '../models/precise_ref/precise_ref_type_codec.dart';
 import '../services/precise_ref_library_storage_service.dart';
 import 'cloud_sync_data_adapter.dart';
 import 'portable_sync_record.dart';
@@ -49,7 +49,10 @@ class PreciseRefCloudSyncAdapter extends ValidatingCloudSyncDataAdapter
         kind: 'entry',
         data: {
           'name': entry.name,
-          'type': entry.type.name,
+          ...encodePreciseRefType(
+            entry.type,
+            preferSameOutfit: entry.preferSameOutfit,
+          ),
           'strength': entry.strength,
           'fidelity': entry.fidelity,
           'isFavorite': entry.isFavorite,
@@ -84,8 +87,12 @@ class PreciseRefCloudSyncAdapter extends ValidatingCloudSyncDataAdapter
         'Invalid precise reference ${record.id}',
       );
     }
-    if (!PreciseRefType.values.any((value) => value.name == data['type'])) {
-      throw const CloudSyncPreflightException('Unknown precise reference type');
+    try {
+      decodePreciseRefType(data);
+    } on FormatException {
+      throw const CloudSyncPreflightException(
+        'Invalid precise reference type settings',
+      );
     }
     if (!record.resource!.relativePath.startsWith(
           'precise-ref/${record.id}/',
@@ -105,14 +112,14 @@ class PreciseRefCloudSyncAdapter extends ValidatingCloudSyncDataAdapter
         continue;
       }
       final data = record.data;
+      final settings = decodePreciseRefType(data);
       await _storage.importPortableEntryStream(
         record.resource!.openRead(),
         expectedLength: record.resource!.length,
         id: record.id,
         name: data['name']! as String,
-        type: PreciseRefType.values.firstWhere(
-          (value) => value.name == data['type'],
-        ),
+        type: settings.type,
+        preferSameOutfit: settings.preferSameOutfit,
         strength: (data['strength']! as num).toDouble(),
         fidelity: (data['fidelity']! as num).toDouble(),
         isFavorite: data['isFavorite']! as bool,

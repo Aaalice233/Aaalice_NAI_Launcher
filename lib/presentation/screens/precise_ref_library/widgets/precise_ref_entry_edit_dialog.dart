@@ -15,12 +15,14 @@ class PreciseRefEntryEditResult {
     required this.type,
     required this.strength,
     required this.fidelity,
+    this.preferSameOutfit,
   });
 
   final String name;
   final PreciseRefType type;
   final double strength;
   final double fidelity;
+  final bool? preferSameOutfit;
 }
 
 /// 精准参考库条目编辑对话框
@@ -94,6 +96,9 @@ class _PreciseRefEntryEditDialogState extends State<PreciseRefEntryEditDialog> {
             ? widget.entry.name
             : _nameController.text.trim(),
         type: _type,
+        preferSameOutfit: _type == widget.entry.type
+            ? widget.entry.preferSameOutfit
+            : null,
         strength: _strength,
         fidelity: _fidelity,
       ),
@@ -106,12 +111,14 @@ class _PreciseRefEntryEditDialogState extends State<PreciseRefEntryEditDialog> {
       character: l10n.preciseRef_typeCharacter,
       style: l10n.preciseRef_typeStyle,
       characterAndStyle: l10n.preciseRef_typeCharacterAndStyle,
+      outfit: l10n.preciseRef_typeOutfit,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    const types = PreciseRefType.values;
     final theme = Theme.of(context);
 
     final content = SingleChildScrollView(
@@ -157,7 +164,7 @@ class _PreciseRefEntryEditDialogState extends State<PreciseRefEntryEditDialog> {
                     border: OutlineInputBorder(),
                   ),
                   items: [
-                    for (final type in PreciseRefType.values)
+                    for (final type in types)
                       DropdownMenuItem(
                         value: type,
                         child: Row(
@@ -177,7 +184,7 @@ class _PreciseRefEntryEditDialogState extends State<PreciseRefEntryEditDialog> {
               return SegmentedButton<PreciseRefType>(
                 key: const Key('precise-ref-edit-type-selector'),
                 segments: [
-                  for (final type in PreciseRefType.values)
+                  for (final type in types)
                     ButtonSegment(
                       value: type,
                       icon: Icon(type.icon, size: 16),

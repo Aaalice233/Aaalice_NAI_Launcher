@@ -9,11 +9,13 @@ extension PreciseRefTypeUI on PreciseRefType {
     required String character,
     required String style,
     required String characterAndStyle,
+    required String outfit,
   }) {
     return switch (this) {
       PreciseRefType.character => character,
       PreciseRefType.style => style,
       PreciseRefType.characterAndStyle => characterAndStyle,
+      PreciseRefType.costume => outfit,
     };
   }
 
@@ -23,6 +25,7 @@ extension PreciseRefTypeUI on PreciseRefType {
       PreciseRefType.character => Icons.person,
       PreciseRefType.style => Icons.palette,
       PreciseRefType.characterAndStyle => Icons.auto_awesome,
+      PreciseRefType.costume => Icons.checkroom_outlined,
     };
   }
 }

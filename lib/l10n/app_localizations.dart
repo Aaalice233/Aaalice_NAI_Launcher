@@ -17014,6 +17014,12 @@ abstract class AppLocalizations {
   /// **'Character + Style'**
   String get preciseRef_typeCharacterAndStyle;
 
+  /// No description provided for @preciseRef_typeOutfit.
+  ///
+  /// In en, this message translates to:
+  /// **'Outfit'**
+  String get preciseRef_typeOutfit;
+
   /// No description provided for @preciseRef_costHint.
   ///
   /// In en, this message translates to:

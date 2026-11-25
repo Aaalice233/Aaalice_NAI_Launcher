@@ -109,6 +109,7 @@ class _PreciseRefLibrarySidebarState extends State<PreciseRefLibrarySidebar> {
                           style: l10n.preciseRef_typeStyle,
                           characterAndStyle:
                               l10n.preciseRef_typeCharacterAndStyle,
+                          outfit: l10n.preciseRef_typeOutfit,
                         ),
                         count: state.entries
                             .where((entry) => entry.type == type)

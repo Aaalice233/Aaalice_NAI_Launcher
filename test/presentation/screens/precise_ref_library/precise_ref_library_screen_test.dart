@@ -34,6 +34,7 @@ class _FailingStorage extends PreciseRefLibraryStorageService {
     Uint8List bytes, {
     required String name,
     PreciseRefType type = PreciseRefType.characterAndStyle,
+    bool? preferSameOutfit,
     double strength = 1.0,
     double fidelity = 1.0,
   }) {

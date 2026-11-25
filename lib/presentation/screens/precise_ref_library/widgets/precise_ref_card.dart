@@ -129,6 +129,7 @@ class _PreciseRefCardState extends ConsumerState<PreciseRefCard> {
       character: l10n.preciseRef_typeCharacter,
       style: l10n.preciseRef_typeStyle,
       characterAndStyle: l10n.preciseRef_typeCharacterAndStyle,
+      outfit: l10n.preciseRef_typeOutfit,
     );
   }
 

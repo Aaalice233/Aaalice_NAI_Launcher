@@ -2316,6 +2316,7 @@
   "preciseRef_typeCharacter": "角色",
   "preciseRef_typeStyle": "风格",
   "preciseRef_typeCharacterAndStyle": "角色+风格",
+  "preciseRef_typeOutfit": "服装",
   "preciseRef_costHint": "使用精准参考会消耗额外点数",
   "preciseRef_costBadge": "消耗点数",
   "preciseRef_dropToAdd": "松开后添加精准参考",

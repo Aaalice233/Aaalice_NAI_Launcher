@@ -37,6 +37,22 @@ void main() {
     expect(favoritesY, lessThan(firstTypeY));
     expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
     expect(find.byIcon(Icons.star_border_rounded), findsNothing);
+    expect(
+      find.byKey(const Key('precise-ref-sidebar-type-character')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('precise-ref-sidebar-type-style')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('precise-ref-sidebar-type-characterAndStyle')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('precise-ref-sidebar-type-costume')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const Key('precise-ref-type-section-toggle')));
     await tester.pump();

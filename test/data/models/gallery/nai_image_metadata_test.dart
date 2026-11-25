@@ -14,6 +14,39 @@ import 'package:nai_launcher/presentation/utils/metadata_import_applier.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_data.dart';
 
 void main() {
+  test('parses precise outfit settings from descriptions', () {
+    const types = [
+      'character_mainoutfit',
+      'character&style_anyoutfit',
+      'costume',
+      'character_and_style',
+      'character and style',
+    ];
+    final metadata = NaiImageMetadata.fromNaiComment({
+      'director_reference_images': List.filled(types.length, 'AQI='),
+      'director_reference_descriptions': [
+        for (final type in types)
+          {
+            'caption': {'base_caption': type},
+          },
+      ],
+    });
+    final references = metadata.preciseReferences;
+    expect(references.map((reference) => reference.type), [
+      PreciseRefType.character,
+      PreciseRefType.characterAndStyle,
+      PreciseRefType.costume,
+      PreciseRefType.characterAndStyle,
+      PreciseRefType.characterAndStyle,
+    ]);
+    expect(references.map((reference) => reference.preferSameOutfit), [
+      true,
+      false,
+      null,
+      null,
+      null,
+    ]);
+  });
   group('NaiImageMetadata', () {
     test('generated JSON round-trip remains compatible', () {
       const metadata = NaiImageMetadata(

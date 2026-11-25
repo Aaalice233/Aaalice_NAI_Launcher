@@ -80,6 +80,11 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         (params) => params.capabilities.preciseReference.supported,
       ),
     );
+    final supportsOutfit = ref.watch(
+      generationParamsNotifierProvider.select(
+        (params) => params.capabilities.preciseReference.supportsOutfit,
+      ),
+    );
 
     // 判断是否显示背景（折叠且有数据时显示）
     final showBackground = hasReferences && !isExpanded;
@@ -221,6 +226,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                 return _PreciseReferenceCard(
                   index: index,
                   reference: references[index],
+                  supportsOutfit: supportsOutfit,
                   onRemove: () => _removeReference(index),
                   onSaveToLibrary: () =>
                       _saveSingleReferenceToLibrary(references[index]),
@@ -381,6 +387,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         notifier.addPreciseReferenceFromImage(
           bytes,
           type: entry.type,
+          preferSameOutfit: entry.preferSameOutfit,
           strength: entry.strength,
           fidelity: entry.fidelity,
         ),
@@ -408,6 +415,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
             reference.image,
             name: defaultPreciseRefName(),
             type: reference.type,
+            preferSameOutfit: reference.preferSameOutfit,
             strength: reference.strength,
             fidelity: reference.fidelity,
           );
@@ -436,6 +444,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
                 loadBytes: () async => reference.image,
                 name: defaultPreciseRefName(),
                 type: reference.type,
+                preferSameOutfit: reference.preferSameOutfit,
                 strength: reference.strength,
                 fidelity: reference.fidelity,
               ),
@@ -463,7 +472,14 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
 
   Future<void> _addReference() async {
     // 先选择类型
-    final selectedType = await PreciseReferenceTypeDialog.show(context);
+    final selectedType = await PreciseReferenceTypeDialog.show(
+      context,
+      outfit: ref
+          .read(generationParamsNotifierProvider)
+          .capabilities
+          .preciseReference
+          .supportsOutfit,
+    );
     if (selectedType == null) return; // 用户取消了类型选择
 
     try {
@@ -525,7 +541,14 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         (resource) => resource.preciseReference == null,
       );
       final type = needsType
-          ? await PreciseReferenceTypeDialog.show(context)
+          ? await PreciseReferenceTypeDialog.show(
+              context,
+              outfit: ref
+                  .read(generationParamsNotifierProvider)
+                  .capabilities
+                  .preciseReference
+                  .supportsOutfit,
+            )
           : null;
       if (!mounted || needsType && type == null) return;
       final result = await ImageCardBatchResult.execute(resources, (
@@ -535,6 +558,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
         await notifier.addPreciseReferenceFromImage(
           resource.image.bytes,
           type: entry?.type ?? type!,
+          preferSameOutfit: entry?.preferSameOutfit,
           strength: entry?.strength ?? 1,
           fidelity: entry?.fidelity ?? 1,
         );
@@ -620,6 +644,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
 class _PreciseReferenceCard extends StatelessWidget {
   final int index;
   final PreciseReference reference;
+  final bool supportsOutfit;
   final VoidCallback onRemove;
   final ImageCardCallback onSaveToLibrary;
   final ValueChanged<bool> onEnabledChanged;
@@ -630,6 +655,7 @@ class _PreciseReferenceCard extends StatelessWidget {
   const _PreciseReferenceCard({
     required this.index,
     required this.reference,
+    required this.supportsOutfit,
     required this.onRemove,
     required this.onSaveToLibrary,
     required this.onEnabledChanged,
@@ -796,19 +822,25 @@ class _PreciseReferenceCard extends StatelessWidget {
         labelText: context.l10n.preciseRef_referenceType,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-      items: PreciseRefType.values.map((type) {
-        return DropdownMenuItem<PreciseRefType>(
-          value: type,
-          child: Text(
-            type.getDisplayName(
-              character: context.l10n.preciseRef_typeCharacter,
-              style: context.l10n.preciseRef_typeStyle,
-              characterAndStyle: context.l10n.preciseRef_typeCharacterAndStyle,
-            ),
-            style: theme.textTheme.bodySmall,
-          ),
-        );
-      }).toList(),
+      items:
+          {
+            ...PreciseRefType.selectable(outfit: supportsOutfit),
+            reference.type,
+          }.map((type) {
+            return DropdownMenuItem<PreciseRefType>(
+              value: type,
+              child: Text(
+                type.getDisplayName(
+                  character: context.l10n.preciseRef_typeCharacter,
+                  style: context.l10n.preciseRef_typeStyle,
+                  characterAndStyle:
+                      context.l10n.preciseRef_typeCharacterAndStyle,
+                  outfit: context.l10n.preciseRef_typeOutfit,
+                ),
+                style: theme.textTheme.bodySmall,
+              ),
+            );
+          }).toList(),
       onChanged: (value) {
         if (value != null) {
           onTypeChanged(value);

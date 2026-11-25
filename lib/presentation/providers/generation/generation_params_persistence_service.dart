@@ -252,7 +252,12 @@ final class GenerationStateSnapshot {
     'preciseReferences': preciseReferences
         .map(
           (reference) => <String, Object?>{
-            'type': reference.type.toApiString(),
+            'type': preciseReferenceDescription(
+              reference.type,
+              outfitSupported: true,
+            ),
+            if (reference.preferSameOutfit != null)
+              'preferSameOutfit': reference.preferSameOutfit,
             'strength': reference.strength,
             'fidelity': reference.fidelity,
             'enabled': reference.enabled,
@@ -330,15 +335,15 @@ final class GenerationStateRestoreResult {
       final image = value['image'] as Uint8List?;
       if (image == null || image.isEmpty) continue;
       final typeName = value['type'] as String?;
+      final settings = parsePreciseReferenceDescription(typeName);
       precise.add(
         PreciseReference(
           image: value['isNormalizedPng'] as bool? ?? false
               ? NAIApiUtils.markNormalizedPreciseReferencePng(image)
               : image,
-          type: PreciseRefType.values.firstWhere(
-            (item) => item.toApiString() == typeName,
-            orElse: () => PreciseRefType.character,
-          ),
+          type: settings.type,
+          preferSameOutfit:
+              value['preferSameOutfit'] as bool? ?? settings.preferSameOutfit,
           strength: (value['strength'] as num?)?.toDouble() ?? 1.0,
           fidelity: (value['fidelity'] as num?)?.toDouble() ?? 1.0,
           enabled: value['enabled'] as bool? ?? true,
@@ -397,6 +402,8 @@ Uint8List _encodeStateJson(Map<String, Object?> input) {
         final image = raw['image'] as Uint8List?;
         return <String, Object?>{
           'type': raw['type'],
+          if (raw['preferSameOutfit'] != null)
+            'preferSameOutfit': raw['preferSameOutfit'],
           'strength': raw['strength'],
           'fidelity': raw['fidelity'],
           'enabled': raw['enabled'] as bool? ?? true,
@@ -462,8 +469,9 @@ Map<String, Object?> _decodeStateJson(String source) {
     final image = _decodeBase64(value['imageBase64'] as String?);
     if (image == null || image.isEmpty) continue;
     precise.add({
-      'type':
-          value['type'] as String? ?? PreciseRefType.character.toApiString(),
+      'type': value['type'] as String? ?? 'character',
+      if (value['preferSameOutfit'] != null)
+        'preferSameOutfit': value['preferSameOutfit'] as bool,
       'strength': (value['strength'] as num?)?.toDouble() ?? 1.0,
       'fidelity': (value['fidelity'] as num?)?.toDouble() ?? 1.0,
       'enabled': value['enabled'] as bool? ?? true,

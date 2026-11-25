@@ -610,7 +610,11 @@ class _MetadataImportDialogState extends State<MetadataImportDialog> {
               return _buildChildCheckboxTile(
                 title: l10n.metadataImport_preciseReferenceDetail(
                   index + 1,
-                  reference.type.toApiString(),
+                  preciseReferenceDescription(
+                    reference.type,
+                    preferSameOutfit: reference.preferSameOutfit,
+                    outfitSupported: true,
+                  ),
                   (reference.strength * 100).toStringAsFixed(0),
                   (reference.fidelity * 100).toStringAsFixed(0),
                 ),

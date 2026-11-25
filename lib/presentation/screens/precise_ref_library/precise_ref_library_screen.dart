@@ -331,6 +331,7 @@ class _PreciseRefLibraryScreenState
               name:
                   reference?.name ?? p.basenameWithoutExtension(file.fileName),
               type: reference?.type ?? importType,
+              preferSameOutfit: reference?.preferSameOutfit,
               strength: reference?.strength ?? 1,
               fidelity: reference?.fidelity ?? 1,
               loadBytes: () async => file.bytes,
@@ -395,6 +396,7 @@ class _PreciseRefLibraryScreenState
           .addPreciseReferenceFromImage(
             bytes,
             type: entry.type,
+            preferSameOutfit: entry.preferSameOutfit,
             strength: entry.strength,
             fidelity: entry.fidelity,
           ),
@@ -448,6 +450,7 @@ class _PreciseRefLibraryScreenState
       sendEntry: (bytes, entry) => generation.addPreciseReferenceFromImage(
         bytes,
         type: entry.type,
+        preferSameOutfit: entry.preferSameOutfit,
         strength: entry.strength,
         fidelity: entry.fidelity,
       ),
@@ -475,7 +478,7 @@ class _PreciseRefLibraryScreenState
   }
 
   Future<void> _changeSelectionType(Set<String> selectedIds) async {
-    final type = await PreciseReferenceTypeDialog.show(context);
+    final type = await PreciseReferenceTypeDialog.show(context, outfit: true);
     if (type == null || !mounted) return;
     await ref
         .read(preciseRefLibraryNotifierProvider.notifier)
@@ -539,6 +542,7 @@ class _PreciseRefLibraryScreenState
           entry.id,
           name: result.name,
           type: result.type,
+          preferSameOutfit: result.preferSameOutfit,
           strength: result.strength,
           fidelity: result.fidelity,
         );
@@ -1045,7 +1049,7 @@ class _PreciseRefLibraryScreenState
   }
 
   Future<void> _classifyEntry(PreciseRefLibraryEntry entry) async {
-    final type = await PreciseReferenceTypeDialog.show(context);
+    final type = await PreciseReferenceTypeDialog.show(context, outfit: true);
     if (type == null || !mounted) return;
     await _setEntryType(entry, type);
   }

@@ -7,18 +7,28 @@ import '../../adaptive/adaptive_presenter.dart';
 import '../../adaptive/content_sized_adaptive_form.dart';
 
 class PreciseReferenceTypeDialog extends StatelessWidget {
-  const PreciseReferenceTypeDialog({super.key, this.scrollController});
+  const PreciseReferenceTypeDialog({
+    super.key,
+    this.scrollController,
+    required this.outfit,
+  });
 
   final ScrollController? scrollController;
+  final bool outfit;
 
-  static Future<PreciseRefType?> show(BuildContext context) {
+  static Future<PreciseRefType?> show(
+    BuildContext context, {
+    required bool outfit,
+  }) {
     return AdaptivePresenter.showForm<PreciseRefType>(
       context: context,
       title: context.l10n.preciseRef_referenceType,
       dialogWidth: 420,
       headerScrollsWithContent: true,
-      builder: (context, controller) =>
-          PreciseReferenceTypeDialog(scrollController: controller),
+      builder: (context, controller) => PreciseReferenceTypeDialog(
+        scrollController: controller,
+        outfit: outfit,
+      ),
     );
   }
 
@@ -27,7 +37,7 @@ class PreciseReferenceTypeDialog extends StatelessWidget {
     return ContentSizedAdaptiveForm(
       scrollController: scrollController,
       content: [
-        ...PreciseRefType.values.map((type) {
+        ...PreciseRefType.selectable(outfit: outfit).map((type) {
           return ListTile(
             key: ValueKey('precise-reference-type-${type.name}'),
             leading: Icon(type.icon),
@@ -37,6 +47,7 @@ class PreciseReferenceTypeDialog extends StatelessWidget {
                 style: context.l10n.preciseRef_typeStyle,
                 characterAndStyle:
                     context.l10n.preciseRef_typeCharacterAndStyle,
+                outfit: context.l10n.preciseRef_typeOutfit,
               ),
             ),
             onTap: () => Navigator.of(context).pop(type),

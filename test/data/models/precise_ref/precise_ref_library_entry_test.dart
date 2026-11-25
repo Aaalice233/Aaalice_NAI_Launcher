@@ -1,8 +1,52 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/data/models/precise_ref/precise_ref_library_entry.dart';
 
 void main() {
+  test(
+    'Hive field 10 is additive and legacy readers retain their index fallback',
+    () {
+      final legacy = PreciseRefLibraryEntry.create(
+        name: 'old',
+        imagePath: 'old.png',
+      );
+      final oldWriter = _FieldWriter();
+      PreciseRefLibraryEntryAdapter().write(oldWriter, legacy);
+      final oldFields = _readFields(oldWriter.values)..remove(10);
+      final restored = PreciseRefLibraryEntryAdapter().read(
+        _FieldReader.fromFields(oldFields),
+      );
+      expect(restored.type, PreciseRefType.characterAndStyle);
+      expect(restored.preferSameOutfit, isNull);
+      final current = legacy.copyWith(
+        typeIndex: PreciseRefType.costume.index,
+        preferSameOutfit: false,
+      );
+      final writer = _FieldWriter();
+      final adapter = PreciseRefLibraryEntryAdapter();
+      expect(adapter.typeId, 26);
+      adapter.write(writer, current);
+      expect(adapter.read(_FieldReader(writer.values)), current);
+      final fields = _readFields(writer.values);
+      expect(fields[10], isFalse);
+      // 60b212930 的适配器先读全部字段，只用 0..9；未知索引回退为 characterAndStyle。
+      final oldIndex = fields[3] as int;
+      final oldType = oldIndex < 0 || oldIndex >= 3
+          ? PreciseRefType.characterAndStyle
+          : PreciseRefType.values[oldIndex];
+      expect(oldType, PreciseRefType.characterAndStyle);
+      expect(fields[0], legacy.id);
+      expect(fields[1], legacy.name);
+      expect(fields[2], legacy.imagePath);
+      expect(fields[4], legacy.strength);
+      expect(fields[5], legacy.fidelity);
+      expect(fields[6], legacy.isFavorite);
+      expect(fields[7], legacy.usedCount);
+      expect(fields[8], legacy.lastUsedAt);
+      expect(fields[9], legacy.createdAt);
+    },
+  );
   group('PreciseRefLibraryEntry', () {
     test('create 使用默认参数并生成 id 与创建时间', () {
       final entry = PreciseRefLibraryEntry.create(
@@ -122,4 +166,36 @@ void main() {
       expect(sorted[1].id, '2');
     });
   });
+}
+
+class _FieldWriter extends Fake implements BinaryWriter {
+  final values = <dynamic>[];
+  @override
+  void writeByte(int byte) => values.add(byte);
+  @override
+  void write<T>(T value, {bool withTypeId = true}) => values.add(value);
+}
+
+class _FieldReader extends Fake implements BinaryReader {
+  _FieldReader(this.values);
+  _FieldReader.fromFields(Map<int, dynamic> fields)
+    : values = [
+        fields.length,
+        for (final entry in fields.entries) ...[entry.key, entry.value],
+      ];
+  final List<dynamic> values;
+  var offset = 0;
+  @override
+  int readByte() => values[offset++] as int;
+  @override
+  dynamic read([int? typeId]) => values[offset++];
+}
+
+Map<int, dynamic> _readFields(List<dynamic> values) {
+  final reader = _FieldReader(values);
+  final count = reader.readByte();
+  return {
+    for (var index = 0; index < count; index++)
+      reader.readByte(): reader.read(),
+  };
 }

@@ -13,6 +13,7 @@ import '../../core/utils/file_system_error_summary.dart';
 import '../../core/utils/isolate_pool.dart';
 import '../../core/utils/zip_archive_entry.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
+import '../models/precise_ref/precise_ref_type_codec.dart';
 import 'precise_ref_library_storage_service.dart';
 
 class PreciseRefLibraryArchiveService {
@@ -67,7 +68,10 @@ class PreciseRefLibraryArchiveService {
       records.add({
         'id': entry.id,
         'name': entry.name,
-        'type': entry.type.name,
+        ...encodePreciseRefType(
+          entry.type,
+          preferSameOutfit: entry.preferSameOutfit,
+        ),
         'strength': entry.strength,
         'fidelity': entry.fidelity,
         'isFavorite': entry.isFavorite,
@@ -151,6 +155,7 @@ class PreciseRefLibraryArchiveService {
           id: const Uuid().v4(),
           name: record.name,
           type: record.type,
+          preferSameOutfit: record.preferSameOutfit,
           strength: record.strength,
           fidelity: record.fidelity,
           isFavorite: record.isFavorite,
@@ -336,6 +341,7 @@ class _ArchiveRecord {
   const _ArchiveRecord({
     required this.name,
     required this.type,
+    required this.preferSameOutfit,
     required this.strength,
     required this.fidelity,
     required this.isFavorite,
@@ -349,6 +355,7 @@ class _ArchiveRecord {
 
   final String name;
   final PreciseRefType type;
+  final bool? preferSameOutfit;
   final double strength;
   final double fidelity;
   final bool isFavorite;
@@ -363,11 +370,7 @@ class _ArchiveRecord {
     if (value is! Map<String, dynamic>) {
       throw const FormatException('Invalid precise reference entry');
     }
-    final typeName = value['type'];
-    final type = PreciseRefType.values.cast<PreciseRefType?>().firstWhere(
-      (item) => item?.name == typeName,
-      orElse: () => null,
-    );
+    final settings = decodePreciseRefType(value);
     final lastUsedAt = value['lastUsedAt'];
     final createdAt = value['createdAt'];
     final parsedCreatedAt = createdAt is String
@@ -387,7 +390,6 @@ class _ArchiveRecord {
         ).hasMatch(sourceId) ||
         value['name'] is! String ||
         (value['name']! as String).trim().isEmpty ||
-        type == null ||
         strength is! num ||
         !strength.toDouble().isFinite ||
         fidelity is! num ||
@@ -408,7 +410,8 @@ class _ArchiveRecord {
     }
     return _ArchiveRecord(
       name: (value['name']! as String).trim(),
-      type: type,
+      type: settings.type,
+      preferSameOutfit: settings.preferSameOutfit,
       strength: (value['strength']! as num).toDouble(),
       fidelity: (value['fidelity']! as num).toDouble(),
       isFavorite: value['isFavorite']! as bool,

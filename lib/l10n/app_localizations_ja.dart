@@ -9444,6 +9444,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preciseRef_typeCharacterAndStyle => 'キャラ＆絵柄参照';
 
   @override
+  String get preciseRef_typeOutfit => '衣装';
+
+  @override
   String get preciseRef_costHint => '精密参照を使用すると追加の Anlas を消費します';
 
   @override

@@ -335,6 +335,7 @@ class MetadataImportCoordinator {
           notifier.addPreciseReference(
             reference.image,
             type: reference.type,
+            preferSameOutfit: reference.preferSameOutfit,
             strength: reference.strength,
             fidelity: reference.fidelity,
           );

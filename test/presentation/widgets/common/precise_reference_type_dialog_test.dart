@@ -19,7 +19,10 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                selected = await PreciseReferenceTypeDialog.show(context);
+                selected = await PreciseReferenceTypeDialog.show(
+                  context,
+                  outfit: false,
+                );
               },
               child: const Text('Open'),
             ),
@@ -34,6 +37,8 @@ void main() {
     expect(find.text('Character'), findsOneWidget);
     expect(find.text('Style'), findsOneWidget);
     expect(find.text('Character + Style'), findsOneWidget);
+    expect(find.text('Outfit'), findsNothing);
+    expect(find.byType(ListTile), findsNWidgets(3));
 
     await tester.tap(
       find.byKey(const ValueKey('precise-reference-type-characterAndStyle')),
@@ -82,7 +87,10 @@ void main() {
               body: Builder(
                 builder: (context) => TextButton(
                   onPressed: () async {
-                    selected = await PreciseReferenceTypeDialog.show(context);
+                    selected = await PreciseReferenceTypeDialog.show(
+                      context,
+                      outfit: false,
+                    );
                   },
                   child: const Text('Open'),
                 ),
@@ -90,7 +98,7 @@ void main() {
             ),
           ),
         );
-        for (final type in PreciseRefType.values) {
+        for (final type in PreciseRefType.selectable(outfit: false)) {
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
           expectPanelHeaderScrollsWithContent(tester);

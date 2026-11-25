@@ -714,6 +714,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     double strength = 1.0,
     double fidelity = 1.0,
     bool isNormalizedPng = false,
+    bool? preferSameOutfit,
   }) {
     if (isNormalizedPng) {
       NAIApiUtils.markNormalizedPreciseReferencePng(image);
@@ -724,6 +725,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         PreciseReference(
           image: image,
           type: type,
+          preferSameOutfit: preferSameOutfit,
           strength: strength,
           fidelity: fidelity,
         ),
@@ -738,10 +740,12 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     required PreciseRefType type,
     double strength = 1.0,
     double fidelity = 1.0,
+    bool? preferSameOutfit,
   }) async {
     addPreciseReference(
       image,
       type: type,
+      preferSameOutfit: preferSameOutfit,
       strength: strength,
       fidelity: fidelity,
     );
@@ -773,6 +777,7 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     final current = newList[index];
     newList[index] = current.copyWith(
       type: type ?? current.type,
+      preferSameOutfit: type == null ? current.preferSameOutfit : null,
       strength: strength ?? current.strength,
       fidelity: fidelity ?? current.fidelity,
       enabled: enabled ?? current.enabled,
@@ -786,7 +791,15 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     if (index < 0 || index >= state.preciseReferences.length) return;
     final newList = [...state.preciseReferences];
     final current = newList[index];
-    newList[index] = current.copyWith(type: type);
+    newList[index] = current.copyWith(type: type, preferSameOutfit: null);
+    state = state.copyWith(preciseReferences: newList);
+    _scheduleGenerationStateSave(immediate: true);
+  }
+
+  void updatePreciseReferencePreferSameOutfit(int index, bool? value) {
+    if (index < 0 || index >= state.preciseReferences.length) return;
+    final newList = [...state.preciseReferences];
+    newList[index] = newList[index].copyWith(preferSameOutfit: value);
     state = state.copyWith(preciseReferences: newList);
     _scheduleGenerationStateSave(immediate: true);
   }

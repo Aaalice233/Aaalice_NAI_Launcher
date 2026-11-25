@@ -153,8 +153,11 @@ class ImageSaveUtils {
     if (request.hasPreciseReferences) {
       final preciseReferences = request.enabledPreciseReferences;
       commentJson['use_precise_ref'] = true;
-      commentJson['precise_ref_type'] = preciseReferences.first.type
-          .toApiString();
+      commentJson['precise_ref_type'] = preciseReferenceDescription(
+        preciseReferences.first.type,
+        preferSameOutfit: preciseReferences.first.preferSameOutfit,
+        outfitSupported: true,
+      );
       // 注意：Precise Reference 的图像数据不直接存入元数据，
       // 因为可能很大。这里只记录配置信息
     }

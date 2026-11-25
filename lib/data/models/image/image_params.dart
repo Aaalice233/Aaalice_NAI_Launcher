@@ -27,8 +27,7 @@ extension ImageGenerationActionExtension on ImageGenerationAction {
   }
 }
 
-/// Precise Reference 配置 (仅 V4+ 模型支持)
-/// 支持 Character/Style/CharacterAndStyle 三种类型
+/// 精准参考图片配置
 @freezed
 abstract class PreciseReference with _$PreciseReference {
   const factory PreciseReference({
@@ -37,6 +36,8 @@ abstract class PreciseReference with _$PreciseReference {
 
     /// Precise Reference 类型
     required PreciseRefType type,
+
+    bool? preferSameOutfit,
 
     /// 参考强度（数值输入不设前端上下限，滑条范围 0-1）
     @Default(1.0) double strength,

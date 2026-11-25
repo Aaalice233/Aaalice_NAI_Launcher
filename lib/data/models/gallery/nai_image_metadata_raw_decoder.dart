@@ -818,7 +818,16 @@ class NaiImageMetadataRawDecoder {
       if (image is! String || image.isEmpty) continue;
 
       images.add(image);
-      types.add(_extractPreciseType(descriptions, i).toApiString());
+      final settings = parsePreciseReferenceDescription(
+        _extractPreciseDescription(descriptions, i),
+      );
+      types.add(
+        preciseReferenceDescription(
+          settings.type,
+          preferSameOutfit: settings.preferSameOutfit,
+          outfitSupported: true,
+        ),
+      );
       referenceStrengths.add(i < strengths.length ? strengths[i] : 1.0);
       final secondary = i < secondaryStrengths.length
           ? secondaryStrengths[i]
@@ -834,32 +843,18 @@ class NaiImageMetadataRawDecoder {
     );
   }
 
-  static PreciseRefType _extractPreciseType(dynamic descriptions, int index) {
+  static String? _extractPreciseDescription(dynamic descriptions, int index) {
     if (descriptions is! List || index >= descriptions.length) {
-      return PreciseRefType.character;
+      return null;
     }
     final description = descriptions[index];
     if (description is Map<String, dynamic>) {
       final caption = description['caption'];
       if (caption is Map<String, dynamic>) {
-        return _parsePreciseRefType(caption['base_caption'] as String?);
+        return caption['base_caption'] as String?;
       }
     }
-    return PreciseRefType.character;
-  }
-
-  static PreciseRefType _parsePreciseRefType(String? value) {
-    switch (value?.trim().toLowerCase()) {
-      case 'style':
-        return PreciseRefType.style;
-      case 'character&style':
-      case 'character_and_style':
-      case 'character and style':
-        return PreciseRefType.characterAndStyle;
-      case 'character':
-      default:
-        return PreciseRefType.character;
-    }
+    return null;
   }
 
   static dynamic _firstPresent(Map<String, dynamic> data, List<String> keys) {

@@ -305,7 +305,9 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(ParameterPanel)),
       );
-      final notifier = container.read(generationParamsNotifierProvider.notifier);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
       final advancedOptions = find.byWidgetPredicate(
         (widget) =>
             widget is ExpansionTile &&
@@ -529,6 +531,13 @@ void main() {
       expect(sliders[1].value, 0.0);
       expect(sliders[0].divisions, 20);
       expect(sliders[1].divisions, 20);
+      final typeDropdown = tester.widget<DropdownButton<PreciseRefType>>(
+        find.byType(DropdownButton<PreciseRefType>),
+      );
+      expect(
+        typeDropdown.items!.map((item) => item.value),
+        PreciseRefType.selectable(outfit: false),
+      );
 
       await tester.enterText(find.byType(TextField).at(0), '4.25');
       await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -542,6 +551,18 @@ void main() {
             .strength,
         4.25,
       );
+      container
+          .read(generationParamsNotifierProvider.notifier)
+          .updatePreciseReferenceType(0, PreciseRefType.costume);
+      await tester.pump();
+      final retained = tester.widget<DropdownButton<PreciseRefType>>(
+        find.byType(DropdownButton<PreciseRefType>),
+      );
+      expect(
+        retained.items!.map((item) => item.value),
+        contains(PreciseRefType.costume),
+      );
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('imports every image selected for precise reference', (

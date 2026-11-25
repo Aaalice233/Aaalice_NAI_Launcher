@@ -16,7 +16,9 @@ bool promptSegmentsMatchAt(
   List<String> expected,
   int start,
 ) {
-  if (expected.isEmpty || start < 0 || start + expected.length > source.length) {
+  if (expected.isEmpty ||
+      start < 0 ||
+      start + expected.length > source.length) {
     return false;
   }
   for (var offset = 0; offset < expected.length; offset++) {
@@ -81,13 +83,16 @@ class NaiMetadataPromptProjection {
         final image = Uint8List.fromList(
           base64Decode(metadata.preciseReferenceImages[i]),
         );
-        final type = i < metadata.preciseReferenceTypes.length
-            ? _parsePreciseRefType(metadata.preciseReferenceTypes[i])
-            : PreciseRefType.character;
+        final settings = parsePreciseReferenceDescription(
+          i < metadata.preciseReferenceTypes.length
+              ? metadata.preciseReferenceTypes[i]
+              : null,
+        );
         results.add(
           PreciseReference(
             image: image,
-            type: type,
+            type: settings.type,
+            preferSameOutfit: settings.preferSameOutfit,
             strength: i < metadata.preciseReferenceStrengths.length
                 ? metadata.preciseReferenceStrengths[i]
                 : 1.0,
@@ -245,16 +250,6 @@ class NaiMetadataPromptProjection {
         .where((word) => word.isNotEmpty)
         .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
         .join(' ');
-  }
-
-  static PreciseRefType _parsePreciseRefType(String? value) {
-    return switch (value?.trim().toLowerCase()) {
-      'style' => PreciseRefType.style,
-      'character&style' ||
-      'character_and_style' ||
-      'character and style' => PreciseRefType.characterAndStyle,
-      _ => PreciseRefType.character,
-    };
   }
 
   static List<String> _splitPromptSegments(String text) =>
