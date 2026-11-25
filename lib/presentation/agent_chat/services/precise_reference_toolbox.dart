@@ -37,10 +37,7 @@ class PreciseReferenceToolbox {
     parameters: toolboxObject(
       properties: {
         'query': {'type': 'string'},
-        'type': {
-          'type': 'string',
-          'enum': PreciseRefType.values.map((value) => value.name).toList(),
-        },
+        'type': _typeSchema,
         'favorites_only': {'type': 'boolean'},
         'limit': {'type': 'integer', 'minimum': 1, 'maximum': 200},
       },
@@ -96,16 +93,21 @@ class PreciseReferenceToolbox {
       properties: {
         'resource_ref': {'type': 'object'},
         'name': {'type': 'string', 'minLength': 1, 'maxLength': 200},
-        'type': {
-          'type': 'string',
-          'enum': PreciseRefType.values.map((value) => value.name).toList(),
-        },
-        'strength': {'type': 'number'},
-        'fidelity': {'type': 'number'},
+        'type': _typeSchema,
+        'prefer_same_outfit': _preferSameOutfitSchema,
+        'strength': _strengthSchema,
+        'fidelity': _fidelitySchema,
       },
       required: const ['resource_ref', 'name'],
     ),
     executeFn: (_, params) async {
+      final type =
+          _parseType(params['type']) ?? PreciseRefType.characterAndStyle;
+      final preferSameOutfit = params['prefer_same_outfit'] as bool?;
+      if (_rejectOutfitPreference(type, preferSameOutfit)
+          case final AgentToolResult error) {
+        return error;
+      }
       final reference = _resolver.decode(params['resource_ref']);
       final resolved = await _resolver.resolve(reference);
       if (resolved?.bytes == null) {
@@ -114,17 +116,13 @@ class PreciseReferenceToolbox {
           'Image resource is unavailable.',
         );
       }
-      final typeName = params['type'] as String?;
       final entry = await _ref
           .read(preciseRefLibraryNotifierProvider.notifier)
           .importFromBytes(
             resolved!.bytes!,
             name: params['name'] as String,
-            type: typeName == null
-                ? PreciseRefType.characterAndStyle
-                : PreciseRefType.values.firstWhere(
-                    (value) => value.name == typeName,
-                  ),
+            type: type,
+            preferSameOutfit: preferSameOutfit,
             strength: (params['strength'] as num?)?.toDouble() ?? 1,
             fidelity: (params['fidelity'] as num?)?.toDouble() ?? 1,
           );
@@ -135,17 +133,18 @@ class PreciseReferenceToolbox {
   DefinedAgentTool _update() => DefinedAgentTool(
     name: 'update_precise_reference_entry',
     label: 'Update Precise Reference Entry',
-    description: 'Update precise-reference metadata and default parameters.',
+    description:
+        'Update precise-reference metadata and default parameters. Changing '
+        'type without prefer_same_outfit resets the outfit preference to the '
+        "new type's default.",
     parameters: toolboxObject(
       properties: {
         'entry_id': {'type': 'string'},
         'name': {'type': 'string'},
-        'type': {
-          'type': 'string',
-          'enum': PreciseRefType.values.map((value) => value.name).toList(),
-        },
-        'strength': {'type': 'number'},
-        'fidelity': {'type': 'number'},
+        'type': _typeSchema,
+        'prefer_same_outfit': _preferSameOutfitSchema,
+        'strength': _strengthSchema,
+        'fidelity': _fidelitySchema,
         'favorite': {'type': 'boolean'},
       },
       required: const ['entry_id'],
@@ -161,15 +160,17 @@ class PreciseReferenceToolbox {
           'Precise-reference entry not found.',
         );
       }
-      final typeName = params['type'] as String?;
+      final type = _parseType(params['type']);
+      final preferSameOutfit = params['prefer_same_outfit'] as bool?;
+      if (_rejectOutfitPreference(type ?? current.type, preferSameOutfit)
+          case final AgentToolResult error) {
+        return error;
+      }
       final updated = await notifier.updateEntry(
         id,
         name: params['name'] as String?,
-        type: typeName == null
-            ? null
-            : PreciseRefType.values.firstWhere(
-                (value) => value.name == typeName,
-              ),
+        type: type,
+        preferSameOutfit: preferSameOutfit,
         strength: (params['strength'] as num?)?.toDouble(),
         fidelity: (params['fidelity'] as num?)?.toDouble(),
       );
@@ -285,6 +286,9 @@ Map<String, dynamic> _entryJson(PreciseRefLibraryEntry entry) => {
   ),
   'name': entry.name,
   'type': entry.type.name,
+  'prefer_same_outfit': entry.type.effectiveSameOutfitPreference(
+    entry.preferSameOutfit,
+  ),
   'strength': entry.strength,
   'fidelity': entry.fidelity,
   'favorite': entry.isFavorite,
@@ -299,3 +303,50 @@ final _idSchema = toolboxObject(
   },
   required: const ['entry_id'],
 );
+
+final _typeSchema = <String, dynamic>{
+  'type': 'string',
+  'enum': PreciseRefType.values.map((value) => value.name).toList(),
+  'description':
+      'costume (outfit reference) is used by V5 models only; V4.5 skips '
+      'costume entries when generating.',
+};
+
+const _preferSameOutfitSchema = <String, dynamic>{
+  'type': 'boolean',
+  'description':
+      'Only for type character or characterAndStyle, and only used by V5 '
+      'models. character defaults to false; characterAndStyle defaults to '
+      'true. Omit to keep the type default.',
+};
+
+const _strengthSchema = <String, dynamic>{
+  'type': 'number',
+  'minimum': 0,
+  'maximum': 5,
+  'description':
+      '1 is the neutral midpoint. V4.5 accepts 0..1; V5 accepts 0..5. '
+      'Library entries are shared across models, so use values above 1 only '
+      'with V5 models.',
+};
+
+const _fidelitySchema = <String, dynamic>{
+  'type': 'number',
+  'minimum': 0,
+  'maximum': 1,
+  'description': 'Used by V4.5 only; V5 ignores fidelity and keeps the value.',
+};
+
+PreciseRefType? _parseType(Object? name) => name is String
+    ? PreciseRefType.values.firstWhere((value) => value.name == name)
+    : null;
+
+AgentToolResult? _rejectOutfitPreference(
+  PreciseRefType type,
+  bool? preferSameOutfit,
+) => preferSameOutfit != null && !type.acceptsSameOutfitPreference
+    ? agentToolError(
+        'invalid_outfit_preference',
+        'prefer_same_outfit applies only to character or characterAndStyle.',
+      )
+    : null;

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/agent/agent_types.dart';
+import '../../../core/enums/precise_ref_type.dart';
 import '../../providers/generation/generation_params_notifier.dart';
 import 'agent_resource_resolver.dart';
 import 'defined_agent_tool.dart';
@@ -44,6 +45,8 @@ class ReferenceLibraryToolbox {
             {
               'index': indexed.$1,
               'type': indexed.$2.type.name,
+              'prefer_same_outfit': indexed.$2.type
+                  .effectiveSameOutfitPreference(indexed.$2.preferSameOutfit),
               'strength': indexed.$2.strength,
               'fidelity': indexed.$2.fidelity,
               'enabled': indexed.$2.enabled,
