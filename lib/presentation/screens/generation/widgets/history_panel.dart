@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/platform_capabilities.dart';
 import '../../../../core/utils/file_explorer_utils.dart';
 import '../../../../core/utils/image_share_sanitizer.dart';
 import '../../../../core/utils/localization_extension.dart';
@@ -567,10 +568,9 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
         onSaveAs: (detail) =>
             GenerationSaveService.saveImageAsFromDetail(context, ref, detail),
         contextMenuActions: (_, detail) {
-          final image = sequence.firstWhereOrNull(
-            (i) => i.id == detail.identifier,
-          );
-          if (image == null) return const [];
+          final matches = sequence.where((i) => i.id == detail.identifier);
+          if (matches.isEmpty) return const [];
+          final image = matches.first;
           final l10n = context.l10n;
           ImageCardAction action(
             ImageCardActionId id,
@@ -584,28 +584,30 @@ class _HistoryPanelState extends ConsumerState<HistoryPanel> {
                 ImageCardActionId.reversePrompt,
                 Icons.manage_search_rounded,
                 l10n.drop_reversePrompt,
-                () =>
-                    unawaited(_sendHistoryImageToReversePrompt(context, image)),
+                () => unawaited(
+                  sendHistoryImageToReversePrompt(context, ref, image),
+                ),
               ),
               action(
                 ImageCardActionId.imageToImage,
                 Icons.image_outlined,
                 l10n.drop_img2img,
-                () => _sendHistoryImageToImageToImage(context, image),
+                () => sendHistoryImageToImageToImage(context, ref, image),
               ),
               action(
                 ImageCardActionId.vibeTransfer,
                 Icons.palette_outlined,
                 l10n.drop_vibeTransfer,
-                () =>
-                    unawaited(_sendHistoryImageToVibeTransfer(context, image)),
+                () => unawaited(
+                  sendHistoryImageToVibeTransfer(context, ref, image),
+                ),
               ),
               action(
                 ImageCardActionId.preciseReference,
                 Icons.center_focus_strong,
                 l10n.drop_characterReference,
                 () => unawaited(
-                  _sendHistoryImageToPreciseReference(context, image),
+                  sendHistoryImageToPreciseReference(context, ref, image),
                 ),
               ),
               action(
