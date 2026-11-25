@@ -5268,7 +5268,7 @@
   "settings_mcpServerCursorHint": "次の内容を Cursor の mcp.json に統合してください。",
   "settings_mcpServerCherryStudioHint": "Cherry Studio の MCP サーバー設定で「JSON からインポート」に次の内容を貼り付けてください。timeout は秒単位で、アプリ内の承認待ちに十分な余裕があります。",
   "settings_mcpServerPiHint": "Pi 本体に MCP はありません。先に pi-mcp-adapter パッケージをインストールし、次の内容を ~/.pi/agent/mcp.json に統合してください。",
-  "settings_mcpServerAntigravityHint": "次の内容を Antigravity の ~/.gemini/config/mcp_config.json（グローバル）または .agents/mcp_config.json（ワークスペース）に統合してください。timeoutSeconds にはアプリ内の承認待ちに十分な余裕があります。",
+  "settings_mcpServerAntigravityHint": "次の内容を Antigravity のグローバル設定 ~/.gemini/config/mcp_config.json に統合してください。timeoutSeconds にはアプリ内の承認待ちに十分な余裕があります。",
   "settings_mcpServerClaudeDesktopHint": "次の内容を Claude Desktop の設定に統合してください。同梱 CLI を介して stdio で接続します。",
   "settings_fontScale": "フォント サイズ",
   "settings_fontScale_description": "グローバルフォントスケールを調整します",

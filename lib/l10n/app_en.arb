@@ -5241,7 +5241,7 @@
   "settings_mcpServerCursorHint": "Merge this into the Cursor mcp.json configuration file.",
   "settings_mcpServerCherryStudioHint": "Paste this into Cherry Studio's MCP server settings with “Import from JSON”; timeout is in seconds and already covers the in-app approval wait.",
   "settings_mcpServerPiHint": "Pi has no built-in MCP: install the pi-mcp-adapter package first, then merge this into ~/.pi/agent/mcp.json.",
-  "settings_mcpServerAntigravityHint": "Merge this into Antigravity's ~/.gemini/config/mcp_config.json (global) or .agents/mcp_config.json (workspace); timeoutSeconds already covers the in-app approval wait.",
+  "settings_mcpServerAntigravityHint": "Merge this into Antigravity's global ~/.gemini/config/mcp_config.json; timeoutSeconds already covers the in-app approval wait.",
   "settings_mcpServerClaudeDesktopHint": "Merge this into the Claude Desktop configuration; it connects over stdio through the bundled CLI.",
 
   "settings_fontScale": "Font Size",

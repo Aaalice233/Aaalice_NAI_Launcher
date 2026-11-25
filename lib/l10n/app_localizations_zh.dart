@@ -10435,7 +10435,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_mcpServerAntigravityHint =>
-      '把以下内容合并进 Antigravity 的 ~/.gemini/config/mcp_config.json（全局）或 .agents/mcp_config.json（工作区）；timeoutSeconds 已留足应用内审批时间。';
+      '把以下内容合并进 Antigravity 的全局配置 ~/.gemini/config/mcp_config.json；timeoutSeconds 已留足应用内审批时间。';
 
   @override
   String get settings_mcpServerClaudeDesktopHint =>
@@ -26290,7 +26290,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_mcpServerAntigravityHint =>
-      '把以下內容合併進 Antigravity 的 ~/.gemini/config/mcp_config.json（全域）或 .agents/mcp_config.json（工作區）；timeoutSeconds 已留足應用內審批時間。';
+      '把以下內容合併進 Antigravity 的全域設定 ~/.gemini/config/mcp_config.json；timeoutSeconds 已留足應用內審批時間。';
 
   @override
   String get settings_mcpServerClaudeDesktopHint =>

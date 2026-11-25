@@ -543,6 +543,16 @@ void main() {
     await tester.tap(find.text('Antigravity'));
     await tester.pumpAndSettle();
     expect(find.text(masked), findsOneWidget);
+    final l10n = await AppLocalizations.delegate.load(const Locale('zh'));
+    expect(find.text(l10n.settings_mcpServerAntigravityHint), findsOneWidget);
+    expect(
+      l10n.settings_mcpServerAntigravityHint,
+      contains('~/.gemini/config/mcp_config.json'),
+    );
+    expect(
+      l10n.settings_mcpServerAntigravityHint,
+      isNot(contains('.agents/mcp_config.json')),
+    );
     expect(
       find.descendant(
         of: find.byKey(_antigravityPanel),

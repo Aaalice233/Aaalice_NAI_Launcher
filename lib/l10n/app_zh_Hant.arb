@@ -5070,7 +5070,7 @@
   "settings_mcpServerCursorHint": "把以下內容合併進 Cursor 的 mcp.json 設定檔。",
   "settings_mcpServerCherryStudioHint": "在 Cherry Studio 的 MCP 伺服器設定中用「從 JSON 匯入」貼上以下內容；timeout 單位為秒，已留足應用內審批時間。",
   "settings_mcpServerPiHint": "Pi 本體不帶 MCP，需先安裝 pi-mcp-adapter 套件，再把以下內容合併進 ~/.pi/agent/mcp.json。",
-  "settings_mcpServerAntigravityHint": "把以下內容合併進 Antigravity 的 ~/.gemini/config/mcp_config.json（全域）或 .agents/mcp_config.json（工作區）；timeoutSeconds 已留足應用內審批時間。",
+  "settings_mcpServerAntigravityHint": "把以下內容合併進 Antigravity 的全域設定 ~/.gemini/config/mcp_config.json；timeoutSeconds 已留足應用內審批時間。",
   "settings_mcpServerClaudeDesktopHint": "把以下內容合併進 Claude Desktop 設定；它透過隨附 CLI 以 stdio 方式連線。",
   "settings_fontScale": "字型大小",
   "settings_fontScale_description": "調整應用全域性字型縮放比例",

@@ -18979,7 +18979,7 @@ abstract class AppLocalizations {
   /// No description provided for @settings_mcpServerAntigravityHint.
   ///
   /// In en, this message translates to:
-  /// **'Merge this into Antigravity\'s ~/.gemini/config/mcp_config.json (global) or .agents/mcp_config.json (workspace); timeoutSeconds already covers the in-app approval wait.'**
+  /// **'Merge this into Antigravity\'s global ~/.gemini/config/mcp_config.json; timeoutSeconds already covers the in-app approval wait.'**
   String get settings_mcpServerAntigravityHint;
 
   /// No description provided for @settings_mcpServerClaudeDesktopHint.
