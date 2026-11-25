@@ -58,6 +58,7 @@ class _MobileGenerationWorkspaceState extends State<MobileGenerationWorkspace> {
                     key: widget.promptInputKey,
                     controller: widget.promptInputController,
                     isMaximized: true,
+                    useMobileWorkbench: true,
                     showMaximizeButton: false,
                     autofocus: true,
                   ),

@@ -9,9 +9,11 @@ import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
+import 'package:nai_launcher/data/models/character/character_prompt.dart';
 import 'package:nai_launcher/data/models/user/user_subscription.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
+import 'package:nai_launcher/presentation/providers/character_prompt_provider.dart';
 import 'package:nai_launcher/presentation/providers/generation_layout_mode_provider.dart';
 import 'package:nai_launcher/presentation/providers/layout_state_provider.dart';
 import 'package:nai_launcher/presentation/providers/shortcuts_provider.dart';
@@ -25,6 +27,7 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/fixed_tags_
 import 'package:nai_launcher/presentation/screens/generation/widgets/resize_handle.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/anlas_balance_chip.dart';
 import 'package:nai_launcher/presentation/widgets/anlas/opus_usage_chip.dart';
+import 'package:nai_launcher/presentation/widgets/character/mobile_character_manager_sheet.dart';
 
 import '../../../helpers/flutter_error_collector.dart';
 
@@ -210,6 +213,87 @@ void main() {
 
     expect(drawer, findsOneWidget);
   });
+
+  for (final size in const [
+    Size(320, 640),
+    Size(360, 760),
+    Size(686, 1143),
+    Size(839, 760),
+    Size(800, 360),
+  ]) {
+    for (final scale in [1.0, 3.0]) {
+      testWidgets(
+        '手机全屏提示词可管理已有角色 ${size.width.toInt()}×${size.height.toInt()} ${scale}x',
+        (tester) async {
+          PlatformCapabilities.debugOverride = PlatformCapabilities.forPlatform(
+            TargetPlatform.android,
+          );
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = size;
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetPhysicalSize);
+          final container = ProviderContainer(
+            overrides: [
+              localStorageServiceProvider.overrideWith(
+                (ref) => _PromptStateTestStorage(),
+              ),
+              shortcutConfigNotifierProvider.overrideWith(
+                _FakeShortcutConfigNotifier.new,
+              ),
+              characterPromptNotifierProvider.overrideWith(
+                _SingleCharacterNotifier.new,
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+          try {
+            await _pumpGeneration(
+              tester,
+              container: container,
+              textScaler: TextScaler.linear(scale),
+            );
+            await tester.pump(const Duration(milliseconds: 100));
+            expect(tester.takeException(), isNull);
+            expect(find.byType(MobileGenerationLayout), findsOneWidget);
+            await _openMobilePromptEditor(tester);
+            final characters = find.byKey(
+              const ValueKey('generation_prompt_mobile_character_action'),
+            );
+            expect(characters, findsOneWidget);
+            if (size == const Size(800, 360)) {
+              final workbench = find.byKey(
+                const ValueKey('generation_prompt_mobile_workbench'),
+              );
+              final editor = find.byKey(
+                const ValueKey('generation_prompt_positive_input'),
+              );
+              expect(
+                tester.getSize(editor).height,
+                greaterThanOrEqualTo(tester.getSize(workbench).height),
+              );
+            }
+            await tester.ensureVisible(characters);
+            await tester.pump();
+            expect(characters.hitTestable(), findsOneWidget);
+            await tester.tap(characters);
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 400));
+            final manager = find.byType(MobileCharacterManagerSheet);
+            expect(manager, findsOneWidget);
+            expect(
+              find.descendant(of: manager, matching: find.text('Ada')),
+              findsOneWidget,
+            );
+            expect(tester.takeException(), isNull);
+          } finally {
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pump(const Duration(milliseconds: 500));
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
 
   for (final mode in GenerationLayoutMode.values) {
     testWidgets('${mode.name} 布局输入框失焦后焦点回到生成页快捷键锚点', (tester) async {
@@ -692,6 +776,13 @@ class _FixedLayoutModeNotifier extends GenerationLayoutModeNotifier {
   GenerationLayoutMode build() => mode;
 }
 
+class _SingleCharacterNotifier extends CharacterPromptNotifier {
+  @override
+  CharacterPromptConfig build() => const CharacterPromptConfig(
+    characters: [CharacterPrompt(id: 'ada', name: 'Ada', prompt: 'blue hair')],
+  );
+}
+
 class _ExtraUsageSubscriptionNotifier extends SubscriptionNotifier {
   @override
   SubscriptionState build() => const SubscriptionState.loaded(
@@ -719,4 +810,22 @@ class _PromptStateTestStorage extends LocalStorageService {
   Future<void> setPromptMaximized(bool maximized) async {
     _maximized = maximized;
   }
+}
+
+Future<void> _openMobilePromptEditor(WidgetTester tester) async {
+  final overview = find.byKey(
+    const ValueKey('generation-collapsed-prompt-launcher'),
+  );
+  final entry = overview.evaluate().isNotEmpty
+      ? overview
+      : find.descendant(
+          of: find.byKey(const ValueKey('generation_prompt_compact_scroll')),
+          matching: find.byIcon(Icons.fullscreen),
+        );
+  await tester.ensureVisible(entry);
+  expect(entry.hitTestable(), findsOneWidget);
+  await tester.tap(entry);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 200));
+  expect(tester.takeException(), isNull);
 }

@@ -31,6 +31,9 @@ class PromptInputEditor extends ConsumerWidget {
   final PromptInputViewData viewData;
   final bool compact;
 
+  static double minimumHeight(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(16) * 1.5 + 24;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enableAutocomplete = ref.watch(autocompleteSettingsProvider);

@@ -25,6 +25,7 @@ class PromptInputWidget extends ConsumerStatefulWidget {
     this.compact = false,
     this.onToggleMaximize,
     this.isMaximized = false,
+    this.useMobileWorkbench = false,
     this.showMaximizeButton = true,
     this.autofocus = false,
     this.negativeModeNotifier,
@@ -36,6 +37,7 @@ class PromptInputWidget extends ConsumerStatefulWidget {
   final bool compact;
   final VoidCallback? onToggleMaximize;
   final bool isMaximized;
+  final bool useMobileWorkbench;
   final bool showMaximizeButton;
   final bool autofocus;
   final ValueNotifier<bool>? negativeModeNotifier;
@@ -203,6 +205,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
       );
     }
     return _FullPromptInput(
+      useMobileWorkbench: widget.useMobileWorkbench,
       editorKey: _editorKey,
       assistant: assistant,
       controller: _controller,
@@ -214,6 +217,7 @@ class _PromptInputWidgetState extends ConsumerState<PromptInputWidget> {
 
 class _FullPromptInput extends StatelessWidget {
   const _FullPromptInput({
+    required this.useMobileWorkbench,
     required this.editorKey,
     required this.assistant,
     required this.controller,
@@ -221,6 +225,7 @@ class _FullPromptInput extends StatelessWidget {
     required this.viewData,
   });
 
+  final bool useMobileWorkbench;
   final GlobalKey editorKey;
   final PromptAssistantOverlay assistant;
   final PromptInputController controller;
@@ -252,7 +257,8 @@ class _FullPromptInput extends StatelessWidget {
         );
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (viewData.isMaximized && constraints.maxWidth < 600) {
+        if (viewData.isMaximized &&
+            (useMobileWorkbench || constraints.maxWidth < 600)) {
           return PromptInputToolbar(
             controller: controller,
             commands: commands,
@@ -395,12 +401,11 @@ class _CompactPromptInput extends StatelessWidget {
       final negative = controller.isNegativeMode;
 
       final showModeSwitch = constraints.maxHeight >= 180;
-      final minimumEditorHeight =
-          MediaQuery.textScalerOf(context).scale(16) * 1.5 + 24;
       final footerHeight = PromptFooterStyle.height(
         context,
       ).clamp(kMinInteractiveDimension, double.infinity);
-      final minimumHeight = minimumEditorHeight + footerHeight + 4;
+      final minimumHeight =
+          PromptInputEditor.minimumHeight(context) + footerHeight + 4;
       return SingleChildScrollView(
         key: const ValueKey('generation_prompt_compact_scroll'),
         primary: false,
