@@ -73,4 +73,16 @@ extension PreciseRefTypeExtension on PreciseRefType {
       PreciseRefType.costume => 'preciseRef_typeOutfit',
     };
   }
+
+  /// 「优先同款服装」只对角色、角色与风格两种类型生效。
+  bool get acceptsSameOutfitPreference =>
+      this == PreciseRefType.character ||
+      this == PreciseRefType.characterAndStyle;
+
+  /// 实际生效的同款服装偏好；未显式设置时角色默认否、角色与风格默认是，
+  /// 与 [preciseReferenceDescription] 的取值一致。不适用的类型返回 null。
+  bool? effectiveSameOutfitPreference(bool? stored) =>
+      acceptsSameOutfitPreference
+      ? stored ?? (this == PreciseRefType.characterAndStyle)
+      : null;
 }

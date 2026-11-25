@@ -122,9 +122,7 @@ class PreciseReferenceImageCard extends StatelessWidget {
   Widget _buildTypeEditor(BuildContext context) {
     final type = reference.type;
     final showPreference =
-        capabilities.supportsOutfit &&
-        (type == PreciseRefType.character ||
-            type == PreciseRefType.characterAndStyle);
+        capabilities.supportsOutfit && type.acceptsSameOutfitPreference;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -140,9 +138,9 @@ class PreciseReferenceImageCard extends StatelessWidget {
                 context.l10n.preciseRef_preferSameOutfit,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-              value:
-                  reference.preferSameOutfit ??
-                  (type == PreciseRefType.characterAndStyle),
+              value: type.effectiveSameOutfitPreference(
+                reference.preferSameOutfit,
+              ),
               onChanged: onPreferSameOutfitChanged,
             ),
           ),
