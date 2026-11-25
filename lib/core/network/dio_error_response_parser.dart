@@ -6,7 +6,7 @@ import 'dart:typed_data';
 /// Dio keeps error bodies as bytes when the successful response is expected to
 /// be an image archive. Third-party APIs commonly return JSON in that case.
 String? parseDioErrorResponseDetails(Object? data) {
-  final decoded = _decodeDioErrorResponse(data);
+  final decoded = decodeDioErrorResponse(data);
   if (decoded == null) return null;
 
   if (decoded is String) {
@@ -43,7 +43,7 @@ String? parseDioErrorResponseDetails(Object? data) {
 }
 
 String formatDioErrorResponseDataForLog(Object? data) {
-  final decoded = _decodeDioErrorResponse(data);
+  final decoded = decodeDioErrorResponse(data);
   final text = decoded is String
       ? decoded.trim()
       : decoded == null
@@ -65,7 +65,10 @@ String _encodeDioErrorResponseForLog(Object decoded) {
   return decoded.toString();
 }
 
-Object? _decodeDioErrorResponse(Object? data) {
+/// Decodes an error body to JSON when possible, otherwise to its trimmed text.
+///
+/// Returns null for an empty body or bytes that are not UTF-8.
+Object? decodeDioErrorResponse(Object? data) {
   Object? decoded = data;
   if (data is Uint8List) {
     try {

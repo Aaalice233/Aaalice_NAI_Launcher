@@ -19,6 +19,7 @@ import '../../models/image/image_stream_chunk.dart';
 import 'nai_generation_response_processor.dart';
 import 'nai_generation_transport.dart';
 import 'nai_image_enhancement_api_service.dart';
+import 'nai_image_upload_cache.dart';
 
 part 'nai_image_generation_api_service.g.dart';
 
@@ -32,7 +33,8 @@ class NAIImageGenerationApiService {
     this._enhancementService,
     NaiApiEndpointService endpointService, [
     CriticalNetworkActivityCoordinator? networkActivity,
-  ]) : _transport = NaiGenerationTransport(dio, endpointService),
+    NaiImageUploadCache? uploadCache,
+  ]) : _transport = NaiGenerationTransport(dio, endpointService, uploadCache),
        _responseProcessor = NaiGenerationResponseProcessor(),
        _networkActivity =
            networkActivity ?? CriticalNetworkActivityCoordinator.instance;
@@ -383,5 +385,11 @@ NAIImageGenerationApiService naiImageGenerationApiService(Ref ref) {
   final dio = ref.watch(dioClientProvider);
   final enhancementService = ref.watch(naiImageEnhancementApiServiceProvider);
   final endpointService = ref.watch(naiApiEndpointServiceProvider);
-  return NAIImageGenerationApiService(dio, enhancementService, endpointService);
+  return NAIImageGenerationApiService(
+    dio,
+    enhancementService,
+    endpointService,
+    CriticalNetworkActivityCoordinator.instance,
+    ref.watch(naiImageUploadCacheProvider),
+  );
 }
