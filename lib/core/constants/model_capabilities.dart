@@ -1,5 +1,33 @@
 import 'api_constants.dart';
 
+class PreciseReferenceCapabilities {
+  const PreciseReferenceCapabilities({
+    this.supported = false,
+    this.availableInInpainting = false,
+    this.resizesImages = false,
+    this.bucketsImages = false,
+    this.supportsFidelity = false,
+    this.strengthSliderMax = 1.0,
+    this.supportsOutfit = false,
+  });
+
+  static const none = PreciseReferenceCapabilities();
+  static const v45 = PreciseReferenceCapabilities(
+    supported: true,
+    availableInInpainting: true,
+    resizesImages: true,
+    supportsFidelity: true,
+  );
+
+  final bool supported;
+  final bool availableInInpainting;
+  final bool resizesImages;
+  final bool bucketsImages;
+  final bool supportsFidelity;
+  final double strengthSliderMax;
+  final bool supportsOutfit;
+}
+
 /// 请求体使用的提示词结构。
 enum PromptStructure {
   /// V3 及更早：顶层 `uc`、`sm`、`sm_dyn`。
@@ -66,7 +94,7 @@ class ModelCapabilities {
     this.maxCharacters = 0,
     this.supportsVibeTransfer = false,
     this.supportsEncodedVibeTransfer = false,
-    this.supportsPreciseReference = false,
+    this.preciseReference = PreciseReferenceCapabilities.none,
     this.hasInpaintingVariant = true,
     this.supportsImg2ImgInpainting = false,
     this.supportsTransparentBackground = false,
@@ -117,7 +145,7 @@ class ModelCapabilities {
   /// V3 支持传统 Vibe Transfer，但直接在生成请求中携带原图；只有 V4+
   /// 需要先调用编码接口，并支持缓存编码、强度标准化及相应 Anlas 费用。
   final bool supportsEncodedVibeTransfer;
-  final bool supportsPreciseReference;
+  final PreciseReferenceCapabilities preciseReference;
 
   final bool hasInpaintingVariant;
 
@@ -299,7 +327,7 @@ class ModelCapabilityRegistry {
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
-    supportsPreciseReference: true,
+    preciseReference: PreciseReferenceCapabilities.v45,
     supportsImg2ImgInpainting: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,
@@ -320,7 +348,7 @@ class ModelCapabilityRegistry {
     maxCharacters: 6,
     supportsVibeTransfer: true,
     supportsEncodedVibeTransfer: true,
-    supportsPreciseReference: true,
+    preciseReference: PreciseReferenceCapabilities.v45,
     supportsImg2ImgInpainting: true,
     supportsEnhancePromptAdd: true,
     supportsTextRendering: true,

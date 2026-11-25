@@ -281,6 +281,13 @@ extension ImageParamsExtension on ImageParams {
   /// 当前模型的能力描述
   ModelCapabilities get capabilities => ModelCapabilityRegistry.of(model);
 
+  String get requestModel => action == ImageGenerationAction.infill
+      ? ImageModels.resolveInpaintingModel(ImageModels.resolveBaseModel(model))
+      : model;
+
+  PreciseReferenceCapabilities get requestPreciseReferenceCapabilities =>
+      ModelCapabilityRegistry.of(requestModel).preciseReference;
+
   /// 检查是否为 V3 模型
   bool get isV3Model =>
       model.contains('diffusion-3') || model.contains('diffusion-furry-3');

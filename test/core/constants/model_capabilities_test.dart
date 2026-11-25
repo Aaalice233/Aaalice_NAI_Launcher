@@ -175,7 +175,7 @@ void main() {
       final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
 
       expect(caps.supportsVibeTransfer, isFalse);
-      expect(caps.supportsPreciseReference, isFalse);
+      expect(caps.preciseReference.supported, isFalse);
       expect(ImageModels.isV45Model(ImageModels.v5StagingKey), isFalse);
     });
 
@@ -297,13 +297,13 @@ void main() {
       expect(
         ModelCapabilityRegistry.of(
           ImageModels.animeDiffusionV45Full,
-        ).supportsPreciseReference,
+        ).preciseReference.supported,
         isTrue,
       );
       expect(
         ModelCapabilityRegistry.of(
           ImageModels.animeDiffusionV4Full,
-        ).supportsPreciseReference,
+        ).preciseReference.supported,
         isFalse,
       );
     });

@@ -13,6 +13,7 @@ import 'isolate_pool.dart';
 class NAIApiUtils {
   static final Expando<bool> _normalizedPreciseReferencePngCache =
       Expando<bool>('normalizedPreciseReferencePng');
+  static final _preciseReferencePngByOriginal = Expando<Future<Uint8List>>();
 
   /// 标记该字节对象已经是 Director Reference 可直接提交的 PNG。
   static Uint8List markNormalizedPreciseReferencePng(Uint8List imageBytes) {
@@ -100,11 +101,24 @@ class NAIApiUtils {
   }
 
   /// 在后台 isolate 中执行 Director Reference 图片规范化，避免阻塞 UI isolate。
-  static Future<Uint8List> ensurePngFormatAsync(Uint8List imageBytes) async {
-    final normalizedBytes = await ComputeGate().runIsolate(
-      () => ensurePngFormat(imageBytes),
-    );
-    return markNormalizedPreciseReferencePng(normalizedBytes);
+  static Future<Uint8List> ensurePngFormatAsync(Uint8List imageBytes) {
+    if (isKnownNormalizedPreciseReferencePng(imageBytes)) {
+      return Future.value(imageBytes);
+    }
+    return _preciseReferencePngByOriginal[imageBytes] ??=
+        _normalizePreciseReferencePng(imageBytes);
+  }
+
+  static Future<Uint8List> _normalizePreciseReferencePng(
+    Uint8List bytes,
+  ) async {
+    try {
+      final normalized = await ComputeGate().runCompute(ensurePngFormat, bytes);
+      return markNormalizedPreciseReferencePng(normalized);
+    } catch (_) {
+      _preciseReferencePngByOriginal[bytes] = null;
+      rethrow;
+    }
   }
 
   /// 格式化 DioException 为错误代码（供 UI 层本地化显示）
