@@ -81,6 +81,8 @@ void main() {
   const refreshInterval = Duration(seconds: 30);
   const gateSettle = Duration(milliseconds: 250);
   const billingDelay = Duration(milliseconds: 10);
+  const settleWindow = SubscriptionNotifier.postBillingRefreshDelay;
+  const lastMillisecond = Duration(milliseconds: 1);
 
   late _MockUserInfoApi api;
   late int requestCount;
@@ -160,6 +162,20 @@ void main() {
     await tester.pump(refreshInterval);
     await tester.pump(gateSettle);
     await settle(tester);
+  }
+
+  Future<void> deferDuringBilling(
+    SubscriptionNotifier notifier,
+    SubscriptionRefreshPriority priority,
+  ) async {
+    final lease = CriticalNetworkActivityCoordinator.instance.acquire(
+      CriticalNetworkActivityType.imageGeneration,
+    );
+    try {
+      expect(await notifier.refreshBalance(priority: priority), isFalse);
+    } finally {
+      lease.release();
+    }
   }
 
   // 登录时带回的快照是 100，之后真实刷新到 90，这 10 点是真实消耗；此后的余额记录从这里开始
@@ -305,12 +321,142 @@ void main() {
     await waitOneRefreshInterval(tester);
     expect(requestCount, 0);
 
+    final notifier = container.read(subscriptionNotifierProvider.notifier);
+    final verification = notifier.ensureFreshForBilling();
     lease.release();
-    await settle(tester);
+    await tester.pump(settleWindow - lastMillisecond);
+    expect(requestCount, 0);
+    await tester.pump(lastMillisecond);
+    expect(requestCount, 1);
+    expect(await verification, isTrue);
+    expect(await notifier.ensureFreshForBilling(), isTrue);
     expect(requestCount, 1);
     await waitOneRefreshInterval(tester);
     expect(requestCount, 2);
   });
+
+  testSession('a deferred background refresh verifies only after the last '
+      'charge settles', (tester) async {
+    final notifier = container.read(subscriptionNotifierProvider.notifier);
+    await deferDuringBilling(notifier, SubscriptionRefreshPriority.background);
+    await tester.pump(settleWindow ~/ 2);
+    final activity = CriticalNetworkActivityCoordinator.instance;
+    activity.acquire(CriticalNetworkActivityType.imageGeneration).release();
+    await tester.pump(settleWindow - lastMillisecond);
+    expect(requestCount, 0);
+
+    final next = activity.acquire(CriticalNetworkActivityType.imageGeneration);
+    try {
+      await tester.pump(settleWindow);
+      expect(requestCount, 0);
+    } finally {
+      next.release();
+    }
+    await tester.pump(settleWindow - lastMillisecond);
+    expect(requestCount, 0);
+    await tester.pump(lastMillisecond);
+    await settle(tester);
+    expect(requestCount, 1);
+    expect(await notifier.ensureFreshForBilling(), isTrue);
+    expect(requestCount, 1);
+  });
+
+  testSession('scheduled balance and periodic refreshes inside a later '
+      'charge window wait and verify together', (tester) async {
+    final notifier = container.read(subscriptionNotifierProvider.notifier);
+    await tester.pump(refreshInterval - settleWindow ~/ 2);
+    notifier.schedulePostBillingRefresh(delay: billingDelay);
+    CriticalNetworkActivityCoordinator.instance
+        .acquire(CriticalNetworkActivityType.imageGeneration)
+        .release();
+    await tester.pump(settleWindow - lastMillisecond);
+    expect(requestCount, 0);
+    await tester.pump(lastMillisecond);
+    expect(requestCount, 1);
+    expect(await notifier.ensureFreshForBilling(), isTrue);
+    expect(requestCount, 1);
+  });
+
+  testSession('restoring the session within a settle window keeps its '
+      'refresh deferred', (tester) async {
+    final notifier = container.read(subscriptionNotifierProvider.notifier);
+    await deferDuringBilling(notifier, SubscriptionRefreshPriority.postBilling);
+    await change(tester, auth.beginRevalidation);
+    await change(tester, auth.restoreAfterFailedRevalidation);
+    await tester.pump(settleWindow - lastMillisecond);
+    expect(requestCount, 0);
+    await tester.pump(lastMillisecond);
+    expect(requestCount, 1);
+  });
+
+  testSession('a same-account subscription rebuild resumes the deferred '
+      'refresh after settling', (tester) async {
+    final notifier = container.read(subscriptionNotifierProvider.notifier);
+    await deferDuringBilling(notifier, SubscriptionRefreshPriority.postBilling);
+    await tester.pump(settleWindow ~/ 2);
+    final session = container.read(authNotifierProvider);
+    await change(tester, () {
+      auth.replaceSession(session.copyWith(subscriptionUnsupported: true));
+    });
+    await change(tester, () => auth.replaceSession(session));
+    await tester.pump(settleWindow - lastMillisecond);
+    expect(requestCount, 0);
+    await tester.pump(lastMillisecond);
+    expect(requestCount, 1);
+    expect(await notifier.ensureFreshForBilling(), isTrue);
+    expect(requestCount, 1);
+  });
+
+  for (final signOut in [true, false]) {
+    testSession(
+      '${signOut ? "sign-out" : "account switch"} drops a settling refresh',
+      (tester) async {
+        final notifier = container.read(subscriptionNotifierProvider.notifier);
+        await deferDuringBilling(
+          notifier,
+          SubscriptionRefreshPriority.postBilling,
+        );
+        await change(
+          tester,
+          signOut
+              ? auth.signOut
+              : () => auth.replaceSession(_account('account-b', balance: 500)),
+        );
+        await tester.pump(settleWindow);
+        expect(requestCount, 0);
+        expect(balance(), signOut ? isNull : 500);
+      },
+    );
+  }
+
+  for (final showEarly in [false, true]) {
+    testSession(
+      'a hidden deferred refresh resumes when visible '
+      '${showEarly ? "and settled" : "after settling"}',
+      (tester) async {
+        final notifier = container.read(subscriptionNotifierProvider.notifier);
+        await deferDuringBilling(
+          notifier,
+          SubscriptionRefreshPriority.postBilling,
+        );
+        notifier.schedulePostBillingRefresh();
+        notifier.setAppVisible(false);
+        await tester.pump(settleWindow - lastMillisecond);
+        if (showEarly) notifier.setAppVisible(true);
+        await settle(tester);
+        expect(requestCount, 0);
+        await tester.pump(lastMillisecond);
+        if (!showEarly) {
+          expect(requestCount, 0);
+          notifier.setAppVisible(true);
+          await settle(tester);
+        }
+        expect(requestCount, 1);
+        await waitOneRefreshInterval(tester);
+        expect(requestCount, 2);
+      },
+    );
+  }
 
   testWidgets('a first fetch deferred together with a post-billing refresh '
       'still starts the refresh cadence', (tester) async {
@@ -334,7 +480,9 @@ void main() {
       expect(requestCount, 0);
 
       lease.release();
-      await tester.pump(Duration.zero);
+      await tester.pump(settleWindow - lastMillisecond);
+      expect(requestCount, 0);
+      await tester.pump(lastMillisecond);
       expect(requestCount, 1);
       expect(unhydrated.read(subscriptionNotifierProvider).balance, 90);
 

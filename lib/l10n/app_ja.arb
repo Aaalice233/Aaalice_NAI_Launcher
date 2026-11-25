@@ -5401,6 +5401,13 @@
       "threshold": {}
     }
   },
+  "settings_highAnlasCostUnverifiedContent": "サブスクリプションの状態をまだ確認できていません。Opus の無料枠を使い切っている場合、このリクエストには最大 {cost} Anlas かかり、{threshold} Anlas の警告しきい値に達するか超えています。生成を継続しますか?",
+  "@settings_highAnlasCostUnverifiedContent": {
+    "placeholders": {
+      "cost": {},
+      "threshold": {}
+    }
+  },
   "settings_continueGeneration": "生成を続行",
 
   "settings_comfyUiEnable": "ComfyUI 統合を有効にする",

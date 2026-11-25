@@ -478,7 +478,7 @@ void main() {
           isOpus: container.read(subscriptionBillingViewProvider).isOpus,
         );
 
-        expect(settledCost, equals(expected));
+        expect(settledCost, (knownCost: expected, confirmationCost: expected));
         expect(container.read(estimatedCostProvider), equals(expected));
       },
     );
@@ -504,8 +504,9 @@ void main() {
         );
       });
 
-      expect(settledCost, _maskOnlyCost(container, mask));
-      expect(container.read(estimatedCostProvider), settledCost);
+      final expected = _maskOnlyCost(container, mask);
+      expect(settledCost, (knownCost: expected, confirmationCost: expected));
+      expect(container.read(estimatedCostProvider), expected);
       expect(container.read(isBalanceInsufficientProvider), isTrue);
     });
 
@@ -528,7 +529,7 @@ void main() {
         container,
         readGenerationPageRequest(container),
       );
-      expect(container.read(estimatedCostProvider), firstCost);
+      expect(container.read(estimatedCostProvider), firstCost.knownCost);
 
       final secondCost = await expectQueuedBehindSharedComputeGate(() {
         workflow.onMaskChanged(second);
@@ -536,16 +537,24 @@ void main() {
           container.read(focusedInpaintMaskRequestSizeProvider).isLoading,
           isTrue,
         );
-        expect(container.read(estimatedCostProvider), firstCost);
+        expect(container.read(estimatedCostProvider), firstCost.knownCost);
         return readSettledEstimatedCost(
           container,
           readGenerationPageRequest(container),
         );
       });
 
-      expect(firstCost, _maskOnlyCost(container, first));
-      expect(secondCost, _maskOnlyCost(container, second));
-      expect(secondCost, isNot(firstCost));
+      final firstExpected = _maskOnlyCost(container, first);
+      final secondExpected = _maskOnlyCost(container, second);
+      expect(firstCost, (
+        knownCost: firstExpected,
+        confirmationCost: firstExpected,
+      ));
+      expect(secondCost, (
+        knownCost: secondExpected,
+        confirmationCost: secondExpected,
+      ));
+      expect(secondExpected, isNot(firstExpected));
     });
 
     test('context size changes reuse the decoded mask bounds', () async {
@@ -599,7 +608,8 @@ void main() {
         ),
       );
 
-      expect(cost, container.read(estimatedCostProvider));
+      final knownCost = container.read(estimatedCostProvider)!;
+      expect(cost, (knownCost: knownCost, confirmationCost: knownCost));
     });
 
     test('should use regular inpaint strength for the base price', () {

@@ -5375,6 +5375,13 @@
       "threshold": {}
     }
   },
+  "settings_highAnlasCostUnverifiedContent": "Your subscription could not be verified yet. If the free Opus allowance has run out, this request costs up to {cost} Anlas, which reaches or exceeds your {threshold} Anlas warning threshold. Continue generation?",
+  "@settings_highAnlasCostUnverifiedContent": {
+    "placeholders": {
+      "cost": {},
+      "threshold": {}
+    }
+  },
   "settings_continueGeneration": "Continue Generation",
 
   "settings_comfyUiEnable": "Enable ComfyUI Integration",

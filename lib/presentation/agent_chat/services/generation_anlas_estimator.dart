@@ -13,7 +13,7 @@ class GenerationAnlasEstimator {
 
   int get currentBatchSize => _ref.read(imagesPerRequestProvider);
 
-  /// 订阅数据过期时先刷新；用于放行与审批判断的估价都从这里取订阅视图。
+  /// 智能体与 MCP 的生成放行和审批使用本次核实结果。
   Future<SubscriptionBillingView> freshBilling() =>
       _ref.read(subscriptionNotifierProvider.notifier).freshBillingView();
 

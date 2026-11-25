@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/file_export_service.dart';
+import '../providers/cost_estimate_provider.dart';
 import '../providers/share_image_settings_provider.dart';
 import '../widgets/common/themed_confirm_dialog.dart';
 import '../../core/utils/localization_extension.dart';
@@ -69,7 +70,7 @@ class AssetProtectionGuard {
   static Future<bool> confirmHighAnlasCost({
     required BuildContext context,
     required WidgetRef ref,
-    required Future<int?> Function() estimateCost,
+    required Future<GenerationCostEstimate?> Function() estimateCost,
   }) async {
     final threshold = ref
         .read(shareImageSettingsProvider)
@@ -78,9 +79,10 @@ class AssetProtectionGuard {
       return true;
     }
 
-    final estimatedCost = await estimateCost();
-    if (estimatedCost == null || !context.mounted) return false;
-    if (estimatedCost < threshold) {
+    final estimate = await estimateCost();
+    if (estimate == null || !context.mounted) return false;
+    final cost = estimate.confirmationCost;
+    if (cost < threshold) {
       return true;
     }
 
@@ -88,7 +90,9 @@ class AssetProtectionGuard {
     return ThemedConfirmDialog.show(
       context: context,
       title: l10n.settings_highAnlasCostTitle,
-      content: l10n.settings_highAnlasCostContent(estimatedCost, threshold),
+      content: cost == estimate.knownCost
+          ? l10n.settings_highAnlasCostContent(cost, threshold)
+          : l10n.settings_highAnlasCostUnverifiedContent(cost, threshold),
       confirmText: l10n.settings_continueGeneration,
       cancelText: l10n.common_cancel,
       type: ThemedConfirmDialogType.warning,

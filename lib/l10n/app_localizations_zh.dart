@@ -10767,6 +10767,14 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String settings_highAnlasCostUnverifiedContent(
+    Object cost,
+    Object threshold,
+  ) {
+    return '订阅状态尚未核实。如果 Opus 免费额度已用尽，本次最多消耗 $cost Anlas，已达到或超过你设置的 $threshold Anlas 警告阈值。请确认是否继续生成。';
+  }
+
+  @override
   String get settings_continueGeneration => '继续生成';
 
   @override
@@ -26625,6 +26633,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String settings_highAnlasCostContent(Object cost, Object threshold) {
     return '本次預計消耗 $cost Anlas，已達到或超過你設定的 $threshold Anlas 警告閾值。請確認是否繼續生成。';
+  }
+
+  @override
+  String settings_highAnlasCostUnverifiedContent(
+    Object cost,
+    Object threshold,
+  ) {
+    return '訂閱狀態尚未核實。如果 Opus 免費額度已用盡，本次最多消耗 $cost Anlas，已達到或超過你設定的 $threshold Anlas 警告閾值。請確認是否繼續生成。';
   }
 
   @override

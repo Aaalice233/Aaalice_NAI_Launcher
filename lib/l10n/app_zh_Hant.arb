@@ -5201,6 +5201,13 @@
       "threshold": {}
     }
   },
+  "settings_highAnlasCostUnverifiedContent": "訂閱狀態尚未核實。如果 Opus 免費額度已用盡，本次最多消耗 {cost} Anlas，已達到或超過你設定的 {threshold} Anlas 警告閾值。請確認是否繼續生成。",
+  "@settings_highAnlasCostUnverifiedContent": {
+    "placeholders": {
+      "cost": {},
+      "threshold": {}
+    }
+  },
   "settings_continueGeneration": "繼續生成",
   "settings_comfyUiEnable": "啟用 ComfyUI 整合",
   "settings_comfyUiDisabledSubtitle": "關閉後將隱藏本地超分等 ComfyUI 功能",

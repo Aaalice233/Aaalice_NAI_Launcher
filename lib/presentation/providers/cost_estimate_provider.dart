@@ -15,6 +15,7 @@ import 'subscription_provider.dart';
 part 'cost_estimate_provider.g.dart';
 
 typedef GenerationPageRequest = (ImageParams, ImageWorkflowState, int);
+typedef GenerationCostEstimate = ({int knownCost, int confirmationCost});
 
 GenerationPageRequest readGenerationPageRequest(ProviderContainer container) =>
     (
@@ -120,7 +121,7 @@ int? _estimateCost({
   );
 }
 
-final _maskExtentByImageProvider = FutureProvider.autoDispose.family(
+final focusedMaskExtentByImageProvider = FutureProvider.autoDispose.family(
   (_, Uint8List mask) => FocusedInpaintUtils.resolveMaskExtentAsync(mask),
 );
 
@@ -134,7 +135,7 @@ FutureOr<FocusedInpaintMaskExtent?> focusedInpaintMaskExtent(Ref ref) {
   if (maskImage == null) {
     return null;
   }
-  return ref.watch(_maskExtentByImageProvider(maskImage)).requireValue;
+  return ref.watch(focusedMaskExtentByImageProvider(maskImage)).requireValue;
 }
 
 /// 聚焦重绘"仅蒙版"场景下的请求几何（轻量路径）。
@@ -187,32 +188,37 @@ FocusedInpaintGeometry? _geometryForExtent(
         minContextMegaPixels: padding,
       );
 
-/// 蒙版外接矩形仍在后台计算时先等它落定，给出与同步计算一致的预估消耗。
-///
-/// 界面在计算期间只有上一次的结果或"计算中"，需要确切数值的确认流程走这里；
-/// 订阅数据过期时先刷新，刷新失败则按不免费计价。
-Future<int> readSettledEstimatedCost(
+/// 生成页确认按点击时的请求估价，只等待这张蒙版的外接矩形。
+/// 已知订阅不足以确认免费额度时，同时计算本次确认使用的费用上限。
+Future<GenerationCostEstimate> readSettledEstimatedCost(
   ProviderContainer container,
   GenerationPageRequest request,
 ) async {
-  final billing = await container
+  final billing = container
       .read(subscriptionNotifierProvider.notifier)
-      .freshBillingView();
+      .generationPageBilling;
   final (params, workflow, batchSize) = request;
   final extent = workflow.focusesOnMaskExtent && params.isInpainting
       ? await container.read(
-          _maskExtentByImageProvider(params.maskImage!).future,
+          focusedMaskExtentByImageProvider(params.maskImage!).future,
         )
       : null;
-  return _estimateCost(
+  late final maskGeometry = AsyncData(
+    _geometryForExtent(extent, workflow.minimumContextMegaPixels),
+  );
+  int estimate(SubscriptionBillingView view) => _estimateCost(
     params: params,
     workflow: workflow,
-    readFocusedMaskGeometry: () => AsyncData(
-      _geometryForExtent(extent, workflow.minimumContextMegaPixels),
-    ),
+    readFocusedMaskGeometry: () => maskGeometry,
     batchSize: batchSize,
-    billing: billing,
+    billing: view,
   )!;
+  final knownCost = estimate(billing.known);
+  final worstCase = billing.worstCase;
+  return (
+    knownCost: knownCost,
+    confirmationCost: worstCase == null ? knownCost : estimate(worstCase),
+  );
 }
 
 /// 预估消耗 Provider
