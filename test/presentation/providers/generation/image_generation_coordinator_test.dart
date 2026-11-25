@@ -8,6 +8,7 @@ import 'package:nai_launcher/core/utils/focused_inpaint_input_exception.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
+import 'package:nai_launcher/core/network/request_builders/precise_reference_limit_exception.dart';
 import 'package:nai_launcher/data/models/image/image_stream_chunk.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_command.dart';
 import 'package:nai_launcher/presentation/providers/generation/image_generation_coordinator.dart';
@@ -955,6 +956,10 @@ void main() {
 
   for (final (label, message) in [
     ('empty inpaint mask', const EmptyInpaintMaskException().toString()),
+    (
+      'precise reference limit',
+      const PreciseReferenceLimitException().toString(),
+    ),
     ('invalid fixed frame', FocusedInpaintInputException.invalidCropCode),
     ('unreadable focused image', FocusedInpaintInputException.decodeFailedCode),
   ]) {

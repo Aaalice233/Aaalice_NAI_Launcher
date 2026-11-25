@@ -30,6 +30,29 @@ void main() {
       }
     });
 
+    test('single-pass buffer matches all unsegmented Pica fixtures', () {
+      for (final fixture in _fixtures.take(4)) {
+        final source = _buildSource(
+          fixture.sourceWidth,
+          fixture.sourceHeight,
+          withAlpha: fixture.withAlpha,
+        );
+        final actual = PicaLanczosResizer.resizeBuffer(
+          source,
+          sourceWidth: fixture.sourceWidth,
+          sourceHeight: fixture.sourceHeight,
+          targetWidth: fixture.targetWidth,
+          targetHeight: fixture.targetHeight,
+        );
+
+        expect(
+          actual,
+          base64Decode(fixture.expectedBase64),
+          reason: fixture.name,
+        );
+      }
+    });
+
     test('matches official Pica fixtures through the RGBA8 image adapter', () {
       for (final fixture in _fixtures) {
         final bytes = _buildSource(
@@ -57,6 +80,25 @@ void main() {
           reason: fixture.name,
         );
       }
+    });
+
+    test('single-pass buffer bypasses the staged resampling path', () {
+      final fixture = _fixtures.last;
+      final source = _buildSource(
+        fixture.sourceWidth,
+        fixture.sourceHeight,
+        withAlpha: fixture.withAlpha,
+      );
+      final actual = PicaLanczosResizer.resizeBuffer(
+        source,
+        sourceWidth: fixture.sourceWidth,
+        sourceHeight: fixture.sourceHeight,
+        targetWidth: fixture.targetWidth,
+        targetHeight: fixture.targetHeight,
+      );
+
+      expect(actual, hasLength(fixture.targetWidth * fixture.targetHeight * 4));
+      expect(actual, isNot(base64Decode(fixture.expectedBase64)));
     });
 
     test('premultiplies alpha and avoids colored transparent fringes', () {

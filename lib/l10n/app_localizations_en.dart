@@ -9665,8 +9665,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRef_fidelity => 'Fidelity';
 
   @override
-  String get preciseRef_v4Only =>
-      'This feature is only available on V4.5 models';
+  String get preciseRef_supportedModels =>
+      'Precise Reference is available on V4.5 and V5 models';
 
   @override
   String get preciseRef_typeCharacter => 'Character';
@@ -9679,6 +9679,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preciseRef_typeOutfit => 'Outfit';
+
+  @override
+  String get preciseRef_preferSameOutfit => 'Prefer the same outfit';
+
+  @override
+  String get preciseRef_outfitUnsupported =>
+      'This model skips outfit references during generation.';
+
+  @override
+  String get preciseRef_inpaintUnsupported =>
+      'This model skips Precise Reference during inpainting.';
+
+  @override
+  String preciseRef_limitExceeded(int max) {
+    return 'Use at most $max precise references. Remove or disable the extras.';
+  }
 
   @override
   String get preciseRef_costHint =>

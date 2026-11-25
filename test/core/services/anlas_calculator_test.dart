@@ -10,6 +10,87 @@ import 'package:nai_launcher/data/models/vibe/vibe_reference.dart';
 void main() {
   const model = 'nai-diffusion-4-5-full';
 
+  group('official precise reference pricing', () {
+    final references = [
+      PreciseReference(image: Uint8List(1), type: PreciseRefType.character),
+      PreciseReference(image: Uint8List(1), type: PreciseRefType.costume),
+      PreciseReference(
+        image: Uint8List(1),
+        type: PreciseRefType.style,
+        enabled: false,
+      ),
+    ];
+    for (final (model, action, count) in [
+      (ImageModels.animeDiffusionV45Full, ImageGenerationAction.generate, 1),
+      (ImageModels.animeDiffusionV45Curated, ImageGenerationAction.infill, 1),
+      (ImageModels.animeDiffusionV5Curated, ImageGenerationAction.generate, 2),
+      (ImageModels.animeDiffusionV5Curated, ImageGenerationAction.infill, 1),
+      (ImageModels.animeDiffusionV5Full, ImageGenerationAction.img2img, 2),
+      (ImageModels.animeDiffusionV5Full, ImageGenerationAction.infill, 0),
+      (
+        ImageModels.animeDiffusionV5FullMedium,
+        ImageGenerationAction.generate,
+        2,
+      ),
+      (ImageModels.animeDiffusionV5FullMedium, ImageGenerationAction.infill, 0),
+      (ImageModels.animeDiffusionV4Full, ImageGenerationAction.generate, 0),
+    ]) {
+      test('$model ${action.name} bills only the references it sends', () {
+        final params = ImageParams(
+          model: model,
+          action: action,
+          width: 832,
+          height: 1216,
+          steps: 28,
+          nSamples: 3,
+        );
+        final withReferences = params.copyWith(preciseReferences: references);
+        for (final isOpus in [false, true]) {
+          expect(
+            AnlasCalculator.calculate(withReferences, isOpus: isOpus),
+            AnlasCalculator.calculate(params, isOpus: isOpus) + 5 * count * 3,
+          );
+        }
+        expect(
+          AnlasCalculator.calculate(
+            withReferences,
+            batchCount: 2,
+            batchSize: 4,
+          ),
+          AnlasCalculator.calculate(params, batchCount: 2, batchSize: 4) +
+              5 * count * 8,
+        );
+        expect(
+          AnlasCalculator.isOpusFreeGeneration(
+            withReferences.copyWith(nSamples: 1),
+            isOpus: true,
+          ),
+          count == 0,
+        );
+      });
+    }
+
+    for (final model in [
+      ImageModels.animeDiffusionV45Full,
+      ImageModels.animeDiffusionV5Full,
+    ]) {
+      test('$model omits reference fees from the estimate when over limit', () {
+        final params = ImageParams(model: model);
+        ImageParams withCount(int count) => params.copyWith(
+          preciseReferences: List.filled(count, references.first),
+        );
+        expect(
+          AnlasCalculator.resolvePreciseReferenceExtraCost(withCount(16)),
+          80,
+        );
+        expect(
+          AnlasCalculator.calculate(withCount(17)),
+          AnlasCalculator.calculate(params),
+        );
+      });
+    }
+  });
+
   group('AnlasCalculator base pricing', () {
     test('matches the web formula at non-default step counts', () {
       final cost = AnlasCalculator.calculateFromValues(

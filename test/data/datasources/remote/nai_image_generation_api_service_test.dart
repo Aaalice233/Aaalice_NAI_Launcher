@@ -11,11 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:msgpack_dart/msgpack_dart.dart' as msgpack;
 import 'package:nai_launcher/core/constants/api_constants.dart';
+import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/network/browser_identity/browser_headers_interceptor.dart';
 import 'package:nai_launcher/core/network/browser_identity/chrome_identity.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint.dart';
 import 'package:nai_launcher/core/network/nai_api_endpoint_service.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
+import 'package:nai_launcher/core/network/request_builders/precise_reference_limit_exception.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_generation_api_service.dart';
@@ -27,6 +29,94 @@ import '../../../helpers/browser_multipart_reader.dart';
 import '../../../helpers/image_pixel_matchers.dart';
 
 void main() {
+  for (final streaming in [false, true]) {
+    test(
+      'V5 precise references reach the multipart endpoint (streaming=$streaming)',
+      () async {
+        final generated = _solidPng(width: 8, height: 4, r: 32, g: 64, b: 128);
+        final adapter = _PendingDioAdapter(
+          onRequest: (request) {
+            if (streaming) {
+              request.completeWithMsgpackMessages([
+                {'event_type': 'final', 'samp_ix': 0, 'image': generated},
+              ]);
+            } else {
+              request.completeWithZipImage(generated);
+            }
+          },
+        );
+        final dio = Dio()..httpClientAdapter = adapter;
+        addTearDown(dio.close);
+        final endpoint = NaiApiEndpointService();
+        final service = NAIImageGenerationApiService(
+          dio,
+          NAIImageEnhancementApiService(dio, endpoint),
+          endpoint,
+        );
+        final params = ImageParams(
+          model: ImageModels.animeDiffusionV5Full,
+          preciseReferences: [
+            PreciseReference(
+              image: generated,
+              type: PreciseRefType.costume,
+              fidelity: 0.2,
+            ),
+          ],
+        );
+        final result = streaming
+            ? (await service.generateImageStream(params).last).finalImage
+            : (await service.generateImage(params)).$1.single;
+        expect(result, generated);
+        final request = adapter.requests.single.options;
+        final parts = parseBrowserMultipart(
+          request.data as Uint8List,
+          boundaryOf(request.headers['content-type'] as String),
+        );
+        expect(parts.map((part) => part.name), ['director_ref_0', 'request']);
+        final png = img.decodePng(parts.first.bytes)!;
+        expect((png.width, png.height), (1408, 704));
+        final parameters = jsonDecode(parts.last.text)['parameters'] as Map;
+        expect(parameters['director_reference_descriptions'], [
+          {
+            'caption': {'base_caption': 'costume', 'char_captions': []},
+            'legacy_uc': false,
+          },
+        ]);
+        expect(parameters['director_reference_secondary_strength_values'], [0]);
+        expect(parameters, isNot(contains('extra_passthrough_testing')));
+      },
+    );
+  }
+
+  test(
+    'precise reference limit rejects both endpoints before transport',
+    () async {
+      final adapter = _PendingDioAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      addTearDown(dio.close);
+      final endpoint = NaiApiEndpointService();
+      final service = NAIImageGenerationApiService(
+        dio,
+        NAIImageEnhancementApiService(dio, endpoint),
+        endpoint,
+      );
+      final params = ImageParams(
+        model: ImageModels.animeDiffusionV45Curated,
+        preciseReferences: List.filled(
+          17,
+          PreciseReference(image: Uint8List(1), type: PreciseRefType.character),
+        ),
+      );
+      await expectLater(
+        service.generateImage(params),
+        throwsA(isA<PreciseReferenceLimitException>()),
+      );
+      final response = await service.generateImageStream(params).single;
+      expect(response.error, const PreciseReferenceLimitException().toString());
+      expect(adapter.requests, isEmpty);
+    },
+  );
+
   test(
     'encodes generation payloads with the official multipart layout',
     () async {

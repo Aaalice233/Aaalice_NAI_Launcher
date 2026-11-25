@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nai_launcher/core/network/request_builders/precise_reference_limit_exception.dart';
 import 'package:nai_launcher/core/utils/focused_inpaint_input_exception.dart';
 import 'package:nai_launcher/core/utils/inpaint_mask_utils.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -16,6 +17,18 @@ void main() {
   };
 
   for (final entry in locales.entries) {
+    testWidgets('precise reference limit is localized (${entry.key})', (
+      tester,
+    ) async {
+      final context = await _pumpContext(tester, entry.value);
+      final message = const PreciseReferenceLimitException().toString();
+      final expected = AppLocalizations.of(
+        context,
+      )!.preciseRef_limitExceeded(16);
+      expect(describeGenerationError(context, message), (expected, null));
+      expect(detailGenerationError(context, message), expected);
+    });
+
     testWidgets(
       'focused input errors show localized recovery hints (${entry.key})',
       (tester) async {

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
+import 'package:nai_launcher/core/services/anlas_calculator.dart';
 import 'package:nai_launcher/data/models/image/image_params.dart';
 
 void main() {
@@ -96,13 +97,16 @@ void main() {
       expect(params.preciseReferenceCount, equals(3));
     });
 
-    test('preciseReferenceCost should return 0 when no references', () {
+    test('the surcharge is zero with no references', () {
       const params = ImageParams();
 
-      expect(params.preciseReferenceCost, equals(0));
+      expect(
+        AnlasCalculator.resolvePreciseReferenceExtraCost(params),
+        equals(0),
+      );
     });
 
-    test('preciseReferenceCost should return 5 with single reference', () {
+    test('one reference adds 5 Anlas', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(
         preciseReferences: [
@@ -113,11 +117,14 @@ void main() {
         ],
       );
 
-      expect(params.preciseReferenceCost, equals(5));
+      expect(
+        AnlasCalculator.resolvePreciseReferenceExtraCost(params),
+        equals(5),
+      );
     });
 
     test(
-        'preciseReferenceCost should return correct cost with multiple references',
+        'two references add 10 Anlas',
         () {
       final imageData = Uint8List.fromList([1, 2, 3]);
       final params = ImageParams(
@@ -133,10 +140,13 @@ void main() {
         ],
       );
 
-      expect(params.preciseReferenceCost, equals(10));
+      expect(
+        AnlasCalculator.resolvePreciseReferenceExtraCost(params),
+        equals(10),
+      );
     });
 
-    test('preciseReferenceCost should be proportional to count', () {
+    test('the surcharge scales with the reference count', () {
       final imageData = Uint8List.fromList([1, 2, 3]);
 
       for (var count = 0; count <= 5; count++) {
@@ -150,7 +160,10 @@ void main() {
         final params = ImageParams(preciseReferences: references);
 
         expect(params.preciseReferenceCount, equals(count));
-        expect(params.preciseReferenceCost, equals(count * 5));
+        expect(
+          AnlasCalculator.resolvePreciseReferenceExtraCost(params),
+          equals(count * 5),
+        );
       }
     });
 
@@ -190,7 +203,10 @@ void main() {
         );
 
         expect(params.preciseReferenceCount, equals(1));
-        expect(params.preciseReferenceCost, equals(5));
+        expect(
+          AnlasCalculator.resolvePreciseReferenceExtraCost(params),
+          equals(5),
+        );
       }
     });
 
@@ -210,7 +226,10 @@ void main() {
       );
 
       expect(params2.preciseReferenceCount, equals(1));
-      expect(params2.preciseReferenceCost, equals(5));
+      expect(
+        AnlasCalculator.resolvePreciseReferenceExtraCost(params2),
+        equals(5),
+      );
     });
 
     test('should handle clearing references', () {
@@ -229,7 +248,10 @@ void main() {
       final params2 = params1.copyWith(preciseReferences: []);
 
       expect(params2.preciseReferenceCount, equals(0));
-      expect(params2.preciseReferenceCost, equals(0));
+      expect(
+        AnlasCalculator.resolvePreciseReferenceExtraCost(params2),
+        equals(0),
+      );
       expect(params2.hasPreciseReferences, isFalse);
     });
   });

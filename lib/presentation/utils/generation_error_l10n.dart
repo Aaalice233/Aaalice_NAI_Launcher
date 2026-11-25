@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../../core/network/request_builders/precise_reference_limit_exception.dart';
 import '../../core/storage/replication_queue_blob_store.dart';
 import '../../core/utils/focused_inpaint_input_exception.dart';
 import '../../core/utils/inpaint_mask_utils.dart';
@@ -31,6 +32,7 @@ String summarizeGenerationError(BuildContext context, String message) {
 /// 识别出的错误在本地化文案后附上原文，服务端给出的具体原因仍可用于排障。
 String detailGenerationError(BuildContext context, String message) {
   final summary = summarizeGenerationError(context, message);
+  if (PreciseReferenceLimitException.matches(message)) return summary;
   return summary == message ? message : '$summary\n\n$message';
 }
 
@@ -39,6 +41,14 @@ String detailGenerationError(BuildContext context, String message) {
   String message,
 ) {
   final l10n = context.l10n;
+  if (PreciseReferenceLimitException.matches(message)) {
+    return (
+      l10n.preciseRef_limitExceeded(
+        PreciseReferenceLimitException.maxReferences,
+      ),
+      null,
+    );
+  }
   if (isStreamingGenerationUnsupportedError(message)) {
     return (
       l10n.generation_streamingUnsupported,

@@ -18,6 +18,12 @@ class PreciseReferenceCapabilities {
     resizesImages: true,
     supportsFidelity: true,
   );
+  static const v5 = PreciseReferenceCapabilities(
+    supported: true,
+    bucketsImages: true,
+    strengthSliderMax: 5.0,
+    supportsOutfit: true,
+  );
 
   final bool supported;
   final bool availableInInpainting;
@@ -357,10 +363,7 @@ class ModelCapabilityRegistry {
     cfgDelaySigma: 58.0,
   );
 
-  /// V5 Curated（正式版，网页端 build 65441ab-production 实测）。
-  ///
-  /// Vibe 与角色参考正式版明确不支持；端到端 ×2 放大未上线，增强 max 档
-  /// 保留。基础价在现代公式之上乘 1.5，Opus 免费受配额池限制。
+  /// V5 精准参考能力按正式站构建 b2fe159 登记。
   static const ModelCapabilities v5Curated = ModelCapabilities(
     id: ImageModels.animeDiffusionV5Curated,
     promptStructure: PromptStructure.v4,
@@ -372,6 +375,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 28,
     randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: maximumCharacterCount,
+    preciseReference: PreciseReferenceCapabilities.v5,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
     supportsMaxEnhance: true,
@@ -399,6 +403,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 28,
     randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: maximumCharacterCount,
+    preciseReference: PreciseReferenceCapabilities.v5,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
     supportsMaxEnhance: true,
@@ -428,6 +433,7 @@ class ModelCapabilityRegistry {
     defaultSteps: 28,
     randomPromptProfile: RandomPromptProfile.characterPrompts,
     maxCharacters: maximumCharacterCount,
+    preciseReference: PreciseReferenceCapabilities.v5,
     supportsImg2ImgInpainting: true,
     supportsTransparentBackground: true,
     supportsMaxEnhance: true,

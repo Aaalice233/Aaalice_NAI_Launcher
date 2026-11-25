@@ -204,9 +204,6 @@ class ImageModels {
       ModelCapabilityRegistry.of(model).promptStructure == PromptStructure.v4;
 
   /// 判断是否为 V4.5 家族。
-  ///
-  /// 语义严格限定在 V4.5，V5 返回 false：精准参考等 V4.5 专属功能在 V5
-  /// 测试期尚未开放，靠这个判定继续保持隐藏。
   static bool isV45Model(String model) => model.contains('diffusion-4-5');
 
   /// 判断是否为 V5 家族，包含测试期的历史模型键。
@@ -224,7 +221,7 @@ class ImageModels {
     if (!ModelCapabilityRegistry.of(model).hasInpaintingVariant) return model;
 
     return switch (model) {
-      // V5 Curated 的重绘权重尚未就绪，网页端映射到 V4.5 Curated Inpainting。
+      // 正式站把 V5 Curated 重绘映射到 V4.5 Curated Inpainting。
       animeDiffusionV5Curated => animeDiffusionV45CuratedInpainting,
       animeDiffusionV5Full => animeDiffusionV5FullInpainting,
       animeDiffusionV5FullMedium => animeDiffusionV5FullMediumInpainting,

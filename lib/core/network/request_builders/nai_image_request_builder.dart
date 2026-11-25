@@ -14,6 +14,7 @@ import '../../utils/prompt_edit_document.dart';
 import '../../../data/models/image/image_params.dart';
 import 'director_reference_payload_builder.dart';
 import 'official_parameter_order.dart';
+import 'precise_reference_limit_exception.dart';
 import 'precise_reference_send_filter.dart';
 import 'reference_strength_normalization.dart';
 
@@ -519,6 +520,10 @@ class NAIImageRequestBuilder {
     required String sampler,
     bool isStream = false,
   }) async {
+    if (_preciseReferences.length >
+        PreciseReferenceLimitException.maxReferences) {
+      throw const PreciseReferenceLimitException();
+    }
     PromptEditDocument.requireEffective(params.prompt, field: 'prompt');
     PromptEditDocument.requireEffective(
       params.negativePrompt,
@@ -672,6 +677,7 @@ class NAIImageRequestBuilder {
 
     await DirectorReferencePayloadBuilder(
       _preciseReferences,
+      params.requestPreciseReferenceCapabilities,
     ).build(requestParameters);
 
     final requestData = orderOfficialRequest(<String, dynamic>{

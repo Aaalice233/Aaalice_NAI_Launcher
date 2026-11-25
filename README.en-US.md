@@ -72,7 +72,7 @@ NAI Launcher is built for people who use NovelAI regularly. Generation, editing,
 ### 🧬 Vibe, Precise Reference, and image editing
 
 - Vibe Transfer accepts images, pre-encoded Vibes, and Bundles, with information extraction and reference strength controls and model-aware encoding reuse.
-- Precise Reference supports character and style references. Its library offers an outfit category, multi-select, batch type changes, and portable packages that include their images.
+- V4.5 and V5 support Precise Reference. V5 adds outfit references and a same-outfit preference. The library supports multi-select, batch type changes, and portable packages that include their images.
 - Dedicated Vibe and Precise Reference libraries provide categories, search, previews, batch management, import/export, and direct use in the current generation.
 - The inpaint editor includes brushes, masks, Focused Inpaint regions, and canvas expansion. Agent Chat can prepare a mask or outpaint draft for review.
 - NovelAI image metadata can restore selected model, size, sampler, Steps, CFG, Seed, pinned tags, and character content; the next import reuses the items you last checked. Imported characters can replace your existing characters or be appended in the order they appear in the image.

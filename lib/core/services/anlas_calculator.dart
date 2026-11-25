@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/image/image_params.dart';
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
+import '../network/request_builders/precise_reference_limit_exception.dart';
 import '../network/request_builders/precise_reference_send_filter.dart';
 
 /// Anlas 消耗计算器
@@ -44,8 +45,9 @@ class AnlasCalculator {
   }
 
   static int resolvePreciseReferenceExtraCost(ImageParams params) {
-    return resolveSendablePreciseReferences(params).length *
-        _preciseReferenceCost;
+    final count = resolveSendablePreciseReferences(params).length;
+    if (count > PreciseReferenceLimitException.maxReferences) return 0;
+    return count * _preciseReferenceCost;
   }
 
   /// 尚未编码的启用 Vibe 每个只在生成前收取一次编码费。
