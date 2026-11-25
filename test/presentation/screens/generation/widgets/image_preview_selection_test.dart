@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/shortcuts/shortcut_config.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/presentation/adaptive/interaction_policy.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_view_state_provider.dart';
@@ -24,6 +25,8 @@ import 'package:nai_launcher/presentation/screens/generation/widgets/image_previ
 import 'package:nai_launcher/presentation/screens/generation/widgets/preview_info_bar.dart';
 import 'package:nai_launcher/presentation/widgets/common/image_detail/image_detail_viewer.dart';
 import 'package:nai_launcher/presentation/widgets/common/selectable_image_card.dart';
+
+import '../../../../helpers/memory_local_storage.dart';
 
 class _SelectionImageGenerationNotifier extends ImageGenerationNotifier {
   _SelectionImageGenerationNotifier(this.initialState);
@@ -632,11 +635,69 @@ void main() {
     expect(tester.getSize(infoBar).height, PreviewInfoBar.barHeight);
     expect(tester.takeException(), isNull);
   });
+
+  for (final scale in [1.0, 3.0]) {
+    testWidgets(
+      'short touch preview gives the metadata controls room at ${scale}x',
+      (tester) async {
+        final container = _comparisonContainer(_portraitImage());
+        addTearDown(container.dispose);
+        container
+            .read(generationParamsNotifierProvider.notifier)
+            .updateModel(
+              'nai-diffusion-5-curated',
+              persist: false,
+              followDefaults: false,
+            );
+        for (final height in [560.0, 120.0]) {
+          await tester.pumpWidget(
+            _app(
+              container,
+              size: Size(360, height),
+              textScale: scale,
+              locale: const Locale('zh'),
+              policy: InteractionPolicy.touchFirst,
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          final card = tester.getRect(find.byType(SelectableImageCard));
+          final bar = tester.getRect(find.byType(PreviewInfoBar));
+          final toggle = find.byKey(
+            const ValueKey('generation_preview_transparent_background_toggle'),
+          );
+          expect(bar.left, closeTo(card.left, 0.01));
+          expect(bar.right, lessThanOrEqualTo(360 - 16));
+          expect(bar.top, closeTo(card.bottom + 4, 0.01));
+          if (height == 560) {
+            expect(bar.width, closeTo(card.width, 0.01));
+          } else {
+            expect(bar.width, greaterThan(card.width));
+            expect(toggle.hitTestable(), findsOneWidget);
+            await tester.tap(toggle);
+            await tester.pumpAndSettle();
+            expect(
+              container
+                  .read(generationParamsNotifierProvider)
+                  .transparentBackground,
+              isTrue,
+            );
+            expect(
+              find.byType(TransparencyBackgroundIcon).hitTestable(),
+              findsOneWidget,
+            );
+            expect(tester.takeException(), isNull);
+          }
+        }
+      },
+    );
+  }
 }
 
 ProviderContainer _comparisonContainer(GeneratedImage image) {
   return ProviderContainer(
     overrides: [
+      localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
       imageGenerationNotifierProvider.overrideWith(
         () => _SelectionImageGenerationNotifier(
           ImageGenerationState(displayImages: [image]),

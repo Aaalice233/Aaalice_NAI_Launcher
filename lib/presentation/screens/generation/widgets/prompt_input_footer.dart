@@ -23,12 +23,14 @@ class PromptInputFooter extends ConsumerWidget {
     required this.target,
     required this.topPadding,
     this.leading,
+    this.trailing,
     this.assistant,
   });
 
   final PromptTokenCountTarget target;
   final double topPadding;
   final Widget? leading;
+  final Widget? trailing;
 
   /// Inline assistant docked beside the count; expanding covers the actions.
   final PromptAssistantOverlay? assistant;
@@ -190,6 +192,7 @@ class PromptInputFooter extends ConsumerWidget {
                 ? actionStrip
                 : PromptAssistantDock(assistant: assistant, child: actionStrip),
           ),
+          if (trailing case final action?) action,
           const SizedBox(width: 8),
           tokenCount,
         ],

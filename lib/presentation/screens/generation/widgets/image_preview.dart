@@ -118,6 +118,24 @@ class PreviewNavShortcuts extends ConsumerWidget {
 class ImagePreviewWidget extends ConsumerStatefulWidget {
   const ImagePreviewWidget({super.key});
 
+  static EdgeInsets _paddingFor(double width) => EdgeInsets.fromLTRB(
+    16,
+    16,
+    16,
+    WindowSizeClass.fromWidth(width).isCompact ? 4 : 16,
+  );
+
+  static double _infoBarGap(double width) =>
+      WindowSizeClass.fromWidth(width).isCompact ? 4 : 8;
+
+  static double minimumHeightFor(BuildContext context, double width) {
+    final padding = _paddingFor(width);
+    return 2 * kMinInteractiveDimension +
+        padding.vertical +
+        _infoBarGap(width - padding.horizontal) +
+        PreviewInfoBar.heightFor(context);
+  }
+
   /// Resolves a grid that never squeezes preview cards below their usable size.
   @visibleForTesting
   static int resolveGridColumnCount(int imageCount, double availableWidth) {
@@ -196,15 +214,9 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
                     },
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final compact = WindowSizeClass.fromWidth(
-                          constraints.maxWidth,
-                        ).isCompact;
                         return Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            16,
-                            16,
-                            compact ? 4 : 16,
+                          padding: ImagePreviewWidget._paddingFor(
+                            constraints.maxWidth,
                           ),
                           child: Center(
                             child: Consumer(
@@ -590,9 +602,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
     // 因此先扣掉信息条高度再按比例算卡片尺寸，避免二者互相挤压。
     return LayoutBuilder(
       builder: (context, constraints) {
-        final gap = WindowSizeClass.fromWidth(constraints.maxWidth).isCompact
-            ? 4.0
-            : 8.0;
+        final gap = ImagePreviewWidget._infoBarGap(constraints.maxWidth);
         final availableHeight = constraints.maxHeight.isFinite
             ? max(
                 0.0,
@@ -613,6 +623,7 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
 
         return Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: cardSize.width,
@@ -627,18 +638,13 @@ class _ImagePreviewWidgetState extends ConsumerState<ImagePreviewWidget> {
               ),
             ),
             SizedBox(height: gap),
-            SizedBox(
-              width: cardSize.width,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: PreviewInfoBar(
-                  image: image,
-                  comparisonEnabled: comparisonEnabled,
-                  onComparisonChanged: comparisonAvailable
-                      ? (enabled) => _setComparisonEnabled(ref, enabled)
-                      : null,
-                ),
-              ),
+            PreviewInfoBar(
+              image: image,
+              cardWidth: cardSize.width,
+              comparisonEnabled: comparisonEnabled,
+              onComparisonChanged: comparisonAvailable
+                  ? (enabled) => _setComparisonEnabled(ref, enabled)
+                  : null,
             ),
           ],
         );

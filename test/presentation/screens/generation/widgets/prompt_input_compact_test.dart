@@ -173,90 +173,131 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('紧凑输入助手停靠在底栏计数左侧且保留完整触控区域', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWith(
-            (ref) => _TestLocalStorageService(lastPrompt: '1girl'),
-          ),
-          promptTokenUsageProvider(
-            PromptTokenCountTarget.positive,
-          ).overrideWith(
-            (ref) async => const PromptTokenUsage(usedTokens: 1, limit: 512),
-          ),
-        ],
-        child: const MaterialApp(
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: InteractionPolicyScope(
-            initialPolicy: InteractionPolicy(
-              modality: InteractionModality.touch,
-              touchAvailable: true,
-              precisePointerAvailable: false,
+  for (final width in [320.0, 360.0, 640.0]) {
+    testWidgets('紧凑底栏在 $width 宽时固定全屏入口并保留助手触控区域', (tester) async {
+      var maximizeCount = 0;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWith(
+              (ref) => _TestLocalStorageService(
+                lastPrompt: '1girl',
+                defaultModel: 'nai-diffusion-5-curated',
+              ),
             ),
-            child: Scaffold(
-              body: SizedBox(
-                width: 360,
-                height: 220,
-                child: PromptInputWidget(compact: true),
+            promptTokenUsageProvider(
+              PromptTokenCountTarget.positive,
+            ).overrideWith(
+              (ref) async => const PromptTokenUsage(usedTokens: 1, limit: 512),
+            ),
+          ],
+          child: MaterialApp(
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: InteractionPolicyScope(
+              initialPolicy: InteractionPolicy.touchFirst,
+              child: Scaffold(
+                body: SizedBox(
+                  width: width,
+                  height: 220,
+                  child: PromptInputWidget(
+                    compact: true,
+                    onToggleMaximize: () => maximizeCount++,
+                  ),
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    final inputRect = tester.getRect(
-      find.byKey(const ValueKey('generation_prompt_compact_input')),
-    );
-    final assistantButton = find.widgetWithIcon(
-      IconButton,
-      Icons.auto_awesome_rounded,
-    );
-    final fullscreenButton = find.widgetWithIcon(IconButton, Icons.fullscreen);
-    final clearButton = find.widgetWithIcon(IconButton, Icons.clear);
-    final count = find.byKey(const ValueKey('generation_prompt_footer_count'));
-    final assistantRect = tester.getRect(assistantButton);
-    final fullscreenRect = tester.getRect(fullscreenButton);
-    final clearRect = tester.getRect(clearButton);
-
-    expect(assistantButton, findsOneWidget);
-    expect(fullscreenButton, findsOneWidget);
-    expect(clearButton, findsOneWidget);
-    expect(assistantRect.top, greaterThanOrEqualTo(inputRect.bottom));
-    expect(assistantRect.right, lessThanOrEqualTo(tester.getRect(count).left));
-    expect(clearRect.right, lessThanOrEqualTo(assistantRect.left));
-    expect(fullscreenRect.top, greaterThanOrEqualTo(inputRect.bottom));
-    expect(clearRect.top, greaterThanOrEqualTo(inputRect.bottom));
-    expect(assistantRect.size, const Size(48, 48));
-    expect(fullscreenRect.size, const Size(48, 48));
-    expect(clearRect.size, const Size(48, 48));
-
-    await tester.tap(assistantButton);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(BottomSheet), findsNothing);
-    expect(find.byIcon(Icons.translate), findsOneWidget);
-    expect(
-      tester.getRect(
+      final inputRect = tester.getRect(
         find.byKey(const ValueKey('generation_prompt_compact_input')),
-      ),
-      inputRect,
-    );
-    expect(count.hitTestable(), findsOneWidget);
-    final expanded = tester.getRect(
-      find.byKey(
-        const ValueKey('prompt_assistant_toolbar_generation_prompt_main'),
-      ),
-    );
-    expect(expanded.right, closeTo(assistantRect.right, 0.1));
-    expect(expanded.top, greaterThanOrEqualTo(inputRect.bottom));
-    expect(tester.takeException(), isNull);
-  });
+      );
+      final assistantButton = find.widgetWithIcon(
+        IconButton,
+        Icons.auto_awesome_rounded,
+      );
+      final fullscreenButton = find.widgetWithIcon(
+        IconButton,
+        Icons.fullscreen,
+      );
+      final clearButton = find.widgetWithIcon(IconButton, Icons.clear);
+      final count = find.byKey(
+        const ValueKey('generation_prompt_footer_count'),
+      );
+      final assistantRect = tester.getRect(assistantButton);
+      final fullscreenRect = tester.getRect(fullscreenButton);
+      final clearRect = tester.getRect(clearButton);
+      final strip = find.byKey(
+        const ValueKey('generation_prompt_footer_actions_scroll'),
+      );
+
+      expect(assistantButton, findsOneWidget);
+      expect(fullscreenButton.hitTestable(), findsOneWidget);
+      expect(
+        find.descendant(of: strip, matching: fullscreenButton),
+        findsNothing,
+      );
+      expect(find.descendant(of: strip, matching: clearButton), findsOneWidget);
+      await tester.tap(fullscreenButton);
+      expect(maximizeCount, 1);
+      expect(assistantRect.top, greaterThanOrEqualTo(inputRect.bottom));
+      expect(assistantRect.right, lessThanOrEqualTo(fullscreenRect.left));
+      expect(
+        fullscreenRect.right,
+        lessThanOrEqualTo(tester.getRect(count).left),
+      );
+      expect(fullscreenRect.top, greaterThanOrEqualTo(inputRect.bottom));
+      expect(clearRect.top, greaterThanOrEqualTo(inputRect.bottom));
+      expect(assistantRect.size, const Size(48, 48));
+      expect(fullscreenRect.size, const Size(48, 48));
+      expect(clearRect.size, const Size(48, 48));
+      await tester.drag(strip, const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      expect(clearButton.hitTestable(), findsOneWidget);
+      expect(
+        tester.getRect(clearButton).right,
+        lessThanOrEqualTo(assistantRect.left),
+      );
+      expect(tester.getRect(fullscreenButton), fullscreenRect);
+
+      await tester.tap(assistantButton);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byIcon(Icons.translate), findsOneWidget);
+      expect(
+        tester.getRect(
+          find.byKey(const ValueKey('generation_prompt_compact_input')),
+        ),
+        inputRect,
+      );
+      expect(count.hitTestable(), findsOneWidget);
+      final expanded = tester.getRect(
+        find.byKey(
+          const ValueKey('prompt_assistant_toolbar_generation_prompt_main'),
+        ),
+      );
+      expect(expanded.right, closeTo(assistantRect.right, 0.1));
+      expect(expanded.top, greaterThanOrEqualTo(inputRect.bottom));
+      expect(expanded.overlaps(fullscreenRect), isFalse);
+      expect(fullscreenButton.hitTestable(), findsOneWidget);
+      await tester.tap(fullscreenButton);
+      expect(maximizeCount, 2);
+      final collapse = find.byIcon(Icons.keyboard_arrow_down_rounded);
+      await tester.ensureVisible(collapse);
+      await tester.tap(collapse);
+      await tester.pumpAndSettle();
+      expect(assistantButton.hitTestable(), findsOneWidget);
+      expect(fullscreenButton.hitTestable(), findsOneWidget);
+      expect(tester.getRect(fullscreenButton), fullscreenRect);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('键盘过渡的极小高度不会让紧凑输入区溢出', (tester) async {
     await tester.pumpWidget(
