@@ -1,9 +1,9 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_ce/hive_ce.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/presentation/providers/generation/generation_models.dart';
@@ -101,7 +101,7 @@ void main() {
         'history-relocate-',
       );
       Hive.init(hiveDirectory.path);
-      await Hive.openBox<dynamic>(StorageKeys.historyBox);
+      await Hive.openLazyBox<dynamic>(StorageKeys.historyBox);
     });
 
     tearDown(() async {
@@ -223,7 +223,7 @@ void main() {
           {'id': 'a', 'thumbnail': p.join(oldRoot, 'x.png')},
         ]),
       );
-      await Hive.openBox<dynamic>(StorageKeys.historyBox);
+      await Hive.openLazyBox<dynamic>(StorageKeys.historyBox);
 
       await StoredImagePathRelocator.repairAll(
         storage: storage,
