@@ -1,19 +1,18 @@
 import 'dart:async';
 
-/// 记录订阅数据能否直接用来判定免费；由 SubscriptionNotifier 独占持有。
+/// 记录当前账号的订阅核实时间与计费落库窗口。
 final class SubscriptionBillingFreshness {
+  SubscriptionBillingFreshness(this._onSettled);
+
   /// 订阅数据成功取回后，这段时间内可以直接拿来判定免费。
   // 两个定时刷新周期；期间配额池在别的设备上被耗尽的残余风险可以接受，本应用自己的计费请求会让数据立即失效
   static const Duration window = Duration(seconds: 60);
 
+  final void Function() _onSettled;
   DateTime? _verifiedAt;
   int _epoch = 0;
   Completer<void>? _settling;
   Timer? _settleTimer;
-  bool _unverified = false;
-
-  /// 过期数据没能刷新时为 true，直到再次成功核实。
-  bool get unverified => _unverified;
 
   /// 计费请求已结束、扣点可能还没落库。
   bool get isSettling => _settling != null;
@@ -28,21 +27,24 @@ final class SubscriptionBillingFreshness {
   /// 发出订阅请求前取号；扣点落库前发出的请求读到的可能是扣点前的数据，不算核实。
   int? requestToken() => isSettling ? null : _epoch;
 
-  /// 用发请求时取的号登记一次成功取回；返回 [unverified] 是否因此改变。
-  bool recordVerified(int? token, DateTime now) {
-    if (token == null || token != _epoch) return false;
+  /// 只登记在当前计费窗口结束后发出的请求。
+  void recordVerified(int? token, DateTime now) {
+    if (token == null || token != _epoch) return;
     _verifiedAt = now;
-    return _setUnverified(false);
   }
 
-  /// 每次可能扣点的请求结束都调用：之前取回的数据一律不再用于判定免费，
-  /// [settleDelay] 内取回的也不算核实；其间再有请求结束就重新计时。
+  /// 每次可能扣点的请求结束都使核实时间失效，并重新计时 [settleDelay]。
   void billingRequestEnded(Duration settleDelay) {
     _epoch += 1;
     _verifiedAt = null;
     _settling ??= Completer<void>();
     _settleTimer?.cancel();
-    _settleTimer = Timer(settleDelay, _settle);
+    _settleTimer = Timer(settleDelay, _finishWindow);
+  }
+
+  void _finishWindow() {
+    _settle();
+    _onSettled();
   }
 
   void _settle() {
@@ -60,22 +62,13 @@ final class SubscriptionBillingFreshness {
 
   void resume(Duration settleDelay) {
     if (_settling == null || _settleTimer != null) return;
-    _settleTimer = Timer(settleDelay, _settle);
+    _settleTimer = Timer(settleDelay, _finishWindow);
   }
 
-  bool markUnverified() => _setUnverified(true);
-
-  /// 切换账号或登出；返回 [unverified] 是否因此改变。
-  bool reset() {
+  /// 切换账号或登出时释放等待者，旧账号的刷新随会话丢弃。
+  void reset() {
     _epoch += 1;
     _verifiedAt = null;
     _settle();
-    return _setUnverified(false);
-  }
-
-  bool _setUnverified(bool value) {
-    if (_unverified == value) return false;
-    _unverified = value;
-    return true;
   }
 }

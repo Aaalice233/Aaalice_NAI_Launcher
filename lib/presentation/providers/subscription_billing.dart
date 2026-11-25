@@ -16,14 +16,7 @@ class SubscriptionBillingView {
         opusQuotaExhausted: subscription?.usage?.isNegative ?? false,
       );
 
-  factory SubscriptionBillingView.resolve(
-    UserSubscription? subscription, {
-    required bool unverified,
-  }) => unverified
-      ? SubscriptionBillingView.unverified
-      : SubscriptionBillingView.of(subscription);
-
-  /// 订阅数据过期又没能刷新时不承认任何 Opus 免费额度。
+  /// 单次估价无法采信订阅时，按没有 Opus 免费额度计算上限。
   static const unverified = SubscriptionBillingView(
     isOpus: false,
     opusQuotaExhausted: true,

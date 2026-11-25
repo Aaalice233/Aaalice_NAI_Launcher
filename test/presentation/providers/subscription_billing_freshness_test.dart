@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/network/critical_network_activity.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
-import 'package:nai_launcher/presentation/providers/cost_estimate_provider.dart';
+import 'package:nai_launcher/presentation/providers/subscription_billing.dart';
 import 'package:nai_launcher/presentation/providers/subscription_billing_freshness.dart';
 import 'package:nai_launcher/presentation/providers/subscription_provider.dart';
 
@@ -36,13 +36,8 @@ void main() {
     final container = await harness.loadedContainer();
     harness.now = harness.now.add(SubscriptionBillingFreshness.window);
 
-    expect(
-      await readSettledEstimatedCost(
-        container,
-        readGenerationPageRequest(container),
-      ),
-      0,
-    );
+    final notifier = container.read(subscriptionNotifierProvider.notifier);
+    expect(await notifier.freshBillingView(), notifier.billingView);
 
     expect(harness.requestCount(), 1);
   });
@@ -57,40 +52,40 @@ void main() {
     harness.answerSubscription(() => response.future);
     final notifier = container.read(subscriptionNotifierProvider.notifier);
 
-    final checks = [
-      notifier.ensureFreshForBilling(),
-      notifier.ensureFreshForBilling(),
-      readSettledEstimatedCost(container, readGenerationPageRequest(container)),
-    ];
-    await Future<void>.delayed(Duration.zero);
+    final first = notifier.ensureFreshForBilling();
+    final second = notifier.ensureFreshForBilling();
+    final view = notifier.freshBillingView();
     response.complete(billingSubscriptionJson(quotaExhausted: true));
-    final results = await Future.wait(checks);
 
-    expect(results.take(2), [true, true]);
-    expect(results.last, greaterThan(0));
+    expect(await first, isTrue);
+    expect(await second, isTrue);
+    expect((await view).opusQuotaExhausted, isTrue);
     expect(harness.requestCount(), 1);
   });
 
   test('a billed request ending makes fresh data stale until its charge '
-      'settles', () async {
-    final container = await harness.loadedContainer();
-    final notifier = container.read(subscriptionNotifierProvider.notifier);
-    harness.answerSubscription(
-      () => billingSubscriptionJson(quotaExhausted: true),
-    );
+      'settles', () {
+    fakeAsync((async) {
+      final container = loadedInFakeAsync(async);
+      final notifier = container.read(subscriptionNotifierProvider.notifier);
+      harness.answerSubscription(
+        () => billingSubscriptionJson(quotaExhausted: true),
+      );
+      CriticalNetworkActivityCoordinator.instance
+          .acquire(CriticalNetworkActivityType.imageGeneration)
+          .release();
+      SubscriptionBillingView? result;
+      notifier.freshBillingView().then((view) => result = view);
+      async.flushMicrotasks();
+      expect(result, isNull);
+      harness.expectNoRequest();
 
-    CriticalNetworkActivityCoordinator.instance
-        .acquire(CriticalNetworkActivityType.imageGeneration)
-        .release();
-    final cost = await readSettledEstimatedCost(
-      container,
-      readGenerationPageRequest(container),
-    );
+      async.elapse(SubscriptionNotifier.postBillingRefreshDelay);
 
-    expect(cost, greaterThan(0));
-    expect(harness.requestCount(), 2);
-    expect(notifier.billingView.opusQuotaExhausted, isTrue);
-    expect(notifier.billingView.isOpus, isTrue);
+      expect(result?.opusQuotaExhausted, isTrue);
+      expect(result?.isOpus, isTrue);
+      expect(harness.requestCount(), 1);
+    });
   });
 
   test('a billing check during a billed request refreshes only after the '

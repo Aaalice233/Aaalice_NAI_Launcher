@@ -11231,6 +11231,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String settings_highAnlasCostUnverifiedContent(
+    Object cost,
+    Object threshold,
+  ) {
+    return 'Your subscription could not be verified yet. If the free Opus allowance has run out, this request costs up to $cost Anlas, which reaches or exceeds your $threshold Anlas warning threshold. Continue generation?';
+  }
+
+  @override
   String get settings_continueGeneration => 'Continue Generation';
 
   @override

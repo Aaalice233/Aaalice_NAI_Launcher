@@ -43,7 +43,6 @@ class OpusUsageChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 徽标展示服务端返回的原始配额，有意不随核实状态变化；估价与放行只认 SubscriptionBillingView
     final usage = ref.watch(
       subscriptionNotifierProvider.select(
         (state) => state.subscription?.isOpus == true

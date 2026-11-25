@@ -18,26 +18,25 @@ class _MockUserInfoApi extends Mock implements NAIUserInfoApiService {}
 
 // 登录校验时带回的订阅，只说明登录那一刻的配额，不算刚刷新过
 class HydratedOpusAuth extends AuthNotifier {
+  HydratedOpusAuth([Map<String, dynamic>? subscriptionInfo])
+    : subscriptionInfo =
+          subscriptionInfo ?? billingSubscriptionJson(quotaExhausted: false);
+
+  final Map<String, dynamic> subscriptionInfo;
+
   @override
   AuthState build() => AuthState(
     status: AuthStatus.authenticated,
     accountId: 'billing-account',
-    subscriptionInfo: billingSubscriptionJson(quotaExhausted: false),
+    subscriptionInfo: subscriptionInfo,
   );
 }
 
-class SwitchableOpusAuth extends AuthNotifier {
-  @override
-  AuthState build() => AuthState(
-    status: AuthStatus.authenticated,
-    accountId: 'billing-account',
-    subscriptionInfo: billingSubscriptionJson(quotaExhausted: false),
-  );
-
+class SwitchableOpusAuth extends HydratedOpusAuth {
   void switchToOtherAccount() => state = AuthState(
     status: AuthStatus.authenticated,
     accountId: 'other-account',
-    subscriptionInfo: billingSubscriptionJson(quotaExhausted: false),
+    subscriptionInfo: billingSubscriptionJson(quotaExhausted: true),
   );
 }
 
@@ -169,9 +168,9 @@ class SubscriptionBillingHarness {
   Future<ProviderContainer> loadedContainer() async {
     answerSubscription(() => billingSubscriptionJson(quotaExhausted: false));
     final container = createContainer(AuthenticatedBillingAuth.new);
-    await _waitUntil(
-      () => container.read(subscriptionNotifierProvider).isLoaded,
-    );
+    await container
+        .read(subscriptionNotifierProvider.notifier)
+        .fetchSubscription();
     expect(container.read(estimatedCostProvider), 0);
     return container;
   }
@@ -191,10 +190,3 @@ Map<String, dynamic> billingSubscriptionJson({required bool quotaExhausted}) =>
         'timeUntilNextPercent': 6048,
       },
     };
-
-Future<void> _waitUntil(bool Function() condition) async {
-  for (var attempt = 0; attempt < 100 && !condition(); attempt++) {
-    await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-  expect(condition(), isTrue);
-}

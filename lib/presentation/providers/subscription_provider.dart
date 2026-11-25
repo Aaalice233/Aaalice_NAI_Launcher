@@ -67,8 +67,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   bool _refreshCycleDeferred = false;
   SubscriptionRefreshPriority _deferredRefreshPriority =
       SubscriptionRefreshPriority.background;
-  final SubscriptionBillingFreshness _billingFreshness =
-      SubscriptionBillingFreshness();
+  late final _billingFreshness = SubscriptionBillingFreshness(
+    _resumeDeferredRefresh,
+  );
   Future<bool>? _billingRefresh;
 
   /// 自动刷新间隔
@@ -78,7 +79,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   static const Duration postBillingRefreshDelay = Duration(milliseconds: 500);
 
   // 放行判断最多等这么久：进行中的计费请求迟迟不结束或刷新卡住，都要尽快给出不免费的结论
-  static const Duration billingRefreshTimeout = Duration(seconds: 10);
+  static const Duration billingRefreshTimeout = Duration(seconds: 3);
+  // 1% 约够生成 17 张 1MP 图，5% 可覆盖一次大批量请求和短时间内尚未刷新的消耗。
+  static const double _trustedQuotaPercent = 5;
 
   @override
   SubscriptionState build() {
@@ -218,17 +221,11 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     UserSubscription subscription, {
     required int? billingToken,
   }) {
-    final verificationChanged = _billingFreshness.recordVerified(
+    _billingFreshness.recordVerified(
       billingToken,
       ref.read(subscriptionBillingClockProvider)(),
     );
-    final nextState = SubscriptionState.loaded(subscription);
-    if (state != nextState) {
-      _updateState(nextState);
-    } else if (verificationChanged) {
-      // 余额与配额相同也可能恢复免费资格，Riverpod 不会派发相等的状态。
-      ref.notifyListeners();
-    }
+    _updateState(SubscriptionState.loaded(subscription));
   }
 
   SubscriptionState? _hydrateFromAuthState(AuthState authState) {
@@ -315,7 +312,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   }
 
   Future<void> _runRefreshCycle() async {
-    if (_requestsDeferred) {
+    if (_scheduledRefreshDeferred) {
       _deferRefresh(SubscriptionRefreshPriority.background);
       _refreshCycleDeferred = true;
       _refreshTimer = null;
@@ -336,7 +333,10 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       _scheduleNextRefresh(_refreshInterval);
       return;
     }
-    if (_lastBalanceRefreshWasPreempted) return;
+    if (_lastBalanceRefreshWasPreempted) {
+      _refreshCycleDeferred = _refreshDeferred;
+      return;
+    }
 
     _networkFailureCount += 1;
     final backoff = _computeBackoffDuration();
@@ -389,16 +389,16 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
       }
       return;
     }
-    // 租约随传输结束释放，扣点要再过一个落库窗口才可信，计费数据从这一刻起作废
+    // 租约随传输结束释放，延后的刷新要等最后一次扣点落库。
     _seenEndedActivityCount =
         CriticalNetworkActivityCoordinator.instance.endedActivityCount;
     _billingFreshness.billingRequestEnded(postBillingRefreshDelay);
-    _resumeDeferredRefresh();
   }
 
-  // 关键请求与会话校验都结束后才补一次被推迟的刷新
   void _resumeDeferredRefresh() {
-    if (!_refreshDeferred || !_isAppVisible || _requestsDeferred) return;
+    if (!_refreshDeferred || !_isAppVisible || _scheduledRefreshDeferred) {
+      return;
+    }
     _refreshDeferred = false;
     final priority = _deferredRefreshPriority;
     _deferredRefreshPriority = SubscriptionRefreshPriority.background;
@@ -421,6 +421,9 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   bool get _requestsDeferred =>
       CriticalNetworkActivityCoordinator.instance.isActive ||
       ref.read(authNotifierProvider).isRevalidatingSession;
+
+  bool get _scheduledRefreshDeferred =>
+      _billingFreshness.isSettling || _requestsDeferred;
 
   bool get _hasSubscriptionSession {
     final session = _authSessionOf(ref.read(authNotifierProvider));
@@ -554,10 +557,15 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   void schedulePostBillingRefresh({Duration delay = postBillingRefreshDelay}) {
     if (!_hasSubscriptionSession) return;
 
-    _postBillingRefreshTimer?.cancel();
+    _cancelPostBillingRefresh();
+    // 传输结束已启动落库窗口，余额刷新等它结束时一并发出。
+    if (_billingFreshness.isSettling) {
+      _deferRefresh(SubscriptionRefreshPriority.postBilling);
+      return;
+    }
     _postBillingRefreshTimer = Timer(delay, () {
       _postBillingRefreshTimer = null;
-      if (_requestsDeferred) {
+      if (_scheduledRefreshDeferred) {
         _deferRefresh(SubscriptionRefreshPriority.postBilling);
         return;
       }
@@ -617,18 +625,18 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     var latestRefreshSucceeded = false;
     var currentPriority = initialPriority;
     do {
-      if (_requestsDeferred) {
-        _deferRefresh(currentPriority);
-        _balanceRefreshQueued = false;
-        _lastBalanceRefreshWasPreempted = true;
-        return false;
-      }
       _balanceRefreshQueued = false;
       _activeBalanceRefreshPriority = currentPriority;
       latestRefreshSucceeded = await _refreshBalanceOnce();
       if (refreshGeneration != _balanceRefreshGeneration) return false;
       currentPriority = _queuedBalanceRefreshPriority;
       _queuedBalanceRefreshPriority = SubscriptionRefreshPriority.background;
+      if (_balanceRefreshQueued && _scheduledRefreshDeferred) {
+        _deferRefresh(currentPriority);
+        _balanceRefreshQueued = false;
+        _lastBalanceRefreshWasPreempted = true;
+        return false;
+      }
     } while (_balanceRefreshQueued);
     return latestRefreshSucceeded;
   }
@@ -673,16 +681,31 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     }
   }
 
-  /// 估价与放行统一读这份视图；过期数据刷新失败后不承认 Opus 免费额度。
-  SubscriptionBillingView get billingView => SubscriptionBillingView.resolve(
-    state.subscription,
-    unverified: _billingFreshness.unverified,
-  );
+  /// 界面实时估价使用当前已知的订阅。
+  SubscriptionBillingView get billingView =>
+      SubscriptionBillingView.of(state.subscription);
 
-  /// 会扣点的放行判断前调用：订阅数据过期、或有计费请求在进行或刚结束时，先等它
-  /// 落定再刷新，并发调用共用同一次刷新。
-  ///
-  /// 等不到或刷新失败返回 false，此后 [billingView] 按不免费计价，直到下一次成功核实。
+  /// 数据不新鲜时只可能看错配额是否用尽，Opus 身份由到期时间本地判定。
+  ({SubscriptionBillingView known, SubscriptionBillingView? worstCase})
+  get generationPageBilling {
+    final known = billingView;
+    final usage = state.subscription?.usage;
+    final trusted =
+        usage == null ||
+        usage.availablePercent >= _trustedQuotaPercent ||
+        _isFreshForBilling;
+    return (
+      known: known,
+      worstCase: trusted
+          ? null
+          : SubscriptionBillingView(
+              isOpus: known.isOpus,
+              opusQuotaExhausted: true,
+            ),
+    );
+  }
+
+  /// 需要核实时等待扣点落库，并发调用共用一次刷新。失败只影响本次判断。
   Future<bool> ensureFreshForBilling() {
     if (!_needsBillingRefresh) return Future.value(true);
     final pending = _billingRefresh;
@@ -695,7 +718,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
     return refresh;
   }
 
-  // 等待期间切换了账号时，这次判断不改动新会话的核实状态，但自己仍按不免费处理
+  /// 需要先核实的计费操作使用本次核实结果。
   Future<SubscriptionBillingView> freshBillingView() async =>
       await ensureFreshForBilling()
       ? billingView
@@ -721,7 +744,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
 
   Future<bool> _refreshForBilling() async {
     final sessionGeneration = _balanceRefreshGeneration;
-    final refreshed = await _awaitFreshSubscription().timeout(
+    final refreshed = await _awaitFreshSubscription(sessionGeneration).timeout(
       billingRefreshTimeout,
       onTimeout: () => false,
     );
@@ -732,24 +755,23 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
         _billingFreshness.isSettling;
     AppLogger.w(
       stillSettling
-          ? 'Subscription could not be verified before billing: a billed '
-                'request has not settled yet; Opus allowance is not applied '
-                'until the next successful refresh'
-          : 'Subscription refresh before billing failed; Opus allowance is not '
-                'applied until the next successful refresh',
+          ? 'A billed request has not settled. This estimate excludes the '
+                'Opus allowance.'
+          : 'Subscription verification failed. This estimate excludes the '
+                'Opus allowance.',
       'Subscription',
     );
-    if (_billingFreshness.markUnverified()) ref.notifyListeners();
     return false;
   }
 
-  Future<bool> _awaitFreshSubscription() async {
+  Future<bool> _awaitFreshSubscription(int sessionGeneration) async {
     await _awaitBillingSettled();
     final inflight = _inflightBalanceRefresh;
     if (inflight != null) {
       await inflight;
-      if (_isFreshForBilling) return true;
     }
+    if (sessionGeneration != _balanceRefreshGeneration) return false;
+    if (_isFreshForBilling) return true;
     await refreshBalance(priority: SubscriptionRefreshPriority.userInitiated);
     return _isFreshForBilling;
   }
@@ -777,7 +799,7 @@ class SubscriptionNotifier extends _$SubscriptionNotifier {
   }
 }
 
-/// 估价统一读这份视图，内容与 [SubscriptionNotifier.billingView] 一致。
+/// 当前已知订阅的计费视图。
 final subscriptionBillingViewProvider =
     Provider.autoDispose<SubscriptionBillingView>((ref) {
       ref.watch(subscriptionNotifierProvider);
@@ -836,7 +858,7 @@ class AnlasBalanceWatcher extends _$AnlasBalanceWatcher {
   }
 }
 
-/// 按计费口径的 Opus 状态：过期数据刷新失败后不再算作 Opus。
+/// 当前已知订阅是否具有 Opus 权益。
 @riverpod
 bool isOpusSubscription(Ref ref) =>
     ref.watch(subscriptionBillingViewProvider).isOpus;

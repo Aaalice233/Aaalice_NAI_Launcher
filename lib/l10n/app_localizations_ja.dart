@@ -10952,6 +10952,14 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String settings_highAnlasCostUnverifiedContent(
+    Object cost,
+    Object threshold,
+  ) {
+    return 'サブスクリプションの状態をまだ確認できていません。Opus の無料枠を使い切っている場合、このリクエストには最大 $cost Anlas かかり、$threshold Anlas の警告しきい値に達するか超えています。生成を継続しますか?';
+  }
+
+  @override
   String get settings_continueGeneration => '生成を続行';
 
   @override
