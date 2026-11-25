@@ -81,7 +81,8 @@ NAI_LAUNCHER_MCP_TOKEN=<token>
 ```
 
 ```json
-// Antigravity（App / IDE / CLI）：~/.gemini/config/mcp_config.json（全局）或 <workspace>/.agents/mcp_config.json（工作区）
+// Antigravity（App / IDE / CLI）：全局 ~/.gemini/config/mcp_config.json（旧版 IDE 可能为 ~/.gemini/antigravity/mcp_config.json）
+// 含明文令牌，请勿写入会提交到仓库的工作区 .agents/mcp_config.json；修改配置、换令牌或重开启动器后需重载 MCP 或新建会话
 // 走 Streamable HTTP（不支持旧 HTTP+SSE 与 httpUrl）；默认单次工具调用超时为 180 秒，这里设为 600 秒以覆盖应用内审批窗口
 {
   "mcpServers": {

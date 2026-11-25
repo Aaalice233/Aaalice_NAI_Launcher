@@ -10453,7 +10453,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_mcpServerAntigravityHint =>
-      '次の内容を Antigravity の ~/.gemini/config/mcp_config.json（グローバル）または .agents/mcp_config.json（ワークスペース）に統合してください。timeoutSeconds にはアプリ内の承認待ちに十分な余裕があります。';
+      '次の内容を Antigravity のグローバル設定 ~/.gemini/config/mcp_config.json に統合してください。timeoutSeconds にはアプリ内の承認待ちに十分な余裕があります。';
 
   @override
   String get settings_mcpServerClaudeDesktopHint =>
