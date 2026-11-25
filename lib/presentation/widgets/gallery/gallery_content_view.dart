@@ -546,7 +546,6 @@ class LocalGalleryContentView extends ConsumerWidget {
         images: images.map(detailFor).toList(),
         initialIndex: initialIndex,
         showMetadataPanel: true,
-        showThumbnails: images.length > 1,
         pageNavigator: ImageDetailPageNavigator(
           hasMore: hasAdjacentPage,
           load: loadAdjacentPage,
