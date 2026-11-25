@@ -40,6 +40,12 @@ class NaiGenerationUpload {
     return invalidKeys.whereType<String>().toList(growable: false);
   }
 
+  /// Images that travel as their cache key alone.
+  int get reusedImageCount => _layout.omittedKeys.length;
+
+  /// Images whose bytes travel in the request.
+  int get uploadedImageCount => _layout.carriedKeys.length;
+
   BrowserMultipartBody encode() => _encodeMultipart(_layout.request);
 
   /// Returns false when none of [invalidKeys] was sent without its bytes.

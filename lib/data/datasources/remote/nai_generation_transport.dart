@@ -175,7 +175,7 @@ class NaiGenerationTransport {
     Future<Response<T>> Function(BrowserMultipartBody body) post,
   ) async {
     try {
-      return await post(upload.encode());
+      return await post(_encode(upload));
     } on DioException catch (error, stackTrace) {
       if (error.response?.statusCode != _badRequestStatus) rethrow;
       final rejection = await _readRejection(error);
@@ -193,13 +193,25 @@ class NaiGenerationTransport {
       );
     }
     try {
-      return await post(upload.encode());
+      return await post(_encode(upload));
     } on DioException catch (error) {
       if (error.response?.statusCode == _badRequestStatus) {
         upload.forgetUploads();
       }
       rethrow;
     }
+  }
+
+  static BrowserMultipartBody _encode(NaiGenerationUpload upload) {
+    final body = upload.encode();
+    AppLogger.d(
+      () =>
+          'Generation body ${body.bytes.length} bytes: '
+          '${upload.reusedImageCount} image(s) by cache key, '
+          '${upload.uploadedImageCount} with data',
+      'ImgGen',
+    );
+    return body;
   }
 
   /// Decodes a rejected body; a streamed body is buffered and handed back so
