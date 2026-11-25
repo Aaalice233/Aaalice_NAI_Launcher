@@ -77,7 +77,7 @@ class _PreciseReferencePanelState extends ConsumerState<PreciseReferencePanel> {
     final hasActiveReferences = activeReferenceCount > 0;
     final supportsPreciseReference = ref.watch(
       generationParamsNotifierProvider.select(
-        (params) => params.capabilities.supportsPreciseReference,
+        (params) => params.capabilities.preciseReference.supported,
       ),
     );
 

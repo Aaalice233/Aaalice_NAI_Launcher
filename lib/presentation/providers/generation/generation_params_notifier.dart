@@ -732,17 +732,13 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
     _scheduleGenerationStateSave(immediate: true);
   }
 
-  /// 添加原始图片形式的 Precise Reference，并在后台完成 Director PNG 规范化。
-  ///
-  /// 原图会先进入状态，保证用户快速点击生成时请求构建器仍能读取到参考图；
-  /// 规范化完成后再替换为可直接提交的 PNG，避免后续生成重复处理。
+  /// 保留原图，后台准备需要缩放的请求载荷。
   Future<void> addPreciseReferenceFromImage(
     Uint8List image, {
     required PreciseRefType type,
     double strength = 1.0,
     double fidelity = 1.0,
   }) async {
-    final index = state.preciseReferences.length;
     addPreciseReference(
       image,
       type: type,
@@ -750,21 +746,9 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
       fidelity: fidelity,
     );
 
-    final normalization = await _vibeReferences.normalizePrecisePng(image);
-    final normalizedImage = normalization.image;
-    if (normalizedImage == null ||
-        _isDisposed ||
-        index >= state.preciseReferences.length) {
-      return;
+    if (state.requestPreciseReferenceCapabilities.resizesImages) {
+      await _vibeReferences.normalizePrecisePng(image);
     }
-
-    final current = state.preciseReferences[index];
-    if (!identical(current.image, image)) return;
-
-    final newList = [...state.preciseReferences];
-    newList[index] = current.copyWith(image: normalizedImage);
-    state = state.copyWith(preciseReferences: newList);
-    _scheduleGenerationStateSave(immediate: true);
   }
 
   /// 移除 Precise Reference
@@ -852,6 +836,11 @@ class GenerationParamsNotifier extends _$GenerationParamsNotifier {
         normalizeVibeStrength: restored.normalizeVibeStrength,
       );
       if (restored.shouldRewrite) unawaited(saveGenerationState());
+      if (state.requestPreciseReferenceCapabilities.resizesImages) {
+        for (final reference in restored.preciseReferences) {
+          unawaited(_vibeReferences.normalizePrecisePng(reference.image));
+        }
+      }
     } catch (error, stackTrace) {
       AppLogger.e('恢复生成状态失败', error, stackTrace, 'GenerationParams');
     }

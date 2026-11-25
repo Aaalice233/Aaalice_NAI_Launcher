@@ -5,6 +5,20 @@ import 'package:nai_launcher/core/utils/nai_api_utils.dart';
 import '../../helpers/grayscale_png_fixture.dart';
 
 void main() {
+  test(
+    'shares in-flight and completed canvas conversions for the original',
+    () async {
+      final original = grayscalePng(width: 8, height: 4);
+      final conversion = NAIApiUtils.ensurePngFormatAsync(original);
+
+      expect(NAIApiUtils.ensurePngFormatAsync(original), same(conversion));
+
+      final canvas = await conversion;
+      expect(await NAIApiUtils.ensurePngFormatAsync(original), same(canvas));
+      expect(await NAIApiUtils.ensurePngFormatAsync(canvas), same(canvas));
+    },
+  );
+
   group('NAIApiUtils.ensurePngFormat', () {
     test('keeps single-channel grayscale references gray on the canvas', () {
       final normalized = NAIApiUtils.ensurePngFormat(

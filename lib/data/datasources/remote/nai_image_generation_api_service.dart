@@ -336,21 +336,10 @@ class NAIImageGenerationApiService {
       focusedRequest,
     );
 
-    if (effectiveParams.hasVibeReferencesV4 &&
-        effectiveParams.hasPreciseReferences) {
-      AppLogger.d(
-        'Both Vibe Transfer and Precise Reference are enabled; skipping vibe payload in favor of Precise Reference',
-        'ImgGen',
-      );
-    }
-    final preciseReferences = effectiveParams.isV45Model
-        ? effectiveParams.enabledPreciseReferences
-        : <PreciseReference>[];
     final buildResult =
         await NAIImageRequestBuilder(
           params: effectiveParams,
           encodeVibe: _enhancementService.encodeVibe,
-          preciseReferences: preciseReferences,
         ).build(
           sampler: mapSamplerForModel(
             effectiveParams.sampler,

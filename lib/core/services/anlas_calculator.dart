@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../data/models/image/image_params.dart';
 import '../constants/api_constants.dart';
 import '../constants/model_capabilities.dart';
+import '../network/request_builders/precise_reference_send_filter.dart';
 
 /// Anlas 消耗计算器
 ///
@@ -35,23 +36,16 @@ class AnlasCalculator {
   static const int _vibeCost = 2;
   static const int _preciseReferenceCost = 5;
 
-  static bool _usesPreciseReferences(ImageParams params) {
-    return params.capabilities.supportsPreciseReference &&
-        params.hasPreciseReferences;
-  }
-
   static bool usesVibeReferences(ImageParams params) {
     return params.capabilities.supportsVibeTransfer &&
         params.hasVibeReferencesV4 &&
         params.action != ImageGenerationAction.infill &&
-        !_usesPreciseReferences(params);
+        resolveSendablePreciseReferences(params).isEmpty;
   }
 
   static int resolvePreciseReferenceExtraCost(ImageParams params) {
-    if (!_usesPreciseReferences(params)) {
-      return 0;
-    }
-    return params.preciseReferenceCount * _preciseReferenceCost;
+    return resolveSendablePreciseReferences(params).length *
+        _preciseReferenceCost;
   }
 
   /// 尚未编码的启用 Vibe 每个只在生成前收取一次编码费。

@@ -929,7 +929,7 @@ void main() {
   });
 
   test(
-    'addPreciseReferenceFromImage stages original bytes before normalization',
+    'addPreciseReferenceFromImage keeps original bytes beside the cached canvas',
     () async {
       final container = ProviderContainer(
         overrides: [
@@ -944,6 +944,7 @@ void main() {
         generationParamsNotifierProvider.notifier,
       );
 
+      notifier.updateModel(ImageModels.animeDiffusionV45Full);
       final original = _validPngBytes(width: 8, height: 4);
       final normalization = notifier.addPreciseReferenceFromImage(
         original,
@@ -963,12 +964,15 @@ void main() {
           .read(generationParamsNotifierProvider)
           .preciseReferences
           .single;
-      final decoded = img.decodeImage(reference.image);
+      final cached = await NAIApiUtils.ensurePngFormatAsync(original);
+      final decoded = img.decodeImage(cached);
 
+      expect(reference.image, same(original));
       expect(
-        NAIApiUtils.isKnownNormalizedPreciseReferencePng(reference.image),
-        isTrue,
+        NAIApiUtils.isKnownNormalizedPreciseReferencePng(original),
+        isFalse,
       );
+      expect(NAIApiUtils.isKnownNormalizedPreciseReferencePng(cached), isTrue);
       expect(decoded, isNotNull);
       expect('${decoded!.width}x${decoded.height}', '1536x1024');
       expect(reference.type, PreciseRefType.character);

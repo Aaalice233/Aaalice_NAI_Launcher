@@ -3,18 +3,18 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import '../../constants/api_constants.dart';
-import '../../enums/precise_ref_type.dart';
 import '../../utils/app_logger.dart';
 import '../../utils/character_center_resolver.dart';
 import '../../utils/exif_orientation.dart';
 import '../../utils/inpaint_mask_utils.dart';
 import '../../utils/nai_resolution_adapter.dart';
-import '../../utils/nai_api_utils.dart';
 import '../../utils/novelai_auto_text.dart';
 import '../../utils/prompt_semantics_utils.dart';
 import '../../utils/prompt_edit_document.dart';
 import '../../../data/models/image/image_params.dart';
+import 'director_reference_payload_builder.dart';
 import 'official_parameter_order.dart';
+import 'precise_reference_send_filter.dart';
 import 'reference_strength_normalization.dart';
 
 /// Variety+ sigma 缩放的基准潜空间体积：4 通道 × 104 × 152（832×1216 的潜空间）。
@@ -56,15 +56,8 @@ class NAIImageRequestBuilder {
   NAIImageRequestBuilder({
     required ImageParams params,
     required this.encodeVibe,
-    List<PreciseReference>? preciseReferences,
   }) : params = params.resolveFixedSettings(),
-       _preciseReferences =
-           (preciseReferences ??
-                   (params.capabilities.supportsPreciseReference
-                       ? params.preciseReferences
-                       : <PreciseReference>[]))
-               .where((reference) => reference.enabled)
-               .toList(growable: false);
+       _preciseReferences = resolveSendablePreciseReferences(params);
 
   final ImageParams params;
   final EncodeVibeFn encodeVibe;
@@ -239,7 +232,7 @@ class NAIImageRequestBuilder {
     requestParameters['legacy_v3_extend'] = false;
     requestParameters['legacy_uc'] = false;
     requestParameters['normalize_reference_strength_multiple'] =
-        params.normalizeVibeStrength;
+        _preciseReferences.isNotEmpty || params.normalizeVibeStrength;
 
     final charCaptions = <Map<String, dynamic>>[];
     final negativeCharCaptions = <Map<String, dynamic>>[];
@@ -513,44 +506,6 @@ class NAIImageRequestBuilder {
     return vibeEncodingMap;
   }
 
-  Future<void> buildPreciseReferenceParameters(
-    Map<String, dynamic> requestParameters,
-  ) async {
-    if (_preciseReferences.isEmpty) {
-      return;
-    }
-
-    final referenceImages = <String>[];
-    for (final reference in _preciseReferences) {
-      final imageBytes =
-          NAIApiUtils.isKnownNormalizedPreciseReferencePng(reference.image)
-          ? reference.image
-          : await NAIApiUtils.ensurePngFormatAsync(reference.image);
-      referenceImages.add(base64Encode(imageBytes));
-    }
-
-    requestParameters['normalize_reference_strength_multiple'] = true;
-    requestParameters['director_reference_images'] = referenceImages;
-    requestParameters['director_reference_descriptions'] = _preciseReferences
-        .map(
-          (r) => {
-            'caption': {
-              'base_caption': r.type.toApiString(),
-              'char_captions': [],
-            },
-            'legacy_uc': false,
-          },
-        )
-        .toList();
-    requestParameters['director_reference_information_extracted'] =
-        _preciseReferences.map((_) => 1).toList();
-    requestParameters['director_reference_strength_values'] = _preciseReferences
-        .map((r) => r.strength)
-        .toList();
-    requestParameters['director_reference_secondary_strength_values'] =
-        _preciseReferences.map((r) => 1.0 - r.fidelity).toList();
-  }
-
   Future<Uint8List> _normalizeRequestSourceImage(Uint8List sourceImage) async {
     return await NaiResolutionAdapter.normalizeImageForRequestAsync(
           sourceImage,
@@ -623,9 +578,7 @@ class NAIImageRequestBuilder {
     final seed = params.seed == -1 ? Random().nextInt(4294967295) : params.seed;
 
     final baseModel = ImageModels.resolveBaseModel(params.model);
-    final requestModel = params.action == ImageGenerationAction.infill
-        ? ImageModels.resolveInpaintingModel(baseModel)
-        : params.model;
+    final requestModel = params.requestModel;
     final promptSemantics = buildPromptSemanticsSnapshot(
       prompt: params.prompt,
       negativePrompt: params.negativePrompt,
@@ -717,7 +670,9 @@ class NAIImageRequestBuilder {
       isStream: isStream,
     );
 
-    await buildPreciseReferenceParameters(requestParameters);
+    await DirectorReferencePayloadBuilder(
+      _preciseReferences,
+    ).build(requestParameters);
 
     final requestData = orderOfficialRequest(<String, dynamic>{
       'input': effectivePrompt,
