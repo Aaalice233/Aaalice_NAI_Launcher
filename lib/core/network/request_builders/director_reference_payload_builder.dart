@@ -1,20 +1,26 @@
 import 'dart:convert';
 
 import '../../../data/models/image/image_params.dart';
+import '../../constants/model_capabilities.dart';
 import '../../enums/precise_ref_type.dart';
 import '../../utils/nai_api_utils.dart';
+import '../../utils/precise_reference_bucketer.dart';
 
 class DirectorReferencePayloadBuilder {
-  const DirectorReferencePayloadBuilder(this.references);
+  const DirectorReferencePayloadBuilder(this.references, this.capabilities);
 
   final List<PreciseReference> references;
+  final PreciseReferenceCapabilities capabilities;
 
   Future<void> build(Map<String, dynamic> parameters) async {
     if (references.isEmpty) return;
 
+    final prepareImage = capabilities.bucketsImages
+        ? PreciseReferenceBucketer.prepare
+        : NAIApiUtils.ensurePngFormatAsync;
     final images = <String>[];
     for (final reference in references) {
-      final bytes = await NAIApiUtils.ensurePngFormatAsync(reference.image);
+      final bytes = await prepareImage(reference.image);
       images.add(base64Encode(bytes));
     }
 
@@ -26,7 +32,7 @@ class DirectorReferencePayloadBuilder {
             'base_caption': preciseReferenceDescription(
               reference.type,
               preferSameOutfit: reference.preferSameOutfit,
-              outfitSupported: false,
+              outfitSupported: capabilities.supportsOutfit,
             ),
             'char_captions': [],
           },
@@ -40,7 +46,8 @@ class DirectorReferencePayloadBuilder {
       for (final reference in references) reference.strength,
     ];
     parameters['director_reference_secondary_strength_values'] = [
-      for (final reference in references) 1.0 - reference.fidelity,
+      for (final reference in references)
+        capabilities.supportsFidelity ? 1.0 - reference.fidelity : 0.0,
     ];
   }
 }

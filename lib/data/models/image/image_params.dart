@@ -39,7 +39,7 @@ abstract class PreciseReference with _$PreciseReference {
 
     bool? preferSameOutfit,
 
-    /// 参考强度（数值输入不设前端上下限，滑条范围 0-1）
+    /// 参考强度的数值输入不限范围，滑条上限由模型决定。
     @Default(1.0) double strength,
 
     /// 保真度（数值输入不设前端上下限，滑条范围 0-1）
@@ -418,11 +418,8 @@ extension ImageParamsExtension on ImageParams {
   /// 检查是否启用了 Precise Reference
   bool get hasPreciseReferences => enabledPreciseReferences.isNotEmpty;
 
-  /// 计算 Precise Reference 数量 (消耗 Anlas)
+  /// 启用的精准参考数量。
   int get preciseReferenceCount => enabledPreciseReferences.length;
-
-  /// 计算 Precise Reference 成本 (每张 5 Anlas)
-  int get preciseReferenceCost => preciseReferenceCount * 5;
 
   /// 启用的 V4 Vibe Transfer 参考。
   List<VibeReference> get enabledVibeReferencesV4 =>

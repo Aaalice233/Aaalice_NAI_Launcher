@@ -9,11 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:image/image.dart' as img;
+import 'package:nai_launcher/core/constants/api_constants.dart';
 import 'package:nai_launcher/core/constants/storage_keys.dart';
 import 'package:nai_launcher/core/enums/precise_ref_type.dart';
 import 'package:nai_launcher/core/platform/platform_capabilities.dart';
 import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_image_enhancement_api_service.dart';
+import 'package:nai_launcher/data/models/image/image_params.dart';
 import 'package:nai_launcher/data/models/vibe/vibe_library_entry.dart';
 import 'package:nai_launcher/data/services/vibe_library_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
@@ -472,6 +474,170 @@ void main() {
   });
 
   group('PreciseReferencePanel', () {
+    testWidgets(
+      'V5 exposes outfit preference and keeps fidelity across model switches',
+      (tester) async {
+        final container = await _openPrecisePanel(tester);
+        final notifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+        final reference = find.byKey(
+          const Key('precise-reference-prefer-outfit-0'),
+        );
+        ImageParams params() =>
+            container.read(generationParamsNotifierProvider);
+
+        expect(tester.widget<CheckboxListTile>(reference).value, isTrue);
+        expect(find.text('Fidelity'), findsNothing);
+        expect(find.byType(EditableDoubleField), findsOneWidget);
+        final dropdown = tester.widget<DropdownButton<PreciseRefType>>(
+          find.byType(DropdownButton<PreciseRefType>),
+        );
+        expect(
+          dropdown.items!.map((item) => item.value),
+          PreciseRefType.values,
+        );
+
+        await tester.tap(reference);
+        await tester.pump();
+        expect(params().preciseReferences.single.preferSameOutfit, isFalse);
+        expect(tester.widget<Slider>(find.byType(Slider)).value, 0.5);
+        tester.widget<Slider>(find.byType(Slider)).onChanged!(0.752);
+        await tester.pump();
+        expect(params().preciseReferences.single.strength, 3.0);
+        for (final value in [-1.25, 6.8]) {
+          await tester.ensureVisible(find.byType(TextField));
+          await tester.enterText(find.byType(TextField), '$value');
+          await tester.testTextInput.receiveAction(TextInputAction.done);
+          await tester.pump();
+          expect(params().preciseReferences.single.strength, value);
+        }
+
+        notifier.updateModel(ImageModels.animeDiffusionV45Full);
+        await tester.pump();
+        expect(reference, findsNothing);
+        expect(find.byType(EditableDoubleField), findsNWidgets(2));
+        expect(params().preciseReferences.single.fidelity, 0.65);
+        notifier.updateModel(ImageModels.animeDiffusionV5Curated);
+        await tester.pump();
+        expect(tester.widget<CheckboxListTile>(reference).value, isFalse);
+        expect(params().preciseReferences.single.strength, 6.8);
+        expect(params().preciseReferences.single.fidelity, 0.65);
+      },
+    );
+
+    testWidgets(
+      'shows warnings based on the model actually used for inpainting',
+      (tester) async {
+        final container = await _openPrecisePanel(
+          tester,
+          type: PreciseRefType.costume,
+        );
+        final notifier = container.read(
+          generationParamsNotifierProvider.notifier,
+        );
+        final l10n = AppLocalizations.of(
+          tester.element(find.byType(PreciseReferencePanel)),
+        )!;
+
+        notifier.updateAction(ImageGenerationAction.infill);
+        await tester.pump();
+        expect(find.text(l10n.preciseRef_inpaintUnsupported), findsOneWidget);
+        expect(find.text(l10n.preciseRef_outfitUnsupported), findsNothing);
+        expect(find.text(l10n.preciseRef_costHint), findsNothing);
+
+        notifier.updateModel(ImageModels.animeDiffusionV5Curated);
+        await tester.pump();
+        expect(find.text(l10n.preciseRef_inpaintUnsupported), findsNothing);
+        expect(find.text(l10n.preciseRef_outfitUnsupported), findsOneWidget);
+        for (var index = 0; index < 17; index++) {
+          notifier.addPreciseReference(
+            _validPngBytes(width: 4, height: 4),
+            type: PreciseRefType.character,
+          );
+        }
+        await tester.pump();
+        expect(find.text(l10n.preciseRef_limitExceeded(16)), findsOneWidget);
+        notifier.updatePreciseReference(17, enabled: false);
+        await tester.pump();
+        expect(find.text(l10n.preciseRef_limitExceeded(16)), findsNothing);
+        expect(find.text(l10n.preciseRef_costHint), findsOneWidget);
+      },
+    );
+
+    for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
+      testWidgets('V5 controls remain reachable at $width with 3x text', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(Size(width, 720));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await _openPrecisePanel(tester, textScale: 3);
+
+        for (final finder in [
+          find.byKey(const Key('precise-reference-enabled-switch-0')),
+          find.byType(DropdownButton<PreciseRefType>),
+          find.byKey(const Key('precise-reference-prefer-outfit-0')),
+          find.byType(TextField),
+          find.byType(Slider),
+          find.byKey(const Key('precise-reference-save-to-library-0')),
+          find.byKey(const Key('precise-reference-delete-0')),
+          find.text('Add Reference'),
+          find.byKey(const Key('precise-ref-panel-from-library')),
+          find.byKey(const Key('precise-ref-panel-save-to-library')),
+        ]) {
+          expect(finder, findsOneWidget);
+          await tester.ensureVisible(finder);
+          await tester.pump();
+          expect(
+            finder.hitTestable(),
+            findsOneWidget,
+            reason: '$finder at $width',
+          );
+        }
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets(
+      'V5 retains edits through collapse and short landscape with keyboard insets',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(320, 720));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        addTearDown(tester.view.resetPadding);
+        addTearDown(tester.view.resetViewInsets);
+        final container = await _openPrecisePanel(tester, textScale: 3);
+        final title = find.text('Precise Reference');
+        final field = find.byType(TextField);
+        await tester.ensureVisible(field);
+        await tester.enterText(field, '-2.75');
+
+        await tester.binding.setSurfaceSize(const Size(600, 300));
+        tester.view.padding = const FakeViewPadding(left: 20, right: 20);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 120);
+        await tester.pump();
+        expect(tester.widget<TextField>(field).controller!.text, '-2.75');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+        tester.view.resetViewInsets();
+        await tester.ensureVisible(title);
+        await tester.tap(title);
+        await tester.pumpAndSettle();
+        expect(field, findsNothing);
+        await tester.tap(title);
+        await tester.pumpAndSettle();
+        expect(tester.widget<TextField>(field).controller!.text, '-2.75');
+        expect(
+          container
+              .read(generationParamsNotifierProvider)
+              .preciseReferences
+              .single
+              .strength,
+          -2.75,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('数值输入不限制参考强度和保真度', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
@@ -633,6 +799,56 @@ void main() {
   });
 }
 
+Future<ProviderContainer> _openPrecisePanel(
+  WidgetTester tester, {
+  double textScale = 1,
+  PreciseRefType type = PreciseRefType.characterAndStyle,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        localStorageServiceProvider.overrideWithValue(
+          _TestLocalStorageService(),
+        ),
+        vibeLibraryStorageServiceProvider.overrideWithValue(
+          _TestVibeLibraryStorageService(),
+        ),
+      ],
+      child: MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: const Scaffold(
+          body: SafeArea(
+            child: SingleChildScrollView(child: PreciseReferencePanel()),
+          ),
+        ),
+      ),
+    ),
+  );
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(PreciseReferencePanel)),
+  );
+  final notifier = container.read(generationParamsNotifierProvider.notifier);
+  await notifier.restoreGenerationState();
+  notifier.updateModel(ImageModels.animeDiffusionV5Full);
+  notifier.addPreciseReference(
+    _validPngBytes(width: 4, height: 4),
+    type: type,
+    fidelity: 0.65,
+  );
+  await tester.pump();
+  await tester.tap(find.text('Precise Reference'));
+  await tester.pumpAndSettle();
+  return container;
+}
+
 Uint8List _validPngBytes({required int width, required int height}) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
 
@@ -725,6 +941,9 @@ class _TestLocalStorageService extends LocalStorageService {
 }
 
 class _TestVibeLibraryStorageService extends VibeLibraryStorageService {
+  @override
+  Future<String?> loadGenerationStateJson() async => null;
+
   @override
   Future<List<VibeLibraryEntry>> getRecentDisplayEntries({
     int limit = 20,

@@ -374,8 +374,8 @@ class _PreciseRefLibraryScreenState
   Future<void> _sendToPreciseRef(PreciseRefLibraryEntry entry) async {
     final l10n = context.l10n;
     final params = ref.read(generationParamsNotifierProvider);
-    if (!params.isV4Model) {
-      AppToast.warning(context, l10n.preciseRef_v4Only);
+    if (!params.capabilities.preciseReference.supported) {
+      AppToast.warning(context, l10n.preciseRef_supportedModels);
       return;
     }
 
@@ -436,8 +436,8 @@ class _PreciseRefLibraryScreenState
     Set<String> selectedIds,
   ) async {
     final params = ref.read(generationParamsNotifierProvider);
-    if (!params.isV4Model) {
-      AppToast.warning(context, context.l10n.preciseRef_v4Only);
+    if (!params.capabilities.preciseReference.supported) {
+      AppToast.warning(context, context.l10n.preciseRef_supportedModels);
       return;
     }
     final storage = ref.read(preciseRefLibraryStorageServiceProvider);

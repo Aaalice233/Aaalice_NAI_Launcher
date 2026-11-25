@@ -1,3 +1,4 @@
+import '../../../core/network/request_builders/precise_reference_limit_exception.dart';
 import '../../../core/utils/focused_inpaint_input_exception.dart';
 import '../../../core/utils/inpaint_mask/empty_inpaint_mask_exception.dart';
 import '../../../core/utils/nai_resolution_adapter.dart';
@@ -9,7 +10,10 @@ const generationInternalErrorCode = 'GENERATION_ERROR_INTERNAL';
 /// Rejected locally from the same inputs, so retrying only delays the error.
 bool isDeterministicGenerationError(Object? error) {
   if (error == null) return false;
-  if (EmptyInpaintMaskException.matches(error)) return true;
+  if (EmptyInpaintMaskException.matches(error) ||
+      PreciseReferenceLimitException.matches(error)) {
+    return true;
+  }
   final message = error.toString();
   return message.contains(FocusedInpaintInputException.invalidCropCode) ||
       message.contains(FocusedInpaintInputException.decodeFailedCode) ||

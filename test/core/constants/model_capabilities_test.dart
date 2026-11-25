@@ -171,13 +171,58 @@ void main() {
       );
     });
 
-    test('V5 keeps vibe transfer and precise reference hidden', () {
+    test('V5 keeps Vibe Transfer hidden and enables Precise Reference', () {
       final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);
 
       expect(caps.supportsVibeTransfer, isFalse);
-      expect(caps.preciseReference.supported, isFalse);
+      expect(caps.preciseReference.supported, isTrue);
       expect(ImageModels.isV45Model(ImageModels.v5StagingKey), isFalse);
     });
+
+    test(
+      'precise reference capability bits follow the production model table',
+      () {
+        for (final (models, expected) in [
+          (
+            [
+              ImageModels.animeDiffusionV45Curated,
+              ImageModels.animeDiffusionV45Full,
+              ImageModels.animeDiffusionV45CuratedInpainting,
+              ImageModels.animeDiffusionV45FullInpainting,
+            ],
+            (true, true, true, false, true, 1.0, false),
+          ),
+          (
+            [
+              ImageModels.animeDiffusionV5Curated,
+              ImageModels.animeDiffusionV5Full,
+              ImageModels.animeDiffusionV5FullMedium,
+              ImageModels.animeDiffusionV5CuratedInpainting,
+              ImageModels.animeDiffusionV5FullInpainting,
+              ImageModels.animeDiffusionV5FullMediumInpainting,
+            ],
+            (true, false, false, true, false, 5.0, true),
+          ),
+        ]) {
+          for (final model in models) {
+            final caps = ModelCapabilityRegistry.of(model).preciseReference;
+            expect(
+              (
+                caps.supported,
+                caps.availableInInpainting,
+                caps.resizesImages,
+                caps.bucketsImages,
+                caps.supportsFidelity,
+                caps.strengthSliderMax,
+                caps.supportsOutfit,
+              ),
+              expected,
+              reason: model,
+            );
+          }
+        }
+      },
+    );
 
     test('V5 exposes the production feature set', () {
       final caps = ModelCapabilityRegistry.of(ImageModels.v5StagingKey);

@@ -16990,11 +16990,11 @@ abstract class AppLocalizations {
   /// **'Fidelity'**
   String get preciseRef_fidelity;
 
-  /// No description provided for @preciseRef_v4Only.
+  /// No description provided for @preciseRef_supportedModels.
   ///
   /// In en, this message translates to:
-  /// **'This feature is only available on V4.5 models'**
-  String get preciseRef_v4Only;
+  /// **'Precise Reference is available on V4.5 and V5 models'**
+  String get preciseRef_supportedModels;
 
   /// No description provided for @preciseRef_typeCharacter.
   ///
@@ -17019,6 +17019,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Outfit'**
   String get preciseRef_typeOutfit;
+
+  /// No description provided for @preciseRef_preferSameOutfit.
+  ///
+  /// In en, this message translates to:
+  /// **'Prefer the same outfit'**
+  String get preciseRef_preferSameOutfit;
+
+  /// No description provided for @preciseRef_outfitUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This model skips outfit references during generation.'**
+  String get preciseRef_outfitUnsupported;
+
+  /// No description provided for @preciseRef_inpaintUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This model skips Precise Reference during inpainting.'**
+  String get preciseRef_inpaintUnsupported;
+
+  /// No description provided for @preciseRef_limitExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at most {max} precise references. Remove or disable the extras.'**
+  String preciseRef_limitExceeded(int max);
 
   /// No description provided for @preciseRef_costHint.
   ///
