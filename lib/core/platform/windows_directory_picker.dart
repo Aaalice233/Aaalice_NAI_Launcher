@@ -1,150 +1,28 @@
-import 'dart:ffi';
-import 'dart:isolate';
+import 'package:flutter/services.dart';
 
-import 'package:ffi/ffi.dart';
-import 'package:flutter/foundation.dart';
-import 'package:win32/win32.dart';
+/// Windows 原生目录选择器与主窗口所属 Win32 线程通信的 MethodChannel 名称。
+const windowsDirectoryPickerChannelName = 'com.nailauncher/directory_picker';
 
-const _flutterRunnerWindowClassName = 'FLUTTER_RUNNER_WIN32_WINDOW';
+/// Windows 原生目录选择 MethodChannel。
+const windowsDirectoryPickerChannel = MethodChannel(
+  windowsDirectoryPickerChannelName,
+);
 
-/// 测试中替换 Windows 原生 `Show` 调用边界，保留句柄查找与独立 isolate 分派。
-@visibleForTesting
-String? Function(int hwndOwner, String? dialogTitle)?
-debugWindowsDirectoryShowOverride;
-
-/// 查找当前进程持有的主 Flutter Runner 窗口句柄。
+/// 通过 Win32 主窗口所属线程的 `PostMessage` + `IFileOpenDialog::Show(hwnd)` 选择目录。
 ///
-/// 避免跨进程 `FindWindow` 或依赖易受焦点切换影响的 `GetForegroundWindow`，
-/// 找不到本进程窗口时返回 `NULL`。
-int findCurrentProcessMainWindowHandle() {
-  return using((arena) {
-    final className = _flutterRunnerWindowClassName.toNativeUtf16(
-      allocator: arena,
-    );
-    final windowPid = arena<Uint32>();
-    final currentPid = GetCurrentProcessId();
-    var hwnd = NULL;
-    var fallbackHwnd = NULL;
+/// 由原生 Runner 在拥有窗口句柄的 STA 主线程上弹出模态对话框，避免在 Dart UI 线程或
+/// 后台 isolate 跨线程传入 `hwndOwner` 导致的 `AttachThreadInput` 死锁与窗口层级错位。
+Future<String?> pickWindowsDirectoryPath({String? dialogTitle}) async {
+  final arguments = (dialogTitle != null && dialogTitle.isNotEmpty)
+      ? <String, Object?>{'dialogTitle': dialogTitle}
+      : null;
 
-    while ((hwnd = FindWindowEx(NULL, hwnd, className, nullptr)) != NULL) {
-      if (GetWindowThreadProcessId(hwnd, windowPid) == 0 ||
-          windowPid.value != currentPid) {
-        continue;
-      }
-      if (IsWindowVisible(hwnd) != 0) {
-        return hwnd;
-      }
-      fallbackHwnd = hwnd;
-    }
-
-    return fallbackHwnd;
-  });
-}
-
-/// 在独立 isolate 中弹出 Windows 原生目录选择对话框，避免阻塞 Flutter UI 线程。
-Future<String?> pickWindowsDirectoryPath({String? dialogTitle}) {
-  final hwndOwner = findCurrentProcessMainWindowHandle();
-  final showOverride = debugWindowsDirectoryShowOverride;
-  return Isolate.run(() {
-    if (showOverride != null) {
-      return showOverride(hwndOwner, dialogTitle);
-    }
-    return _showWindowsDirectoryDialog(
-      hwndOwner: hwndOwner,
-      dialogTitle: dialogTitle,
-    );
-  });
-}
-
-String? _showWindowsDirectoryDialog({
-  required int hwndOwner,
-  String? dialogTitle,
-}) {
-  final coInitHr = CoInitializeEx(
-    nullptr,
-    COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE,
+  final selectedPath = await windowsDirectoryPickerChannel.invokeMethod<String>(
+    'pickDirectory',
+    arguments,
   );
-  if (FAILED(coInitHr)) {
-    throw WindowsException(coInitHr);
+  if (selectedPath == null || selectedPath.isEmpty) {
+    return null;
   }
-
-  try {
-    final fileDialog = FileOpenDialog.createInstance();
-    try {
-      return using((arena) {
-        final optionsPointer = arena<Uint32>();
-        var hr = fileDialog.getOptions(optionsPointer);
-        if (FAILED(hr)) {
-          throw WindowsException(hr);
-        }
-
-        final options =
-            optionsPointer.value |
-            FOS_PICKFOLDERS |
-            FOS_FORCEFILESYSTEM |
-            FOS_NOCHANGEDIR;
-        hr = fileDialog.setOptions(options);
-        if (FAILED(hr)) {
-          throw WindowsException(hr);
-        }
-
-        if (dialogTitle != null && dialogTitle.isNotEmpty) {
-          final title = dialogTitle.toNativeUtf16(allocator: arena);
-          hr = fileDialog.setTitle(title);
-          if (FAILED(hr)) {
-            throw WindowsException(hr);
-          }
-        }
-
-        hr = fileDialog.show(hwndOwner);
-        if (hr == HRESULT_FROM_WIN32(ERROR_CANCELLED)) {
-          return null;
-        }
-        if (FAILED(hr)) {
-          throw WindowsException(hr);
-        }
-
-        final resultPtr = calloc<COMObject>();
-        hr = fileDialog.getResult(resultPtr.cast());
-        if (FAILED(hr)) {
-          calloc.free(resultPtr);
-          throw WindowsException(hr);
-        }
-        if (resultPtr.ref.isNull) {
-          calloc.free(resultPtr);
-          return null;
-        }
-
-        final item = IShellItem(resultPtr);
-        try {
-          final pathPtr = arena<Pointer<Utf16>>();
-          hr = item.getDisplayName(SIGDN_FILESYSPATH, pathPtr);
-          if (FAILED(hr)) {
-            throw WindowsException(hr);
-          }
-
-          final rawPath = pathPtr.value;
-          if (rawPath == nullptr) {
-            return null;
-          }
-          try {
-            return rawPath.toDartString();
-          } finally {
-            CoTaskMemFree(rawPath);
-          }
-        } finally {
-          // 必须在 release + free 前 detach，否则 IUnknown 的 Finalizer 会重复释放。
-          item.detach();
-          item.release();
-          calloc.free(resultPtr);
-        }
-      });
-    } finally {
-      fileDialog.detach();
-      fileDialog.release();
-      calloc.free(fileDialog.ptr);
-    }
-  } finally {
-    CoUninitialize();
-  }
+  return selectedPath;
 }

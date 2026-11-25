@@ -1,20 +1,20 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:io';
-import 'dart:isolate';
 
-import 'package:ffi/ffi.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/platform/directory_picker.dart';
 import 'package:nai_launcher/core/platform/windows_directory_picker.dart';
-import 'package:win32/win32.dart';
 
 import '../../helpers/fake_save_file_picker.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   tearDown(() {
-    debugWindowsDirectoryShowOverride = null;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(windowsDirectoryPickerChannel, null);
   });
 
   test('非 Windows 插件实现统一通过 lockParentWindow: true 调起目录选择并透传结果', () async {
@@ -77,94 +77,109 @@ void main() {
     ]);
   });
 
-  test('Windows 默认插件不回退到旧实现，并在独立 isolate 中传入本进程主窗口句柄', () async {
-    final testHwnd = _createHiddenRunnerTestWindow();
-    expect(testHwnd, isNot(NULL));
-    expect(findCurrentProcessMainWindowHandle(), testHwnd);
+  test('pickWindowsDirectoryPath 通过原生 MethodChannel 传递标题、处理取消与异常', () async {
+    final recordedCalls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(windowsDirectoryPickerChannel, (call) async {
+          recordedCalls.add(call);
+          final args = call.arguments as Map<Object?, Object?>?;
+          final title = args?['dialogTitle'] as String?;
+          if (title == '选择保存文件夹') {
+            return r'D:\NAI\images';
+          }
+          if (title == 'empty') {
+            return '';
+          }
+          if (title == 'throw') {
+            throw PlatformException(
+              code: 'directory_picker_show_failed',
+              message: 'boom',
+            );
+          }
+          return null;
+        });
 
-    useFakeFilePicker(_ThrowingWindowsFilePicker());
+    expect(
+      await pickWindowsDirectoryPath(dialogTitle: '选择保存文件夹'),
+      r'D:\NAI\images',
+    );
+    expect(await pickWindowsDirectoryPath(), isNull);
+    expect(await pickWindowsDirectoryPath(dialogTitle: ''), isNull);
+    expect(await pickWindowsDirectoryPath(dialogTitle: 'empty'), isNull);
+    await expectLater(
+      pickWindowsDirectoryPath(dialogTitle: 'throw'),
+      throwsA(
+        isA<PlatformException>().having(
+          (e) => e.code,
+          'code',
+          'directory_picker_show_failed',
+        ),
+      ),
+    );
 
-    final callerControlPort = Isolate.current.controlPort;
-    final receivePort = ReceivePort();
-    addTearDown(receivePort.close);
-    final sendPort = receivePort.sendPort;
-
-    debugWindowsDirectoryShowOverride = (hwndOwner, dialogTitle) {
-      sendPort.send((
-        hwndOwner: hwndOwner,
-        dialogTitle: dialogTitle,
-        workerControlPort: Isolate.current.controlPort,
-      ));
-      return r'D:\NAI\images';
-    };
-
-    final selected = await pickDirectoryPath(dialogTitle: '选择保存文件夹');
-    final recorded =
-        await receivePort.first
-            as ({
-              int hwndOwner,
-              String? dialogTitle,
-              SendPort workerControlPort,
-            });
-
-    expect(selected, r'D:\NAI\images');
-    expect(recorded.hwndOwner, testHwnd);
-    expect(recorded.dialogTitle, '选择保存文件夹');
-    expect(recorded.workerControlPort, isNot(callerControlPort));
-  }, skip: !Platform.isWindows);
-
-  test('无窗口的测试进程中 findCurrentProcessMainWindowHandle 返回 0 且不抓他进程窗口', () {
-    expect(findCurrentProcessMainWindowHandle(), 0);
-  }, skip: !Platform.isWindows);
-}
-
-int _createHiddenRunnerTestWindow() {
-  final hInstance = GetModuleHandle(nullptr);
-  final className = 'FLUTTER_RUNNER_WIN32_WINDOW'.toNativeUtf16();
-  final windowTitle = 'NAI Launcher Test'.toNativeUtf16();
-  final wndClass = calloc<WNDCLASS>();
-  final defWindowProc = DynamicLibrary.open(
-    'user32.dll',
-  ).lookup<NativeFunction<WNDPROC>>('DefWindowProcW');
-
-  wndClass.ref.lpfnWndProc = defWindowProc;
-  wndClass.ref.hInstance = hInstance;
-  wndClass.ref.lpszClassName = className;
-
-  var atom = 0;
-  var hwnd = NULL;
-  addTearDown(() {
-    if (hwnd != NULL) {
-      DestroyWindow(hwnd);
-    }
-    if (atom != 0) {
-      UnregisterClass(className, hInstance);
-    }
-    calloc.free(wndClass);
-    calloc.free(windowTitle);
-    calloc.free(className);
+    expect(recordedCalls.map((call) => call.method), [
+      'pickDirectory',
+      'pickDirectory',
+      'pickDirectory',
+      'pickDirectory',
+      'pickDirectory',
+    ]);
+    expect(recordedCalls.map((call) => call.arguments), [
+      {'dialogTitle': '选择保存文件夹'},
+      null,
+      null,
+      {'dialogTitle': 'empty'},
+      {'dialogTitle': 'throw'},
+    ]);
   });
 
-  atom = RegisterClass(wndClass);
-  final registered = atom != 0 || GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
-  expect(registered, isTrue);
+  test('Windows 默认插件直接走原生 MethodChannel 且不回退 FilePickerWindows', () async {
+    useFakeFilePicker(_ThrowingWindowsFilePicker());
 
-  hwnd = CreateWindowEx(
-    0,
-    className,
-    windowTitle,
-    WS_OVERLAPPED,
-    0,
-    0,
-    0,
-    0,
-    NULL,
-    NULL,
-    hInstance,
-    nullptr,
-  );
+    final firstCompleter = Completer<String?>();
+    final recordedCalls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(windowsDirectoryPickerChannel, (call) {
+          recordedCalls.add(call);
+          final args = call.arguments as Map<Object?, Object?>?;
+          final title = args?['dialogTitle'] as String?;
+          if (title == 'first') {
+            return firstCompleter.future;
+          }
+          if (title == 'throw') {
+            return Future<String?>.error(
+              PlatformException(code: 'directory_picker_show_failed'),
+            );
+          }
+          return Future<String?>.value(r'D:\NAI\after');
+        });
 
-  return hwnd;
+    final firstFuture = pickDirectoryPath(dialogTitle: 'first');
+    try {
+      final duplicate = await pickDirectoryPath(dialogTitle: 'duplicate');
+      expect(duplicate, isNull);
+      expect(recordedCalls, hasLength(1));
+
+      firstCompleter.complete(r'D:\NAI\images');
+      expect(await firstFuture, r'D:\NAI\images');
+    } finally {
+      if (!firstCompleter.isCompleted) {
+        firstCompleter.complete(null);
+        await firstFuture;
+      }
+    }
+
+    await expectLater(
+      pickDirectoryPath(dialogTitle: 'throw'),
+      throwsA(isA<PlatformException>()),
+    );
+    expect(await pickDirectoryPath(dialogTitle: 'after'), r'D:\NAI\after');
+    expect(recordedCalls.map((call) => call.arguments), [
+      {'dialogTitle': 'first'},
+      {'dialogTitle': 'throw'},
+      {'dialogTitle': 'after'},
+    ]);
+  }, skip: !Platform.isWindows);
 }
 
 typedef _DirectoryPickCall = ({String? dialogTitle, bool lockParentWindow});

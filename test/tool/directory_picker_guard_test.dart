@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-// 直接调用 FilePicker.platform.getDirectoryPath 会绕过 Windows 独立 isolate 与单飞防重入保护
+// 直接调用 FilePicker.platform.getDirectoryPath 会绕过 Windows 原生主窗口线程与单飞防重入保护
 void main() {
   const allowedFile = 'lib/core/platform/directory_picker.dart';
 
@@ -22,7 +22,7 @@ void main() {
       isEmpty,
       reason:
           '改用 core/platform/directory_picker.dart 的 pickDirectoryPath，'
-          '它会处理 Windows 独立线程、主窗口挂载与单飞防重入：\n${offenders.join('\n')}',
+          '它会处理 Windows 主窗口线程弹出、父窗口挂载与单飞防重入：\n${offenders.join('\n')}',
     );
   });
 
