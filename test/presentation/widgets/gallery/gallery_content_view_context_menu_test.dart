@@ -458,8 +458,6 @@ void main() {
                         itemWidth: 160,
                         state: _GroupedGalleryState(record, grouped: grouped),
                         selectionState: const _InactiveSelectionState(),
-                        itemBuilder: (_, __, ___, ____) =>
-                            const SizedBox.shrink(),
                         idExtractor: (item) => item.path,
                         onSendAction: (_, __) async {},
                         inAlbum: inAlbum,
