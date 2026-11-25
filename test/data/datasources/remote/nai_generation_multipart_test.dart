@@ -10,8 +10,10 @@ import 'package:nai_launcher/data/datasources/remote/nai_generation_transport.da
 import '../../../helpers/browser_multipart_reader.dart';
 import '../../../helpers/precise_reference_baseline.dart';
 
-const String _transportSourcePath =
-    'lib/data/datasources/remote/nai_generation_transport.dart';
+const List<String> _multipartSourcePaths = [
+  'lib/data/datasources/remote/nai_generation_transport.dart',
+  'lib/data/datasources/remote/nai_generation_upload.dart',
+];
 
 final String _sourceImage = base64Encode(Uint8List.fromList([1, 2, 3, 4]));
 final String _maskImage = base64Encode(Uint8List.fromList([5, 6, 7, 8]));
@@ -183,11 +185,11 @@ void main() {
       _buildRequest(),
     );
 
+    expect(first.boundary, matches(r'^----WebKitFormBoundary[A-Za-z0-9]{16}$'));
     expect(
-      first.boundary,
-      matches(r'^----WebKitFormBoundary[A-Za-z0-9]{16}$'),
+      first.contentType,
+      'multipart/form-data; boundary=${first.boundary}',
     );
-    expect(first.contentType, 'multipart/form-data; boundary=${first.boundary}');
     expect(first.boundary, isNot(second.boundary));
   });
 
@@ -240,10 +242,12 @@ void main() {
   });
 
   test('builds the multipart request without a json round trip', () {
-    final source = File(_transportSourcePath).readAsStringSync();
+    for (final path in _multipartSourcePaths) {
+      final source = File(path).readAsStringSync();
 
-    expect(source, isNot(contains('jsonDecode(jsonEncode(')));
-    expect(source, isNot(contains('json.decode(json.encode(')));
+      expect(source, isNot(contains('jsonDecode(jsonEncode(')), reason: path);
+      expect(source, isNot(contains('json.decode(json.encode(')), reason: path);
+    }
   });
 }
 
