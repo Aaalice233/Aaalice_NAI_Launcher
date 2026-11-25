@@ -24,6 +24,7 @@ import '../../../core/utils/zip_utils.dart';
 import '../../../core/watermark/watermark_derivative_registry.dart';
 import '../../../data/models/gallery/local_image_record.dart';
 import '../../../data/models/gallery/nai_image_metadata.dart';
+import '../../../data/models/image/image_params.dart';
 import '../../providers/bulk_operation_provider.dart';
 import '../../agent_chat/providers/agent_chat_notifier.dart';
 import '../../providers/fixed_tags_provider.dart';
@@ -745,7 +746,14 @@ class LocalGalleryActionCoordinator {
         _showMissingImage();
         return;
       }
-      final selectedType = await PreciseReferenceTypeDialog.show(_context());
+      final selectedType = await PreciseReferenceTypeDialog.show(
+        _context(),
+        outfit: _ref
+            .read(generationParamsNotifierProvider)
+            .capabilities
+            .preciseReference
+            .supportsOutfit,
+      );
       if (selectedType == null || !_mounted()) return;
       final bytes = await File(record.path).readAsBytes();
       if (!_mounted()) return;

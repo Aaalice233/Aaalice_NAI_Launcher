@@ -79,6 +79,23 @@ void main() {
     }
   });
 
+  test('external precise reference library schemas include outfit', () {
+    final tools = factory.build(AgentPermissionMode.fullAccess).tools;
+    for (final name in [
+      'list_precise_reference_library',
+      'create_precise_reference_entry',
+      'update_precise_reference_entry',
+    ]) {
+      final tool = tools.singleWhere((tool) => tool.name == name);
+      expect(tool.parameters['properties']['type']['enum'], [
+        'character',
+        'style',
+        'characterAndStyle',
+        'costume',
+      ]);
+    }
+  });
+
   test('external tool schemas never declare a default keyword', () {
     for (final mode in AgentPermissionMode.values) {
       for (final tool in factory.build(mode).tools) {

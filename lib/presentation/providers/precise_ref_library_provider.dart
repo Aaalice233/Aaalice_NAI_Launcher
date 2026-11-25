@@ -21,6 +21,7 @@ class PreciseRefLibraryImportSource {
     required this.loadBytes,
     required this.name,
     this.type = PreciseRefType.characterAndStyle,
+    this.preferSameOutfit,
     this.strength = 1.0,
     this.fidelity = 1.0,
   });
@@ -28,6 +29,7 @@ class PreciseRefLibraryImportSource {
   final PreciseRefLibraryBytesLoader loadBytes;
   final String name;
   final PreciseRefType type;
+  final bool? preferSameOutfit;
   final double strength;
   final double fidelity;
 }
@@ -211,6 +213,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     Uint8List bytes, {
     required String name,
     PreciseRefType type = PreciseRefType.characterAndStyle,
+    bool? preferSameOutfit,
     double strength = 1.0,
     double fidelity = 1.0,
   }) async {
@@ -220,6 +223,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
         bytes,
         name: name,
         type: type,
+        preferSameOutfit: preferSameOutfit,
         strength: strength,
         fidelity: fidelity,
       );
@@ -268,6 +272,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
             bytes,
             name: source.name,
             type: source.type,
+            preferSameOutfit: source.preferSameOutfit,
             strength: source.strength,
             fidelity: source.fidelity,
           );
@@ -303,6 +308,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
     String id, {
     String? name,
     PreciseRefType? type,
+    bool? preferSameOutfit,
     double? strength,
     double? fidelity,
     bool? isFavorite,
@@ -312,6 +318,7 @@ class PreciseRefLibraryNotifier extends _$PreciseRefLibraryNotifier {
       id,
       name: name,
       type: type,
+      preferSameOutfit: preferSameOutfit,
       strength: strength,
       fidelity: fidelity,
       isFavorite: isFavorite,

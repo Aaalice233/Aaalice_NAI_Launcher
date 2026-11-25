@@ -263,6 +263,18 @@ void main() {
       final combinedTypeFilter = find.byKey(
         const Key('precise-ref-type-filter-characterAndStyle'),
       );
+      expect(
+        find.byKey(const Key('precise-ref-type-filter-character')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('precise-ref-type-filter-style')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('precise-ref-type-filter-costume')),
+        findsOneWidget,
+      );
       await tester.ensureVisible(combinedTypeFilter);
       await tester.tap(combinedTypeFilter);
       await tester.pump();

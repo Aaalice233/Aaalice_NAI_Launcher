@@ -344,6 +344,7 @@ class GenerationPreparationService {
           PreciseReference(
             image: resolved!.bytes!,
             type: entry.type,
+            preferSameOutfit: entry.preferSameOutfit,
             strength: entry.strength,
             fidelity: entry.fidelity,
           ),

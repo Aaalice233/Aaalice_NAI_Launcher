@@ -124,6 +124,38 @@ void main() {
     },
   );
 
+  test('metadata import preserves the precise outfit preference', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    const metadata = NaiImageMetadata(
+      preciseReferenceImages: ['AQI='],
+      preciseReferenceTypes: ['character_mainoutfit'],
+    );
+    await MetadataImportCoordinator.apply(
+      read: container.read,
+      metadata: metadata,
+      options: const MetadataImportOptions(
+        importPrompt: false,
+        importNegativePrompt: false,
+        importFixedTags: false,
+        importQualityTags: false,
+        importCharacterPrompts: false,
+        importVibeReferences: false,
+        selectedPreciseReferenceIndices: [0],
+      ),
+      l10n: AppLocalizationsEn(),
+    );
+    final reference = container
+        .read(generationParamsNotifierProvider)
+        .preciseReferences
+        .single;
+    expect(reference.type, PreciseRefType.character);
+    expect(reference.preferSameOutfit, isTrue);
+    await container
+        .read(generationParamsNotifierProvider.notifier)
+        .saveGenerationState();
+  });
+
   test(
     'official centers are retained while use_coords false restores AI mode',
     () async {

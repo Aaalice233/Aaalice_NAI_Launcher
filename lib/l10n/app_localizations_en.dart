@@ -9678,6 +9678,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preciseRef_typeCharacterAndStyle => 'Character + Style';
 
   @override
+  String get preciseRef_typeOutfit => 'Outfit';
+
+  @override
   String get preciseRef_costHint =>
       'Using Precise Reference consumes extra Anlas';
 

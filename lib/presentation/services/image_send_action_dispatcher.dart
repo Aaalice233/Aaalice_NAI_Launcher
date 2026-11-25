@@ -10,6 +10,7 @@ import '../../core/utils/app_logger.dart';
 import '../../core/utils/localization_extension.dart';
 import '../../core/utils/nai_resolution_adapter.dart';
 import '../../data/models/gallery/nai_image_metadata.dart';
+import '../../data/models/image/image_params.dart';
 import '../../data/services/image_metadata_service.dart';
 import '../providers/fixed_tags_provider.dart';
 import '../providers/image_generation_provider.dart';
@@ -208,7 +209,14 @@ class ImageSendActionDispatcher {
     WidgetRef ref,
     Uint8List bytes,
   ) async {
-    final selectedType = await PreciseReferenceTypeDialog.show(context);
+    final selectedType = await PreciseReferenceTypeDialog.show(
+      context,
+      outfit: ref
+          .read(generationParamsNotifierProvider)
+          .capabilities
+          .preciseReference
+          .supportsOutfit,
+    );
     if (selectedType == null || !context.mounted) return;
     unawaited(
       ref

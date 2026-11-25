@@ -4568,6 +4568,7 @@
   "preciseRef_typeCharacter": "Character",
   "preciseRef_typeStyle": "Style",
   "preciseRef_typeCharacterAndStyle": "Character + Style",
+  "preciseRef_typeOutfit": "Outfit",
   "preciseRef_costHint": "Using Precise Reference consumes extra Anlas",
   "preciseRef_costBadge": "Uses Anlas",
   "preciseRef_dropToAdd": "Release to add precise reference",

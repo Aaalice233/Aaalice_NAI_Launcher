@@ -94,6 +94,7 @@ class _PreciseRefHoverPreviewContentState
       character: context.l10n.preciseRef_typeCharacter,
       style: context.l10n.preciseRef_typeStyle,
       characterAndStyle: context.l10n.preciseRef_typeCharacterAndStyle,
+      outfit: context.l10n.preciseRef_typeOutfit,
     );
     return FutureBuilder<double>(
       future: _aspectRatioFuture,

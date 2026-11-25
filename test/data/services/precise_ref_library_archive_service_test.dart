@@ -33,6 +33,7 @@ class _FailingCommitStorage extends PreciseRefLibraryStorageService {
     required String id,
     required String name,
     required PreciseRefType type,
+    bool? preferSameOutfit,
     required double strength,
     required double fidelity,
     required bool isFavorite,
@@ -46,6 +47,7 @@ class _FailingCommitStorage extends PreciseRefLibraryStorageService {
       name: name,
       imagePath: '$id.png',
       typeIndex: type.index,
+      preferSameOutfit: preferSameOutfit,
       strength: strength,
       fidelity: fidelity,
       isFavorite: isFavorite,
@@ -166,6 +168,57 @@ void main() {
     expect(text, contains('FileSystemException(errno: 5)'));
     expect(text, isNot(contains(tempDir.path)));
     expect(text, isNot(contains('private')));
+  });
+
+  test('新服装配置包通过旧字段校验并往返，旧配置包仍可读', () async {
+    final source = await storage.importFromBytes(
+      _pngBytes(),
+      name: 'outfit',
+      type: PreciseRefType.costume,
+      preferSameOutfit: true,
+    );
+    final path = p.join(tempDir.path, 'outfit.naipreciseref');
+    await archives.exportToPath(entries: [source], outputPath: path);
+    final zip = ZipDecoder().decodeBytes(await File(path).readAsBytes());
+    final manifest =
+        jsonDecode(
+              utf8.decode(zip.findFile('manifest.json')!.content as List<int>),
+            )
+            as Map;
+    final record = (manifest['entries'] as List).single as Map;
+    expect(record['type'], 'character');
+    expect(record['typeV2'], 'costume');
+    expect(record['preferSameOutfit'], isTrue);
+    // 60b212930 _ArchiveRecord.parse 只按旧字段校验，不限定额外键。
+    expect([
+      'character',
+      'style',
+      'characterAndStyle',
+    ], contains(record['type']));
+    expect(record['id'], matches(r'^[0-9a-f-]{36}$'));
+    expect(record['name'], isNotEmpty);
+    expect((record['strength'] as num).isFinite, isTrue);
+    expect((record['fidelity'] as num).isFinite, isTrue);
+    expect(record['isFavorite'], isA<bool>());
+    expect(record['usedCount'], greaterThanOrEqualTo(0));
+    expect(record['lastUsedAt'], isNull);
+    expect(DateTime.tryParse(record['createdAt'] as String), isNotNull);
+    expect(
+      p.basenameWithoutExtension(record['resource'] as String),
+      record['id'],
+    );
+    expect(record['length'], greaterThan(0));
+    expect(record['sha256'], matches(r'^[0-9a-f]{64}$'));
+    final restored = (await archives.importFromPath(path)).single;
+    expect(restored.type, PreciseRefType.costume);
+    expect(restored.preferSameOutfit, isTrue);
+    final legacyPath = await _writeArchive(
+      tempDir,
+      resource: 'images/11111111-1111-4111-8111-111111111111.png',
+    );
+    final legacy = (await archives.importFromPath(legacyPath)).single;
+    expect(legacy.type, PreciseRefType.characterAndStyle);
+    expect(legacy.preferSameOutfit, isNull);
   });
 
   test('解压与校验经过共享计算闸门在后台完成', () async {

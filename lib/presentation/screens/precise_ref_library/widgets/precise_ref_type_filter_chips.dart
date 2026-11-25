@@ -46,6 +46,7 @@ class PreciseRefTypeFilterChips extends StatelessWidget {
                 character: l10n.preciseRef_typeCharacter,
                 style: l10n.preciseRef_typeStyle,
                 characterAndStyle: l10n.preciseRef_typeCharacterAndStyle,
+                outfit: l10n.preciseRef_typeOutfit,
               ),
             ),
             selected: value == type,

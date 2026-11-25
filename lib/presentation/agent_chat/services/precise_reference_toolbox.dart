@@ -209,6 +209,7 @@ class PreciseReferenceToolbox {
           .addPreciseReferenceFromImage(
             await file.readAsBytes(),
             type: entry.type,
+            preferSameOutfit: entry.preferSameOutfit,
             strength: entry.strength,
             fidelity: entry.fidelity,
           );

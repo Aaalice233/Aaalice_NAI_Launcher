@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
-import '../../../core/enums/precise_ref_type.dart';
 import '../../../core/storage/replication_queue_blob_store.dart';
 import '../../../core/utils/focused_inpaint_utils.dart';
 import '../image/image_params.dart';
+import '../precise_ref/precise_ref_type_codec.dart';
 import '../vibe/vibe_reference.dart';
 import 'replication_task_snapshot_blobs.dart';
 
@@ -273,7 +273,10 @@ abstract final class ReplicationTaskGenerationSnapshot {
       for (final reference in params.preciseReferences)
         {
           SnapshotBlobSlots.preciseImage: PendingSnapshotBlob(reference.image),
-          'type': reference.type.name,
+          ...encodePreciseRefType(
+            reference.type,
+            preferSameOutfit: reference.preferSameOutfit,
+          ),
           'strength': reference.strength,
           'fidelity': reference.fidelity,
           'enabled': reference.enabled,
@@ -436,15 +439,11 @@ abstract final class ReplicationTaskGenerationSnapshot {
         item['type'] is! String) {
       throw const FormatException('Invalid queued precise reference');
     }
-    final type = PreciseRefType.values
-        .where((value) => value.name == item['type'])
-        .firstOrNull;
-    if (type == null) {
-      throw const FormatException('Invalid queued precise reference type');
-    }
+    final settings = decodePreciseRefType(item);
     return PreciseReference(
       image: _bytes(item[SnapshotBlobSlots.preciseImage])!,
-      type: type,
+      type: settings.type,
+      preferSameOutfit: settings.preferSameOutfit,
       strength: (item['strength'] as num?)?.toDouble() ?? 1,
       fidelity: (item['fidelity'] as num?)?.toDouble() ?? 1,
       enabled: item['enabled'] != false,

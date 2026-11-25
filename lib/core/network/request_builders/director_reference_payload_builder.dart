@@ -23,7 +23,11 @@ class DirectorReferencePayloadBuilder {
       for (final reference in references)
         {
           'caption': {
-            'base_caption': reference.type.toApiString(),
+            'base_caption': preciseReferenceDescription(
+              reference.type,
+              preferSameOutfit: reference.preferSameOutfit,
+              outfitSupported: false,
+            ),
             'char_captions': [],
           },
           'legacy_uc': false,

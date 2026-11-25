@@ -41,6 +41,41 @@ void main() {
         as Map<String, dynamic>;
   }
 
+  test('precise settings round-trip with content-addressed images', () async {
+    final references = [
+      for (final type in PreciseRefType.values)
+        PreciseReference(
+          image: Uint8List.fromList([9, 10]),
+          type: type,
+          preferSameOutfit: false,
+        ),
+    ];
+    final snapshot = await persisted(
+      ImageParams(preciseReferences: references),
+    );
+    final restored = await ReplicationTaskGenerationSnapshot.decode(
+      snapshot,
+      store,
+    );
+    expect(restored.preciseReferences, references);
+
+    final items = snapshot['preciseReferences'] as List;
+    for (final item in items) {
+      expect(item['image'], _ref(references.first.image));
+    }
+    expect(items.last['type'], 'character');
+    expect(items.last['typeV2'], 'costume');
+    final legacy = Map<String, dynamic>.of(snapshot)
+      ..['preciseReferences'] = [
+        {'image': items.first['image'], 'type': 'characterAndStyle'},
+      ];
+    final legacyReference = (await ReplicationTaskGenerationSnapshot.decode(
+      legacy,
+      store,
+    )).preciseReferences.single;
+    expect(legacyReference.type, PreciseRefType.characterAndStyle);
+    expect(legacyReference.preferSameOutfit, isNull);
+  });
   test('round-trips every billed and binary generation input', () async {
     final params = ImageParams(
       prompt: 'prompt',

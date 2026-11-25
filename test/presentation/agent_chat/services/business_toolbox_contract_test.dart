@@ -28,6 +28,28 @@ import 'package:nai_launcher/presentation/providers/image_generation_provider.da
 final _refProvider = Provider<Ref>((ref) => ref);
 
 void main() {
+  test('precise reference library schemas include outfit', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ref = container.read(_refProvider);
+    final tools = ReferenceLibraryToolbox(
+      ref,
+      AgentResourceResolver(ref),
+    ).tools();
+    for (final name in [
+      'list_precise_reference_library',
+      'create_precise_reference_entry',
+      'update_precise_reference_entry',
+    ]) {
+      final tool = tools.singleWhere((tool) => tool.name == name);
+      expect(tool.parameters['properties']['type']['enum'], [
+        'character',
+        'style',
+        'characterAndStyle',
+        'costume',
+      ]);
+    }
+  });
   test('business toolbox exposes complete unique strict tool contracts', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);

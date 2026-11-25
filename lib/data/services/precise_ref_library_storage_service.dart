@@ -17,7 +17,8 @@ import '../../core/utils/precise_ref_library_path_helper.dart';
 import '../models/precise_ref/precise_ref_library_entry.dart';
 import 'precise_ref_portable_importer.dart';
 
-export 'precise_ref_portable_importer.dart' show InvalidPreciseRefImageException;
+export 'precise_ref_portable_importer.dart'
+    show InvalidPreciseRefImageException;
 
 part 'precise_ref_library_storage_service.g.dart';
 
@@ -101,6 +102,7 @@ class PreciseRefLibraryStorageService {
     Uint8List bytes, {
     required String name,
     PreciseRefType type = PreciseRefType.characterAndStyle,
+    bool? preferSameOutfit,
     double strength = 1.0,
     double fidelity = 1.0,
   }) async {
@@ -121,6 +123,7 @@ class PreciseRefLibraryStorageService {
       name: name,
       imagePath: filePath,
       type: type,
+      preferSameOutfit: preferSameOutfit,
       strength: strength,
       fidelity: fidelity,
     );
@@ -176,6 +179,7 @@ class PreciseRefLibraryStorageService {
     required String id,
     required String name,
     required PreciseRefType type,
+    bool? preferSameOutfit,
     required double strength,
     required double fidelity,
     required bool isFavorite,
@@ -200,6 +204,7 @@ class PreciseRefLibraryStorageService {
       id: id,
       name: name,
       type: type,
+      preferSameOutfit: preferSameOutfit,
       strength: strength,
       fidelity: fidelity,
       isFavorite: isFavorite,
@@ -214,6 +219,7 @@ class PreciseRefLibraryStorageService {
     String id, {
     String? name,
     PreciseRefType? type,
+    bool? preferSameOutfit,
     double? strength,
     double? fidelity,
     bool? isFavorite,
@@ -228,6 +234,9 @@ class PreciseRefLibraryStorageService {
           ? entry.name
           : trimmedName,
       typeIndex: type?.index ?? entry.typeIndex,
+      preferSameOutfit: type != null && type != entry.type
+          ? preferSameOutfit
+          : preferSameOutfit ?? entry.preferSameOutfit,
       strength: strength ?? entry.strength,
       fidelity: fidelity ?? entry.fidelity,
       isFavorite: isFavorite ?? entry.isFavorite,

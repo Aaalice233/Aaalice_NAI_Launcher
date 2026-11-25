@@ -62,6 +62,146 @@ void main() {
     expect(params.sampler, Samplers.kEulerAncestral);
   });
 
+  test(
+    'precise outfit preferences persist and type changes reset the preference',
+    () async {
+      final storage = _FakeGenerationStateStorage();
+      final container = ProviderContainer(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      await notifier.restoreGenerationState();
+      notifier.addPreciseReference(
+        Uint8List.fromList([1, 2]),
+        type: PreciseRefType.costume,
+        preferSameOutfit: true,
+      );
+      notifier.addPreciseReference(
+        Uint8List.fromList([3]),
+        type: PreciseRefType.characterAndStyle,
+      );
+      await notifier.saveGenerationState();
+      final saved = jsonDecode(storage.generationStateJson!) as Map;
+      final records = saved['preciseReferences'] as List;
+      expect(records[0]['type'], 'costume');
+      expect(records[0]['preferSameOutfit'], isTrue);
+      expect((records[1] as Map).containsKey('preferSameOutfit'), isFalse);
+      // 60b212930 保留旧数组与标量，未知类型回退为 character。
+      final legacyTypes = [
+        for (final record in records)
+          switch (record['type']) {
+            'style' => PreciseRefType.style,
+            'character&style' => PreciseRefType.characterAndStyle,
+            _ => PreciseRefType.character,
+          },
+      ];
+      expect(legacyTypes, [
+        PreciseRefType.character,
+        PreciseRefType.characterAndStyle,
+      ]);
+      expect(base64Decode(records[0]['imageBase64'] as String), [1, 2]);
+      final restoredContainer = ProviderContainer(
+        overrides: [
+          vibeLibraryStorageServiceProvider.overrideWithValue(storage),
+        ],
+      );
+      addTearDown(restoredContainer.dispose);
+      final restoredNotifier = restoredContainer.read(
+        generationParamsNotifierProvider.notifier,
+      );
+      await restoredNotifier.restoreGenerationState();
+      expect(
+        restoredContainer
+            .read(generationParamsNotifierProvider)
+            .preciseReferences
+            .first
+            .preferSameOutfit,
+        isTrue,
+      );
+      expect(
+        restoredContainer
+            .read(generationParamsNotifierProvider)
+            .preciseReferences
+            .first
+            .type,
+        PreciseRefType.costume,
+      );
+      notifier.updatePreciseReferenceType(0, PreciseRefType.character);
+      expect(
+        container
+            .read(generationParamsNotifierProvider)
+            .preciseReferences
+            .first
+            .preferSameOutfit,
+        isNull,
+      );
+      notifier.updatePreciseReferencePreferSameOutfit(0, false);
+      expect(
+        container
+            .read(generationParamsNotifierProvider)
+            .preciseReferences
+            .first
+            .preferSameOutfit,
+        isFalse,
+      );
+      notifier.updatePreciseReferencePreferSameOutfit(0, null);
+      expect(
+        container
+            .read(generationParamsNotifierProvider)
+            .preciseReferences
+            .first
+            .preferSameOutfit,
+        isNull,
+      );
+      notifier.updatePreciseReferencePreferSameOutfit(0, true);
+      final beforeInvalid = container.read(generationParamsNotifierProvider);
+      notifier.updatePreciseReferencePreferSameOutfit(-1, false);
+      notifier.updatePreciseReferencePreferSameOutfit(2, false);
+      expect(
+        container.read(generationParamsNotifierProvider),
+        same(beforeInvalid),
+      );
+      notifier.updatePreciseReference(0, type: PreciseRefType.style);
+      expect(
+        container
+            .read(generationParamsNotifierProvider)
+            .preciseReferences
+            .first
+            .preferSameOutfit,
+        isNull,
+      );
+      await notifier.saveGenerationState();
+    },
+  );
+
+  test('reads legacy precise state with a null outfit preference', () async {
+    final storage = _FakeGenerationStateStorage()
+      ..generationStateJson = jsonEncode({
+        'schemaVersion': 2,
+        'preciseReferences': [
+          {'imageBase64': 'AQI=', 'type': 'character&style'},
+        ],
+      });
+    final container = ProviderContainer(
+      overrides: [vibeLibraryStorageServiceProvider.overrideWithValue(storage)],
+    );
+    addTearDown(container.dispose);
+    final notifier = container.read(generationParamsNotifierProvider.notifier);
+    await notifier.restoreGenerationState();
+    final reference = container
+        .read(generationParamsNotifierProvider)
+        .preciseReferences
+        .single;
+    expect(reference.type, PreciseRefType.characterAndStyle);
+    expect(reference.preferSameOutfit, isNull);
+    await notifier.saveGenerationState();
+  });
+
   // 同一事件内连续两次输入若都延后写入，会留下过期写入并与 prompt_input 的
   // 回写监听形成永久振荡。非构建阶段必须同步落地。
   test('prompt updates apply synchronously outside the build phase', () {

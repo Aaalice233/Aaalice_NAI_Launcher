@@ -9301,6 +9301,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preciseRef_typeCharacterAndStyle => '角色+风格';
 
   @override
+  String get preciseRef_typeOutfit => '服装';
+
+  @override
   String get preciseRef_costHint => '使用精准参考会消耗额外点数';
 
   @override
@@ -25133,6 +25136,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get preciseRef_typeCharacterAndStyle => '角色+風格';
+
+  @override
+  String get preciseRef_typeOutfit => '服裝';
 
   @override
   String get preciseRef_costHint => '使用精準參考會消耗額外點數';

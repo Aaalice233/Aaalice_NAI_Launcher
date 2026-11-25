@@ -40,6 +40,7 @@ class _ConcurrencyTrackingStorage extends PreciseRefLibraryStorageService {
     Uint8List bytes, {
     required String name,
     PreciseRefType type = PreciseRefType.characterAndStyle,
+    bool? preferSameOutfit,
     double strength = 1.0,
     double fidelity = 1.0,
   }) async {
@@ -55,6 +56,7 @@ class _ConcurrencyTrackingStorage extends PreciseRefLibraryStorageService {
         name: name,
         imagePath: '$id.png',
         typeIndex: type.index,
+        preferSameOutfit: preferSameOutfit,
         strength: strength,
         fidelity: fidelity,
         createdAt: DateTime(2026),
@@ -167,12 +169,22 @@ void main() {
       for (var i = 0; i < 5; i++)
         PreciseRefLibraryImportSource(
           name: 'entry-$i',
+          type: PreciseRefType.costume,
+          preferSameOutfit: false,
           loadBytes: () async => i == 3 ? null : _pngBytes(),
         ),
     ], maxConcurrent: 2);
 
     expect(result.importedCount, 4);
     expect(result.failedCount, 1);
+    expect(
+      result.entries.map((entry) => entry.type),
+      everyElement(PreciseRefType.costume),
+    );
+    expect(
+      result.entries.map((entry) => entry.preferSameOutfit),
+      everyElement(isFalse),
+    );
     expect(trackingStorage.maxActiveImports, 2);
     expect(
       testContainer.read(preciseRefLibraryNotifierProvider).entries,
@@ -282,6 +294,27 @@ void main() {
 
     await notifier().recordUsage(entry.id);
     expect(state().entries.single.usedCount, 1);
+  });
+
+  test('参考库新增和编辑保留服装偏好，切换类型重置偏好', () async {
+    final entry = await notifier().importFromBytes(
+      _pngBytes(),
+      name: 'outfit',
+      type: PreciseRefType.costume,
+      preferSameOutfit: true,
+    );
+    expect(entry.type, PreciseRefType.costume);
+    expect(entry.preferSameOutfit, isTrue);
+    await notifier().updateEntry(entry.id, name: 'renamed');
+    expect(state().entries.single.preferSameOutfit, isTrue);
+    await notifier().updateEntry(
+      entry.id,
+      type: PreciseRefType.costume,
+      preferSameOutfit: false,
+    );
+    expect(state().entries.single.preferSameOutfit, isFalse);
+    await notifier().updateEntry(entry.id, type: PreciseRefType.character);
+    expect(state().entries.single.preferSameOutfit, isNull);
   });
 
   test('deleteEntry 从 state 移除条目', () async {

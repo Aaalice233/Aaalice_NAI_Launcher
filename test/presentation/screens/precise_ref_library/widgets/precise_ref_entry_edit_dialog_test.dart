@@ -12,12 +12,36 @@ final _entry = PreciseRefLibraryEntry(
   name: '参考',
   imagePath: 'entry.png',
   typeIndex: PreciseRefType.character.index,
+  preferSameOutfit: true,
   strength: 0.6,
   fidelity: 0.4,
   createdAt: DateTime(2026),
 );
 
 void main() {
+  for (final width in [320.0, 840.0]) {
+    testWidgets('编辑类型在 $width 下包含服装', (tester) async {
+      await _open(tester, locale: 'en', width: width);
+      final segmented = find.byType(SegmentedButton<PreciseRefType>);
+      if (segmented.evaluate().isNotEmpty) {
+        expect(
+          tester
+              .widget<SegmentedButton<PreciseRefType>>(segmented)
+              .segments
+              .map((segment) => segment.value),
+          PreciseRefType.values,
+        );
+      } else {
+        final dropdown = tester.widget<DropdownButton<PreciseRefType>>(
+          find.byType(DropdownButton<PreciseRefType>),
+        );
+        expect(
+          dropdown.items!.map((item) => item.value),
+          PreciseRefType.values,
+        );
+      }
+    });
+  }
   testWidgets('数值框提交与滑块拖动都写回结果，数值框不受滑块区间限制', (tester) async {
     PreciseRefEntryEditResult? result;
     await _open(
@@ -44,6 +68,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(result?.strength, 1.5);
     expect(result?.fidelity, 0.5);
+    expect(result?.preferSameOutfit, isTrue);
   });
 
   for (final locale in const ['zh', 'ja', 'en']) {
