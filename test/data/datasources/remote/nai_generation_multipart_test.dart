@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nai_launcher/core/network/browser_multipart_body.dart';
 import 'package:nai_launcher/data/datasources/remote/nai_generation_transport.dart';
 
 import '../../../helpers/browser_multipart_reader.dart';
+import '../../../helpers/precise_reference_baseline.dart';
 
 const String _transportSourcePath =
     'lib/data/datasources/remote/nai_generation_transport.dart';
@@ -19,6 +21,57 @@ final String _secondVibe = base64Encode(Uint8List.fromList([15, 16, 17]));
 final String _directorImage = base64Encode(Uint8List.fromList([18, 19, 20]));
 
 void main() {
+  for (final infill in [false, true]) {
+    test('V4.5 precise reference multipart baseline infill=$infill', () async {
+      final result = await buildPreciseReferenceBaseline(infill: infill);
+      final parts = _parts(
+        NaiGenerationTransport.buildGenerationMultipart(result.requestData),
+      );
+      expect(parts.map((part) => part.name), [
+        if (infill) ...['image', 'mask'],
+        'director_ref_0',
+        'director_ref_1',
+        'request',
+      ]);
+      final directors = parts
+          .where((part) => part.name.startsWith('director_ref_'))
+          .toList();
+      expect(directors, hasLength(2));
+      expect(directors.map((part) => sha256.convert(part.bytes).toString()), [
+        '04e685dea5a5340d4f12759046de01e12a4bc7418244f6a608fe41a1de9593dd',
+        '07c17823f91b9187421e6569c292e2c1f82684ca5a145a84852ed2df601a88c5',
+      ]);
+      for (final part in directors) {
+        expect(part.filename, 'blob');
+        expect(part.contentType, 'image/png');
+      }
+      final requestJson = parts.last.text;
+      final hash = sha256
+          .convert(utf8.encode(_withMaskedCacheKeys(requestJson)))
+          .toString();
+      expect(
+        hash,
+        infill
+            ? '59a9ace0ea9285b7e78346f4b3ab1784a04f8a44f8a8bff0a792a7eac81ceebf'
+            : '3e3b273d9940518efe854c998b7e9782cbc343c6fd5907dce139c2a2d78d09bf',
+      );
+      final request = jsonDecode(requestJson) as Map<String, dynamic>;
+      final parameters = request['parameters'] as Map<String, dynamic>;
+      expect(parameters.containsKey('director_reference_images'), isFalse);
+      final cached = parameters['director_reference_images_cached'] as List;
+      expect(cached, hasLength(2));
+      for (var i = 0; i < cached.length; i++) {
+        expect((cached[i] as Map).keys, ['cache_secret_key', 'data']);
+        expect(cached[i]['cache_secret_key'], matches(r'^[0-9a-f]{64}$'));
+        expect(cached[i]['data'], 'director_ref_$i');
+      }
+      expect(
+        cached[0]['cache_secret_key'],
+        isNot(cached[1]['cache_secret_key']),
+      );
+    });
+  }
+
   test('leaves the caller request graph and payload strings untouched', () {
     final requestData = _buildRequest();
     final parameters = requestData['parameters'] as Map<String, dynamic>;
