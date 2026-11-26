@@ -39,6 +39,7 @@ class WindowsUpdateScript {
 
 ${_commonFunctions()}
 
+Set-SafeWorkingDirectory
 Write-UpdateStarted
 
 try {
@@ -54,13 +55,13 @@ try {
   Remove-Item -LiteralPath \$PendingMetadataPath -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath \$InstallerPath -Force -ErrorAction SilentlyContinue
   Write-UpdateLog 'Installer update completed successfully.'
-  Start-Process -FilePath \$ExePath
+  Start-Process -FilePath \$ExePath -WorkingDirectory ([System.IO.Path]::GetDirectoryName(\$ExePath))
 } catch {
   \$FailureMessage = \$_.Exception.Message
   Write-UpdateLog "Installer update failed: \$FailureMessage"
   Write-UpdateResult -Success \$false -Message \$FailureMessage
   if (Test-Path -LiteralPath \$ExePath) {
-    Start-Process -FilePath \$ExePath -ErrorAction SilentlyContinue
+    Start-Process -FilePath \$ExePath -WorkingDirectory ([System.IO.Path]::GetDirectoryName(\$ExePath)) -ErrorAction SilentlyContinue
   }
   exit 1
 } finally {
@@ -103,6 +104,7 @@ try {
 ${_commonFunctions()}
 ${_stopBundledProxiesFunction()}
 
+Set-SafeWorkingDirectory
 Write-UpdateStarted
 
 try {
@@ -164,7 +166,7 @@ try {
   \$NewExePath = Join-Path \$AppDir \$ExeName
   Write-UpdateResult -Success \$true -Message 'Update installed successfully.'
   Write-UpdateLog "Starting updated application: \$NewExePath"
-  \$NewProcess = Start-Process -FilePath \$NewExePath -PassThru
+  \$NewProcess = Start-Process -FilePath \$NewExePath -WorkingDirectory \$AppDir -PassThru
   Start-Sleep -Seconds 3
   if (\$NewProcess.HasExited) {
     throw "Updated application exited immediately with code \$(\$NewProcess.ExitCode)."
@@ -191,7 +193,7 @@ try {
   Write-UpdateResult -Success \$false -Message \$FailureMessage
   \$RestoredExePath = Join-Path \$AppDir \$ExeName
   if (Test-Path -LiteralPath \$RestoredExePath) {
-    Start-Process -FilePath \$RestoredExePath -ErrorAction SilentlyContinue
+    Start-Process -FilePath \$RestoredExePath -WorkingDirectory \$AppDir -ErrorAction SilentlyContinue
   }
   exit 1
 } finally {
@@ -206,6 +208,14 @@ try {
 
   static String _commonFunctions() {
     return '''
+# 主应用在 Windows 下通常以应用目录为工作目录启动；若更新脚本继承该目录，
+# PowerShell 5.1 的 Move-Item 会报目录正在使用中。必须同时切换 \$PWD 与 Win32 CWD。
+function Set-SafeWorkingDirectory {
+  \$SafeDir = [System.IO.Path]::GetTempPath()
+  Set-Location -LiteralPath \$SafeDir
+  [System.Environment]::CurrentDirectory = \$SafeDir
+}
+
 function Write-UpdateLog {
   param([string]\$Message)
   \$Timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
