@@ -49,81 +49,97 @@ extension AppStyleExtension on AppStyle {
     AppStyle.boldRetro: _ThemeMetadata(
       BoldRetroTheme.displayName,
       BoldRetroTheme.description,
+      true,
       BoldRetroTheme.supportsDarkMode,
     ),
     AppStyle.grungeCollage: _ThemeMetadata(
       GrungeCollageTheme.displayName,
       GrungeCollageTheme.description,
+      true,
       GrungeCollageTheme.supportsDarkMode,
     ),
     AppStyle.fluidSaturated: _ThemeMetadata(
       FluidSaturatedTheme.displayName,
       FluidSaturatedTheme.description,
+      true,
       FluidSaturatedTheme.supportsDarkMode,
     ),
     AppStyle.materialYou: _ThemeMetadata(
       MaterialYouTheme.displayName,
       MaterialYouTheme.description,
+      true,
       MaterialYouTheme.supportsDarkMode,
     ),
     AppStyle.flatDesign: _ThemeMetadata(
       FlatDesignTheme.displayName,
       FlatDesignTheme.description,
+      true,
       FlatDesignTheme.supportsDarkMode,
     ),
     AppStyle.handDrawn: _ThemeMetadata(
       HandDrawnTheme.displayName,
       HandDrawnTheme.description,
+      true,
       HandDrawnTheme.supportsDarkMode,
     ),
     AppStyle.midnightEditorial: _ThemeMetadata(
       MidnightEditorialTheme.displayName,
       MidnightEditorialTheme.description,
+      true,
       MidnightEditorialTheme.supportsDarkMode,
     ),
     AppStyle.zenMinimalist: _ThemeMetadata(
       ZenMinimalistTheme.displayName,
       ZenMinimalistTheme.description,
+      true,
       ZenMinimalistTheme.supportsDarkMode,
     ),
     AppStyle.minimalGlass: _ThemeMetadata(
       MinimalGlassTheme.displayName,
       MinimalGlassTheme.description,
+      false,
       MinimalGlassTheme.supportsDarkMode,
     ),
     AppStyle.neoDark: _ThemeMetadata(
       NeoDarkTheme.displayName,
       NeoDarkTheme.description,
+      false,
       NeoDarkTheme.supportsDarkMode,
     ),
     AppStyle.proAi: _ThemeMetadata(
       ProAiTheme.displayName,
       ProAiTheme.description,
+      false,
       ProAiTheme.supportsDarkMode,
     ),
     AppStyle.social: _ThemeMetadata(
       SocialTheme.displayName,
       SocialTheme.description,
+      false,
       SocialTheme.supportsDarkMode,
     ),
     AppStyle.retroWave: _ThemeMetadata(
       RetroWaveTheme.displayName,
       RetroWaveTheme.description,
+      false,
       RetroWaveTheme.supportsDarkMode,
     ),
     AppStyle.brutalist: _ThemeMetadata(
       BrutalistTheme.displayName,
       BrutalistTheme.description,
+      true,
       BrutalistTheme.supportsDarkMode,
     ),
     AppStyle.appleLight: _ThemeMetadata(
       AppleLightTheme.displayName,
       AppleLightTheme.description,
+      true,
       AppleLightTheme.supportsDarkMode,
     ),
     AppStyle.system: _ThemeMetadata(
       SystemTheme.displayName,
       SystemTheme.description,
+      true,
       SystemTheme.supportsDarkMode,
     ),
   };
@@ -132,18 +148,23 @@ extension AppStyleExtension on AppStyle {
 
   String get displayName => _meta.displayName;
   String get description => _meta.description;
+  bool get supportsLightMode => _meta.supportsLightMode;
   bool get supportsDarkMode => _meta.supportsDarkMode;
+  bool supportsBrightness(Brightness brightness) =>
+      brightness == Brightness.dark ? supportsDarkMode : supportsLightMode;
 }
 
 /// 主题元数据
 class _ThemeMetadata {
   final String displayName;
   final String description;
+  final bool supportsLightMode;
   final bool supportsDarkMode;
 
   const _ThemeMetadata(
     this.displayName,
     this.description,
+    this.supportsLightMode,
     this.supportsDarkMode,
   );
 }
@@ -151,6 +172,11 @@ class _ThemeMetadata {
 /// 应用主题管理器
 class AppTheme {
   AppTheme._();
+
+  static List<AppStyle> stylesForBrightness(Brightness brightness) =>
+      AppStyle.values
+          .where((style) => style.supportsBrightness(brightness))
+          .toList(growable: false);
 
   /// 主题构建器映射
   static final _themeBuilders = <AppStyle, _ThemeBuilder>{

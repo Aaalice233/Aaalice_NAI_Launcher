@@ -300,7 +300,7 @@ class NAILauncherApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeType = ref.watch(themeNotifierProvider);
+    final themeSettings = ref.watch(themeNotifierProvider);
     final fontType = ref.watch(fontNotifierProvider);
     final fontScale = ref.watch(fontScaleNotifierProvider);
     final locale = ref.watch(localeNotifierProvider);
@@ -358,7 +358,11 @@ class NAILauncherApp extends ConsumerWidget {
         }
       },
       ShortcutIds.toggleTheme: () {
-        ref.read(themeNotifierProvider.notifier).nextTheme();
+        ref
+            .read(themeNotifierProvider.notifier)
+            .nextStyle(
+              WidgetsBinding.instance.platformDispatcher.platformBrightness,
+            );
       },
     };
 
@@ -372,16 +376,16 @@ class NAILauncherApp extends ConsumerWidget {
 
           // 主题 (fontFamily 为空时使用主题原生字体)
           theme: AppTheme.getTheme(
-            themeType,
+            themeSettings.lightStyle,
             Brightness.light,
             fontConfig: fontType.fontFamily.isEmpty ? null : fontType,
           ),
           darkTheme: AppTheme.getTheme(
-            themeType,
+            themeSettings.darkStyle,
             Brightness.dark,
             fontConfig: fontType.fontFamily.isEmpty ? null : fontType,
           ),
-          themeMode: ThemeMode.dark, // 默认深色模式
+          themeMode: themeSettings.themeMode,
           // 国际化
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,

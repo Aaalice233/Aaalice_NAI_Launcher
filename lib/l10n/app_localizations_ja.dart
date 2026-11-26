@@ -635,9 +635,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settings_appearance => '外観';
 
   @override
-  String get settings_style => 'スタイル';
-
-  @override
   String get settings_font => 'フォント';
 
   @override
@@ -747,9 +744,6 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settings_comfyUiDesktopOnly => 'デスクトップ版でのみ利用できます';
-
-  @override
-  String get settings_selectStyle => 'スタイルの選択';
 
   @override
   String get settings_defaultPreset => 'デフォルト';
@@ -16168,4 +16162,34 @@ class AppLocalizationsJa extends AppLocalizations {
 
     return 'メンバーシップ有効期限：$dateString';
   }
+
+  @override
+  String get nav_switchToLightMode => 'ライトに切替';
+
+  @override
+  String get nav_switchToDarkMode => 'ダークに切替';
+
+  @override
+  String get settings_themeMode => 'テーマモード';
+
+  @override
+  String get settings_themeModeLight => 'ライト';
+
+  @override
+  String get settings_themeModeDark => 'ダーク';
+
+  @override
+  String get settings_themeModeSystem => 'システム';
+
+  @override
+  String get settings_lightTheme => 'ライトテーマ';
+
+  @override
+  String get settings_darkTheme => 'ダークテーマ';
+
+  @override
+  String get settings_selectLightTheme => 'ライトテーマを選択';
+
+  @override
+  String get settings_selectDarkTheme => 'ダークテーマを選択';
 }

@@ -258,7 +258,6 @@
   "settings_title": "设置",
   "settings_account": "账户",
   "settings_appearance": "外观",
-  "settings_style": "风格",
   "settings_font": "字体",
   "settings_language": "语言",
   "settings_languageChinese": "简体中文",
@@ -295,7 +294,6 @@
   "settings_alphaModePremultipliedDescription": "RGB 已乘 Alpha，适合要求预乘输入的合成与渲染流程。",
   "settings_promptAssistant": "提示词助手",
   "settings_comfyUiDesktopOnly": "仅桌面端可用",
-  "settings_selectStyle": "选择风格",
   "settings_defaultPreset": "默认",
   "settings_selectFont": "选择字体",
   "settings_selectLanguage": "选择语言",
@@ -7721,5 +7719,15 @@
         "format": "yMMMd"
       }
     }
-  }
+  },
+  "nav_switchToLightMode": "切换浅色模式",
+  "nav_switchToDarkMode": "切换深色模式",
+  "settings_themeMode": "主题模式",
+  "settings_themeModeLight": "浅色",
+  "settings_themeModeDark": "深色",
+  "settings_themeModeSystem": "跟随系统",
+  "settings_lightTheme": "浅色主题",
+  "settings_darkTheme": "深色主题",
+  "settings_selectLightTheme": "选择浅色主题",
+  "settings_selectDarkTheme": "选择深色主题"
 }

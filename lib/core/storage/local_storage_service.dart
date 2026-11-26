@@ -56,6 +56,30 @@ class LocalStorageService {
     await setSetting(StorageKeys.themeType, index);
   }
 
+  /// 获取主题模式（'light' / 'dark' / 'system'，未设置时返回 null）
+  String? getThemeMode() => getSetting<String>(StorageKeys.themeMode);
+
+  /// 保存主题模式
+  Future<void> setThemeMode(String mode) async {
+    await setSetting(StorageKeys.themeMode, mode);
+  }
+
+  /// 获取浅色主题风格索引（未设置时返回 null）
+  int? getLightThemeIndex() => getSetting<int>(StorageKeys.lightThemeType);
+
+  /// 保存浅色主题风格索引
+  Future<void> setLightThemeIndex(int index) async {
+    await setSetting(StorageKeys.lightThemeType, index);
+  }
+
+  /// 获取深色主题风格索引（未设置时返回 null）
+  int? getDarkThemeIndex() => getSetting<int>(StorageKeys.darkThemeType);
+
+  /// 保存深色主题风格索引
+  Future<void> setDarkThemeIndex(int index) async {
+    await setSetting(StorageKeys.darkThemeType, index);
+  }
+
   // ==================== Font ====================
 
   /// 获取字体名称

@@ -249,7 +249,6 @@
   "settings_title": "設定",
   "settings_account": "アカウント",
   "settings_appearance": "外観",
-  "settings_style": "スタイル",
   "settings_font": "フォント",
   "settings_language": "言語",
   "settings_languageChinese": "简体中文",
@@ -286,7 +285,6 @@
   "settings_alphaModePremultipliedDescription": "RGB にアルファを乗算し、乗算済み入力を必要とする合成・レンダリング処理に適した形式にします。",
   "settings_promptAssistant": "プロンプトアシスタント",
   "settings_comfyUiDesktopOnly": "デスクトップ版でのみ利用できます",
-  "settings_selectStyle": "スタイルの選択",
   "settings_defaultPreset": "デフォルト",
   "settings_selectFont": "フォントの選択",
   "settings_selectLanguage": "言語の選択",
@@ -7677,5 +7675,15 @@
         "format": "yMMMd"
       }
     }
-  }
+  },
+  "nav_switchToLightMode": "ライトに切替",
+  "nav_switchToDarkMode": "ダークに切替",
+  "settings_themeMode": "テーマモード",
+  "settings_themeModeLight": "ライト",
+  "settings_themeModeDark": "ダーク",
+  "settings_themeModeSystem": "システム",
+  "settings_lightTheme": "ライトテーマ",
+  "settings_darkTheme": "ダークテーマ",
+  "settings_selectLightTheme": "ライトテーマを選択",
+  "settings_selectDarkTheme": "ダークテーマを選択"
 }

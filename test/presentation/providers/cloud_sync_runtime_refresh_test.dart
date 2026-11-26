@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive_ce/hive_ce.dart';
@@ -11,7 +12,9 @@ import 'package:nai_launcher/presentation/providers/history_click_behavior_provi
 import 'package:nai_launcher/core/utils/locale_provider.dart';
 import 'package:nai_launcher/presentation/providers/online_gallery_output_filter_provider.dart';
 import 'package:nai_launcher/presentation/providers/tag_library_page_provider.dart';
+import 'package:nai_launcher/presentation/providers/theme_provider.dart';
 import 'package:nai_launcher/presentation/providers/watermark_settings_provider.dart';
+import 'package:nai_launcher/presentation/themes/app_theme.dart';
 import 'package:nai_launcher/data/models/tag_library/tag_library_entry.dart';
 import 'package:nai_launcher/data/models/watermark/watermark_settings.dart';
 
@@ -51,6 +54,12 @@ void main() {
       StorageKeys.watermarkConfigV1,
       const WatermarkSettings(enabled: false).encode(),
     );
+    await storage.setSetting(StorageKeys.themeMode, 'dark');
+    await storage.setSetting(
+      StorageKeys.lightThemeType,
+      AppStyle.appleLight.index,
+    );
+    await storage.setSetting(StorageKeys.darkThemeType, AppStyle.neoDark.index);
 
     final container = ProviderContainer(
       overrides: [localStorageServiceProvider.overrideWithValue(storage)],
@@ -67,6 +76,14 @@ void main() {
       container.read(watermarkSettingsProvider).configuration.enabled,
       isFalse,
     );
+    expect(
+      container.read(themeNotifierProvider),
+      const ThemeSettings(
+        themeMode: ThemeMode.dark,
+        lightStyle: AppStyle.appleLight,
+        darkStyle: AppStyle.neoDark,
+      ),
+    );
 
     await storage.setSetting(StorageKeys.locale, 'ja');
     await storage.setSetting(
@@ -81,6 +98,12 @@ void main() {
       StorageKeys.watermarkConfigV1,
       const WatermarkSettings(enabled: true).encode(),
     );
+    await storage.setSetting(StorageKeys.themeMode, 'system');
+    await storage.setSetting(
+      StorageKeys.lightThemeType,
+      AppStyle.boldRetro.index,
+    );
+    await storage.setSetting(StorageKeys.darkThemeType, AppStyle.social.index);
 
     await container.read(_refreshInvokerProvider.notifier).invoke(const {
       'portable-settings',
@@ -95,6 +118,14 @@ void main() {
     expect(
       container.read(watermarkSettingsProvider).configuration.enabled,
       isTrue,
+    );
+    expect(
+      container.read(themeNotifierProvider),
+      const ThemeSettings(
+        themeMode: ThemeMode.system,
+        lightStyle: AppStyle.boldRetro,
+        darkStyle: AppStyle.social,
+      ),
     );
 
     expect(container.read(tagLibraryPageNotifierProvider).entries, isEmpty);

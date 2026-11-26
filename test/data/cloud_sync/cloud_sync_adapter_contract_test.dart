@@ -250,6 +250,10 @@ void main() {
   });
 
   test('portable preferences and explicit exclusions stay classified', () {
+    expect(portableSettingKeys, contains(StorageKeys.themeType));
+    expect(portableSettingKeys, contains(StorageKeys.themeMode));
+    expect(portableSettingKeys, contains(StorageKeys.lightThemeType));
+    expect(portableSettingKeys, contains(StorageKeys.darkThemeType));
     expect(portableSettingKeys, contains(StorageKeys.defaultModel));
     expect(portableSettingKeys, contains(StorageKeys.imageModelMode));
     expect(portableSettingKeys, contains(StorageKeys.shareWatermark));

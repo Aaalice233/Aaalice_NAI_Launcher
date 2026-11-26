@@ -258,7 +258,6 @@
   "settings_title": "Settings",
   "settings_account": "Account",
   "settings_appearance": "Appearance",
-  "settings_style": "Style",
   "settings_font": "Font",
   "settings_language": "Language",
   "settings_languageChinese": "简体中文",
@@ -295,7 +294,6 @@
   "settings_alphaModePremultipliedDescription": "Store RGB multiplied by alpha for compositing and rendering pipelines that expect premultiplied input.",
   "settings_promptAssistant": "Prompt Assistant",
   "settings_comfyUiDesktopOnly": "Available on desktop only",
-  "settings_selectStyle": "Select Style",
   "settings_defaultPreset": "Default",
   "settings_selectFont": "Select Font",
   "settings_selectLanguage": "Select Language",
@@ -7652,5 +7650,15 @@
         "format": "yMMMd"
       }
     }
-  }
+  },
+  "nav_switchToLightMode": "Switch to light",
+  "nav_switchToDarkMode": "Switch to dark",
+  "settings_themeMode": "Theme Mode",
+  "settings_themeModeLight": "Light",
+  "settings_themeModeDark": "Dark",
+  "settings_themeModeSystem": "System",
+  "settings_lightTheme": "Light Theme",
+  "settings_darkTheme": "Dark Theme",
+  "settings_selectLightTheme": "Select Light Theme",
+  "settings_selectDarkTheme": "Select Dark Theme"
 }
