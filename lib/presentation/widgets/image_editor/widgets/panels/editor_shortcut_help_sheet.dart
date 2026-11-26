@@ -53,15 +53,7 @@ void presentEditorShortcutHelp(
               if (includeFrameTool) ('C', context.l10n.editor_toolFrame),
             ],
           ),
-          _buildShortcutSection(
-            panelContext,
-            context.l10n.editor_shortcutSelectionTools,
-            [
-              ('M', context.l10n.editor_shortcutRectSelection),
-              ('U', context.l10n.editor_shortcutEllipseSelection),
-              ('L', context.l10n.editor_shortcutLassoSelection),
-            ],
-          ),
+          _buildSelectionToolShortcuts(panelContext),
           _buildShortcutSection(
             panelContext,
             context.l10n.editor_shortcutCanvasView,
@@ -124,6 +116,16 @@ void presentEditorShortcutHelp(
       ),
     ),
   );
+}
+
+Widget _buildSelectionToolShortcuts(BuildContext context) {
+  final l10n = context.l10n;
+  return _buildShortcutSection(context, l10n.editor_shortcutSelectionTools, [
+    ('M', l10n.editor_shortcutRectSelection),
+    ('U', l10n.editor_shortcutEllipseSelection),
+    ('L', l10n.editor_shortcutLassoSelection),
+    ('L', l10n.editor_shortcutMagneticLasso),
+  ]);
 }
 
 Widget _buildShortcutSection(

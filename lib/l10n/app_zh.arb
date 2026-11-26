@@ -1234,6 +1234,7 @@
   "editor_shortcutRectSelection": "矩形选区",
   "editor_shortcutEllipseSelection": "椭圆选区",
   "editor_shortcutLassoSelection": "套索选区",
+  "editor_shortcutMagneticLasso": "重复按 L，在套索选区与磁性套索之间切换",
   "editor_shortcut100Zoom": "100% 缩放",
   "editor_shortcutFitHeight": "适应高度",
   "editor_shortcutFitWidth": "适应宽度",
@@ -1546,6 +1547,21 @@
   "editor_sourceCurrentLayer": "当前图层",
   "editor_sourceAllLayers": "所有图层",
   "editor_lassoSelectionHelp": "按住鼠标拖动绘制自由形状选区，松开自动闭合",
+  "editor_toolMagneticLasso": "磁性套索",
+  "editor_magneticLassoHelp": "点击设置起点，沿物体边缘移动鼠标，线条会自动贴合边缘并打下锚点。单击手动添加锚点，Backspace 删除上一个锚点，双击、Enter 或点回起点闭合，Esc 取消。触屏可按住拖动描边，松手处成为锚点，再用下方按钮闭合。闭合后得到选区，可点「填入蒙版」。",
+  "editor_magneticLassoWidth": "宽度",
+  "editor_magneticLassoContrast": "对比度",
+  "editor_magneticLassoFrequency": "频率",
+  "editor_magneticLassoClose": "闭合",
+  "editor_magneticLassoRemoveAnchor": "删除上一个锚点",
+  "selection_fillIntoMask": "填入蒙版",
+  "editor_selectionMaskFilled": "已填入蒙版",
+  "editor_selectionMaskFillFailed": "填入蒙版失败: {error}",
+  "@editor_selectionMaskFillFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "layer_empty": "无图层",
   "layer_add": "添加图层",
   "layer_mergeDown": "向下合并",

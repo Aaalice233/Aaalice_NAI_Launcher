@@ -33,12 +33,8 @@ class FocusedSelectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasFocusArea = focusedInpaintEnabled && hasCommittedRect;
-    final estimate = costEstimate;
-
     return Container(
       width: 220,
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(12),
@@ -50,97 +46,142 @@ class FocusedSelectionCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: SingleChildScrollView(
+        primary: false,
+        padding: const EdgeInsets.all(12),
+        child: _buildControls(context),
+      ),
+    );
+  }
+
+  Widget _buildControls(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasFocusArea = focusedInpaintEnabled && hasCommittedRect;
+    final estimate = costEstimate;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FilledButton.icon(
+          onPressed: onToggleFocusedInpaint,
+          icon: Icon(
+            focusedInpaintEnabled ? Icons.crop_free : Icons.filter_center_focus,
+            size: 16,
+          ),
+          label: Text(
+            focusedInpaintEnabled
+                ? 'Focused Area Selection'
+                : 'Focused Inpaint',
+          ),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(44, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          !focusedInpaintEnabled
+              ? context.l10n.editor_focusInactiveHint
+              : hasFocusArea
+              ? context.l10n.editor_focusReadyHint
+              : context.l10n.editor_focusNeedsSelectionHint,
+          style: theme.textTheme.bodySmall,
+        ),
+        if (focusedInpaintEnabled) ...[
+          const SizedBox(height: 12),
+          _FocusedModeActions(state: state),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: hasCommittedRect ? onClearSelection : null,
+              icon: const Icon(Icons.clear, size: 16),
+              label: Text(context.l10n.editor_clearSelection),
+              style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            context.l10n.editor_focusMinimumContextArea(
+              _contextAreaText(minimumContextMegaPixels),
+            ),
+            style: theme.textTheme.labelMedium,
+          ),
+          NamedSlider(
+            label: context.l10n.editor_focusMinimumContextAreaLabel,
+            valueText: _contextAreaText,
+            value: minimumContextMegaPixels,
+            min: 16,
+            max: 192,
+            divisions: 176,
+            onChanged: onMinimumContextChanged,
+          ),
+          if (estimate != null) ...[
+            const SizedBox(height: 8),
+            _FocusedAnlasWarning(estimate: estimate),
+            const SizedBox(height: 8),
+          ],
+          Text(
+            context.l10n.editor_focusContextHint,
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _FocusedModeActions extends StatelessWidget {
+  const _FocusedModeActions({required this.state});
+
+  final EditorState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        state.selectionManager.selectionNotifier,
+        state.toolChangeNotifier,
+      ]),
+      builder: (context, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
-                  onPressed: onToggleFocusedInpaint,
-                  icon: Icon(
-                    focusedInpaintEnabled
-                        ? Icons.crop_free
-                        : Icons.filter_center_focus,
-                    size: 16,
-                  ),
-                  label: Text(
-                    focusedInpaintEnabled
-                        ? 'Focused Area Selection'
-                        : 'Focused Inpaint',
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                  ),
+                child: _FocusModeButton(
+                  state: state,
+                  icon: Icons.crop_square,
+                  label: l10n.editor_focusSelection,
+                  toolId: 'rect_selection',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _FocusModeButton(
+                  state: state,
+                  icon: Icons.brush_outlined,
+                  label: l10n.editor_focusBrush,
+                  toolId: 'brush',
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            !focusedInpaintEnabled
-                ? context.l10n.editor_focusInactiveHint
-                : hasFocusArea
-                ? context.l10n.editor_focusReadyHint
-                : context.l10n.editor_focusNeedsSelectionHint,
-            style: theme.textTheme.bodySmall,
+          _FocusModeButton(
+            state: state,
+            icon: Icons.polyline,
+            label: l10n.editor_toolMagneticLasso,
+            toolId: 'magnetic_lasso_selection',
           ),
-          if (focusedInpaintEnabled) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _FocusModeButton(
-                  state: state,
-                  icon: Icons.crop_square,
-                  label: context.l10n.editor_focusSelection,
-                  toolId: 'rect_selection',
-                ),
-                const SizedBox(width: 8),
-                _FocusModeButton(
-                  state: state,
-                  icon: Icons.brush_outlined,
-                  label: context.l10n.editor_focusBrush,
-                  toolId: 'brush',
-                ),
-              ],
-            ),
+          if (state.canFillSelectionIntoMask &&
+              state.selectionPath != null) ...[
             const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: hasCommittedRect ? onClearSelection : null,
-                icon: const Icon(Icons.clear, size: 16),
-                label: Text(context.l10n.editor_clearSelection),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              context.l10n.editor_focusMinimumContextArea(
-                _contextAreaText(minimumContextMegaPixels),
-              ),
-              style: theme.textTheme.labelMedium,
-            ),
-            NamedSlider(
-              label: context.l10n.editor_focusMinimumContextAreaLabel,
-              valueText: _contextAreaText,
-              value: minimumContextMegaPixels,
-              min: 16,
-              max: 192,
-              divisions: 176,
-              onChanged: onMinimumContextChanged,
-            ),
-            if (estimate != null) ...[
-              const SizedBox(height: 8),
-              _FocusedAnlasWarning(estimate: estimate),
-              const SizedBox(height: 8),
-            ],
-            Text(
-              context.l10n.editor_focusContextHint,
-              style: theme.textTheme.bodySmall,
+            FilledButton(
+              onPressed: state.fillSelectionIntoMask,
+              style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+              child: Text(l10n.selection_fillIntoMask),
             ),
           ],
         ],
@@ -214,13 +255,12 @@ class _FocusModeButton extends StatelessWidget {
     final theme = Theme.of(context);
     final selected = state.currentTool?.id == toolId;
 
-    return Expanded(
+    return Semantics(
+      selected: selected,
       child: OutlinedButton.icon(
-        onPressed: () {
-          state.setToolById(toolId);
-        },
+        onPressed: () => state.setToolById(toolId),
         icon: Icon(icon, size: 16),
-        label: Text(label),
+        label: Text(label, textAlign: TextAlign.center),
         style: OutlinedButton.styleFrom(
           foregroundColor: selected
               ? theme.colorScheme.primary
@@ -228,13 +268,10 @@ class _FocusModeButton extends StatelessWidget {
           backgroundColor: selected
               ? theme.colorScheme.primary.withValues(alpha: 0.12)
               : Colors.transparent,
-          side: BorderSide(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.35),
-          ),
+          side: BorderSide.none,
+          minimumSize: const Size(44, 44),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          visualDensity: VisualDensity.compact,
+          visualDensity: VisualDensity.standard,
         ),
       ),
     );

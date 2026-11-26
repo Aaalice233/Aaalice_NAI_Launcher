@@ -56,6 +56,7 @@ void main() {
       closedFill,
       'fill',
       'magic_wand',
+      'magnetic_lasso_selection',
       FrameTool.toolId,
     ]) {
       expectEntryInGroup('inpaint', toolId);
@@ -482,9 +483,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('a maximized 1080p window shows every inpaint button at once', (
-    tester,
-  ) async {
+  testWidgets('1080p keeps magnetic lasso one click away and all tools reachable', (tester) async {
     // 1080 减去 Windows 任务栏 48、窗口标题栏与编辑器顶栏各 40
     const editorTopBarHeight = 40.0;
     const columnHeight =
@@ -502,18 +501,18 @@ void main() {
       ),
     );
 
-    final toolScroll = tester.state<ScrollableState>(
-      find
-          .descendant(
-            of: find.byType(DesktopToolbar),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
-    expect(toolScroll.position.maxScrollExtent, 0);
-    expect(
-      find.byKey(const ValueKey('editor-view-slot-orientation')).hitTestable(),
-      findsOneWidget,
-    );
+    final magnetic = toolEntry('inpaint', 'magnetic_lasso_selection');
+    final selection = toolSlot('common', 'selection');
+    final orientation = find.byKey(const ValueKey('editor-view-slot-orientation'));
+    expect(magnetic.hitTestable(), findsOneWidget);
+    await tester.tap(magnetic);
+    await tester.pump();
+    expect(state.currentTool?.id, 'magnetic_lasso_selection');
+    for (final control in [selection, orientation]) {
+      await tester.ensureVisible(control);
+      await tester.pump();
+      expect(control.hitTestable(), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
   });
 }

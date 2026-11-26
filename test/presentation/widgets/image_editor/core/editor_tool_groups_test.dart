@@ -95,6 +95,7 @@ void main() {
         ClosedRegionFillTool.toolId,
         'fill',
         'magic_wand',
+        'magnetic_lasso_selection',
       ]);
       expect(entryIds(sections[1]), [
         'brush',
@@ -113,6 +114,7 @@ void main() {
       ]);
       expect(entriesIn(sections[0]).map((entry) => entry.targetRole).toSet(), {
         LayerRole.mask,
+        null,
       });
       expect(entriesIn(sections[1]).map((entry) => entry.targetRole).toSet(), {
         LayerRole.image,
@@ -177,7 +179,7 @@ void main() {
 
       final inpaint = sectionOf(state, EditorToolGroup.inpaint);
 
-      expect(entryIds(inpaint), [FrameTool.toolId]);
+      expect(entryIds(inpaint), ['magnetic_lasso_selection', FrameTool.toolId]);
     });
   });
 
@@ -213,6 +215,7 @@ void main() {
         [ClosedRegionFillTool.toolId],
         ['fill'],
         ['magic_wand'],
+        ['magnetic_lasso_selection'],
         [FrameTool.toolId],
       ]);
       expect(inpaint.slots.any((slot) => slot.isFolded), isFalse);
@@ -228,6 +231,15 @@ void main() {
         ['fill', 'magic_wand'],
         ['blur', 'clone_stamp'],
         ['color_picker'],
+      ]);
+      expect(slotIds(sectionOf(state, EditorToolGroup.common)), [
+        ['move'],
+        [
+          'rect_selection',
+          'ellipse_selection',
+          'lasso_selection',
+          'magnetic_lasso_selection',
+        ],
       ]);
     });
 

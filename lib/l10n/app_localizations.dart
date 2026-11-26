@@ -5618,6 +5618,12 @@ abstract class AppLocalizations {
   /// **'Lasso Selection'**
   String get editor_shortcutLassoSelection;
 
+  /// No description provided for @editor_shortcutMagneticLasso.
+  ///
+  /// In en, this message translates to:
+  /// **'Press L again to switch between Lasso and Magnetic Lasso'**
+  String get editor_shortcutMagneticLasso;
+
   /// No description provided for @editor_shortcut100Zoom.
   ///
   /// In en, this message translates to:
@@ -6526,6 +6532,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hold and drag to draw a freeform selection. Release to close it automatically.'**
   String get editor_lassoSelectionHelp;
+
+  /// No description provided for @editor_toolMagneticLasso.
+  ///
+  /// In en, this message translates to:
+  /// **'Magnetic Lasso'**
+  String get editor_toolMagneticLasso;
+
+  /// No description provided for @editor_magneticLassoHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Click to set the starting point. Move the pointer along the object and the line will snap to its edge and add anchors. Click to add an anchor manually. Press Backspace to remove the last anchor. Double-click, press Enter, or click the starting point to close. Press Esc to cancel. On a touchscreen, drag along the edge and lift your finger to place an anchor, then use Close Path below. Once closed, the path becomes a selection you can add with Fill Into Mask.'**
+  String get editor_magneticLassoHelp;
+
+  /// No description provided for @editor_magneticLassoWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get editor_magneticLassoWidth;
+
+  /// No description provided for @editor_magneticLassoContrast.
+  ///
+  /// In en, this message translates to:
+  /// **'Contrast'**
+  String get editor_magneticLassoContrast;
+
+  /// No description provided for @editor_magneticLassoFrequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency'**
+  String get editor_magneticLassoFrequency;
+
+  /// No description provided for @editor_magneticLassoClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close Path'**
+  String get editor_magneticLassoClose;
+
+  /// No description provided for @editor_magneticLassoRemoveAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Last Anchor'**
+  String get editor_magneticLassoRemoveAnchor;
+
+  /// No description provided for @selection_fillIntoMask.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill Into Mask'**
+  String get selection_fillIntoMask;
+
+  /// No description provided for @editor_selectionMaskFilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection added to mask'**
+  String get editor_selectionMaskFilled;
+
+  /// No description provided for @editor_selectionMaskFillFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to fill selection into mask: {error}'**
+  String editor_selectionMaskFillFailed(Object error);
 
   /// No description provided for @layer_empty.
   ///

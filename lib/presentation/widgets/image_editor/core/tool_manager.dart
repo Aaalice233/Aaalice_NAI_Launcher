@@ -12,6 +12,7 @@ import '../tools/magic_wand_tool.dart';
 import '../tools/move_tool.dart';
 import '../tools/selection/ellipse_selection_tool.dart';
 import '../tools/selection/lasso_selection_tool.dart';
+import '../tools/selection/magnetic_lasso_selection_tool.dart';
 import '../tools/selection/rect_selection_tool.dart';
 import '../tools/tool_base.dart';
 import 'tool_settings_manager.dart';
@@ -262,6 +263,7 @@ class ToolManager extends ChangeNotifier {
       RectSelectionTool(),
       EllipseSelectionTool(),
       LassoSelectionTool(),
+      MagneticLassoSelectionTool(),
       ColorPickerTool(),
       FrameTool(),
     ];

@@ -93,7 +93,9 @@ class WorkspaceCanvasStack extends StatelessWidget {
     final focusedSelectionState = session.focusedSelectionState;
     final focusAreaRect = focusedInpaintEnabled
         ? focusedSelectionState.resolveActiveRect(
-            previewPath: state.previewPath,
+            previewPath: state.currentTool?.id == 'rect_selection'
+                ? state.previewPath
+                : null,
           )
         : null;
     final contextCrop = focusAreaRect == null
@@ -102,25 +104,9 @@ class WorkspaceCanvasStack extends StatelessWidget {
             focusAreaRect,
           );
 
-    return Stack(
+    final stack = Stack(
       children: [
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: EditorCanvas(
-              state: state,
-              showTransparentCanvasBackground:
-                  isInpaintMode || session.hasTransparentCutout,
-              revealOutsideFrame: isInpaintMode,
-              shouldSuppressPointerInput: _shouldSuppressCanvasPointerInput,
-              suppressSelectionOverlay: focusedSelectionState
-                  .shouldSuppressSelectionOverlay(
-                    focusedEnabled: isInpaintMode && focusedInpaintEnabled,
-                    currentToolId: state.currentTool?.id,
-                    previewPath: state.previewPath,
-                  ),
-            ),
-          ),
-        ),
+        Positioned.fill(child: _buildEditorCanvas(focusedInpaintEnabled)),
         if (isInpaintMode && !focusedInpaintEnabled)
           Positioned.fill(
             child: IgnorePointer(
@@ -178,16 +164,10 @@ class WorkspaceCanvasStack extends StatelessWidget {
           Positioned(
             top: 16,
             left: 16,
-            child: FocusedSelectionCard(
-              state: state,
-              focusedInpaintEnabled: focusedInpaintEnabled,
-              hasCommittedRect: focusedSelectionState.hasCommittedRect,
-              minimumContextMegaPixels: session.minimumContextMegaPixels,
-              costEstimate: compressionController
-                  .resolveFocusedInpaintCostEstimate(),
-              onToggleFocusedInpaint: onToggleFocusedInpaint,
-              onClearSelection: onClearFocusedSelection,
-              onMinimumContextChanged: onMinimumContextChanged,
+            bottom: 16,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: _buildFocusedCard(focusedInpaintEnabled),
             ),
           ),
         Positioned.fill(
@@ -201,5 +181,36 @@ class WorkspaceCanvasStack extends StatelessWidget {
         ),
       ],
     );
+    return ClipRect(child: stack);
   }
+
+  Widget _buildEditorCanvas(bool focusedEnabled) => ValueListenableBuilder(
+    valueListenable: state.toolNotifier,
+    builder: (context, toolId, _) => RepaintBoundary(
+      child: EditorCanvas(
+        state: state,
+        showTransparentCanvasBackground:
+            isInpaintMode || session.hasTransparentCutout,
+        revealOutsideFrame: isInpaintMode,
+        shouldSuppressPointerInput: _shouldSuppressCanvasPointerInput,
+        suppressSelectionOverlay: session.focusedSelectionState
+            .shouldSuppressSelectionOverlay(
+              focusedEnabled: isInpaintMode && focusedEnabled,
+              currentToolId: toolId,
+              previewPath: state.previewPath,
+            ),
+      ),
+    ),
+  );
+
+  Widget _buildFocusedCard(bool focusedEnabled) => FocusedSelectionCard(
+    state: state,
+    focusedInpaintEnabled: focusedEnabled,
+    hasCommittedRect: session.focusedSelectionState.hasCommittedRect,
+    minimumContextMegaPixels: session.minimumContextMegaPixels,
+    costEstimate: compressionController.resolveFocusedInpaintCostEstimate(),
+    onToggleFocusedInpaint: onToggleFocusedInpaint,
+    onClearSelection: onClearFocusedSelection,
+    onMinimumContextChanged: onMinimumContextChanged,
+  );
 }

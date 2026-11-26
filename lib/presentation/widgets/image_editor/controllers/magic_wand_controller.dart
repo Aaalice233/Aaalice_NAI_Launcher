@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -9,6 +8,7 @@ import '../../../../core/utils/inpaint_mask_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../../../data/services/efficient_vit_sam_service.dart';
 import '../../common/app_toast.dart';
+import '../core/editor_pixel_reader.dart';
 import '../core/editor_state.dart';
 import '../core/history_manager.dart';
 import '../export/image_exporter_new.dart';
@@ -72,7 +72,11 @@ class MagicWandController extends ChangeNotifier {
     _update(const MagicWandSnapshot(processing: true));
     final epoch = session.beginOperation();
     try {
-      final source = await _renderSource(eraseTarget, region);
+      final source = await readEditorPixels(
+        editorState,
+        region,
+        layer: eraseTarget,
+      );
       if (!session.accepts(epoch)) return;
       final selection = await _select(
         source: source,
@@ -129,37 +133,6 @@ class MagicWandController extends ChangeNotifier {
   bool _hasImageContent() => editorState.layerManager.imageLayers.any(
     (layer) => layer.visible && layer.hasContent,
   );
-
-  /// [layer] 为空时取全部可见图片层的合成画面，否则只取该图层的像素
-  Future<EditorRawRgbaImage> _renderSource(Layer? layer, Rect region) async {
-    final width = region.width.round();
-    final height = region.height.round();
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.translate(-region.left, -region.top);
-    if (layer == null) {
-      editorState.layerManager.renderImageLayers(canvas);
-    } else {
-      layer.renderPixels(canvas);
-    }
-    final picture = recorder.endRecording();
-    ui.Image? image;
-    try {
-      image = await picture.toImage(width, height);
-      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (data == null) {
-        throw StateError('Failed to read Magic Wand source pixels.');
-      }
-      return EditorRawRgbaImage(
-        bytes: data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-        width: width,
-        height: height,
-      );
-    } finally {
-      image?.dispose();
-      picture.dispose();
-    }
-  }
 
   Future<ContiguousRegionSelection> _select({
     required EditorRawRgbaImage source,

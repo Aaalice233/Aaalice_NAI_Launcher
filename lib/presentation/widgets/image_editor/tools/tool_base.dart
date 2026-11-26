@@ -95,7 +95,10 @@ abstract class EditorTool {
   /// Enter 确认工具的待定操作；返回 true 表示工具已处理
   bool onConfirm(EditorState state) => false;
 
-  /// 没有进行中的拖动时按 Esc；返回 true 表示工具已处理
+  /// Delete / Backspace；返回 true 时不清除已有选区的像素。
+  bool onDeleteKey(EditorState state) => false;
+
+  /// 按 Esc；返回 true 表示工具已处理
   bool onEscape(EditorState state) => false;
 
   /// 触屏双指落下；返回 true 时本次双指手势交给工具，否则照常平移缩放画布。

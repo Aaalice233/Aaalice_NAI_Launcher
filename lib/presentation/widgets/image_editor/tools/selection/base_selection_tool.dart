@@ -77,8 +77,11 @@ abstract class BaseSelectionTool extends EditorTool {
       title: _localizedTitle(context),
       state: state,
       helpText: _localizedHelpText(context),
+      toolOptions: buildToolOptions(context, state),
     );
   }
+
+  Widget? buildToolOptions(BuildContext context, EditorState state) => null;
 
   /// 子类可重写：提供帮助文本
   String? get helpText => null;
@@ -91,6 +94,8 @@ abstract class BaseSelectionTool extends EditorTool {
         return context.l10n.editor_toolEllipseSelect;
       case 'lasso_selection':
         return context.l10n.editor_toolLassoSelect;
+      case 'magnetic_lasso_selection':
+        return context.l10n.editor_toolMagneticLasso;
       default:
         return name;
     }
@@ -100,6 +105,8 @@ abstract class BaseSelectionTool extends EditorTool {
     switch (id) {
       case 'lasso_selection':
         return context.l10n.editor_lassoSelectionHelp;
+      case 'magnetic_lasso_selection':
+        return context.l10n.editor_magneticLassoHelp;
       default:
         return helpText;
     }
@@ -126,7 +133,9 @@ abstract class ShapeSelectionTool extends BaseSelectionTool {
 
     final start = startPoint;
     if (start != null) {
-      state.setPreviewPath(createShapePath(_constrainedRect(state, start, event.localPosition)));
+      state.setPreviewPath(
+        createShapePath(_constrainedRect(state, start, event.localPosition)),
+      );
     }
   }
 
@@ -166,12 +175,14 @@ class SelectionSettingsPanel extends StatelessWidget {
   final String title;
   final EditorState state;
   final String? helpText;
+  final Widget? toolOptions;
 
   const SelectionSettingsPanel({
     super.key,
     required this.title,
     required this.state,
     this.helpText,
+    this.toolOptions,
   });
 
   @override
@@ -225,6 +236,8 @@ class SelectionSettingsPanel extends StatelessWidget {
           ),
           const ThemedDivider(height: 1),
         ],
+
+        if (toolOptions != null) toolOptions!,
 
         // 操作按钮：选区与当前图层变化时刷新可用状态
         Padding(
@@ -284,6 +297,12 @@ class _SelectionActions extends StatelessWidget {
           label: Text(context.l10n.selection_clearPixels),
           style: outlined,
         ),
+        if (state.canFillSelectionIntoMask)
+          FilledButton(
+            onPressed: hasSelection ? state.fillSelectionIntoMask : null,
+            style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+            child: Text(context.l10n.selection_fillIntoMask),
+          ),
         FilledButton.icon(
           onPressed: canEditPixels
               ? () => commands.cutSelectionToNewLayer(
