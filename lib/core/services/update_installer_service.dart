@@ -74,8 +74,9 @@ typedef UpdateProcessStarter =
     Future<void> Function(
       String executable,
       List<String> arguments,
-      ProcessStartMode mode,
-    );
+      ProcessStartMode mode, {
+      String? workingDirectory,
+    });
 
 /// 一次下载的实时进度快照。
 class UpdateDownloadProgress {
@@ -314,11 +315,8 @@ class UpdateInstallerService {
         '连接更新服务器失败',
         UpdateInstallFailure.network,
       ),
-      VerifiedDownloadFailure.invalidRequest ||
-      VerifiedDownloadFailure.http => (
-        '下载更新包失败',
-        UpdateInstallFailure.downloadFailed,
-      ),
+      VerifiedDownloadFailure.invalidRequest || VerifiedDownloadFailure.http =>
+        ('下载更新包失败', UpdateInstallFailure.downloadFailed),
     };
     return UpdateInstallException(
       message,
@@ -532,6 +530,8 @@ class UpdateInstallerService {
         // Windows 下 detached 模式可能在当前进程退出时让隐藏的 PowerShell
         // 尚未执行脚本就一并消失；normal 模式仍允许子进程在应用退出后继续。
         ProcessStartMode.normal,
+        // 不能继承应用目录作为工作目录，否则便携版更新脚本会锁住自身待移动的目录。
+        workingDirectory: Directory.systemTemp.path,
       );
     } catch (error) {
       throw UpdateInstallException(
@@ -694,7 +694,8 @@ class UpdateInstallerService {
   }
 
   Future<Directory> _ensureUpdateDir() async {
-    final updateDir = _updateDirectoryOverride ?? await resolveUpdateDirectory();
+    final updateDir =
+        _updateDirectoryOverride ?? await resolveUpdateDirectory();
     await updateDir.create(recursive: true);
     return updateDir;
   }
@@ -759,9 +760,15 @@ class UpdateInstallerService {
 Future<void> startUpdateProcess(
   String executable,
   List<String> arguments,
-  ProcessStartMode mode,
-) async {
-  final process = await Process.start(executable, arguments, mode: mode);
+  ProcessStartMode mode, {
+  String? workingDirectory,
+}) async {
+  final process = await Process.start(
+    executable,
+    arguments,
+    workingDirectory: workingDirectory ?? Directory.systemTemp.path,
+    mode: mode,
+  );
   try {
     await process.stdin.close();
   } catch (_) {
