@@ -117,15 +117,23 @@ function Resolve-ToolCommand {
             $sdkBin = Join-Path $flutterSdk 'bin'
             $env:PATH = $sdkBin + [IO.Path]::PathSeparator + $env:PATH
             $candidate = if ($CommandName -eq 'flutter') {
-                Join-Path $sdkBin (if ($IsWindows) { 'flutter.bat' } else { 'flutter' })
+                $flutterName = if ($IsWindows) { 'flutter.bat' } else { 'flutter' }
+                Join-Path $sdkBin $flutterName
             }
             else {
-                $dartSdkExe = Join-Path $flutterSdk (if ($IsWindows) { 'bin/cache/dart-sdk/bin/dart.exe' } else { 'bin/cache/dart-sdk/bin/dart' })
+                $dartRelativePath = if ($IsWindows) {
+                    'bin/cache/dart-sdk/bin/dart.exe'
+                }
+                else {
+                    'bin/cache/dart-sdk/bin/dart'
+                }
+                $dartSdkExe = Join-Path $flutterSdk $dartRelativePath
                 if (Test-Path -LiteralPath $dartSdkExe -PathType Leaf) {
                     $dartSdkExe
                 }
                 else {
-                    Join-Path $sdkBin (if ($IsWindows) { 'dart.bat' } else { 'dart' })
+                    $dartName = if ($IsWindows) { 'dart.bat' } else { 'dart' }
+                    Join-Path $sdkBin $dartName
                 }
             }
             if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
