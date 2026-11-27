@@ -37,6 +37,25 @@ function Get-ToolPath {
   throw "$Name was not found. Install NSIS or add it to PATH."
 }
 
+function Invoke-CheckedCommand {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Command,
+    [string[]]$Arguments = @()
+  )
+
+  $global:LASTEXITCODE = 0
+  & $Command @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    $display = if ($Arguments.Count -gt 0) {
+      "$Command $($Arguments -join ' ')"
+    } else {
+      $Command
+    }
+    throw "$display failed with exit code $LASTEXITCODE."
+  }
+}
+
 function Assert-WindowsFlutterRuntime {
   param([string]$BundlePath)
 
@@ -83,11 +102,11 @@ $installerPath = Join-Path $distPath "NAI_Launcher_Windows_${Version}_Setup.exe"
 if (-not $SkipFlutterBuild) {
   & (Join-Path $PSScriptRoot "verify_nuget.ps1")
   & (Join-Path $PSScriptRoot "verify_flutter_sources.ps1")
-  flutter pub get --enforce-lockfile
-  flutter gen-l10n
-  dart run build_runner build --delete-conflicting-outputs
+  Invoke-CheckedCommand -Command 'flutter' -Arguments @('pub', 'get', '--enforce-lockfile')
+  Invoke-CheckedCommand -Command 'flutter' -Arguments @('gen-l10n')
+  Invoke-CheckedCommand -Command 'dart' -Arguments @('run', 'build_runner', 'build', '--delete-conflicting-outputs')
   $flutterBuildMode = $BuildMode.ToLowerInvariant()
-  flutter build windows --$flutterBuildMode
+  Invoke-CheckedCommand -Command 'flutter' -Arguments @('build', 'windows', "--$flutterBuildMode")
   & (Join-Path $PSScriptRoot "build_mcp_cli.ps1") `
     -OutputPath (Join-Path $buildPath "nai_launcher_mcp.exe")
 }
@@ -136,13 +155,18 @@ $makensis = Get-ToolPath `
     "${env:ProgramFiles}/NSIS/makensis.exe"
   )
 
-& $makensis `
-  "/INPUTCHARSET" `
-  "UTF8" `
-  "/DVERSION=$Version" `
-  "/DSOURCE_DIR=$buildPath" `
-  "/DOUT_FILE=$installerPath" `
+if (Test-Path -LiteralPath $installerPath) {
+  Remove-Item -LiteralPath $installerPath -Force
+}
+
+Invoke-CheckedCommand -Command $makensis -Arguments @(
+  "/INPUTCHARSET",
+  "UTF8",
+  "/DVERSION=$Version",
+  "/DSOURCE_DIR=$buildPath",
+  "/DOUT_FILE=$installerPath",
   $nsisScript
+)
 
 if (-not (Test-Path -LiteralPath $installerPath)) {
   throw "NSIS did not produce installer: $installerPath"

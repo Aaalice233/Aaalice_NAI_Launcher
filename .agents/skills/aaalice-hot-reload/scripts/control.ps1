@@ -106,6 +106,20 @@ function Get-SessionStatus {
     }
 }
 
+function Invoke-SiblingScript {
+    param(
+        [Parameter(Mandatory = $true)][string]$FileName,
+        [Parameter(Mandatory = $true)][hashtable]$ScriptArguments,
+        [Parameter(Mandatory = $true)][string]$FailureMessage
+    )
+
+    $global:LASTEXITCODE = 0
+    & (Join-Path $scriptDir $FileName) @ScriptArguments
+    if (-not $? -or $LASTEXITCODE -ne 0) {
+        throw $FailureMessage
+    }
+}
+
 function Write-TargetLogs {
     param([Parameter(Mandatory = $true)][string]$LogTarget)
 
@@ -119,10 +133,10 @@ function Write-TargetLogs {
     if (-not [string]::IsNullOrWhiteSpace($Pattern)) {
         $arguments.Pattern = $Pattern
     }
-    & (Join-Path $scriptDir 'read_console.ps1') @arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "$LogTarget console read failed."
-    }
+    Invoke-SiblingScript `
+        -FileName 'read_console.ps1' `
+        -ScriptArguments $arguments `
+        -FailureMessage "$LogTarget console read failed."
 }
 
 if ($Action -eq 'Status') {
@@ -145,10 +159,10 @@ if ($Action -in @('Reload', 'Restart')) {
                 Target = $currentTarget
                 Action = $Action
             }
-            & (Join-Path $scriptDir 'trigger.ps1') @triggerArguments
-            if ($LASTEXITCODE -ne 0) {
-                throw "$Action command failed."
-            }
+            Invoke-SiblingScript `
+                -FileName 'trigger.ps1' `
+                -ScriptArguments $triggerArguments `
+                -FailureMessage "$Action command failed."
         }
         catch {
             $failures.Add("$currentTarget`: $($_.Exception.Message)")
@@ -177,12 +191,13 @@ elseif ($Action -eq 'Stop') {
                 Write-Output "$currentTarget development session is not running."
                 continue
             }
-            & (Join-Path $scriptDir 'trigger.ps1') `
-                -Target $currentTarget `
-                -Action Quit
-            if ($LASTEXITCODE -ne 0) {
-                throw 'Quit command failed.'
-            }
+            Invoke-SiblingScript `
+                -FileName 'trigger.ps1' `
+                -ScriptArguments @{
+                    Target = $currentTarget
+                    Action = 'Quit'
+                } `
+                -FailureMessage 'Quit command failed.'
 
             $deadline = (Get-Date).AddSeconds(15)
             do {
