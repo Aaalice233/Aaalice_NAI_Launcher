@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$RunPubGet,
     [switch]$RunBuildRunner,
     [switch]$SkipBuildRunner,
@@ -32,6 +32,26 @@ if ($Host.Name -eq 'ConsoleHost') {
     $Host.UI.RawUI.WindowTitle = 'PC热重载'
 }
 
+function Resolve-ConfiguredFlutterSdk {
+    $flutterSdk = $env:FLUTTER_SDK
+    $propertiesPath = Join-Path $repoRoot 'android/local.properties'
+    if ([string]::IsNullOrWhiteSpace($flutterSdk) -and (Test-Path -LiteralPath $propertiesPath -PathType Leaf)) {
+        $sdkSetting = Get-Content -LiteralPath $propertiesPath -Encoding UTF8 |
+            Where-Object { $_ -match '^flutter\.sdk=' } |
+            Select-Object -First 1
+        if ($sdkSetting) {
+            $flutterSdk = $sdkSetting.Substring('flutter.sdk='.Length).Replace('\\', '\').Replace('\:', ':')
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($flutterSdk)) {
+        return $null
+    }
+    if (-not (Test-Path -LiteralPath $flutterSdk -PathType Container)) {
+        throw "Configured Flutter SDK directory not found: $flutterSdk"
+    }
+    return (Resolve-Path -LiteralPath $flutterSdk).Path
+}
+
 function Resolve-ToolCommand {
     param(
         [Parameter(Mandatory = $true)][string]$EnvironmentVariable,
@@ -47,9 +67,33 @@ function Resolve-ToolCommand {
         return $resolvedOverride
     }
 
+    if ($CommandName -in @('flutter', 'dart')) {
+        $flutterSdk = Resolve-ConfiguredFlutterSdk
+        if ($flutterSdk) {
+            $sdkBin = Join-Path $flutterSdk 'bin'
+            $env:PATH = $sdkBin + [IO.Path]::PathSeparator + $env:PATH
+            $candidate = if ($CommandName -eq 'flutter') {
+                Join-Path $sdkBin (if ($IsWindows) { 'flutter.bat' } else { 'flutter' })
+            }
+            else {
+                $dartSdkExe = Join-Path $flutterSdk (if ($IsWindows) { 'bin/cache/dart-sdk/bin/dart.exe' } else { 'bin/cache/dart-sdk/bin/dart' })
+                if (Test-Path -LiteralPath $dartSdkExe -PathType Leaf) {
+                    $dartSdkExe
+                }
+                else {
+                    Join-Path $sdkBin (if ($IsWindows) { 'dart.bat' } else { 'dart' })
+                }
+            }
+            if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                throw "$CommandName executable not found in configured Flutter SDK ($flutterSdk): $candidate"
+            }
+            return $candidate
+        }
+    }
+
     $command = Get-Command $CommandName -ErrorAction SilentlyContinue
     if (-not $command) {
-        throw "$CommandName command not found. Add it to PATH or set $EnvironmentVariable."
+        throw "$CommandName command not found. Add it to PATH, configure flutter.sdk in android/local.properties, or set $EnvironmentVariable."
     }
 
     return $command.Source
@@ -120,7 +164,7 @@ function Write-SessionMarker {
             $currentProcess.StartTime.ToUniversalTime()
         ).ToUnixTimeMilliseconds()
         repoRoot = [string]$repoRoot
-        controller = 'codex'
+        controller = 'agent'
         startedAt = (Get-Date).ToUniversalTime().ToString('o')
     } | ConvertTo-Json | Set-Content -LiteralPath $sessionPath -Encoding UTF8
 }

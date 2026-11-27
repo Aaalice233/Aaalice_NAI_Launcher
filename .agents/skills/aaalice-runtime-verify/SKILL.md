@@ -14,7 +14,7 @@ description: 用户要求自动化运行验收、界面操作、截图检查或�
 ## 自动准备会话
 
 1. 加载 [aaalice-dev-sessions](../aaalice-dev-sessions/SKILL.md) 与 [aaalice-hot-reload](../aaalice-hot-reload/SKILL.md)，先检查 `Status`。
-2. 缺少目标会话时直接由 `start.ps1` 启动；已有会话按 worktree、进程和设备复用，每个平台最多一个 `flutter run`。不得另开 `flutter attach` 或 Codex task。
+2. 缺少目标会话时直接由 `start.ps1` 启动；已有会话按 worktree、进程和设备复用，每个平台最多一个 `flutter run`。不得另开 `flutter attach` 或额外的子代理任务。若当前 Agent 位于无交互桌面权限的隔离宿主导致 Windows GUI 无法在子进程中拉起，直接复用用户在主桌面启动的 `windows_runner.ps1` 会话接入 DTD 与 MCP。
 3. 以 Runner 预检决定是否需要依赖解析或代码生成。先启动所需环境，不为启动先跑全仓库测试或生成器；预检阻塞时按开发会话技能处理。
 4. 读取控制台，确认真实构建/启动日志、Windows Debug App 进程或 Android 包进程；再按 [MCP 调试](../../../docs/mcp_debugging.md) 连接 DTD，核对应用 URI、widget tree 和 Driver health。窗口、marker 和 `running` 状态字段不能单独证明应用就绪。
 5. 已有会话按改动选择 Reload、Restart 或完整重建；刚从当前代码成功启动的会话无需再重复刷新。

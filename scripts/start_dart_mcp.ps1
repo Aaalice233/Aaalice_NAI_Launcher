@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $repoRoot
 
-# Codex may inherit a PATH without Flutter; reuse the SDK selected by the project.
+# Agent hosts may inherit a PATH without Flutter; reuse the SDK selected by the project.
 $flutterSdk = $env:FLUTTER_SDK
 $propertiesPath = Join-Path $repoRoot 'android/local.properties'
 if ([string]::IsNullOrWhiteSpace($flutterSdk) -and (Test-Path -LiteralPath $propertiesPath)) {
