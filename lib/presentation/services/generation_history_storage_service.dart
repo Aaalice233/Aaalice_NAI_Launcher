@@ -185,6 +185,28 @@ class GenerationHistoryStorageService {
     if (recordKeys.isNotEmpty) await _boxStorage.deleteAll(recordKeys);
   });
 
+  /// 用 [remap] 改写已保存记录里的 `filePath`，返回被改写的条数。
+  ///
+  /// 只更新路径发生变化的记录，不触碰其余记录的图片字节。
+  Future<int> remapFilePaths(String Function(String filePath) remap) {
+    var changed = 0;
+    return _serialized(() async {
+      if (!_canAccessBox) return;
+      final updates = <String, Object?>{};
+      for (final key in _boxStorage.keysWithPrefix(_recordPrefix)) {
+        final raw = await _boxStorage.read(key);
+        if (raw is! Map) continue;
+        final filePath = raw['filePath'];
+        if (filePath is! String || filePath.isEmpty) continue;
+        final remapped = remap(filePath);
+        if (remapped == filePath) continue;
+        updates[key] = <dynamic, dynamic>{...raw, 'filePath': remapped};
+      }
+      if (updates.isNotEmpty) await _boxStorage.putAll(updates);
+      changed = updates.length;
+    }).then((_) => changed);
+  }
+
   Future<void> flush() => _pending;
 
   Future<void> _enqueue(Future<void> Function() operation) => _serialized(

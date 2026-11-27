@@ -69,6 +69,11 @@ class ImageSaveSettingsNotifier extends _$ImageSaveSettingsNotifier {
   /// 设置自定义保存路径
   Future<void> setCustomPath(String? path) async {
     final storage = ref.read(localStorageServiceProvider);
+    final previous = storage.getImageSavePath();
+    if (previous != null && previous.isNotEmpty && previous != path) {
+      // 历史记录与词库缩略图存的是旧目录下的完整路径，启动时据此换算到新目录。
+      await storage.rememberPreviousImageSavePath(previous);
+    }
     if (path != null && path.isNotEmpty) {
       await storage.setImageSavePath(path);
       state = state.copyWith(customPath: path);

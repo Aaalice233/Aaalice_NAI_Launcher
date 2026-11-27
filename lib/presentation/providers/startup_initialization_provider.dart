@@ -21,6 +21,7 @@ import '../../core/storage/replication_queue_blob_store_provider.dart';
 import '../../data/datasources/local/random_tag_library_data_source.dart';
 import '../../data/datasources/local/tag_group_cache_service.dart';
 import '../../data/repositories/collection_repository.dart';
+import '../../data/repositories/gallery_folder_repository.dart';
 import '../../data/services/gallery/gallery_album_import_coordinator.dart';
 import '../../data/services/gallery/scan_state_manager.dart';
 import '../../data/services/image_metadata_service.dart';
@@ -45,6 +46,7 @@ import 'vibe_library_provider.dart';
 import '../agent_chat/providers/agent_chat_dock_provider.dart';
 import '../agent_chat/providers/agent_chat_notifier.dart';
 import '../screens/statistics/statistics_state.dart';
+import '../services/stored_image_path_relocator.dart';
 
 export '../../core/network/startup_proxy_resolver.dart'
     show resolveStartupProxyAddress;
@@ -190,6 +192,16 @@ final startupInitializationTasksProvider = Provider<StartupInitializationTasks>(
           ShortcutStorage().init(),
         ]);
         await CollectionRepository.instance.initialize();
+        // 须在历史记录与词库被 Provider 读取之前，换算旧保存目录下的图片路径。
+        final folderRepository = GalleryFolderRepository.instance;
+        final currentRoot = await folderRepository.getRootPath();
+        if (currentRoot != null) {
+          await StoredImagePathRelocator.repairAll(
+            storage: LocalStorageService(),
+            currentRoot: currentRoot,
+            defaultRoot: await folderRepository.getDefaultRootPath(),
+          );
+        }
       },
       initializeMainShellData: () async {
         // 这些数据直接决定主页首帧和左侧导航首次点击的内容，必须在
