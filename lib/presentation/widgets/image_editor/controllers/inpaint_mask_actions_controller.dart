@@ -3,10 +3,12 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 
 import '../../../../core/utils/app_logger.dart';
+import '../../../../core/utils/inpaint_mask/inpaint_mask_preview.dart';
 import '../../../../core/utils/inpaint_mask_utils.dart';
 import '../../../../core/utils/localization_extension.dart';
 import '../../common/app_toast.dart';
 import '../core/editor_state.dart';
+import '../core/mask_paint_style.dart';
 import '../export/image_exporter_new.dart';
 import '../image_editor_controller.dart';
 import '../image_editor_types.dart';
@@ -14,7 +16,7 @@ import '../layers/layer_role.dart';
 import '../widgets/editor_image_import.dart';
 import 'editor_compression_controller.dart';
 
-/// 重绘会话的蒙版操作协调器：封闭区域填充、外部蒙版加载与蒙版层重置。
+/// 重绘会话的蒙版操作协调器：填充、外部蒙版加载与蒙版层重置。
 class InpaintMaskActionsController {
   const InpaintMaskActionsController({
     required ImageEditorController Function() session,
@@ -112,6 +114,98 @@ class InpaintMaskActionsController {
       if (isMounted() && context.mounted) {
         AppToast.error(context, l10n.editor_fillMaskFailed(e));
       }
+    }
+  }
+
+  Future<void> fillSelectionIntoMask(
+    BuildContext context, {
+    required bool Function() isMounted,
+  }) async {
+    if (!_isInpaintMode || !isMounted() || !context.mounted) return;
+    final l10n = context.l10n;
+    bool isMountedHere() => isMounted() && context.mounted;
+    try {
+      final didWrite = await applySelectionMask(
+        newLayerName: l10n.editor_maskLayerName,
+        isMounted: isMountedHere,
+      );
+      if (didWrite == true && context.mounted && isMounted()) {
+        AppToast.success(context, l10n.editor_selectionMaskFilled);
+      }
+    } catch (error) {
+      if (context.mounted && isMountedHere()) {
+        AppToast.error(context, l10n.editor_selectionMaskFillFailed(error));
+      }
+    }
+  }
+
+  /// 写入调用时的选区，清除选区与蒙版写入分别进入现有历史。
+  /// 写入成功返回 true，选区与取景框没有交集返回 false，取消返回 null。
+  Future<bool?> applySelectionMask({
+    required String newLayerName,
+    required bool Function() isMounted,
+  }) async {
+    if (!_isInpaintMode || !isMounted()) return null;
+    final activeSession = session;
+    final state = activeSession.editorState;
+    final selection = state.selectionPath;
+    if (selection == null) return null;
+    final frame = state.frame;
+    final bounds = selection.getBounds().intersect(frame);
+    if (bounds.isEmpty) return false;
+    final region = Rect.fromLTRB(
+      bounds.left.floorToDouble(),
+      bounds.top.floorToDouble(),
+      bounds.right.ceilToDouble(),
+      bounds.bottom.ceilToDouble(),
+    ).intersect(frame);
+    final epoch = activeSession.beginOperation();
+    bool isCurrent() =>
+        isMounted() &&
+        activeSession.accepts(epoch) &&
+        identical(state.selectionPath, selection);
+
+    try {
+      final recorder = ui.PictureRecorder();
+      Canvas(recorder)
+        ..translate(-region.left, -region.top)
+        ..clipRect(region, doAntiAlias: false)
+        ..drawPath(
+          selection,
+          Paint()
+            ..isAntiAlias = false
+            // 与 InpaintMaskUtils.encodeEditorOverlayPatch 的默认颜色和 alpha 一致。
+            ..color = MaskPaintStyle.color.withAlpha(
+              InpaintMaskPreview.defaultOverlayAlpha,
+            ),
+        );
+      final picture = recorder.endRecording();
+      final ui.Image image;
+      try {
+        image = await picture.toImage(
+          region.width.ceil(),
+          region.height.ceil(),
+        );
+      } finally {
+        picture.dispose();
+      }
+      if (!isCurrent()) {
+        image.dispose();
+        return null;
+      }
+      state.layerCommands.addMaskPixels(
+        image,
+        offset: region.topLeft,
+        newLayerName: newLayerName,
+        description: 'Fill Selection Into Mask',
+      );
+      // 清除单独进历史，先撤销它才能恢复选区。
+      state.clearSelection();
+      state.requestUiUpdate();
+      return true;
+    } catch (_) {
+      if (isCurrent()) rethrow;
+      return null;
     }
   }
 

@@ -38,6 +38,7 @@ typedef MagicWandHandler =
     });
 
 typedef ClosedRegionFillHandler = Future<void> Function(Offset canvasPoint);
+typedef SelectionMaskFillHandler = Future<void> Function();
 
 /// 编辑器全局状态（协调器）
 /// 协调各 Manager 之间的交互，提供统一的 API 给 UI 层
@@ -137,6 +138,7 @@ class EditorState extends ChangeNotifier {
   Rect Function(Rect candidate, Offset fixedAnchor)? _rectSelectionConstraint;
   MagicWandHandler? _magicWandHandler;
   ClosedRegionFillHandler? _closedRegionFillHandler;
+  SelectionMaskFillHandler? _selectionMaskFillHandler;
 
   // ===== 内部状态 =====
 
@@ -206,6 +208,16 @@ class EditorState extends ChangeNotifier {
 
   Future<void> fillClosedRegionAt(Offset canvasPoint) async {
     await _closedRegionFillHandler?.call(canvasPoint);
+  }
+
+  void setSelectionMaskFillHandler(SelectionMaskFillHandler? handler) {
+    _selectionMaskFillHandler = handler;
+  }
+
+  bool get canFillSelectionIntoMask => _selectionMaskFillHandler != null;
+
+  Future<void> fillSelectionIntoMask() async {
+    await _selectionMaskFillHandler?.call();
   }
 
   void setRolePolicy(LayerRolePolicy policy) {
@@ -795,6 +807,7 @@ class EditorState extends ChangeNotifier {
     _pendingStrokePreviewChange = false;
     _magicWandHandler = null;
     _closedRegionFillHandler = null;
+    _selectionMaskFillHandler = null;
     _frameCommands = null;
     _layerTransformer?.dispose();
 

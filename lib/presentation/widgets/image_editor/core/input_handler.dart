@@ -263,47 +263,8 @@ class InputHandler {
 
     // Krita 风格视图快捷键（无修饰键）
     if (isDown && !keyboard.isCtrlPressed) {
-      final viewAction = EditorViewAction.forShortcut(event.logicalKey);
-      if (viewAction != null) {
-        viewAction.perform(state);
-        return KeyEventResult.handled;
-      }
-
-      switch (event.logicalKey) {
-        case LogicalKeyboardKey.keyX:
-          state.swapColors();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.bracketLeft:
-          state.setBrushSize(state.brushSize - 5);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.bracketRight:
-          state.setBrushSize(state.brushSize + 5);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyI:
-          state.decreaseBrushOpacity();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyO:
-          state.increaseBrushOpacity();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.escape:
-          // 拖动中的工具（移动、选区、取景框）一并放弃本次手势；没有手势时交给工具取消待定操作
-          final hadGesture = _drawingPointerId != null;
-          _cancelDrawingPointer();
-          state.cancelStroke();
-          if (!hadGesture) state.currentTool?.onEscape(state);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.enter:
-        case LogicalKeyboardKey.numpadEnter:
-          if (state.currentTool?.onConfirm(state) ?? false) {
-            return KeyEventResult.handled;
-          }
-        case LogicalKeyboardKey.delete:
-        case LogicalKeyboardKey.backspace:
-          if (state.selectionPath != null) {
-            state.layerCommands.clearSelectionPixels();
-          }
-          return KeyEventResult.handled;
-      }
+      final result = _handleUnmodifiedKey(event.logicalKey);
+      if (result != KeyEventResult.ignored) return result;
     }
 
     // 方向键微移：1 像素，按住 Shift 为 10 像素
@@ -321,21 +282,70 @@ class InputHandler {
     return KeyEventResult.ignored;
   }
 
+  KeyEventResult _handleUnmodifiedKey(LogicalKeyboardKey key) {
+    final viewAction = EditorViewAction.forShortcut(key);
+    if (viewAction != null) {
+      viewAction.perform(state);
+      return KeyEventResult.handled;
+    }
+
+    switch (key) {
+      case LogicalKeyboardKey.keyX:
+        state.swapColors();
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.bracketLeft:
+        state.setBrushSize(state.brushSize - 5);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.bracketRight:
+        state.setBrushSize(state.brushSize + 5);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.keyI:
+        state.decreaseBrushOpacity();
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.keyO:
+        state.increaseBrushOpacity();
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.escape:
+        final hadGesture = _drawingPointerId != null;
+        _cancelDrawingPointer();
+        state.cancelStroke();
+        // 磁性套索可以跨多次手势绘制，Esc 还要清理已固定的路径。
+        if (!hadGesture || state.currentTool?.isSelectionTool == true) {
+          state.currentTool?.onEscape(state);
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.enter:
+      case LogicalKeyboardKey.numpadEnter:
+        if (state.currentTool?.onConfirm(state) ?? false) {
+          return KeyEventResult.handled;
+        }
+      case LogicalKeyboardKey.delete:
+      case LogicalKeyboardKey.backspace:
+        if (!(state.currentTool?.onDeleteKey(state) ?? false) &&
+            state.selectionPath != null) {
+          state.layerCommands.clearSelectionPixels();
+        }
+        return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   /// 硬件键盘处理（优先级高于 IME，用于工具快捷键）
   bool handleHardwareKey(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     if (!focusNode.hasFocus) return false;
     if (HardwareKeyboard.instance.isControlPressed) return false;
 
-    // 处理工具快捷键
-    for (final tool in state.tools) {
-      if (tool.shortcutKey == event.logicalKey && tool.isAvailableIn(state)) {
-        state.setTool(tool);
-        return true;
-      }
-    }
-
-    return false;
+    final matchingTools = state.tools
+        .where(
+          (tool) =>
+              tool.shortcutKey == event.logicalKey && tool.isAvailableIn(state),
+        )
+        .toList();
+    if (matchingTools.isEmpty) return false;
+    final index = matchingTools.indexWhere((tool) => tool == state.currentTool);
+    state.setTool(matchingTools[(index + 1) % matchingTools.length]);
+    return true;
   }
 
   /// 处理鼠标滚轮
@@ -431,7 +441,11 @@ class InputHandler {
         _drawingPointerId = event.pointer;
         _drawingPointerKind = event.kind;
         tool.onPointerDown(
-          PointerDownEvent(position: canvasPosition, kind: event.kind),
+          PointerDownEvent(
+            position: canvasPosition,
+            kind: event.kind,
+            timeStamp: event.timeStamp,
+          ),
           state,
         );
       }
@@ -768,6 +782,7 @@ class InputHandler {
       case 'rect_selection':
       case 'ellipse_selection':
       case 'lasso_selection':
+      case 'magnetic_lasso_selection':
       case 'magic_wand':
         return SystemMouseCursors.precise;
       case 'color_picker':

@@ -1322,6 +1322,7 @@
   "editor_shortcutRectSelection": "Rectangle Selection",
   "editor_shortcutEllipseSelection": "Ellipse Selection",
   "editor_shortcutLassoSelection": "Lasso Selection",
+  "editor_shortcutMagneticLasso": "Press L again to switch between Lasso and Magnetic Lasso",
   "editor_shortcut100Zoom": "100% Zoom",
   "editor_shortcutFitHeight": "Fit Height",
   "editor_shortcutFitWidth": "Fit Width",
@@ -1634,6 +1635,21 @@
   "editor_sourceCurrentLayer": "Current Layer",
   "editor_sourceAllLayers": "All Layers",
   "editor_lassoSelectionHelp": "Hold and drag to draw a freeform selection. Release to close it automatically.",
+  "editor_toolMagneticLasso": "Magnetic Lasso",
+  "editor_magneticLassoHelp": "Click to set the starting point. Move the pointer along the object and the line will snap to its edge and add anchors. Click to add an anchor manually. Press Backspace to remove the last anchor. Double-click, press Enter, or click the starting point to close. Press Esc to cancel. On a touchscreen, drag along the edge and lift your finger to place an anchor, then use Close Path below. Once closed, the path becomes a selection you can add with Fill Into Mask.",
+  "editor_magneticLassoWidth": "Width",
+  "editor_magneticLassoContrast": "Contrast",
+  "editor_magneticLassoFrequency": "Frequency",
+  "editor_magneticLassoClose": "Close Path",
+  "editor_magneticLassoRemoveAnchor": "Remove Last Anchor",
+  "selection_fillIntoMask": "Fill Into Mask",
+  "editor_selectionMaskFilled": "Selection added to mask",
+  "editor_selectionMaskFillFailed": "Failed to fill selection into mask: {error}",
+  "@editor_selectionMaskFillFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "layer_empty": "No layers",
   "layer_add": "Add Layer",
   "layer_mergeDown": "Merge Down",

@@ -216,6 +216,7 @@ String editorToolLabel(BuildContext context, EditorTool tool, LayerRole? role) {
     'rect_selection' => l10n.editor_toolRectSelect,
     'ellipse_selection' => l10n.editor_toolEllipseSelect,
     'lasso_selection' => l10n.editor_toolLassoSelect,
+    'magnetic_lasso_selection' => l10n.editor_toolMagneticLasso,
     'color_picker' => l10n.editor_toolColorPicker,
     'clone_stamp' => l10n.editor_toolCloneStamp,
     'blur' => l10n.editor_toolBlur,

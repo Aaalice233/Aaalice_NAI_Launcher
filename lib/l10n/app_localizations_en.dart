@@ -3120,6 +3120,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editor_shortcutLassoSelection => 'Lasso Selection';
 
   @override
+  String get editor_shortcutMagneticLasso =>
+      'Press L again to switch between Lasso and Magnetic Lasso';
+
+  @override
   String get editor_shortcut100Zoom => '100% Zoom';
 
   @override
@@ -3670,6 +3674,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get editor_lassoSelectionHelp =>
       'Hold and drag to draw a freeform selection. Release to close it automatically.';
+
+  @override
+  String get editor_toolMagneticLasso => 'Magnetic Lasso';
+
+  @override
+  String get editor_magneticLassoHelp =>
+      'Click to set the starting point. Move the pointer along the object and the line will snap to its edge and add anchors. Click to add an anchor manually. Press Backspace to remove the last anchor. Double-click, press Enter, or click the starting point to close. Press Esc to cancel. On a touchscreen, drag along the edge and lift your finger to place an anchor, then use Close Path below. Once closed, the path becomes a selection you can add with Fill Into Mask.';
+
+  @override
+  String get editor_magneticLassoWidth => 'Width';
+
+  @override
+  String get editor_magneticLassoContrast => 'Contrast';
+
+  @override
+  String get editor_magneticLassoFrequency => 'Frequency';
+
+  @override
+  String get editor_magneticLassoClose => 'Close Path';
+
+  @override
+  String get editor_magneticLassoRemoveAnchor => 'Remove Last Anchor';
+
+  @override
+  String get selection_fillIntoMask => 'Fill Into Mask';
+
+  @override
+  String get editor_selectionMaskFilled => 'Selection added to mask';
+
+  @override
+  String editor_selectionMaskFillFailed(Object error) {
+    return 'Failed to fill selection into mask: $error';
+  }
 
   @override
   String get layer_empty => 'No layers';

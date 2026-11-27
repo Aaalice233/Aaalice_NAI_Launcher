@@ -2997,6 +2997,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editor_shortcutLassoSelection => '套索选区';
 
   @override
+  String get editor_shortcutMagneticLasso => '重复按 L，在套索选区与磁性套索之间切换';
+
+  @override
   String get editor_shortcut100Zoom => '100% 缩放';
 
   @override
@@ -3522,6 +3525,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editor_lassoSelectionHelp => '按住鼠标拖动绘制自由形状选区，松开自动闭合';
+
+  @override
+  String get editor_toolMagneticLasso => '磁性套索';
+
+  @override
+  String get editor_magneticLassoHelp =>
+      '点击设置起点，沿物体边缘移动鼠标，线条会自动贴合边缘并打下锚点。单击手动添加锚点，Backspace 删除上一个锚点，双击、Enter 或点回起点闭合，Esc 取消。触屏可按住拖动描边，松手处成为锚点，再用下方按钮闭合。闭合后得到选区，可点「填入蒙版」。';
+
+  @override
+  String get editor_magneticLassoWidth => '宽度';
+
+  @override
+  String get editor_magneticLassoContrast => '对比度';
+
+  @override
+  String get editor_magneticLassoFrequency => '频率';
+
+  @override
+  String get editor_magneticLassoClose => '闭合';
+
+  @override
+  String get editor_magneticLassoRemoveAnchor => '删除上一个锚点';
+
+  @override
+  String get selection_fillIntoMask => '填入蒙版';
+
+  @override
+  String get editor_selectionMaskFilled => '已填入蒙版';
+
+  @override
+  String editor_selectionMaskFillFailed(Object error) {
+    return '填入蒙版失败: $error';
+  }
 
   @override
   String get layer_empty => '无图层';
@@ -18890,6 +18926,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get editor_shortcutLassoSelection => '套索選區';
 
   @override
+  String get editor_shortcutMagneticLasso => '重複按 L，在套索選區與磁性套索之間切換';
+
+  @override
   String get editor_shortcut100Zoom => '100% 縮放';
 
   @override
@@ -19415,6 +19454,39 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get editor_lassoSelectionHelp => '按住滑鼠拖動繪製自由形狀選區，鬆開自動閉合';
+
+  @override
+  String get editor_toolMagneticLasso => '磁性套索';
+
+  @override
+  String get editor_magneticLassoHelp =>
+      '點擊設定起點，沿物體邊緣移動滑鼠，線條會自動貼合邊緣並加上錨點。點一下可手動加錨點，Backspace 刪除上一個錨點，點兩下、按 Enter 或點回起點即可閉合，Esc 取消。觸控螢幕可按住拖曳描邊，放開處成為錨點，再用下方按鈕閉合。閉合後會得到選區，可按「填入蒙版」。';
+
+  @override
+  String get editor_magneticLassoWidth => '寬度';
+
+  @override
+  String get editor_magneticLassoContrast => '對比度';
+
+  @override
+  String get editor_magneticLassoFrequency => '頻率';
+
+  @override
+  String get editor_magneticLassoClose => '閉合';
+
+  @override
+  String get editor_magneticLassoRemoveAnchor => '刪除上一個錨點';
+
+  @override
+  String get selection_fillIntoMask => '填入蒙版';
+
+  @override
+  String get editor_selectionMaskFilled => '已填入蒙版';
+
+  @override
+  String editor_selectionMaskFillFailed(Object error) {
+    return '填入蒙版失敗: $error';
+  }
 
   @override
   String get layer_empty => '無圖層';

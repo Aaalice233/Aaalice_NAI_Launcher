@@ -292,6 +292,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     );
     if (_isInpaintMode) {
       _state.setClosedRegionFillHandler(_fillClosedMaskRegionsAt);
+      _state.setSelectionMaskFillHandler(_fillSelectionIntoMask);
     }
     _state.setMagicWandHandler(
       (point, {required mode, required tolerance, required invert}) =>
@@ -333,6 +334,7 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
     );
     _state.setMagicWandHandler(null);
     _state.setClosedRegionFillHandler(null);
+    _state.setSelectionMaskFillHandler(null);
     _state.frameNotifier.removeListener(_handleFrameChanged);
     _state.layerManager.removeListener(_handleLayersChanged);
     _state.layerManager.activeLayerNotifier.removeListener(
@@ -495,6 +497,9 @@ class ImageEditorWorkspaceState extends State<ImageEditorWorkspace> {
       _updateLayoutState(() {});
     }
   }
+
+  Future<void> _fillSelectionIntoMask() => _maskActionsController
+      .fillSelectionIntoMask(context, isMounted: () => mounted);
 
   Future<void> _fillClosedMaskRegionsAt(Offset canvasPoint) =>
       _maskActionsController.fillClosedMaskRegionsAt(

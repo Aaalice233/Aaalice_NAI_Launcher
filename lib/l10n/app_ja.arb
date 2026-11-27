@@ -1311,6 +1311,7 @@
   "editor_shortcutRectSelection": "長方形の選択",
   "editor_shortcutEllipseSelection": "楕円の選択",
   "editor_shortcutLassoSelection": "なげなわ選択",
+  "editor_shortcutMagneticLasso": "L をもう一度押すとなげなわ選択とマグネット選択を切り替えます",
   "editor_shortcut100Zoom": "100% ズーム",
   "editor_shortcutFitHeight": "高さに合わせる",
   "editor_shortcutFitWidth": "幅に合わせる",
@@ -1623,6 +1624,21 @@
   "editor_sourceCurrentLayer": "現在",
   "editor_sourceAllLayers": "すべて",
   "editor_lassoSelectionHelp": "押したままドラッグして、自由形式の選択範囲を描画します。放すと自動的に閉まります。",
+  "editor_toolMagneticLasso": "マグネット選択",
+  "editor_magneticLassoHelp": "クリックで始点を指定し、対象の輪郭に沿ってポインターを動かすと、線が輪郭に吸着してアンカーが追加されます。クリックでアンカーを追加し、Backspace で直前のアンカーを削除できます。ダブルクリック、Enter、または始点のクリックで閉じ、Esc でキャンセルします。タッチ操作では輪郭をドラッグし、指を離した位置をアンカーにして、下のボタンで閉じます。閉じると選択範囲になり、「マスクに追加」でマスクに反映できます。",
+  "editor_magneticLassoWidth": "幅",
+  "editor_magneticLassoContrast": "コントラスト",
+  "editor_magneticLassoFrequency": "頻度",
+  "editor_magneticLassoClose": "パスを閉じる",
+  "editor_magneticLassoRemoveAnchor": "直前のアンカーを削除",
+  "selection_fillIntoMask": "マスクに追加",
+  "editor_selectionMaskFilled": "選択範囲をマスクに追加しました",
+  "editor_selectionMaskFillFailed": "選択範囲をマスクに追加できませんでした: {error}",
+  "@editor_selectionMaskFillFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "layer_empty": "レイヤーがありません",
   "layer_add": "レイヤーを追加",
   "layer_mergeDown": "下へマージ",

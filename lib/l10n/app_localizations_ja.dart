@@ -3042,6 +3042,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editor_shortcutLassoSelection => 'なげなわ選択';
 
   @override
+  String get editor_shortcutMagneticLasso => 'L をもう一度押すとなげなわ選択とマグネット選択を切り替えます';
+
+  @override
   String get editor_shortcut100Zoom => '100% ズーム';
 
   @override
@@ -3577,6 +3580,39 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get editor_lassoSelectionHelp =>
       '押したままドラッグして、自由形式の選択範囲を描画します。放すと自動的に閉まります。';
+
+  @override
+  String get editor_toolMagneticLasso => 'マグネット選択';
+
+  @override
+  String get editor_magneticLassoHelp =>
+      'クリックで始点を指定し、対象の輪郭に沿ってポインターを動かすと、線が輪郭に吸着してアンカーが追加されます。クリックでアンカーを追加し、Backspace で直前のアンカーを削除できます。ダブルクリック、Enter、または始点のクリックで閉じ、Esc でキャンセルします。タッチ操作では輪郭をドラッグし、指を離した位置をアンカーにして、下のボタンで閉じます。閉じると選択範囲になり、「マスクに追加」でマスクに反映できます。';
+
+  @override
+  String get editor_magneticLassoWidth => '幅';
+
+  @override
+  String get editor_magneticLassoContrast => 'コントラスト';
+
+  @override
+  String get editor_magneticLassoFrequency => '頻度';
+
+  @override
+  String get editor_magneticLassoClose => 'パスを閉じる';
+
+  @override
+  String get editor_magneticLassoRemoveAnchor => '直前のアンカーを削除';
+
+  @override
+  String get selection_fillIntoMask => 'マスクに追加';
+
+  @override
+  String get editor_selectionMaskFilled => '選択範囲をマスクに追加しました';
+
+  @override
+  String editor_selectionMaskFillFailed(Object error) {
+    return '選択範囲をマスクに追加できませんでした: $error';
+  }
 
   @override
   String get layer_empty => 'レイヤーがありません';
