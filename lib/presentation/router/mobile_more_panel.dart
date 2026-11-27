@@ -11,6 +11,7 @@ import '../agent_chat/providers/agent_chat_notifier.dart';
 import '../../data/services/account_manager_provider.dart';
 import '../../data/services/auth_provider.dart';
 import '../providers/replication_queue_provider.dart';
+import '../providers/theme_provider.dart';
 import '../providers/update_provider.dart';
 import '../services/mobile_image_metadata_importer.dart';
 import '../widgets/common/app_toast.dart';
@@ -174,6 +175,33 @@ Future<void> showMobileMorePanel({
                     ),
                   ),
                   const Divider(indent: 16, endIndent: 16),
+                  Consumer(
+                    builder: (consumerContext, consumerRef, _) {
+                      final themeMode = consumerRef.watch(
+                        themeNotifierProvider.select((s) => s.themeMode),
+                      );
+                      final platformBrightness = MediaQuery.platformBrightnessOf(
+                        consumerContext,
+                      );
+                      final isDark =
+                          themeMode == ThemeMode.dark ||
+                          (themeMode == ThemeMode.system &&
+                              platformBrightness == Brightness.dark);
+                      return _MobileMoreDestination(
+                        key: const ValueKey('mobile-more-theme-toggle'),
+                        icon: isDark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                        label: isDark
+                            ? consumerContext.l10n.nav_switchToLightMode
+                            : consumerContext.l10n.nav_switchToDarkMode,
+                        showChevron: false,
+                        onTap: () => consumerRef
+                            .read(themeNotifierProvider.notifier)
+                            .toggleBrightness(platformBrightness),
+                      );
+                    },
+                  ),
                   _MobileMoreDestination(
                     key: const ValueKey('mobile-more-settings'),
                     icon: Icons.settings_outlined,
@@ -324,6 +352,7 @@ class _MobileMoreDestination extends StatelessWidget {
     this.badgeCount = 0,
     this.showBadge = false,
     this.selected = false,
+    this.showChevron = true,
   });
 
   final IconData icon;
@@ -332,6 +361,7 @@ class _MobileMoreDestination extends StatelessWidget {
   final int badgeCount;
   final bool showBadge;
   final bool selected;
+  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -354,7 +384,9 @@ class _MobileMoreDestination extends StatelessWidget {
       ),
       trailing: selected
           ? const Icon(Icons.check_rounded)
-          : const Icon(Icons.chevron_right),
+          : showChevron
+          ? const Icon(Icons.chevron_right)
+          : null,
       selected: selected,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onTap: onTap,

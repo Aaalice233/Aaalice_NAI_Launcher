@@ -277,7 +277,10 @@ void main() {
         find.byKey(const Key('desktop-primary-workspace')),
       );
 
-      await tester.tap(find.byKey(const Key('queue-nav-item')));
+      final queueNavItem = find.byKey(const Key('queue-nav-item'));
+      await tester.ensureVisible(queueNavItem);
+      await tester.pump();
+      await tester.tap(queueNavItem);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       final queuePrimaryRect = tester.getRect(
@@ -312,7 +315,9 @@ void main() {
       );
       expect(find.byKey(const Key('shell-panel-scrim')), findsNothing);
 
-      await tester.tap(find.byKey(const Key('queue-nav-item')));
+      await tester.ensureVisible(queueNavItem);
+      await tester.pump();
+      await tester.tap(queueNavItem);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       final hiddenPointerGate = tester.widget<IgnorePointer>(
@@ -329,7 +334,10 @@ void main() {
         closedPrimaryRect,
       );
 
-      await tester.tap(find.byKey(const Key('agent-nav-item')));
+      final agentNavItem = find.byKey(const Key('agent-nav-item'));
+      await tester.ensureVisible(agentNavItem);
+      await tester.pump();
+      await tester.tap(agentNavItem);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       final agentPrimaryRect = tester.getRect(

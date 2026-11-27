@@ -649,9 +649,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings_appearance => 'Appearance';
 
   @override
-  String get settings_style => 'Style';
-
-  @override
   String get settings_font => 'Font';
 
   @override
@@ -762,9 +759,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_comfyUiDesktopOnly => 'Available on desktop only';
-
-  @override
-  String get settings_selectStyle => 'Select Style';
 
   @override
   String get settings_defaultPreset => 'Default';
@@ -16613,4 +16607,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
     return 'Subscription expiry: $dateString';
   }
+
+  @override
+  String get nav_switchToLightMode => 'Switch to light';
+
+  @override
+  String get nav_switchToDarkMode => 'Switch to dark';
+
+  @override
+  String get settings_themeMode => 'Theme Mode';
+
+  @override
+  String get settings_themeModeLight => 'Light';
+
+  @override
+  String get settings_themeModeDark => 'Dark';
+
+  @override
+  String get settings_themeModeSystem => 'System';
+
+  @override
+  String get settings_lightTheme => 'Light Theme';
+
+  @override
+  String get settings_darkTheme => 'Dark Theme';
+
+  @override
+  String get settings_selectLightTheme => 'Select Light Theme';
+
+  @override
+  String get settings_selectDarkTheme => 'Select Dark Theme';
 }

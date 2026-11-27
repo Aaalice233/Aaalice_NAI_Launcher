@@ -1265,12 +1265,6 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get settings_appearance;
 
-  /// No description provided for @settings_style.
-  ///
-  /// In en, this message translates to:
-  /// **'Style'**
-  String get settings_style;
-
   /// No description provided for @settings_font.
   ///
   /// In en, this message translates to:
@@ -1486,12 +1480,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Available on desktop only'**
   String get settings_comfyUiDesktopOnly;
-
-  /// No description provided for @settings_selectStyle.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Style'**
-  String get settings_selectStyle;
 
   /// No description provided for @settings_defaultPreset.
   ///
@@ -28753,6 +28741,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Subscription expiry: {date}'**
   String settings_subscriptionExpiresOn(DateTime date);
+
+  /// No description provided for @nav_switchToLightMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to light'**
+  String get nav_switchToLightMode;
+
+  /// No description provided for @nav_switchToDarkMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to dark'**
+  String get nav_switchToDarkMode;
+
+  /// No description provided for @settings_themeMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme Mode'**
+  String get settings_themeMode;
+
+  /// No description provided for @settings_themeModeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get settings_themeModeLight;
+
+  /// No description provided for @settings_themeModeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get settings_themeModeDark;
+
+  /// No description provided for @settings_themeModeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get settings_themeModeSystem;
+
+  /// No description provided for @settings_lightTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Light Theme'**
+  String get settings_lightTheme;
+
+  /// No description provided for @settings_darkTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark Theme'**
+  String get settings_darkTheme;
+
+  /// No description provided for @settings_selectLightTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Light Theme'**
+  String get settings_selectLightTheme;
+
+  /// No description provided for @settings_selectDarkTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Dark Theme'**
+  String get settings_selectDarkTheme;
 }
 
 class _AppLocalizationsDelegate

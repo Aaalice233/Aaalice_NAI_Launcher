@@ -61,7 +61,7 @@ void main() {
     expect(find.text('外观'), findsOneWidget);
   });
 
-  for (final width in [320.0, 600.0, 840.0, 1600.0]) {
+  for (final width in [320.0, 600.0, 840.0, 1180.0, 1600.0]) {
     testWidgets('外观设置在 ${width.toInt()} 宽度与放大文本下无溢出', (tester) async {
       tester.view.physicalSize = Size(width, width == 320 ? 420 : 900);
       tester.view.devicePixelRatio = 1;
@@ -89,6 +89,18 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('外观'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('settings-theme-mode-selector')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('settings-light-theme-tile')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('settings-dark-theme-tile')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
   }
@@ -333,8 +345,50 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('外观设置支持切换浅色、深色与跟随系统模式并持久化', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final storage = _FakeStorage();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStorageServiceProvider.overrideWith((ref) => storage)],
+        child: const MaterialApp(
+          locale: Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(child: AppearanceSettingsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppearanceSettingsSection)),
+    );
+    expect(container.read(themeNotifierProvider).themeMode, ThemeMode.dark);
+
+    await tester.tap(find.text('浅色'));
+    await tester.pumpAndSettle();
+    expect(container.read(themeNotifierProvider).themeMode, ThemeMode.light);
+    expect(storage.themeMode, 'light');
+
+    await tester.tap(find.text('跟随系统'));
+    await tester.pumpAndSettle();
+    expect(container.read(themeNotifierProvider).themeMode, ThemeMode.system);
+    expect(storage.themeMode, 'system');
+
+    await tester.tap(find.text('深色'));
+    await tester.pumpAndSettle();
+    expect(container.read(themeNotifierProvider).themeMode, ThemeMode.dark);
+    expect(storage.themeMode, 'dark');
+    expect(tester.takeException(), isNull);
+  });
+
   for (final size in [const Size(1000, 1600), const Size(320, 480)]) {
-    testWidgets('主题选择弹窗在 ${size.width.toInt()} 宽度可打开并选中末尾预设', (
+    testWidgets('浅色与深色主题选择弹窗在 ${size.width.toInt()} 宽度仅列对应模式预设并持久化', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(size);
@@ -358,31 +412,62 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('风格').first);
+      final lightStyles = AppTheme.stylesForBrightness(Brightness.light);
+      final darkStyles = AppTheme.stylesForBrightness(Brightness.dark);
+
+      final lightTile = find.byKey(const ValueKey('settings-light-theme-tile'));
+      await tester.ensureVisible(lightTile);
+      await tester.tap(lightTile);
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.text('选择风格'), findsOneWidget);
+      expect(find.text('选择浅色主题'), findsOneWidget);
       expect(
         find.byType(RadioListTile<AppStyle>),
-        findsNWidgets(AppStyle.values.length),
+        findsNWidgets(lightStyles.length),
       );
 
-      final last = AppStyle.values.last;
-      final lastTile = find.widgetWithText(
+      final lastLight = lightStyles.last;
+      final lastLightTile = find.widgetWithText(
         RadioListTile<AppStyle>,
-        last.displayName,
+        lastLight.displayName,
       );
-      await tester.ensureVisible(lastTile);
+      await tester.ensureVisible(lastLightTile);
       await tester.pumpAndSettle();
-      await tester.tap(lastTile);
+      await tester.tap(lastLightTile);
       await tester.pumpAndSettle();
 
       final container = ProviderScope.containerOf(
         tester.element(find.byType(AppearanceSettingsSection)),
       );
-      expect(container.read(themeNotifierProvider), last);
-      expect(storage.themeIndex, last.index);
+      expect(container.read(themeNotifierProvider).lightStyle, lastLight);
+      expect(storage.lightThemeIndex, lastLight.index);
+      expect(find.byType(AlertDialog), findsNothing);
+
+      final darkTile = find.byKey(const ValueKey('settings-dark-theme-tile'));
+      await tester.ensureVisible(darkTile);
+      await tester.tap(darkTile);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('选择深色主题'), findsOneWidget);
+      expect(
+        find.byType(RadioListTile<AppStyle>),
+        findsNWidgets(darkStyles.length),
+      );
+
+      final lastDark = darkStyles.last;
+      final lastDarkTile = find.widgetWithText(
+        RadioListTile<AppStyle>,
+        lastDark.displayName,
+      );
+      await tester.ensureVisible(lastDarkTile);
+      await tester.pumpAndSettle();
+      await tester.tap(lastDarkTile);
+      await tester.pumpAndSettle();
+
+      expect(container.read(themeNotifierProvider).darkStyle, lastDark);
+      expect(storage.darkThemeIndex, lastDark.index);
       expect(find.byType(AlertDialog), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -444,6 +529,9 @@ class _FakeStorage extends LocalStorageService {
   String fontFamily = FontConfig.defaultFont.key;
   double fontScale = 1;
   int themeIndex = 0;
+  String? themeMode;
+  int? lightThemeIndex;
+  int? darkThemeIndex;
 
   @override
   int getThemeIndex() => themeIndex;
@@ -451,6 +539,30 @@ class _FakeStorage extends LocalStorageService {
   @override
   Future<void> setThemeIndex(int index) async {
     themeIndex = index;
+  }
+
+  @override
+  String? getThemeMode() => themeMode;
+
+  @override
+  Future<void> setThemeMode(String mode) async {
+    themeMode = mode;
+  }
+
+  @override
+  int? getLightThemeIndex() => lightThemeIndex;
+
+  @override
+  Future<void> setLightThemeIndex(int index) async {
+    lightThemeIndex = index;
+  }
+
+  @override
+  int? getDarkThemeIndex() => darkThemeIndex;
+
+  @override
+  Future<void> setDarkThemeIndex(int index) async {
+    darkThemeIndex = index;
   }
 
   @override

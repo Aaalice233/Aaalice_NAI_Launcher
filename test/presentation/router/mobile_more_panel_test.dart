@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:nai_launcher/core/storage/local_storage_service.dart';
 import 'package:nai_launcher/l10n/app_localizations.dart';
 import 'package:nai_launcher/data/services/account_manager_provider.dart';
+import 'package:nai_launcher/presentation/providers/theme_provider.dart';
 import 'package:nai_launcher/presentation/router/mobile_more_panel.dart';
+
+import '../../helpers/memory_local_storage.dart';
 
 class _MockNavigationShell extends Mock implements StatefulNavigationShell {
   @override
@@ -32,6 +36,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
             accountManagerNotifierProvider.overrideWith(
               _EmptyAccountManagerNotifier.new,
             ),
@@ -106,6 +111,97 @@ void main() {
 
       expect(importCalls, 1);
       expect(find.byKey(entryKey), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'mobile more panel exposes instant light/dark theme mode toggle',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 800);
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+
+      final navigationShell = _MockNavigationShell();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(MemoryLocalStorage()),
+            accountManagerNotifierProvider.overrideWith(
+              _EmptyAccountManagerNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            locale: const Locale('zh'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: Consumer(
+              builder: (context, ref, child) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => showMobileMorePanel(
+                      context: context,
+                      ref: ref,
+                      navigationShell: navigationShell,
+                      onImportImageMetadata: (context, ref) async {},
+                    ),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      final themeToggle = find.byKey(const ValueKey('mobile-more-theme-toggle'));
+      await tester.scrollUntilVisible(
+        themeToggle,
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(themeToggle, findsOneWidget);
+      expect(find.text('切换浅色模式'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: themeToggle,
+          matching: find.byIcon(Icons.light_mode_outlined),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: themeToggle,
+          matching: find.byIcon(Icons.chevron_right),
+        ),
+        findsNothing,
+      );
+
+      final container = ProviderScope.containerOf(tester.element(themeToggle));
+      expect(container.read(themeNotifierProvider).themeMode, ThemeMode.dark);
+
+      await tester.tap(themeToggle);
+      await tester.pumpAndSettle();
+
+      expect(container.read(themeNotifierProvider).themeMode, ThemeMode.light);
+      expect(themeToggle, findsOneWidget);
+      expect(find.text('切换深色模式'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: themeToggle,
+          matching: find.byIcon(Icons.dark_mode_outlined),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
     },
   );
 }

@@ -12,6 +12,7 @@ import '../../../providers/theme_provider.dart';
 import '../../../themes/app_theme.dart';
 import '../../../adaptive/adaptive_presenter.dart';
 import '../../../widgets/common/adaptive_dialog_frame.dart';
+import '../../../widgets/common/horizontal_segmented_control.dart';
 import '../../../widgets/common/themed_divider.dart';
 import '../../../widgets/common/themed_slider.dart';
 import '../widgets/settings_card.dart';
@@ -32,7 +33,7 @@ class _AppearanceSettingsSectionState
     extends ConsumerState<AppearanceSettingsSection> {
   @override
   Widget build(BuildContext context) {
-    final currentTheme = ref.watch(themeNotifierProvider);
+    final themeSettings = ref.watch(themeNotifierProvider);
     final currentFont = ref.watch(fontNotifierProvider);
     final currentLocale = ref.watch(localeNotifierProvider);
     final fontScale = ref.watch(fontScaleNotifierProvider);
@@ -49,16 +50,33 @@ class _AppearanceSettingsSectionState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 主题选择
+              // 主题模式（浅色 / 深色 / 跟随系统）
+              _buildThemeModeItem(context, themeSettings.themeMode),
+
+              // 浅色主题选择
               ListTile(
-                leading: const Icon(Icons.palette_outlined),
-                title: Text(context.l10n.settings_style),
-                subtitle: Text(
-                  currentTheme == AppStyle.grungeCollage
-                      ? context.l10n.settings_defaultPreset
-                      : currentTheme.displayName,
+                key: const ValueKey('settings-light-theme-tile'),
+                leading: const Icon(Icons.light_mode_outlined),
+                title: Text(context.l10n.settings_lightTheme),
+                subtitle: Text(_styleLabel(context, themeSettings.lightStyle)),
+                onTap: () => _showThemeStyleDialog(
+                  context,
+                  brightness: Brightness.light,
+                  currentStyle: themeSettings.lightStyle,
                 ),
-                onTap: () => _showThemeDialog(context, currentTheme),
+              ),
+
+              // 深色主题选择
+              ListTile(
+                key: const ValueKey('settings-dark-theme-tile'),
+                leading: const Icon(Icons.dark_mode_outlined),
+                title: Text(context.l10n.settings_darkTheme),
+                subtitle: Text(_styleLabel(context, themeSettings.darkStyle)),
+                onTap: () => _showThemeStyleDialog(
+                  context,
+                  brightness: Brightness.dark,
+                  currentStyle: themeSettings.darkStyle,
+                ),
               ),
 
               // 字体选择
@@ -125,26 +143,95 @@ class _AppearanceSettingsSectionState
     );
   }
 
-  void _showThemeDialog(BuildContext context, AppStyle currentTheme) {
-    // grungeCollage 已是 enum 第一个，无需手动排序
-    const sortedStyles = AppStyle.values;
+  Widget _buildThemeModeItem(BuildContext context, ThemeMode themeMode) {
+    final l10n = context.l10n;
+    final selector = SegmentedButton<ThemeMode>(
+      key: const ValueKey('settings-theme-mode-selector'),
+      showSelectedIcon: false,
+      segments: [
+        ButtonSegment<ThemeMode>(
+          value: ThemeMode.light,
+          icon: const Icon(Icons.light_mode_outlined, size: 18),
+          label: Text(l10n.settings_themeModeLight),
+        ),
+        ButtonSegment<ThemeMode>(
+          value: ThemeMode.dark,
+          icon: const Icon(Icons.dark_mode_outlined, size: 18),
+          label: Text(l10n.settings_themeModeDark),
+        ),
+        ButtonSegment<ThemeMode>(
+          value: ThemeMode.system,
+          icon: const Icon(Icons.brightness_auto_outlined, size: 18),
+          label: Text(l10n.settings_themeModeSystem),
+        ),
+      ],
+      selected: {themeMode},
+      onSelectionChanged: (selection) => ref
+          .read(themeNotifierProvider.notifier)
+          .setThemeMode(selection.first),
+    );
+    final compact = MediaQuery.textScalerOf(context).scale(14) > 18.2;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inline = constraints.maxWidth >= 640 && !compact;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.brightness_6_outlined),
+              title: Text(l10n.settings_themeMode),
+              trailing: inline ? selector : null,
+            ),
+            if (!inline)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: HorizontalSegmentedControl(child: selector),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _styleLabel(BuildContext context, AppStyle style) {
+    return style == AppStyle.grungeCollage
+        ? context.l10n.settings_defaultPreset
+        : style.displayName;
+  }
+
+  void _showThemeStyleDialog(
+    BuildContext context, {
+    required Brightness brightness,
+    required AppStyle currentStyle,
+  }) {
+    final sortedStyles = AppTheme.stylesForBrightness(brightness);
+    final isDark = brightness == Brightness.dark;
+    final title = isDark
+        ? context.l10n.settings_selectDarkTheme
+        : context.l10n.settings_selectLightTheme;
 
     showDialog(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           scrollable: true,
-          title: Text(context.l10n.settings_selectStyle),
+          title: Text(title),
           content: AdaptiveDialogFrame(
             maxWidth: 300,
             maxHeight: 400,
             reservedVerticalSpace: 220,
             scaleReservedVerticalSpace: true,
             child: RadioGroup<AppStyle>(
-              groupValue: currentTheme,
+              groupValue: currentStyle,
               onChanged: (value) {
                 if (value != null) {
-                  ref.read(themeNotifierProvider.notifier).setTheme(value);
+                  final notifier = ref.read(themeNotifierProvider.notifier);
+                  if (isDark) {
+                    notifier.setDarkStyle(value);
+                  } else {
+                    notifier.setLightStyle(value);
+                  }
                   Navigator.pop(dialogContext);
                 }
               },
@@ -153,12 +240,8 @@ class _AppearanceSettingsSectionState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: sortedStyles.map((style) {
-                    // grungeCollage 使用多语言的"默认"
-                    final displayName = style == AppStyle.grungeCollage
-                        ? context.l10n.settings_defaultPreset
-                        : style.displayName;
                     return RadioListTile<AppStyle>(
-                      title: Text(displayName),
+                      title: Text(_styleLabel(context, style)),
                       value: style,
                     );
                   }).toList(),

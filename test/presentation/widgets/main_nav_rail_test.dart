@@ -11,6 +11,7 @@ import 'package:nai_launcher/data/services/account_manager_provider.dart';
 import 'package:nai_launcher/data/services/auth_provider.dart';
 import 'package:nai_launcher/presentation/providers/queue_execution_provider.dart';
 import 'package:nai_launcher/presentation/providers/replication_queue_provider.dart';
+import 'package:nai_launcher/presentation/providers/theme_provider.dart';
 import 'package:nai_launcher/presentation/widgets/navigation/main_nav_rail.dart';
 import 'package:nai_launcher/presentation/widgets/settings/account_profile_sheet.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -80,6 +81,10 @@ class _FakeReplicationQueueNotifier extends ReplicationQueueNotifier {
 
 class _FakeMainNavStorage extends LocalStorageService {
   bool isExpanded = false;
+  int themeIndex = 0;
+  String? themeMode;
+  int? lightThemeIndex;
+  int? darkThemeIndex;
 
   @override
   bool getMainNavRailExpanded() => isExpanded;
@@ -87,6 +92,38 @@ class _FakeMainNavStorage extends LocalStorageService {
   @override
   Future<void> setMainNavRailExpanded(bool expanded) async {
     isExpanded = expanded;
+  }
+
+  @override
+  int getThemeIndex() => themeIndex;
+
+  @override
+  Future<void> setThemeIndex(int index) async {
+    themeIndex = index;
+  }
+
+  @override
+  String? getThemeMode() => themeMode;
+
+  @override
+  Future<void> setThemeMode(String mode) async {
+    themeMode = mode;
+  }
+
+  @override
+  int? getLightThemeIndex() => lightThemeIndex;
+
+  @override
+  Future<void> setLightThemeIndex(int index) async {
+    lightThemeIndex = index;
+  }
+
+  @override
+  int? getDarkThemeIndex() => darkThemeIndex;
+
+  @override
+  Future<void> setDarkThemeIndex(int index) async {
+    darkThemeIndex = index;
   }
 }
 
@@ -227,7 +264,7 @@ void main() {
   });
 
   testWidgets('展开动画保持内容布局稳定且快速反向切换连续', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1000, 760));
+    await tester.binding.setSurfaceSize(const Size(1000, 860));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final navigationShell = _MockNavigationShell();
@@ -645,6 +682,94 @@ void main() {
       },
     );
   }
+
+  testWidgets('左下角一键切换深浅模式并随系统亮度反向切换', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final navigationShell = _MockNavigationShell();
+    final storage = _FakeMainNavStorage()..isExpanded = true;
+    when(() => navigationShell.currentIndex).thenReturn(0);
+
+    final platformBrightness = ValueNotifier<Brightness>(Brightness.light);
+    addTearDown(platformBrightness.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWith((ref) => storage),
+          authNotifierProvider.overrideWith(_FakeAuthNotifier.new),
+          accountManagerNotifierProvider.overrideWith(
+            _FakeAccountManagerNotifier.new,
+          ),
+          queueExecutionNotifierProvider.overrideWith(
+            _FakeQueueExecutionNotifier.new,
+          ),
+          replicationQueueNotifierProvider.overrideWith(
+            _FakeReplicationQueueNotifier.new,
+          ),
+        ],
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (context, child) => ValueListenableBuilder<Brightness>(
+            valueListenable: platformBrightness,
+            builder: (context, brightness, _) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(platformBrightness: brightness),
+              child: child!,
+            ),
+          ),
+          home: Scaffold(body: MainNavRail(navigationShell: navigationShell)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final toggle = find.byKey(const Key('theme-mode-toggle-nav-item'));
+    expect(toggle, findsOneWidget);
+    expect(
+      tester.getCenter(toggle).dy,
+      greaterThan(tester.getCenter(find.byKey(const Key('queue-nav-item'))).dy),
+    );
+    expect(
+      tester.getCenter(toggle).dy,
+      lessThan(tester.getCenter(find.byKey(const Key('nav-branch-8'))).dy),
+    );
+    expect(find.byIcon(Icons.light_mode_outlined), findsOneWidget);
+    expect(find.text('切换浅色模式'), findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(tester.element(toggle));
+    expect(container.read(themeNotifierProvider).themeMode, ThemeMode.light);
+    expect(storage.themeMode, 'light');
+    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
+    expect(find.text('切换深色模式'), findsOneWidget);
+
+    await container.read(themeNotifierProvider.notifier).setThemeMode(ThemeMode.system);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
+    expect(find.text('切换深色模式'), findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(container.read(themeNotifierProvider).themeMode, ThemeMode.dark);
+    expect(storage.themeMode, 'dark');
+
+    await container.read(themeNotifierProvider.notifier).setThemeMode(ThemeMode.system);
+    platformBrightness.value = Brightness.dark;
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.light_mode_outlined), findsOneWidget);
+    expect(find.text('切换浅色模式'), findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(container.read(themeNotifierProvider).themeMode, ThemeMode.light);
+    expect(storage.themeMode, 'light');
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<void> _pumpAuthenticatedRail(

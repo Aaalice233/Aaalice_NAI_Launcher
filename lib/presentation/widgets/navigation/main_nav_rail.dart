@@ -7,6 +7,7 @@ import '../../../core/constants/community_links.dart';
 import '../../providers/layout_state_provider.dart';
 import '../../providers/queue_execution_provider.dart';
 import '../../providers/replication_queue_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../router/app_branch.dart';
 import '../../themes/theme_extension.dart';
@@ -78,6 +79,14 @@ class MainNavRail extends ConsumerWidget {
     final queueExecutionStatus = ref.watch(
       queueExecutionNotifierProvider.select((state) => state.status),
     );
+    final themeMode = ref.watch(
+      themeNotifierProvider.select((state) => state.themeMode),
+    );
+    final platformBrightness = MediaQuery.platformBrightnessOf(context);
+    final isDark =
+        themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            platformBrightness == Brightness.dark);
     final currentIndex = navigationShell.currentIndex;
     final selectedIndex = _railBranches.indexWhere(
       (branch) => branch.index == currentIndex,
@@ -246,6 +255,20 @@ class MainNavRail extends ConsumerWidget {
                             ? (queueCount > 99 ? '99+' : queueCount.toString())
                             : null,
                         onTap: () => onQueueVisibilityChanged(!isQueueVisible),
+                      ),
+
+                      NavRailIcon(
+                        key: const Key('theme-mode-toggle-nav-item'),
+                        icon: isDark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                        label: isDark
+                            ? context.l10n.nav_switchToLightMode
+                            : context.l10n.nav_switchToDarkMode,
+                        isSelected: false,
+                        onTap: () => ref
+                            .read(themeNotifierProvider.notifier)
+                            .toggleBrightness(platformBrightness),
                       ),
 
                       // Bottom Settings

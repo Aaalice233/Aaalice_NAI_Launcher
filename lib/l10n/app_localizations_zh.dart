@@ -618,9 +618,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings_appearance => '外观';
 
   @override
-  String get settings_style => '风格';
-
-  @override
   String get settings_font => '字体';
 
   @override
@@ -730,9 +727,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settings_comfyUiDesktopOnly => '仅桌面端可用';
-
-  @override
-  String get settings_selectStyle => '选择风格';
 
   @override
   String get settings_defaultPreset => '默认';
@@ -15870,6 +15864,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
     return '会员到期日期：$dateString';
   }
+
+  @override
+  String get nav_switchToLightMode => '切换浅色模式';
+
+  @override
+  String get nav_switchToDarkMode => '切换深色模式';
+
+  @override
+  String get settings_themeMode => '主题模式';
+
+  @override
+  String get settings_themeModeLight => '浅色';
+
+  @override
+  String get settings_themeModeDark => '深色';
+
+  @override
+  String get settings_themeModeSystem => '跟随系统';
+
+  @override
+  String get settings_lightTheme => '浅色主题';
+
+  @override
+  String get settings_darkTheme => '深色主题';
+
+  @override
+  String get settings_selectLightTheme => '选择浅色主题';
+
+  @override
+  String get settings_selectDarkTheme => '选择深色主题';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -16486,9 +16510,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settings_appearance => '外觀';
 
   @override
-  String get settings_style => '風格';
-
-  @override
   String get settings_font => '字型';
 
   @override
@@ -16598,9 +16619,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get settings_comfyUiDesktopOnly => '僅桌面版可用';
-
-  @override
-  String get settings_selectStyle => '選擇風格';
 
   @override
   String get settings_defaultPreset => '預設';
@@ -31741,4 +31759,34 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
     return '會員到期日期：$dateString';
   }
+
+  @override
+  String get nav_switchToLightMode => '切換淺色模式';
+
+  @override
+  String get nav_switchToDarkMode => '切換深色模式';
+
+  @override
+  String get settings_themeMode => '主題模式';
+
+  @override
+  String get settings_themeModeLight => '淺色';
+
+  @override
+  String get settings_themeModeDark => '深色';
+
+  @override
+  String get settings_themeModeSystem => '跟隨系統';
+
+  @override
+  String get settings_lightTheme => '淺色主題';
+
+  @override
+  String get settings_darkTheme => '深色主題';
+
+  @override
+  String get settings_selectLightTheme => '選擇淺色主題';
+
+  @override
+  String get settings_selectDarkTheme => '選擇深色主題';
 }
