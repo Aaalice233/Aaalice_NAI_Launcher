@@ -152,10 +152,21 @@ try {
   \$Swapped = \$true
 
   if (\$CanPreserveUserFiles) {
-    Get-ChildItem -LiteralPath \$BackupDir -File -Recurse | ForEach-Object {
-      \$RelativePath = \$_.FullName.Substring(\$BackupDir.Length).TrimStart('\\')
-      if (!\$ManagedFiles.ContainsKey(\$RelativePath.ToLowerInvariant())) {
-        \$Destination = Join-Path \$AppDir \$RelativePath
+    # 相对路径按文件名逐级拼接。Get-ChildItem 会把 8.3 短路径展开成长路径，
+    # 按 \$BackupDir 的长度截取 FullName 会错位，把文件复制到错误位置。
+    function Get-BackupFiles([string]\$Directory, [string]\$RelativeDirectory) {
+      foreach (\$Item in @(Get-ChildItem -LiteralPath \$Directory)) {
+        \$RelativePath = if (\$RelativeDirectory) { Join-Path \$RelativeDirectory \$Item.Name } else { \$Item.Name }
+        if (\$Item.PSIsContainer) {
+          Get-BackupFiles \$Item.FullName \$RelativePath
+        } else {
+          [pscustomobject]@{ FullName = \$Item.FullName; RelativePath = \$RelativePath }
+        }
+      }
+    }
+    Get-BackupFiles \$BackupDir '' | ForEach-Object {
+      if (!\$ManagedFiles.ContainsKey(\$_.RelativePath.ToLowerInvariant())) {
+        \$Destination = Join-Path \$AppDir \$_.RelativePath
         \$DestinationDir = Split-Path -Parent \$Destination
         New-Item -ItemType Directory -Path \$DestinationDir -Force | Out-Null
         Copy-Item -LiteralPath \$_.FullName -Destination \$Destination -Force

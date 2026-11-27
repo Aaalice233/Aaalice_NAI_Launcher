@@ -767,6 +767,8 @@ Future<void> startUpdateProcess(
     executable,
     arguments,
     workingDirectory: workingDirectory ?? Directory.systemTemp.path,
+    environment: _updaterEnvironment(),
+    includeParentEnvironment: false,
     mode: mode,
   );
   try {
@@ -777,6 +779,14 @@ Future<void> startUpdateProcess(
   unawaited(_drainProcessOutput(process.stdout));
   unawaited(_drainProcessOutput(process.stderr));
 }
+
+/// 应用从 PowerShell 7 启动时会继承它的 PSModulePath，Windows PowerShell 5.1
+/// 会因此加载只支持 .NET Core 的 Archive 模块，Expand-Archive 直接失败。
+/// 去掉这个变量，让 5.1 使用自己的默认模块路径。
+Map<String, String> _updaterEnvironment() => {
+  for (final MapEntry(:key, :value) in Platform.environment.entries)
+    if (key.toUpperCase() != 'PSMODULEPATH') key: value,
+};
 
 Future<void> _drainProcessOutput(Stream<List<int>> output) async {
   try {
