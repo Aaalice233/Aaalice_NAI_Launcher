@@ -7,6 +7,14 @@ import 'package:path/path.dart' as p;
 
 const _windowsCodePages = [936, 950, 932, 949, 1252, 65001];
 
+/// 从 pwsh 启动的测试进程会把 PowerShell 7 的模块目录留在 PSModulePath 里，
+/// Windows PowerShell 5.1 子进程会因此加载只支持 .NET Core 的 Archive 模块。
+/// 去掉它，让 5.1 用自己的默认模块路径，和用户从资源管理器启动时一致。
+Map<String, String> _windowsPowerShellEnvironment() => {
+  for (final MapEntry(:key, :value) in Platform.environment.entries)
+    if (key.toUpperCase() != 'PSMODULEPATH') key: value,
+};
+
 // 与 Windows PowerShell 5.1 读取 -File 脚本一致：先认 BOM，没有 BOM 才按代码页解码。
 const _windowsPowerShellReader = r'''
 param([string]$ScriptPath, [string]$CodePages, [string]$ReportPath)
@@ -484,12 +492,17 @@ void main() {
             .join(stagingDir.path, '*')
             .replaceAll("'", "''");
         final escapedZipPath = zipFile.path.replaceAll("'", "''");
-        final zipResult = await Process.run('powershell.exe', [
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          "Compress-Archive -Path '$escapedStagingGlob' -DestinationPath '$escapedZipPath' -Force",
-        ]);
+        final zipResult = await Process.run(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            "Compress-Archive -Path '$escapedStagingGlob' -DestinationPath '$escapedZipPath' -Force",
+          ],
+          environment: _windowsPowerShellEnvironment(),
+          includeParentEnvironment: false,
+        );
         expect(
           zipResult.exitCode,
           0,
@@ -531,16 +544,22 @@ void main() {
         );
 
         // 刻意把工作目录设成 appDir，复现真实双击/快捷方式启动后脚本被继承的场景。
-        final runResult = await Process.run('powershell.exe', [
-          '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-WindowStyle',
-          'Hidden',
-          '-File',
-          scriptFile.path,
-        ], workingDirectory: appDir.path);
+        final runResult = await Process.run(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-WindowStyle',
+            'Hidden',
+            '-File',
+            scriptFile.path,
+          ],
+          workingDirectory: appDir.path,
+          environment: _windowsPowerShellEnvironment(),
+          includeParentEnvironment: false,
+        );
         expect(
           runResult.exitCode,
           0,
