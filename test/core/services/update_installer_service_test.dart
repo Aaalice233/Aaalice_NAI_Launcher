@@ -584,6 +584,56 @@ Move-Item -LiteralPath '$escapedTempReport' -Destination '$escapedReport' -Force
       skip: !Platform.isWindows,
     );
 
+    test(
+      'default process starter keeps PowerShell 7 modules out of Windows PowerShell',
+      () async {
+        // 测试进程由 pwsh 启动，继承的 PSModulePath 里有 PowerShell 7 的模块目录。
+        final reportFile = File('${tempDir.path}/updater-modules.txt');
+        final script = File('${tempDir.path}/updater-modules-test.ps1');
+        final escapedReport = reportFile.path.replaceAll("'", "''");
+        final escapedTempReport = '${reportFile.path}.tmp'.replaceAll(
+          "'",
+          "''",
+        );
+        await script.writeAsString('''
+\$bases = @(Get-Module -ListAvailable Microsoft.PowerShell.Archive | ForEach-Object { \$_.ModuleBase })
+[System.IO.File]::WriteAllText('$escapedTempReport', (\$bases -join "`n"))
+Move-Item -LiteralPath '$escapedTempReport' -Destination '$escapedReport' -Force
+''');
+
+        await startUpdateProcess('powershell.exe', [
+          '-NoProfile',
+          '-NonInteractive',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-WindowStyle',
+          'Hidden',
+          '-File',
+          script.path,
+        ], ProcessStartMode.normal);
+
+        final deadline = DateTime.now().add(const Duration(seconds: 15));
+        while (!await reportFile.exists() &&
+            DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        expect(await reportFile.exists(), isTrue);
+        final moduleBases = (await reportFile.readAsString())
+            .split('\n')
+            .where((line) => line.trim().isNotEmpty)
+            .toList();
+        expect(moduleBases, isNotEmpty);
+        for (final base in moduleBases) {
+          expect(
+            base.toLowerCase(),
+            contains('windowspowershell'),
+            reason: 'Archive module loaded from $base',
+          );
+        }
+      },
+      skip: !Platform.isWindows,
+    );
+
     test('does not shut down when the updater process cannot start', () async {
       final updateDir = Directory('${tempDir.path}/updates')..createSync();
       final installer = File('${updateDir.path}/setup.exe');

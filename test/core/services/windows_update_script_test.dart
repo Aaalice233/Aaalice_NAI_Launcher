@@ -427,167 +427,212 @@ void main() {
       },
     );
 
-    test(
-      'portable script succeeds when launched with appDirectory as working directory',
-      () async {
-        // CI 的 %TEMP% 是 8.3 短路径（RUNNER~1），脚本按长路径截取相对路径。
-        // 正式流程的目录来自 Platform.resolvedExecutable，这里同样先解析成长路径。
-        final rootDir = Directory(
-          (await Directory.systemTemp.createTemp(
-            'nai_portable_cwd_test_',
-          )).resolveSymbolicLinksSync(),
-        );
-        final appDir = Directory(p.join(rootDir.path, 'app'))..createSync();
-        final stagingDir = Directory(p.join(rootDir.path, 'staging'))
-          ..createSync();
-        final updatesDir = Directory(p.join(rootDir.path, 'updates'))
-          ..createSync();
-        final doneMarker = File(p.join(rootDir.path, 'restarted_done.txt'));
-
-        addTearDown(() async {
-          final deadline = DateTime.now().add(const Duration(seconds: 10));
-          while (!await doneMarker.exists() &&
-              DateTime.now().isBefore(deadline)) {
-            await Future<void>.delayed(const Duration(milliseconds: 100));
+    for (final useShortPath in [false, true]) {
+      test(
+        useShortPath
+            ? 'portable script keeps user files when appDirectory is an 8.3 short path'
+            : 'portable script succeeds when launched with appDirectory as working directory',
+        () async {
+          final rootDir = Directory(
+            (await Directory.systemTemp.createTemp(
+              'nai_portable_cwd_test_',
+            )).resolveSymbolicLinksSync(),
+          );
+          // 短路径变体把同一目录的 8.3 形式交给脚本，PowerShell 枚举时会展开成长路径。
+          final scriptRoot = useShortPath
+              ? await _shortPathOf(rootDir.path)
+              : rootDir.path;
+          if (useShortPath && scriptRoot == rootDir.path) {
+            await rootDir.delete(recursive: true);
+            markTestSkipped('当前卷未启用 8.3 短文件名');
+            return;
           }
-          await Future<void>.delayed(const Duration(milliseconds: 200));
-          for (var attempt = 0; attempt < 10; attempt++) {
-            try {
-              if (await rootDir.exists()) {
-                await rootDir.delete(recursive: true);
-              }
-              break;
-            } catch (_) {
-              await Future<void>.delayed(const Duration(milliseconds: 200));
+          final appDir = Directory(p.join(scriptRoot, 'app'))..createSync();
+          final stagingDir = Directory(p.join(scriptRoot, 'staging'))
+            ..createSync();
+          final updatesDir = Directory(p.join(scriptRoot, 'updates'))
+            ..createSync();
+          final doneMarker = File(p.join(rootDir.path, 'restarted_done.txt'));
+
+          addTearDown(() async {
+            final deadline = DateTime.now().add(const Duration(seconds: 10));
+            while (!await doneMarker.exists() &&
+                DateTime.now().isBefore(deadline)) {
+              await Future<void>.delayed(const Duration(milliseconds: 100));
             }
-          }
-        });
+            await Future<void>.delayed(const Duration(milliseconds: 200));
+            for (var attempt = 0; attempt < 10; attempt++) {
+              try {
+                if (await rootDir.exists()) {
+                  await rootDir.delete(recursive: true);
+                }
+                break;
+              } catch (_) {
+                await Future<void>.delayed(const Duration(milliseconds: 200));
+              }
+            }
+          });
 
-        await File(
-          p.join(appDir.path, 'app_files_manifest.json'),
-        ).writeAsString(
-          jsonEncode({
-            'files': ['fake_app.cmd', 'version.txt'],
-          }),
-        );
-        await File(
-          p.join(appDir.path, 'fake_app.cmd'),
-        ).writeAsString('@echo off\r\nexit /b 0\r\n');
-        await File(p.join(appDir.path, 'version.txt')).writeAsString('old');
-        await File(p.join(appDir.path, 'user_note.txt')).writeAsString('keep');
+          await File(
+            p.join(appDir.path, 'app_files_manifest.json'),
+          ).writeAsString(
+            jsonEncode({
+              'files': ['fake_app.cmd', 'version.txt'],
+            }),
+          );
+          await File(
+            p.join(appDir.path, 'fake_app.cmd'),
+          ).writeAsString('@echo off\r\nexit /b 0\r\n');
+          await File(p.join(appDir.path, 'version.txt')).writeAsString('old');
+          await File(
+            p.join(appDir.path, 'user_note.txt'),
+          ).writeAsString('keep');
+          Directory(p.join(appDir.path, 'user_data')).createSync();
+          await File(
+            p.join(appDir.path, 'user_data', 'preset.json'),
+          ).writeAsString('{}');
 
-        await File(
-          p.join(stagingDir.path, 'app_files_manifest.json'),
-        ).writeAsString(
-          jsonEncode({
-            'files': ['fake_app.cmd', 'version.txt'],
-          }),
-        );
-        await File(p.join(stagingDir.path, 'version.txt')).writeAsString('new');
-        await File(p.join(stagingDir.path, 'fake_app.cmd')).writeAsString(
-          '@echo off\r\n'
-          'cd /d "%TEMP%"\r\n'
-          'ping -n 6 127.0.0.1 >nul\r\n'
-          'echo done>"${doneMarker.path}"\r\n',
-        );
+          await File(
+            p.join(stagingDir.path, 'app_files_manifest.json'),
+          ).writeAsString(
+            jsonEncode({
+              'files': ['fake_app.cmd', 'version.txt'],
+            }),
+          );
+          await File(
+            p.join(stagingDir.path, 'version.txt'),
+          ).writeAsString('new');
+          await File(p.join(stagingDir.path, 'fake_app.cmd')).writeAsString(
+            '@echo off\r\n'
+            'cd /d "%TEMP%"\r\n'
+            'ping -n 6 127.0.0.1 >nul\r\n'
+            'echo done>"${doneMarker.path}"\r\n',
+          );
 
-        final zipFile = File(p.join(updatesDir.path, 'update.zip'));
-        final escapedStagingGlob = p
-            .join(stagingDir.path, '*')
-            .replaceAll("'", "''");
-        final escapedZipPath = zipFile.path.replaceAll("'", "''");
-        final zipResult = await Process.run(
-          'powershell.exe',
-          [
-            '-NoProfile',
-            '-NonInteractive',
-            '-Command',
-            "Compress-Archive -Path '$escapedStagingGlob' -DestinationPath '$escapedZipPath' -Force",
-          ],
-          environment: _windowsPowerShellEnvironment(),
-          includeParentEnvironment: false,
-        );
-        expect(
-          zipResult.exitCode,
-          0,
-          reason: '${zipResult.stdout}\n${zipResult.stderr}',
-        );
+          final zipFile = File(p.join(updatesDir.path, 'update.zip'));
+          final escapedStagingGlob = p
+              .join(stagingDir.path, '*')
+              .replaceAll("'", "''");
+          final escapedZipPath = zipFile.path.replaceAll("'", "''");
+          final zipResult = await Process.run(
+            'powershell.exe',
+            [
+              '-NoProfile',
+              '-NonInteractive',
+              '-Command',
+              "Compress-Archive -Path '$escapedStagingGlob' -DestinationPath '$escapedZipPath' -Force",
+            ],
+            environment: _windowsPowerShellEnvironment(),
+            includeParentEnvironment: false,
+          );
+          expect(
+            zipResult.exitCode,
+            0,
+            reason: '${zipResult.stdout}\n${zipResult.stderr}',
+          );
 
-        final exitedApp = await Process.start('cmd.exe', ['/c', 'exit', '0']);
-        final exitedPid = exitedApp.pid;
-        expect(await exitedApp.exitCode, 0);
+          final exitedApp = await Process.start('cmd.exe', ['/c', 'exit', '0']);
+          final exitedPid = exitedApp.pid;
+          expect(await exitedApp.exitCode, 0);
 
-        final resultFile = File(p.join(updatesDir.path, 'update_result.json'));
-        final pendingFile = File(
-          p.join(updatesDir.path, 'pending_update.json'),
-        );
-        final startedFile = File(
-          p.join(updatesDir.path, 'update_started.json'),
-        );
-        final logFile = File(p.join(updatesDir.path, 'update_2.0.0.log'));
-        await pendingFile.writeAsString('{"version":"2.0.0"}');
+          final resultFile = File(
+            p.join(updatesDir.path, 'update_result.json'),
+          );
+          final pendingFile = File(
+            p.join(updatesDir.path, 'pending_update.json'),
+          );
+          final startedFile = File(
+            p.join(updatesDir.path, 'update_started.json'),
+          );
+          final logFile = File(p.join(updatesDir.path, 'update_2.0.0.log'));
+          await pendingFile.writeAsString('{"version":"2.0.0"}');
 
-        final script = WindowsUpdateScript.buildPortableScript(
-          appPid: exitedPid,
-          version: '2.0.0',
-          zipPath: zipFile.path,
-          appDirectory: appDir.path,
-          executableName: 'fake_app.cmd',
-          proxyExecutableName: 'nai_launcher_mcp.exe',
-          extractDirectory: p.join(rootDir.path, '.nai_update_2.0.0'),
-          backupDirectory: p.join(rootDir.path, '.nai_backup_2.0.0'),
-          resultPath: resultFile.path,
-          pendingMetadataPath: pendingFile.path,
-          startedMarkerPath: startedFile.path,
-          logPath: logFile.path,
-        );
-        final scriptFile = File(p.join(updatesDir.path, 'update.ps1'));
-        await scriptFile.writeAsBytes(
-          WindowsUpdateScript.encode(script),
-          flush: true,
-        );
+          final script = WindowsUpdateScript.buildPortableScript(
+            appPid: exitedPid,
+            version: '2.0.0',
+            zipPath: zipFile.path,
+            appDirectory: appDir.path,
+            executableName: 'fake_app.cmd',
+            proxyExecutableName: 'nai_launcher_mcp.exe',
+            extractDirectory: p.join(scriptRoot, '.nai_update_2.0.0'),
+            backupDirectory: p.join(scriptRoot, '.nai_backup_2.0.0'),
+            resultPath: resultFile.path,
+            pendingMetadataPath: pendingFile.path,
+            startedMarkerPath: startedFile.path,
+            logPath: logFile.path,
+          );
+          final scriptFile = File(p.join(updatesDir.path, 'update.ps1'));
+          await scriptFile.writeAsBytes(
+            WindowsUpdateScript.encode(script),
+            flush: true,
+          );
 
-        // 刻意把工作目录设成 appDir，复现真实双击/快捷方式启动后脚本被继承的场景。
-        final runResult = await Process.run(
-          'powershell.exe',
-          [
-            '-NoProfile',
-            '-NonInteractive',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-WindowStyle',
-            'Hidden',
-            '-File',
-            scriptFile.path,
-          ],
-          workingDirectory: appDir.path,
-          environment: _windowsPowerShellEnvironment(),
-          includeParentEnvironment: false,
-        );
-        expect(
-          runResult.exitCode,
-          0,
-          reason:
-              'stdout=${runResult.stdout}\nstderr=${runResult.stderr}\n'
-              'log=${await logFile.exists() ? await logFile.readAsString() : ''}',
-        );
+          // 刻意把工作目录设成 appDir，复现真实双击/快捷方式启动后脚本被继承的场景。
+          final runResult = await Process.run(
+            'powershell.exe',
+            [
+              '-NoProfile',
+              '-NonInteractive',
+              '-ExecutionPolicy',
+              'Bypass',
+              '-WindowStyle',
+              'Hidden',
+              '-File',
+              scriptFile.path,
+            ],
+            workingDirectory: appDir.path,
+            environment: _windowsPowerShellEnvironment(),
+            includeParentEnvironment: false,
+          );
+          expect(
+            runResult.exitCode,
+            0,
+            reason:
+                'stdout=${runResult.stdout}\nstderr=${runResult.stderr}\n'
+                'log=${await logFile.exists() ? await logFile.readAsString() : ''}',
+          );
 
-        final result =
-            jsonDecode(await resultFile.readAsString()) as Map<String, dynamic>;
-        expect(result['success'], isTrue);
-        expect(
-          await File(p.join(appDir.path, 'version.txt')).readAsString(),
-          'new',
-        );
-        expect(
-          await File(p.join(appDir.path, 'user_note.txt')).readAsString(),
-          'keep',
-        );
-        expect(await zipFile.exists(), isFalse);
-        expect(await pendingFile.exists(), isFalse);
-        expect(await startedFile.exists(), isFalse);
-      },
-      skip: !Platform.isWindows,
-    );
+          final result =
+              jsonDecode(await resultFile.readAsString())
+                  as Map<String, dynamic>;
+          expect(result['success'], isTrue);
+          expect(
+            await File(p.join(appDir.path, 'version.txt')).readAsString(),
+            'new',
+          );
+          expect(
+            await File(p.join(appDir.path, 'user_note.txt')).readAsString(),
+            'keep',
+          );
+          expect(
+            await File(
+              p.join(appDir.path, 'user_data', 'preset.json'),
+            ).readAsString(),
+            '{}',
+          );
+          expect(await zipFile.exists(), isFalse);
+          expect(await pendingFile.exists(), isFalse);
+          expect(await startedFile.exists(), isFalse);
+        },
+        skip: !Platform.isWindows,
+      );
+    }
   });
+}
+
+Future<String> _shortPathOf(String path) async {
+  final escapedPath = path.replaceAll("'", "''");
+  final result = await Process.run(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      "(New-Object -ComObject Scripting.FileSystemObject).GetFolder('$escapedPath').ShortPath",
+    ],
+    environment: _windowsPowerShellEnvironment(),
+    includeParentEnvironment: false,
+  );
+  expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+  return (result.stdout as String).trim();
 }
