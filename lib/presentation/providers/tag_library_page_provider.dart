@@ -419,6 +419,31 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     }
   }
 
+  /// 把 [before] 到 [after] 之间换了分类的条目同步给关联的固定词。
+  /// 移动、拖动换组和删除分类只改分类，不经过 [updateEntry]。
+  Future<void> _syncCategoryChangesToFixedTags(
+    List<TagLibraryEntry> before,
+    List<TagLibraryEntry> after,
+  ) async {
+    final previous = {for (final e in before) e.id: e.categoryId};
+    final changed = {
+      for (final e in after)
+        if (previous.containsKey(e.id) && previous[e.id] != e.categoryId)
+          e.id: e.categoryId,
+    };
+    if (changed.isEmpty) return;
+    try {
+      await ref
+          .read(fixedTagsNotifierProvider.notifier)
+          .syncCategoriesFromTagLibrary(changed);
+    } catch (e) {
+      AppLogger.w(
+        'Failed to sync categories to fixed tags: $e',
+        'TagLibraryPage',
+      );
+    }
+  }
+
   /// 删除条目
   Future<void> deleteEntry(
     String entryId, {
@@ -466,6 +491,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     final index = state.entries.indexWhere((e) => e.id == entryId);
     if (index == -1) return;
 
+    final previousEntries = state.entries;
     final newEntries = [...state.entries];
     newEntries[index] = newEntries[index].copyWith(
       categoryId: categoryId,
@@ -473,6 +499,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
     );
     state = state.copyWith(entries: newEntries);
     await _saveEntries();
+    await _syncCategoryChangesToFixedTags(previousEntries, newEntries);
   }
 
   /// 批量删除条目
@@ -564,6 +591,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
         .toList();
 
     // 将受影响的条目移到根级
+    final previousEntries = state.entries;
     final newEntries = state.entries
         .map(
           (e) => categoryIds.contains(e.categoryId)
@@ -582,6 +610,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
 
     await _saveCategories();
     await _saveEntries();
+    await _syncCategoryChangesToFixedTags(previousEntries, newEntries);
   }
 
   /// 重命名分类
@@ -695,6 +724,7 @@ class TagLibraryPageNotifier extends _$TagLibraryPageNotifier {
       }
       rethrow;
     }
+    await _syncCategoryChangesToFixedTags(previousEntries, updated);
     return true;
   });
 
