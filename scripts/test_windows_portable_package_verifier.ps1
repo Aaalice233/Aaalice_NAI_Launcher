@@ -168,9 +168,56 @@ function Assert-PackagerChecksRuntimeBeforeReplacingManifest {
   Write-Host 'PASS: packager validates runtime before replacing manifest'
 }
 
+function Assert-PackagerAbortsWhenBuildCommandFails {
+  $failRoot = Join-Path $testRoot 'packager-build-failure'
+  $packagerScripts = Join-Path $failRoot 'scripts'
+  $packagerBundle = Join-Path $failRoot 'build/windows/x64/runner/Release'
+  $fakeBinDir = Join-Path $testRoot 'fake-bin'
+  $portableZip = Join-Path $failRoot "dist/NAI_Launcher_Windows_${version}_Portable.zip"
+
+  New-Item -ItemType Directory -Force -Path $packagerScripts | Out-Null
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $packagerBundle) | Out-Null
+  New-Item -ItemType Directory -Force -Path $fakeBinDir | Out-Null
+
+  Copy-Item `
+    -LiteralPath (Join-Path $PSScriptRoot 'package_windows_release.ps1') `
+    -Destination $packagerScripts
+  Set-Content -LiteralPath (Join-Path $packagerScripts 'verify_nuget.ps1') -Value '# stub' -Encoding ASCII
+  Set-Content -LiteralPath (Join-Path $packagerScripts 'verify_flutter_sources.ps1') -Value '# stub' -Encoding ASCII
+  Copy-Item -LiteralPath $fixturePath -Destination $packagerBundle -Recurse
+  Set-Content -LiteralPath (Join-Path $fakeBinDir 'flutter.cmd') -Value '@exit /b 17' -Encoding ASCII
+
+  $originalPath = $env:Path
+  $failure = $null
+  try {
+    $env:Path = "$fakeBinDir;$originalPath"
+    & (Join-Path $packagerScripts 'package_windows_release.ps1') `
+      -Version $version `
+      -PortableOnly | Out-Null
+  } catch {
+    $failure = $_.Exception.Message
+  } finally {
+    $global:LASTEXITCODE = 0
+    $env:Path = $originalPath
+    Set-Location $root
+  }
+
+  if ($null -eq $failure) {
+    throw 'Packager should abort when flutter command fails.'
+  }
+  if ($failure.IndexOf('failed with exit code 17', [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+    throw "Packager failed with an unexpected error: $failure"
+  }
+  if (Test-Path -LiteralPath $portableZip -PathType Leaf) {
+    throw "Packager created portable archive despite build command failure: $portableZip"
+  }
+  Write-Host 'PASS: packager aborts when build command fails'
+}
+
 try {
   Reset-Fixture
   Assert-Accepted -Name 'complete package'
+  Assert-PackagerAbortsWhenBuildCommandFails
 
   Reset-Fixture
   Remove-Item -LiteralPath (Join-Path $fixturePath 'flutter_windows.dll') -Force

@@ -5,11 +5,24 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+
+function Resolve-RepositoryPath {
+  param(
+    [Parameter(Mandatory)] [string]$Path,
+    [Parameter(Mandatory)] [string]$BaseDirectory
+  )
+
+  if ([IO.Path]::IsPathRooted($Path)) {
+    return [IO.Path]::GetFullPath($Path)
+  }
+  return [IO.Path]::GetFullPath((Join-Path $BaseDirectory $Path))
+}
 
 if ($env:GITHUB_ACTIONS -eq 'true') {
   # Checkout keeps the pointer, while generated-file checks still need the
   # normal LFS clean filter to recognize the verified replacement as unchanged.
-  & git lfs install --local --skip-smudge
+  & git -C $repoRoot lfs install --local --skip-smudge
   if ($LASTEXITCODE -ne 0) {
     throw 'Unable to configure the local Git LFS pointer filter.'
   }
@@ -49,7 +62,8 @@ function Test-DatabaseFile {
   return $actualSha256.Equals($ExpectedSha256, [StringComparison]::OrdinalIgnoreCase)
 }
 
-$manifestFile = Get-Item -LiteralPath $ManifestPath
+$resolvedManifestPath = Resolve-RepositoryPath -Path $ManifestPath -BaseDirectory $repoRoot
+$manifestFile = Get-Item -LiteralPath $resolvedManifestPath
 $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw -Encoding UTF8 |
   ConvertFrom-Json
 $database = $manifest.databases.'tag_catalog.db'
@@ -82,7 +96,7 @@ if ($releaseTag -notmatch $releaseTagPattern -or
   throw 'Tag catalog release metadata is invalid or not source-locked.'
 }
 
-$destination = [IO.Path]::GetFullPath($DestinationPath)
+$destination = Resolve-RepositoryPath -Path $DestinationPath -BaseDirectory $repoRoot
 if (Test-Path -LiteralPath $destination) {
   $destinationItem = Get-Item -LiteralPath $destination -Force
   if ($destinationItem.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)) {
