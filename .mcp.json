@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "dart": {
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "& (Join-Path (git rev-parse --show-toplevel) 'scripts/start_dart_mcp.ps1')"
+      ]
+    }
+  }
+}

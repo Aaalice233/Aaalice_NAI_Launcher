@@ -1,12 +1,16 @@
-# 项目级 MCP 调试
+# 项目级 Dart MCP 调试
 
-Codex 的配置保存在仓库内的 [`.codex/config.toml`](../.codex/config.toml)，随 Git 迁移，不修改用户级 MCP 配置。Codex 只加载已信任项目的配置；新配置保存后，在 MCP 设置中重启服务器，或重新打开项目任务，使工具列表刷新。
+项目级 Dart MCP 配置随 Git 迁移，支持多个 Agent 客户端自动发现并统一通过 [`scripts/start_dart_mcp.ps1`](../scripts/start_dart_mcp.ps1) 启动 SDK 自带的 `dart mcp-server`，不修改用户级 MCP 配置：
+
+- **Codex**：[`.codex/config.toml`](../.codex/config.toml)（只加载已信任项目的配置；修改后在 MCP 设置中重启服务器或重新打开任务刷新工具列表）。
+- **Antigravity (`agy`)**：插件 [`.agents/plugins/dart-mcp/`](../.agents/plugins/dart-mcp/plugin.json) 下的 [`mcp_config.json`](../.agents/plugins/dart-mcp/mcp_config.json)。工作区打开仓库根目录时自动发现加载。
+- **Claude Code 等 `.mcp.json` 客户端**：仓库根目录 [`.mcp.json`](../.mcp.json)。
 
 ## 启动与 SDK 解析
 
-配置从当前 Git 工作树定位 [`scripts/start_dart_mcp.ps1`](../scripts/start_dart_mcp.ps1)，通过 PowerShell 7 启动 SDK 自带的 `dart mcp-server`。需要 Git、PowerShell 7，以及包含 MCP server 的 Flutter SDK；不需要额外安装第三方 MCP server 或填写 API key。
+各客户端统一通过 PowerShell 7 定位仓库并执行 [`scripts/start_dart_mcp.ps1`](../scripts/start_dart_mcp.ps1)。需要 Git、PowerShell 7，以及包含 MCP server 的 Flutter SDK；不需要额外安装第三方 MCP server 或填写 API key。
 
-启动器按以下顺序定位 Flutter SDK：
+启动器按以下顺序定位 Flutter SDK（开发会话脚本 [`windows_runner.ps1`](../.agents/skills/aaalice-dev-sessions/scripts/windows_runner.ps1) 与 [`android_runner.ps1`](../.agents/skills/aaalice-dev-sessions/scripts/android_runner.ps1) 在未显式指定 `FLUTTER_CMD` / `DART_CMD` 时遵循同一顺序）：
 
 1. 当前进程的 `FLUTTER_SDK`。
 2. 本机 `android/local.properties` 中的 `flutter.sdk`。
@@ -14,14 +18,15 @@ Codex 的配置保存在仓库内的 [`.codex/config.toml`](../.codex/config.tom
 
 配置不包含本机绝对路径。迁移工程后，只需在新机器设置上述任一 SDK 来源；`android/local.properties` 保持本机文件，不提交。显式配置指向无效 SDK 时直接报错，不静默改用另一版本。启动器仅为 MCP 子进程补齐 `PATH` 并固定官方 Flutter/Dart 源，标准输出只承载 MCP 协议。
 
-在项目目录执行 `codex mcp get dart --json` 可确认 Codex 已识别配置；这不等于运行时连接成功，还需执行下面的应用连接检查。
+在各客户端确认已加载 `dart` MCP 服务及其工具列表（例如在 Codex 目录执行 `codex mcp get dart --json`，或在 Antigravity 中检查 MCP Servers 面板）；这不等于运行时连接成功，还需执行下面的应用连接检查。
 
 ## 连接当前应用
 
 1. 按 [开发会话技能](../.agents/skills/aaalice-dev-sessions/SKILL.md) 检查 `Status`，只为缺失平台启动 Runner。两个 Runner 均带 `--print-dtd` 和 `ENABLE_FLUTTER_DRIVER=true`。
-2. 使用 MCP 的 `roots` 注册当前仓库的 `file:` URI，再用 `dtd` 的 `listDtdUris` 查找该工作树对应的 DTD；也可使用当前 Runner 日志中实际输出的 DTD URI。旧版 MCP 发现列表为空时，使用同一 SDK 的 `dart tooling-daemon --list`，根据工作树和 PID 核对真实 URI，再交给 MCP 连接。
-3. 用 `dtd` 的 `connect` 连接，再通过 `listConnectedApps` 确认应用。存在多个平台或工作树时，后续调用显式传返回的 `appUri`，不得猜 URI、端口或复用旧会话地址。
-4. 使用 `widget_inspector` 的 `get_widget_tree` 和 `flutter_driver_command` 的 `get_health` 确认检查器与 Driver 均可用，再执行操作。
+2. 若 Agent 运行在无交互桌面或无 GPU/DXGI 权限的隔离宿主环境（例如远程会话或沙盒桌面导致子进程拉起 Windows GUI 窗口失败），不强行在子进程中启动新窗口，而是直接复用用户在主桌面已启动的 `windows_runner.ps1`（或带 `--print-dtd` 与 `--dart-define=ENABLE_FLUTTER_DRIVER=true` 的 `flutter run -d windows`）会话，通过下述 DTD 流程接入已有 Debug 应用。
+3. 使用 MCP 的 `roots` 注册当前仓库的 `file:` URI，再用 `dtd` 的 `listDtdUris` 查找该工作树对应的 DTD；也可使用当前 Runner 日志中实际输出的 DTD URI。旧版 MCP 发现列表为空时，使用同一 SDK 的 `dart tooling-daemon --list`，根据工作树和 PID 核对真实 URI，再交给 MCP 连接。
+4. 用 `dtd` 的 `connect` 连接，再通过 `listConnectedApps` 确认应用。存在多个平台或工作树时，后续调用显式传返回的 `appUri`，不得猜 URI、端口或复用旧会话地址。
+5. 使用 `widget_inspector` 的 `get_widget_tree` 和 `flutter_driver_command` 的 `get_health` 确认检查器与 Driver 均可用，再执行操作。
 
 复用项目 Runner，禁止为了连接 MCP 再运行 `launch_app`、第二个 `flutter run` 或 `flutter attach`。SDK/Runner 变更后若旧会话没有 DTD，正常停止并重新启动受影响会话，不能把“配置已保存”当作“应用已连接”。
 
@@ -41,6 +46,8 @@ Codex 的配置保存在仓库内的 [`.codex/config.toml`](../.codex/config.tom
 ## 官方依据
 
 - [Codex MCP 配置](https://developers.openai.com/codex/mcp/)：支持受信任项目的 `.codex/config.toml`。
+- [Antigravity 插件机制](../.agents/plugins/dart-mcp/plugin.json)：支持通过 `.agents/plugins/<name>/mcp_config.json` 随仓库分发工作区级 MCP 服务。
+- [Claude Code MCP 配置](https://code.claude.com/docs/en/mcp)：支持项目根目录 `.mcp.json`。
 - [Dart/Flutter MCP server](https://github.com/dart-lang/ai/tree/main/pkgs/dart_mcp_server)：工具、DTD 应用发现与 `--print-dtd`。
 
 工具名与参数以本机 SDK 返回的 schema 为准；SDK 升级后重新验证握手、应用连接、截图和一次可撤销操作。

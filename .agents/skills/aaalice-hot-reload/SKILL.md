@@ -7,7 +7,7 @@ description: 为 Aaalice NAI Launcher 修改代码后选择并执行 Windows/And
 
 先加载 [aaalice-dev-sessions](../aaalice-dev-sessions/SKILL.md)，通过 `Status` 确认当前工作树的运行会话。已有会话运行时，代码修改完成后自动刷新受影响的已启动平台并验证结果，无需再次确认；不为这种自动刷新启动原本缺失的平台。仅修改文档或用户明确要求不刷新时不触发。
 
-用户明确要求启动或自动化验收时，缺失会话由开发会话 skill 创建；自动化验收在刷新后继续 [aaalice-runtime-verify](../aaalice-runtime-verify/SKILL.md) 的界面操作与截图检查。普通改码后的自动刷新不扩展为全界面验收。不得启动第二个 `flutter run`、`flutter attach` 或新的 Codex task。
+用户明确要求启动或自动化验收时，缺失会话由开发会话 skill 创建；自动化验收在刷新后继续 [aaalice-runtime-verify](../aaalice-runtime-verify/SKILL.md) 的界面操作与截图检查。普通改码后的自动刷新不扩展为全界面验收。不得启动第二个 `flutter run`、`flutter attach` 或额外的子代理任务。
 
 ## 判定动作
 
@@ -37,4 +37,4 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .agents/skills/aaalice-hot-reload/
 
 必须分别确认每个目标出现本次 reload/restart 完成信息，且没有新的编译失败、Flutter exception、`RenderFlex overflow`、`LateInitializationError` 或原生崩溃。某一端失败时保留另一端真实结果并给出失败端的原始错误；“输入已发送”本身不算完成。
 
-用户可以直接在独立窗口手动按 `r`/`R`。Codex 优先通过已连接的 MCP 刷新应用；会话准备使用本 skill 的 `scripts/control.ps1`，它会先用 session marker、进程启动时间、仓库路径和 Flutter 子进程验证目标，再向其控制台发送输入，不依赖窗口标题或固定窗口句柄。不要同时通过两个入口重复触发刷新。
+用户可以直接在独立窗口手动按 `r`/`R`。Agent 优先通过已连接的 Dart MCP 刷新应用；会话准备使用本 skill 的 `scripts/control.ps1`，它会先用 session marker、进程启动时间、仓库路径和 Flutter 子进程验证目标，再向其控制台发送输入，不依赖窗口标题或固定窗口句柄。不要同时通过两个入口重复触发刷新。
