@@ -430,8 +430,12 @@ void main() {
     test(
       'portable script succeeds when launched with appDirectory as working directory',
       () async {
-        final rootDir = await Directory.systemTemp.createTemp(
-          'nai_portable_cwd_test_',
+        // CI 的 %TEMP% 是 8.3 短路径（RUNNER~1），脚本按长路径截取相对路径。
+        // 正式流程的目录来自 Platform.resolvedExecutable，这里同样先解析成长路径。
+        final rootDir = Directory(
+          (await Directory.systemTemp.createTemp(
+            'nai_portable_cwd_test_',
+          )).resolveSymbolicLinksSync(),
         );
         final appDir = Directory(p.join(rootDir.path, 'app'))..createSync();
         final stagingDir = Directory(p.join(rootDir.path, 'staging'))
